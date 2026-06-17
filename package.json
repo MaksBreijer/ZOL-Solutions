@@ -1,0 +1,11 @@
+{
+  "name": "zol-solutions-shopify-theme",
+  "private": true,
+  "scripts": {
+    "dev": "shopify theme dev --store 0p1zik-x8.myshopify.com",
+    "push:theme": "shopify theme push --store 0p1zik-x8.myshopify.com --theme 199678165329 --nodelete"
+  },
+  "devDependencies": {
+    "@shopify/cli": "latest"
+  }
+}
