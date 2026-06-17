@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="{{ request.locale.iso_code }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="{{ settings.color_background }}">
+    <title>
+      {{ page_title }}
+      {% if current_tags %} - tagged "{{ current_tags | join: ', ' }}"{% endif %}
+      {% if current_page != 1 %} - Page {{ current_page }}{% endif %}
+      {% unless page_title contains shop.name %} - {{ shop.name }}{% endunless %}
+    </title>
+    {% if page_description %}
+      <meta name="description" content="{{ page_description | escape }}">
+    {% else %}
+      <meta name="description" content="ZOL Solutions maakt ZOL'tjes voor jonge sporters met hielpijn en ziekte van Sever. Zachter landen, beter sporten en comfortabel blijven bewegen.">
+    {% endif %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta property="og:site_name" content="{{ shop.name }}">
+    <meta property="og:title" content="{{ page_title | escape }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+    <meta property="og:type" content="{% if template.name == 'product' %}product{% else %}website{% endif %}">
+    {% if page_description %}
+      <meta property="og:description" content="{{ page_description | escape }}">
+    {% else %}
+      <meta property="og:description" content="ZOL'tjes voor jonge sporters met hielpijn. Ontworpen voor demping, stabiliteit en dagelijks sportcomfort.">
+    {% endif %}
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": {{ shop.name | json }},
+        "url": {{ shop.url | json }},
+        "description": "ZOL Solutions ontwikkelt sportzooltjes voor jonge sporters met hielpijn en ziekte van Sever."
+      }
+    </script>
+    {{ 'theme.css' | asset_url | stylesheet_tag }}
+    <script src="{{ 'theme.js' | asset_url }}" defer></script>
+    {{ content_for_header }}
+  </head>
+  <body>
+    <a class="skip-link" href="#MainContent">Skip to content</a>
+    {% section 'header' %}
+    <main id="MainContent" tabindex="-1">
+      {{ content_for_layout }}
+    </main>
+    {% section 'footer' %}
+  </body>
+</html>

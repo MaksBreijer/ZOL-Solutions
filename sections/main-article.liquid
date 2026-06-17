@@ -1,0 +1,15 @@
+<article class="page-shell content-page">
+  <p class="eyebrow">{{ blog.title }}</p>
+  <h1 class="page-title">{{ article.title }}</h1>
+  {% if article.image %}
+    {{ article.image | image_url: width: 1400 | image_tag: loading: 'eager', alt: article.title }}
+  {% endif %}
+  <div class="rte">{{ article.content }}</div>
+</article>
+
+{% schema %}
+{
+  "name": "Main article",
+  "settings": []
+}
+{% endschema %}

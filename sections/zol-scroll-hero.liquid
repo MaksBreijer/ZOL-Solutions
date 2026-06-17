@@ -1,0 +1,74 @@
+<section class="zol-hero" data-scroll-scene>
+  <div class="zol-hero__sky" aria-hidden="true"></div>
+  <div class="zol-hero__sticky">
+    <div class="zol-hero__copy">
+      <div>
+        <p class="eyebrow">{{ section.settings.eyebrow }}</p>
+        <h1>{{ section.settings.heading }}</h1>
+        <p class="zol-hero__lead">{{ section.settings.lead }}</p>
+      </div>
+      <div class="zol-hero__meta">
+        <span>8-15 jaar</span>
+        <span>Hielpijn</span>
+        <span>Direct klaar</span>
+      </div>
+    </div>
+
+    <div class="zol-hero__stage">
+      <div class="zol-grid"></div>
+      <div class="impact-ring impact-ring--one"></div>
+      <div class="impact-ring impact-ring--two"></div>
+      {% if section.settings.image != blank %}
+        {{ section.settings.image | image_url: width: 1600 | image_tag: class: 'zol-hero__product', loading: 'eager', alt: section.settings.heading }}
+      {% else %}
+        <img class="zol-hero__product" src="https://zolsolutions.nl/cdn/shop/files/Ontwerp_zonder_titel_2.jpg?v=1776766536&width=1400" alt="ZOL'tjes voor jonge sporters" width="1400" height="1400">
+      {% endif %}
+      <div class="zol-hero__vertical">Scroll voor impact</div>
+      <div class="impact-label impact-label--heel">Hiel</div>
+      <div class="impact-label impact-label--soft">Demping</div>
+      <div class="impact-label impact-label--stable">Stabiliteit</div>
+    </div>
+  </div>
+  <div class="zol-hero__ticker" aria-hidden="true">
+    <div class="zol-hero__ticker-track">
+      <span>Zachter Landen</span><span>Beter Sporten</span><span>Voor jonge sporters</span><span>ZOL Solutions</span>
+      <span>Zachter Landen</span><span>Beter Sporten</span><span>Voor jonge sporters</span><span>ZOL Solutions</span>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "ZOL scroll hero",
+  "settings": [
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "Eyebrow",
+      "default": "Last van hielpijn?"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Zachter Landen. Beter Sporten."
+    },
+    {
+      "type": "textarea",
+      "id": "lead",
+      "label": "Lead",
+      "default": "ZOL'tjes geven groeiende voeten een zachte, stabiele basis, zodat kinderen comfortabel kunnen blijven sporten."
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Hero image"
+    }
+  ],
+  "presets": [
+    {
+      "name": "ZOL scroll hero"
+    }
+  ]
+}
+{% endschema %}

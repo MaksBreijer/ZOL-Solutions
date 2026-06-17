@@ -1,0 +1,47 @@
+<section class="page-shell">
+  <p class="eyebrow">Checkout</p>
+  <h1 class="page-title">Cart</h1>
+
+  {% if cart.item_count > 0 %}
+    <form action="{{ routes.cart_url }}" method="post">
+      <table class="cart-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in cart.items %}
+            <tr>
+              <td>
+                <a href="{{ item.url }}">{{ item.product.title }}</a>
+                <div>{{ item.variant.title }}</div>
+              </td>
+              <td>
+                <input type="number" name="updates[]" value="{{ item.quantity }}" min="0">
+              </td>
+              <td>{{ item.final_line_price | money }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="cart-total">
+        <strong>{{ cart.total_price | money }}</strong>
+        <button class="button" type="submit" name="update">Update cart</button>
+        <button class="button" type="submit" name="checkout">Checkout</button>
+      </div>
+    </form>
+  {% else %}
+    <p>Your cart is empty.</p>
+    <a class="pill-link" href="{{ routes.collections_url }}">Shop products</a>
+  {% endif %}
+</section>
+
+{% schema %}
+{
+  "name": "Main cart",
+  "settings": []
+}
+{% endschema %}
