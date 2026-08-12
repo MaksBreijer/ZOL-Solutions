@@ -33,9 +33,10 @@ if (menuButton && navigation) {
   })
 }
 
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const revealElements = document.querySelectorAll('.reveal')
 
-if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+if ('IntersectionObserver' in window && !prefersReducedMotion) {
   const revealObserver = new IntersectionObserver(
     (entries, observer) => {
       entries.forEach((entry) => {
@@ -45,21 +46,40 @@ if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-mot
         observer.unobserve(entry.target)
       })
     },
-    { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+    { rootMargin: '0px 0px -7% 0px', threshold: 0.08 },
   )
 
-  revealElements.forEach((element) => {
+  revealElements.forEach((element, index) => {
     element.classList.add('reveal-ready')
+    element.style.setProperty('--reveal-delay', `${Math.min(index % 4, 3) * 45}ms`)
     revealObserver.observe(element)
   })
 }
 
-document.querySelectorAll('.faq-list details').forEach((item) => {
-  item.addEventListener('toggle', () => {
-    if (!item.open) return
+const floatingProduct = document.querySelector('[data-float]')
 
-    document.querySelectorAll('.faq-list details').forEach((otherItem) => {
-      if (otherItem !== item) otherItem.removeAttribute('open')
-    })
-  })
-})
+if (floatingProduct && !prefersReducedMotion) {
+  let ticking = false
+
+  const updateProductPosition = () => {
+    const rect = floatingProduct.getBoundingClientRect()
+    const viewportCenter = window.innerHeight / 2
+    const elementCenter = rect.top + rect.height / 2
+    const offset = Math.max(-14, Math.min(14, (viewportCenter - elementCenter) * 0.025))
+
+    floatingProduct.style.setProperty('--float-offset', `${offset}px`)
+    ticking = false
+  }
+
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (ticking) return
+      ticking = true
+      window.requestAnimationFrame(updateProductPosition)
+    },
+    { passive: true },
+  )
+
+  updateProductPosition()
+}
