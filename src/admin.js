@@ -77,6 +77,7 @@ const statusClass = (value = '') => {
 
 const statusPill = (value) => `<span class="status-pill ${statusClass(value)}">${escapeHtml(prettyStatus(value))}</span>`
 const fullName = (item) => [item?.first_name, item?.last_name].filter(Boolean).join(' ') || item?.customer_name || 'Onbekend'
+const roleLabel = (role = '') => ({ owner: 'Eigenaar', admin: 'Beheerder', editor: 'Contentbeheerder', viewer: 'Alleen bekijken' }[role] || role)
 const initials = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'ZO'
 const isStrongPassword = (value = '') =>
   value.length >= 12 && /[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value)
@@ -158,12 +159,17 @@ function setBusy(button, busy, label = 'Opslaan') {
   button.textContent = busy ? 'Even geduld…' : label
 }
 
-async function edgeFunctionMessage(error, data, fallback) {
+async function edgeFunctionDetails(error, data) {
   let details = data || null
   if (!details && error?.context?.clone) {
     try { details = await error.context.clone().json() } catch { /* Gebruik de veilige fallback. */ }
   }
-  return details?.error || fallback
+  return details || {}
+}
+
+async function edgeFunctionMessage(error, data, fallback) {
+  const details = await edgeFunctionDetails(error, data)
+  return details.error || fallback
 }
 
 function openDialog(title, eyebrow, body) {
@@ -359,7 +365,8 @@ function customersTable(customers) {
 }
 
 function renderCustomers() {
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('customers', '<button class="button button--primary" data-action="new-customer">Klant toevoegen</button>')}<section class="panel"><div class="filters"><input type="search" data-filter="customers" placeholder="Zoek op naam, e-mail of telefoon"><select data-filter-marketing="customers"><option value="">Alle klanten</option><option value="yes">Marketing toegestaan</option><option value="no">Geen marketing</option></select></div><div id="customers-table">${customersTable(state.customers)}</div></section></div>`
+  const actions = ['owner', 'admin'].includes(state.profile?.role) ? '<button class="button button--primary" data-action="new-customer">Klant toevoegen</button>' : ''
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('customers', actions)}<section class="panel"><div class="filters"><input type="search" data-filter="customers" placeholder="Zoek op naam, e-mail of telefoon"><select data-filter-marketing="customers"><option value="">Alle klanten</option><option value="yes">Marketing toegestaan</option><option value="no">Geen marketing</option></select></div><div id="customers-table">${customersTable(state.customers)}</div></section></div>`
 }
 
 function filterCustomers() {
@@ -389,12 +396,13 @@ function customerForm(customer = {}) {
   const orders = state.orders.filter((order) => order.customer_id === customer.id)
   const emailHistory = state.emailMessages.filter((email) => email.customer_id === customer.id).slice(0, 5)
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
+  const canManageCustomers = ['owner', 'admin'].includes(state.profile?.role)
   openDialog(customer.id ? fullName(customer) : 'Nieuwe klant', 'Klant', `<form id="customer-form"><div class="form-grid">
     <label class="field">Voornaam<input name="first_name" value="${escapeHtml(customer.first_name)}" required></label><label class="field">Achternaam<input name="last_name" value="${escapeHtml(customer.last_name)}"></label>
     <label class="field">E-mailadres<input name="email" type="email" value="${escapeHtml(customer.email)}" required></label><label class="field">Telefoon<input name="phone" value="${escapeHtml(customer.phone)}"></label>
     <label class="field field--full">Notities<textarea name="notes" placeholder="Interne notities over deze klant">${escapeHtml(customer.notes)}</textarea></label>
     <label class="checkbox-field field--full"><input name="marketing_opt_in" type="checkbox" ${customer.marketing_opt_in ? 'checked' : ''}> Klant heeft toestemming gegeven voor marketing</label>
-  </div>${customer.id ? `<h3>Bestelgeschiedenis</h3><div class="line-items">${orders.map((order) => `<div class="line-item"><div><strong>#${order.order_number}</strong><small>${formatDate(order.created_at)} · ${prettyStatus(order.status)}</small></div><strong>${formatMoney(order.total_cents)}</strong></div>`).join('') || '<div class="line-item">Nog geen bestellingen</div>'}</div><h3>Recente e-mails</h3><div class="line-items">${emailHistory.map((email) => `<div class="line-item"><div><strong>${escapeHtml(email.subject)}</strong><small>${formatDate(email.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${statusPill(email.status)}</div>`).join('') || '<div class="line-item">Nog geen e-mails verstuurd</div>'}</div>` : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button>${customer.id ? `<button class="button" type="button" data-action="email-customer" data-id="${customer.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>E-mail sturen</button>` : ''}<button class="button button--primary" type="submit">Klant opslaan</button></div></form>`)
+  </div>${customer.id ? `<h3>Bestelgeschiedenis</h3><div class="line-items">${orders.map((order) => `<div class="line-item"><div><strong>#${order.order_number}</strong><small>${formatDate(order.created_at)} · ${prettyStatus(order.status)}</small></div><strong>${formatMoney(order.total_cents)}</strong></div>`).join('') || '<div class="line-item">Nog geen bestellingen</div>'}</div><h3>Recente e-mails</h3><div class="line-items">${emailHistory.map((email) => `<div class="line-item"><div><strong>${escapeHtml(email.subject)}</strong><small>${formatDate(email.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${statusPill(email.status)}</div>`).join('') || '<div class="line-item">Nog geen e-mails verstuurd</div>'}</div>` : ''}<div class="form-actions">${customer.id && canManageCustomers ? `<button class="button button--danger" type="button" data-action="delete-customer" data-id="${customer.id}">Klant verwijderen</button>` : ''}<button class="button" type="button" data-close-dialog>Annuleren</button>${customer.id ? `<button class="button" type="button" data-action="email-customer" data-id="${customer.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>E-mail sturen</button>` : ''}<button class="button button--primary" type="submit">Klant opslaan</button></div></form>`)
   const form = document.querySelector('#customer-form')
   form.addEventListener('submit', async (event) => {
     event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true)
@@ -405,6 +413,19 @@ function customerForm(customer = {}) {
     await recordActivity(customer.id ? 'Klant bijgewerkt' : 'Klant toegevoegd', 'customer', customer.id || data.email)
     toast('Klant opgeslagen'); closeDialog(); await refreshCurrentRoute()
   })
+}
+
+async function deleteCustomer(customerId) {
+  const customer = state.customers.find((item) => item.id === customerId)
+  if (!customer || !['owner', 'admin'].includes(state.profile?.role)) return
+  const orderCount = state.orders.filter((order) => order.customer_id === customer.id).length
+  const warning = orderCount ? ` De ${orderCount} gekoppelde bestelling${orderCount === 1 ? '' : 'en'} blijven bewaard.` : ''
+  if (!window.confirm(`Weet je zeker dat je ${fullName(customer)} wilt verwijderen?${warning}`)) return
+  const { error } = await supabase.from('customers').delete().eq('id', customer.id)
+  if (error) { toast('Klant verwijderen mislukt', error.message, true); return }
+  await recordActivity('Klant verwijderd', 'customer', customer.id, { email: customer.email, preserved_orders: orderCount })
+  toast('Klant verwijderd', orderCount ? 'De bestelgeschiedenis is behouden.' : '')
+  closeDialog(); await refreshCurrentRoute()
 }
 
 function customerEmailForm(customer) {
@@ -733,14 +754,22 @@ function renderActivity() {
   elements.content.innerHTML = `<div class="page-container">${pageHeader('activity')}<section class="panel"><header class="panel-header"><div><h2>Activiteitenlogboek</h2><p>De laatste 100 beheeracties</p></div></header>${activityList(state.activity)}</section></div>`
 }
 
-function renderTeam() {
-  const rows = state.profiles.map((profile) => `<tr><td><strong>${escapeHtml(profile.full_name || profile.email)}</strong></td><td>${escapeHtml(profile.email)}</td><td>${statusPill(profile.active ? 'active' : 'inactive')}</td><td>${escapeHtml(profile.role)}</td><td>${formatDate(profile.created_at)}</td></tr>`).join('')
+function teamManagementMarkup(returnTo = 'team', compact = false) {
+  const canManage = state.profile?.role === 'owner'
+  const rows = state.profiles.map((profile) => {
+    const removable = canManage && profile.id !== state.profile.id && profile.role !== 'owner'
+    return `<tr><td><strong>${escapeHtml(profile.full_name || profile.email)}</strong>${profile.id === state.profile.id ? '<small class="table-subline">Jij</small>' : ''}</td><td>${escapeHtml(profile.email)}</td><td>${statusPill(profile.active ? 'active' : 'inactive')}</td><td>${escapeHtml(roleLabel(profile.role))}</td><td>${formatDate(profile.created_at)}</td><td class="table-actions">${removable ? `<button class="button button--danger button--small" data-action="remove-admin" data-id="${profile.id}" data-return="${returnTo}">Verwijderen</button>` : ''}</td></tr>`
+  }).join('')
   const pending = state.allowedEmails.filter((allowed) => !state.profiles.some((profile) => profile.email === allowed.email))
-  const actions = state.profile?.role === 'owner' ? '<button class="button button--primary" data-action="invite-admin">Beheerder toevoegen</button>' : ''
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('team', actions)}<section class="panel"><header class="panel-header"><div><h2>Actieve beheerders</h2><p>Toegang tot de ZOL-beheeromgeving</p></div></header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>E-mail</th><th>Status</th><th>Rol</th><th>Sinds</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen actieve beheerders', 'De eigenaar kan hier een beheerder toevoegen.', '♧')}</section>${pending.length ? `<section class="panel"><header class="panel-header"><div><h2>Wacht op activering</h2><p>Account is nog niet geactiveerd</p></div></header><div class="table-scroll"><table class="data-table"><thead><tr><th>E-mail</th><th>Rol</th><th>Toegevoegd</th></tr></thead><tbody>${pending.map((entry) => `<tr><td>${escapeHtml(entry.email)}</td><td>${escapeHtml(entry.role)}</td><td>${formatDate(entry.created_at)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}</div>`
+  const addButton = canManage ? `<button class="button button--primary" data-action="invite-admin" data-return="${returnTo}">Beheerder toevoegen</button>` : ''
+  return `<section class="${compact ? 'settings-team-block' : 'panel'}"><header class="panel-header"><div><h2>Actieve beheerders</h2><p>${canManage ? 'Voeg accounts toe of trek toegang direct in.' : 'Alleen de eigenaar kan toegang wijzigen.'}</p></div>${addButton}</header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>E-mail</th><th>Status</th><th>Rol</th><th>Sinds</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen actieve beheerders', 'De eigenaar kan hier een beheerder toevoegen.', '♧')}</section>${pending.length ? `<section class="${compact ? 'settings-team-block' : 'panel'}"><header class="panel-header"><div><h2>Wacht op activering</h2><p>Account is nog niet geactiveerd</p></div></header><div class="table-scroll"><table class="data-table"><thead><tr><th>E-mail</th><th>Rol</th><th>Toegevoegd</th><th></th></tr></thead><tbody>${pending.map((entry) => `<tr><td>${escapeHtml(entry.email)}</td><td>${escapeHtml(roleLabel(entry.role))}</td><td>${formatDate(entry.created_at)}</td><td class="table-actions">${canManage ? `<button class="button button--danger button--small" data-action="remove-admin" data-email="${escapeHtml(entry.email)}" data-return="${returnTo}">Verwijderen</button>` : ''}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`
 }
 
-function inviteAdminForm() {
+function renderTeam() {
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('team')}${teamManagementMarkup('team')}</div>`
+}
+
+function inviteAdminForm(returnTo = 'team') {
   openDialog('Beheerder toevoegen', 'Team', `<form id="invite-form"><div class="form-grid"><label class="field field--full">Naam<input name="full_name" type="text" autocomplete="name" maxlength="100" required></label><label class="field field--full">E-mailadres<input name="email" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" required></label><label class="field">Tijdelijk wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="12" required></label><label class="field">Herhaal wachtwoord<input name="password_confirm" type="password" autocomplete="new-password" minlength="12" required></label><label class="field field--full">Rol<select name="role"><option value="admin">Beheerder</option><option value="editor">Contentbeheerder</option><option value="viewer">Alleen bekijken</option></select></label></div><p style="color:#68737e;font-size:10px;line-height:1.6">Gebruik minimaal 12 tekens met een hoofdletter, kleine letter, cijfer en speciaal teken. Deel het tijdelijke wachtwoord via een veilig kanaal.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Beheerder aanmaken</button></div></form>`)
   const form = document.querySelector('#invite-form')
   form.addEventListener('submit', async (event) => {
@@ -750,10 +779,26 @@ function inviteAdminForm() {
     if (!isStrongPassword(payload.password)) { toast('Kies een sterker wachtwoord', 'Minimaal 12 tekens, hoofdletter, kleine letter, cijfer en speciaal teken.', true); setBusy(button, false, 'Beheerder aanmaken'); return }
     delete payload.password_confirm
     const { data, error } = await supabase.functions.invoke('invite-admin', { body: payload })
-    if (error || data?.error) { toast('Beheerder aanmaken mislukt', data?.error || error.message, true); setBusy(button, false, 'Beheerder aanmaken'); return }
+    if (error || data?.error) { toast('Beheerder aanmaken mislukt', await edgeFunctionMessage(error, data, 'De beheerder kon niet worden aangemaakt.'), true); setBusy(button, false, 'Beheerder aanmaken'); return }
     await recordActivity('Beheerder aangemaakt', 'admin', payload.email, { role: payload.role })
-    toast('Beheerder aangemaakt', `${payload.email} kan nu inloggen.`); closeDialog(); await refreshCurrentRoute()
+    toast('Beheerder aangemaakt', `${payload.email} kan nu inloggen.`); closeDialog(); await refreshCurrentRoute(returnTo === 'settings' ? 'team' : undefined)
   })
+}
+
+async function removeAdmin(profileId, email, returnTo = 'team') {
+  if (state.profile?.role !== 'owner') return
+  const profile = state.profiles.find((item) => item.id === profileId)
+  const targetEmail = profile?.email || email
+  if (!targetEmail || !window.confirm(`Weet je zeker dat je de beheerder ${targetEmail} wilt verwijderen? De toegang wordt direct ingetrokken.`)) return
+  const { data, error } = await supabase.functions.invoke('remove-admin', { body: { target_id: profileId || null, email: targetEmail } })
+  if (error || data?.error) {
+    const details = await edgeFunctionDetails(error, data)
+    const message = details.error || 'De beheerder kon niet worden verwijderd.'
+    if (details.access_revoked) { toast('Toegang ingetrokken', message, true); await refreshCurrentRoute(returnTo === 'settings' ? 'team' : undefined); return }
+    toast('Beheerder verwijderen mislukt', message, true); return
+  }
+  toast('Beheerder verwijderd', `${targetEmail} kan niet meer inloggen.`)
+  await refreshCurrentRoute(returnTo === 'settings' ? 'team' : undefined)
 }
 
 function settingsValue(key) { return state.settings.find((setting) => setting.key === key)?.value || {} }
@@ -765,9 +810,10 @@ function renderSettings(category = 'company') {
     checkout: `<h2>Checkout & betalingen</h2><p>Verzending, belasting en de voorbereiding op Mollie.</p><form id="settings-form" data-key="commerce" data-category="checkout"><div class="form-grid"><label class="field">Verzendkosten (€)<input name="shipping_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.shipping_cents || 0) / 100).toFixed(2)}"></label><label class="field">Gratis verzending vanaf (€)<input name="free_shipping_threshold_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.free_shipping_threshold_cents || 0) / 100).toFixed(2)}"></label><label class="field">BTW-percentage<input name="tax_rate" type="number" min="0" step="0.01" value="${commerce.tax_rate ?? 21}"></label><label class="field">Valuta<select name="currency"><option value="EUR" ${commerce.currency === 'EUR' ? 'selected' : ''}>EUR — euro</option></select></label><label class="checkbox-field field--full"><input name="mollie_enabled" type="checkbox" ${commerce.mollie_enabled ? 'checked' : ''}> Mollie activeren zodra de API-sleutel veilig is ingesteld</label></div>${settingsActions()}</form>`,
     website: `<h2>Huisstijl & SEO</h2><p>Pas de basiskleuren en standaard zoekmachinegegevens aan.</p><form id="settings-form" data-key="theme" data-category="website"><div class="form-grid"><label class="field">ZOL-blauw<div class="color-row"><input name="primary" type="color" value="${escapeHtml(theme.primary || '#33669B')}"><input value="${escapeHtml(theme.primary || '#33669B')}" disabled></div></label><label class="field">Accentkleur<div class="color-row"><input name="accent" type="color" value="${escapeHtml(theme.accent || '#F28C57')}"><input value="${escapeHtml(theme.accent || '#F28C57')}" disabled></div></label><label class="field">Tekstkleur<div class="color-row"><input name="ink" type="color" value="${escapeHtml(theme.ink || '#10233B')}"><input value="${escapeHtml(theme.ink || '#10233B')}" disabled></div></label><label class="field">Achtergrond<div class="color-row"><input name="background" type="color" value="${escapeHtml(theme.background || '#F7F5F0')}"><input value="${escapeHtml(theme.background || '#F7F5F0')}" disabled></div></label></div>${settingsActions()}</form><form id="seo-settings-form" style="margin-top:25px"><h2>Standaard SEO</h2><div class="form-grid"><label class="field">Websitetitel<input name="title" value="${escapeHtml(seo.title)}"></label><label class="field">Beschrijving<input name="description" value="${escapeHtml(seo.description)}"></label></div>${settingsActions()}</form>`,
     email: `<h2>E-mail</h2><p>Afzender, antwoordadres en interne meldingen. De geheime API-sleutel wordt nooit in de browser opgeslagen.</p><form id="settings-form" data-key="email_config" data-category="email"><div class="email-connection ${email.enabled ? 'is-connected' : ''}"><i>${email.enabled ? '✓' : '!'}</i><div><strong>${email.enabled ? 'E-mailverzending actief' : 'Wacht op domein en API-sleutel'}</strong><small>${email.enabled ? 'Order-, contact- en klantmails zijn ingeschakeld.' : 'De volledige mailflow staat klaar, maar verstuurt nog niets.'}</small></div></div><div class="form-grid"><label class="field">Afzendernaam<input name="from_name" value="${escapeHtml(email.from_name || 'ZOL Solutions')}"></label><label class="field">Afzenderadres<input name="from_email" type="email" value="${escapeHtml(email.from_email || 'info@zolsolutions.nl')}"></label><label class="field">Antwoordadres<input name="reply_to" type="email" value="${escapeHtml(email.reply_to || 'info@zolsolutions.nl')}"></label><label class="field">Interne meldingen naar<input name="admin_email" type="email" value="${escapeHtml(email.admin_email || 'info@zolsolutions.nl')}"></label><label class="field field--full">Website-URL<input name="website_url" type="url" value="${escapeHtml(email.website_url || 'https://zolsolutions.nl')}"></label><input name="provider" type="hidden" value="resend"><label class="checkbox-field field--full"><input name="enabled" type="checkbox" ${email.enabled ? 'checked' : ''}> Verzending activeren <small>(pas na domeinverificatie en server-side API-sleutel)</small></label></div>${settingsActions('E-mailinstellingen opslaan')}</form>`,
+    team: `<h2>Beheerders</h2><p>Beheer wie toegang heeft tot ZOL Admin. Alleen de eigenaar kan accounts toevoegen of verwijderen.</p>${teamManagementMarkup('settings', true)}`,
     security: `<h2>Account & beveiliging</h2><p>Wijzig je eigen wachtwoord. Na de wijziging worden alle andere actieve sessies afgemeld.</p><form id="password-form"><div class="form-grid"><label class="field field--full">Huidig wachtwoord<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Nieuw wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="12" required><small>Minimaal 12 tekens met hoofdletter, kleine letter, cijfer en speciaal teken.</small></label><label class="field">Herhaal nieuw wachtwoord<input name="password_confirm" type="password" autocomplete="new-password" minlength="12" required></label></div>${settingsActions('Wachtwoord wijzigen')}</form>`,
   }
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('settings')}<div class="settings-layout"><nav class="settings-nav panel"><button data-settings-tab="company" class="${category === 'company' ? 'is-active' : ''}">Bedrijf</button><button data-settings-tab="checkout" class="${category === 'checkout' ? 'is-active' : ''}">Checkout & btw</button><button data-settings-tab="website" class="${category === 'website' ? 'is-active' : ''}">Website & SEO</button><button data-settings-tab="email" class="${category === 'email' ? 'is-active' : ''}">E-mail</button><button data-settings-tab="security" class="${category === 'security' ? 'is-active' : ''}">Wachtwoord</button></nav><section class="settings-panel panel">${panels[category] || panels.company}</section></div></div>`
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('settings')}<div class="settings-layout"><nav class="settings-nav panel"><button data-settings-tab="company" class="${category === 'company' ? 'is-active' : ''}">Bedrijf</button><button data-settings-tab="checkout" class="${category === 'checkout' ? 'is-active' : ''}">Checkout & btw</button><button data-settings-tab="website" class="${category === 'website' ? 'is-active' : ''}">Website & SEO</button><button data-settings-tab="email" class="${category === 'email' ? 'is-active' : ''}">E-mail</button><button data-settings-tab="team" class="${category === 'team' ? 'is-active' : ''}">Beheerders</button><button data-settings-tab="security" class="${category === 'security' ? 'is-active' : ''}">Wachtwoord</button></nav><section class="settings-panel panel">${panels[category] || panels.company}</section></div></div>`
   bindSettingsForms(category)
 }
 
@@ -856,6 +902,7 @@ async function handleContentClick(event) {
   if (action === 'open-customer') customerForm(state.customers.find((item) => item.id === id))
   if (action === 'open-message') await openContactMessage(state.contactMessages.find((item) => item.id === id))
   if (action === 'new-customer') customerForm()
+  if (action === 'delete-customer') await deleteCustomer(id)
   if (action === 'email-customer') { const customer = state.customers.find((item) => item.id === id); closeDialog(); queueMicrotask(() => customerEmailForm(customer)) }
   if (action === 'open-product') productForm(state.products.find((item) => item.id === id))
   if (action === 'new-product') productForm()
@@ -869,7 +916,8 @@ async function handleContentClick(event) {
   if (action === 'delete-media') await deleteMedia(id)
   if (action === 'open-payment') paymentForm(state.payments.find((item) => item.id === id))
   if (action === 'send-order-email') await sendOrderEmail(state.orders.find((item) => item.id === id))
-  if (action === 'invite-admin') inviteAdminForm()
+  if (action === 'invite-admin') inviteAdminForm(target.dataset.return || 'team')
+  if (action === 'remove-admin') await removeAdmin(id, target.dataset.email, target.dataset.return || 'team')
 }
 
 function handleFilters(event) {
