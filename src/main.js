@@ -1,47 +1,65 @@
-import { createClient } from '@supabase/supabase-js'
 import './styles.css'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-const status = document.querySelector('#supabase-status')
-const statusDot = document.querySelector('#supabase-dot')
+document.documentElement.classList.add('js')
 
-function updateStatus(message, state) {
-  status.textContent = message
-  statusDot.classList.toggle('status-dot--online', state === 'online')
-  statusDot.classList.toggle('status-dot--warning', state === 'warning')
+const menuButton = document.querySelector('.menu-toggle')
+const navigation = document.querySelector('.nav-links')
+
+function closeMenu() {
+  if (!menuButton || !navigation) return
+
+  menuButton.setAttribute('aria-expanded', 'false')
+  menuButton.setAttribute('aria-label', 'Menu openen')
+  navigation.classList.remove('is-open')
 }
 
-async function verifySupabaseConnection() {
-  if (!supabaseUrl || !supabasePublishableKey) {
-    updateStatus('Wacht op Cloudflare-variabelen', 'warning')
-    return
-  }
+if (menuButton && navigation) {
+  menuButton.addEventListener('click', () => {
+    const isOpen = menuButton.getAttribute('aria-expanded') === 'true'
 
-  createClient(supabaseUrl, supabasePublishableKey, {
-    auth: {
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-      persistSession: false,
-    },
+    menuButton.setAttribute('aria-expanded', String(!isOpen))
+    menuButton.setAttribute('aria-label', isOpen ? 'Menu openen' : 'Menu sluiten')
+    navigation.classList.toggle('is-open', !isOpen)
   })
 
-  try {
-    const response = await fetch(`${supabaseUrl}/auth/v1/settings`, {
-      headers: {
-        apikey: supabasePublishableKey,
-      },
-    })
+  navigation.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu))
 
-    if (!response.ok) {
-      throw new Error(`Supabase antwoordde met ${response.status}`)
-    }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMenu()
+  })
 
-    updateStatus('Supabase verbonden', 'online')
-  } catch (error) {
-    console.error('Supabase connection check failed:', error)
-    updateStatus('Verbinding nog niet beschikbaar', 'warning')
-  }
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.nav-shell')) closeMenu()
+  })
 }
 
-verifySupabaseConnection()
+const revealElements = document.querySelectorAll('.reveal')
+
+if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const revealObserver = new IntersectionObserver(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+
+        entry.target.classList.add('in-view')
+        observer.unobserve(entry.target)
+      })
+    },
+    { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+  )
+
+  revealElements.forEach((element) => {
+    element.classList.add('reveal-ready')
+    revealObserver.observe(element)
+  })
+}
+
+document.querySelectorAll('.faq-list details').forEach((item) => {
+  item.addEventListener('toggle', () => {
+    if (!item.open) return
+
+    document.querySelectorAll('.faq-list details').forEach((otherItem) => {
+      if (otherItem !== item) otherItem.removeAttribute('open')
+    })
+  })
+})
