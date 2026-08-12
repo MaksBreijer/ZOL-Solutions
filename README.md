@@ -1,24 +1,34 @@
-# ZOL Solutions Shopify Theme
+# ZOL Solutions website
 
-Custom Shopify theme for ZOL Solutions with an interactive scroll homepage, responsive layouts, SEO basics, and ZOL content migrated from the current storefront.
+Nieuwe ZOL Solutions-website, los van Shopify.
 
-## Local development
+## Stack
+
+- Vite voor de statische websitebuild
+- Cloudflare Pages voor hosting en automatische deployments vanaf `main`
+- Supabase voor toekomstige product-, klant- en orderdata
+
+## Lokaal starten
 
 ```bash
-npx @shopify/cli@latest theme dev --store 0p1zik-x8.myshopify.com
+cp .env.example .env
+npm install
+npm run dev
 ```
 
-## Push to the unpublished Shopify theme
+Vul uitsluitend de publieke Supabase-waarden in:
+
+```dotenv
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+```
+
+Gebruik nooit een Supabase secret key of `service_role`-key in `VITE_`-variabelen.
+
+## Build
 
 ```bash
-npx @shopify/cli@latest theme push --store 0p1zik-x8.myshopify.com --theme 199678165329 --nodelete
+npm run build
 ```
 
-## Theme focus
-
-- Interactive scroll homepage
-- ZOL blue with orange accent
-- Content about heel pain, Sever's disease, cushioning, stability, sizing, and the ZOL origin story
-- Product, collection, cart, page, blog, and article templates
-- Responsive mobile-first adjustments
-- SEO fallback meta tags and organization structured data
+Cloudflare Pages publiceert de map `dist`.

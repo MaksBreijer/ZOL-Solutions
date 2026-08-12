@@ -1,11 +1,21 @@
 {
-  "name": "zol-solutions-shopify-theme",
+  "name": "zol-solutions-web",
+  "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
-    "dev": "shopify theme dev --store 0p1zik-x8.myshopify.com",
-    "push:theme": "shopify theme push --store 0p1zik-x8.myshopify.com --theme 199678165329 --nodelete"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "npm run build"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.112.3"
   },
   "devDependencies": {
-    "@shopify/cli": "latest"
+    "vite": "8.2.1"
   }
 }

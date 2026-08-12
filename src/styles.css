@@ -1,0 +1,236 @@
+:root {
+  color: #15130f;
+  background: #f7f2ea;
+  font-family:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: #f7f2ea;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 82% 12%, rgb(243 111 63 / 18%), transparent 26rem),
+    linear-gradient(155deg, #fffdf8 0%, #f7f2ea 52%, #efe6d9 100%);
+}
+
+a {
+  color: inherit;
+}
+
+.page-shell {
+  display: flex;
+  min-height: 100vh;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 28px clamp(22px, 5vw, 72px) 24px;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #15130f;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  color: #fff;
+  background: #f36f3f;
+  box-shadow: 0 10px 26px rgb(243 111 63 / 30%);
+  font-size: 18px;
+}
+
+.build-label {
+  padding: 8px 12px;
+  border: 1px solid rgb(21 19 15 / 12%);
+  border-radius: 999px;
+  color: #635f56;
+  background: rgb(255 255 255 / 52%);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero {
+  margin: auto 0;
+  padding: clamp(72px, 13vh, 150px) 0;
+}
+
+.eyebrow {
+  display: inline-flex;
+  margin-bottom: 24px;
+  color: #dc582d;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  max-width: 900px;
+  margin: 0;
+  font-size: clamp(3.2rem, 8vw, 7.4rem);
+  font-weight: 780;
+  letter-spacing: -0.065em;
+  line-height: 0.91;
+}
+
+.hero-copy {
+  max-width: 690px;
+  margin: 34px 0 0;
+  color: #5c584f;
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.65;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 58px;
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 92px;
+  padding: 20px;
+  border: 1px solid rgb(21 19 15 / 10%);
+  border-radius: 20px;
+  background: rgb(255 255 255 / 58%);
+  box-shadow: 0 18px 48px rgb(69 50 31 / 6%);
+  backdrop-filter: blur(14px);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #aaa49a;
+  box-shadow: 0 0 0 6px rgb(170 164 154 / 13%);
+}
+
+.status-dot--online {
+  background: #37a169;
+  box-shadow: 0 0 0 6px rgb(55 161 105 / 13%);
+}
+
+.status-dot--warning {
+  background: #e8a22c;
+  box-shadow: 0 0 0 6px rgb(232 162 44 / 15%);
+}
+
+.status-card div {
+  display: grid;
+  gap: 5px;
+}
+
+.status-label {
+  color: #8a847a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.status-card strong {
+  font-size: 14px;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 22px;
+  border-top: 1px solid rgb(21 19 15 / 10%);
+  color: #777168;
+  font-size: 13px;
+}
+
+footer a {
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 760px) {
+  .page-shell {
+    padding-top: 20px;
+  }
+
+  .build-label {
+    display: none;
+  }
+
+  .hero {
+    padding: 80px 0 64px;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr;
+    margin-top: 42px;
+  }
+
+  footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero > * {
+    animation: rise 560ms both;
+  }
+
+  .hero > :nth-child(2) {
+    animation-delay: 70ms;
+  }
+
+  .hero > :nth-child(3) {
+    animation-delay: 130ms;
+  }
+
+  .hero > :nth-child(4) {
+    animation-delay: 190ms;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
