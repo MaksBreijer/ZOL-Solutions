@@ -10,6 +10,7 @@ export default defineConfig({
         contact: resolve(import.meta.dirname, 'contact/index.html'),
         checkout: resolve(import.meta.dirname, 'checkout/index.html'),
         admin: resolve(import.meta.dirname, 'admin/index.html'),
+        adminAlias: resolve(import.meta.dirname, 'zolsolutions/admin/index.html'),
       },
     },
   },
