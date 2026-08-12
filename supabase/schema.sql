@@ -329,9 +329,11 @@ alter table public.settings enable row level security;
 alter table public.activity_log enable row level security;
 alter table public.analytics_events enable row level security;
 
-create policy "admins manage allowed emails" on public.admin_allowed_emails
-for all to authenticated using (private.is_admin(array['owner', 'admin']))
-with check (private.is_admin(array['owner', 'admin']));
+create policy "admins read allowed emails" on public.admin_allowed_emails
+for select to authenticated using (private.is_admin());
+create policy "owners manage allowed emails" on public.admin_allowed_emails
+for all to authenticated using (private.is_admin(array['owner']))
+with check (private.is_admin(array['owner']));
 
 create policy "admins read profiles" on public.admin_profiles
 for select to authenticated using (id = (select auth.uid()) or private.is_admin());

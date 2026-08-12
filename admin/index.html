@@ -32,24 +32,13 @@
           <p>Beheer bestellingen, producten, klanten en je website veilig vanuit één omgeving.</p>
         </div>
         <form class="login-form" id="login-form">
-          <label>E-mailadres<input name="email" type="email" autocomplete="username" required /></label>
+          <label>E-mailadres<input name="email" type="email" value="maks@zolsolutions.nl" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
           <label>Wachtwoord<input name="password" type="password" autocomplete="current-password" minlength="8" required /></label>
           <button class="primary-action" type="submit">Inloggen <span>→</span></button>
           <button class="text-action" type="button" id="reset-password">Wachtwoord vergeten?</button>
           <p class="form-message" id="login-message" aria-live="polite"></p>
         </form>
-        <details class="first-admin">
-          <summary>Eerste keer inloggen?</summary>
-          <p>Activeer het vooraf goedgekeurde beheeraccount met je e-mailadres en een nieuw wachtwoord.</p>
-          <form id="signup-form">
-            <label>Naam<input name="full_name" type="text" autocomplete="name" required /></label>
-            <label>E-mailadres<input name="email" type="email" autocomplete="email" required /></label>
-            <label>Nieuw wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
-            <button class="secondary-action" type="submit">Account activeren</button>
-            <p class="form-message" id="signup-message" aria-live="polite"></p>
-          </form>
-        </details>
-        <p class="login-security">Beveiligd met versleutelde Supabase-authenticatie.</p>
+        <p class="login-security">Alleen goedgekeurde beheerders hebben toegang. Beveiligd met versleutelde Supabase-authenticatie.</p>
       </section>
       <aside class="login-visual" aria-hidden="true">
         <div class="login-orbit"><span></span><span></span><span></span><i>Z</i></div>

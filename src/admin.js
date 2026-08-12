@@ -74,6 +74,8 @@ const statusClass = (value = '') => {
 const statusPill = (value) => `<span class="status-pill ${statusClass(value)}">${escapeHtml(prettyStatus(value))}</span>`
 const fullName = (item) => [item?.first_name, item?.last_name].filter(Boolean).join(' ') || item?.customer_name || 'Onbekend'
 const initials = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'ZO'
+const isStrongPassword = (value = '') =>
+  value.length >= 12 && /[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value)
 
 function toast(title, message = '', error = false) {
   const item = document.createElement('div')
@@ -481,19 +483,23 @@ function renderActivity() {
 function renderTeam() {
   const rows = state.profiles.map((profile) => `<tr><td><strong>${escapeHtml(profile.full_name || profile.email)}</strong></td><td>${escapeHtml(profile.email)}</td><td>${statusPill(profile.active ? 'active' : 'inactive')}</td><td>${escapeHtml(profile.role)}</td><td>${formatDate(profile.created_at)}</td></tr>`).join('')
   const pending = state.allowedEmails.filter((allowed) => !state.profiles.some((profile) => profile.email === allowed.email))
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('team', '<button class="button button--primary" data-action="invite-admin">Beheerder uitnodigen</button>')}<section class="panel"><header class="panel-header"><div><h2>Actieve beheerders</h2><p>Toegang tot de ZOL-beheeromgeving</p></div></header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>E-mail</th><th>Status</th><th>Rol</th><th>Sinds</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen actieve beheerders', 'Nodig een beheerder uit om samen te werken.', '♧')}</section>${pending.length ? `<section class="panel"><header class="panel-header"><div><h2>Openstaande uitnodigingen</h2><p>Nog niet geactiveerd</p></div></header><div class="table-scroll"><table class="data-table"><thead><tr><th>E-mail</th><th>Rol</th><th>Uitgenodigd</th></tr></thead><tbody>${pending.map((entry) => `<tr><td>${escapeHtml(entry.email)}</td><td>${escapeHtml(entry.role)}</td><td>${formatDate(entry.created_at)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}</div>`
+  const actions = state.profile?.role === 'owner' ? '<button class="button button--primary" data-action="invite-admin">Beheerder toevoegen</button>' : ''
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('team', actions)}<section class="panel"><header class="panel-header"><div><h2>Actieve beheerders</h2><p>Toegang tot de ZOL-beheeromgeving</p></div></header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>E-mail</th><th>Status</th><th>Rol</th><th>Sinds</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen actieve beheerders', 'De eigenaar kan hier een beheerder toevoegen.', '♧')}</section>${pending.length ? `<section class="panel"><header class="panel-header"><div><h2>Wacht op activering</h2><p>Account is nog niet geactiveerd</p></div></header><div class="table-scroll"><table class="data-table"><thead><tr><th>E-mail</th><th>Rol</th><th>Toegevoegd</th></tr></thead><tbody>${pending.map((entry) => `<tr><td>${escapeHtml(entry.email)}</td><td>${escapeHtml(entry.role)}</td><td>${formatDate(entry.created_at)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}</div>`
 }
 
 function inviteAdminForm() {
-  openDialog('Beheerder uitnodigen', 'Team', `<form id="invite-form"><div class="form-grid"><label class="field field--full">E-mailadres<input name="email" type="email" required></label><label class="field field--full">Rol<select name="role"><option value="admin">Beheerder</option><option value="editor">Contentbeheerder</option><option value="viewer">Alleen bekijken</option></select></label></div><p style="color:#68737e;font-size:10px;line-height:1.6">De beheerder ontvangt een beveiligde uitnodiging per e-mail en kiest zelf een wachtwoord.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Uitnodiging versturen</button></div></form>`)
+  openDialog('Beheerder toevoegen', 'Team', `<form id="invite-form"><div class="form-grid"><label class="field field--full">Naam<input name="full_name" type="text" autocomplete="name" maxlength="100" required></label><label class="field field--full">E-mailadres<input name="email" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" required></label><label class="field">Tijdelijk wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="12" required></label><label class="field">Herhaal wachtwoord<input name="password_confirm" type="password" autocomplete="new-password" minlength="12" required></label><label class="field field--full">Rol<select name="role"><option value="admin">Beheerder</option><option value="editor">Contentbeheerder</option><option value="viewer">Alleen bekijken</option></select></label></div><p style="color:#68737e;font-size:10px;line-height:1.6">Gebruik minimaal 12 tekens met een hoofdletter, kleine letter, cijfer en speciaal teken. Deel het tijdelijke wachtwoord via een veilig kanaal.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Beheerder aanmaken</button></div></form>`)
   const form = document.querySelector('#invite-form')
   form.addEventListener('submit', async (event) => {
-    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Uitnodiging versturen')
-    const payload = Object.fromEntries(new FormData(form)); payload.email = payload.email.toLowerCase()
+    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Beheerder aanmaken')
+    const payload = Object.fromEntries(new FormData(form)); payload.email = payload.email.trim().toLowerCase(); payload.full_name = payload.full_name.trim()
+    if (payload.password !== payload.password_confirm) { toast('Wachtwoorden komen niet overeen', '', true); setBusy(button, false, 'Beheerder aanmaken'); return }
+    if (!isStrongPassword(payload.password)) { toast('Kies een sterker wachtwoord', 'Minimaal 12 tekens, hoofdletter, kleine letter, cijfer en speciaal teken.', true); setBusy(button, false, 'Beheerder aanmaken'); return }
+    delete payload.password_confirm
     const { data, error } = await supabase.functions.invoke('invite-admin', { body: payload })
-    if (error || data?.error) { toast('Uitnodigen mislukt', data?.error || error.message, true); setBusy(button, false, 'Uitnodiging versturen'); return }
-    await recordActivity('Beheerder uitgenodigd', 'admin', payload.email, { role: payload.role })
-    toast('Uitnodiging verstuurd', payload.email); closeDialog(); await refreshCurrentRoute()
+    if (error || data?.error) { toast('Beheerder aanmaken mislukt', data?.error || error.message, true); setBusy(button, false, 'Beheerder aanmaken'); return }
+    await recordActivity('Beheerder aangemaakt', 'admin', payload.email, { role: payload.role })
+    toast('Beheerder aangemaakt', `${payload.email} kan nu inloggen.`); closeDialog(); await refreshCurrentRoute()
   })
 }
 
@@ -505,7 +511,7 @@ function renderSettings(category = 'company') {
     company: `<h2>Bedrijfsgegevens</h2><p>Gegevens die op facturen en in contactinformatie worden gebruikt.</p><form id="settings-form" data-key="company_profile" data-category="company"><div class="form-grid"><label class="field">Bedrijfsnaam<input name="name" value="${escapeHtml(company.name)}"></label><label class="field">E-mailadres<input name="email" type="email" value="${escapeHtml(company.email)}"></label><label class="field">Telefoon<input name="phone" value="${escapeHtml(company.phone)}"></label><label class="field">KvK-nummer<input name="kvk" value="${escapeHtml(company.kvk)}"></label><label class="field">BTW-nummer<input name="vat_number" value="${escapeHtml(company.vat_number)}"></label><label class="field">Adres<input name="address" value="${escapeHtml(company.address)}"></label></div>${settingsActions()}</form>`,
     checkout: `<h2>Checkout & betalingen</h2><p>Verzending, belasting en de voorbereiding op Mollie.</p><form id="settings-form" data-key="commerce" data-category="checkout"><div class="form-grid"><label class="field">Verzendkosten (€)<input name="shipping_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.shipping_cents || 0) / 100).toFixed(2)}"></label><label class="field">Gratis verzending vanaf (€)<input name="free_shipping_threshold_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.free_shipping_threshold_cents || 0) / 100).toFixed(2)}"></label><label class="field">BTW-percentage<input name="tax_rate" type="number" min="0" step="0.01" value="${commerce.tax_rate ?? 21}"></label><label class="field">Valuta<select name="currency"><option value="EUR" ${commerce.currency === 'EUR' ? 'selected' : ''}>EUR — euro</option></select></label><label class="checkbox-field field--full"><input name="mollie_enabled" type="checkbox" ${commerce.mollie_enabled ? 'checked' : ''}> Mollie activeren zodra de API-sleutel veilig is ingesteld</label></div>${settingsActions()}</form>`,
     website: `<h2>Huisstijl & SEO</h2><p>Pas de basiskleuren en standaard zoekmachinegegevens aan.</p><form id="settings-form" data-key="theme" data-category="website"><div class="form-grid"><label class="field">ZOL-blauw<div class="color-row"><input name="primary" type="color" value="${escapeHtml(theme.primary || '#33669B')}"><input value="${escapeHtml(theme.primary || '#33669B')}" disabled></div></label><label class="field">Accentkleur<div class="color-row"><input name="accent" type="color" value="${escapeHtml(theme.accent || '#F28C57')}"><input value="${escapeHtml(theme.accent || '#F28C57')}" disabled></div></label><label class="field">Tekstkleur<div class="color-row"><input name="ink" type="color" value="${escapeHtml(theme.ink || '#10233B')}"><input value="${escapeHtml(theme.ink || '#10233B')}" disabled></div></label><label class="field">Achtergrond<div class="color-row"><input name="background" type="color" value="${escapeHtml(theme.background || '#F7F5F0')}"><input value="${escapeHtml(theme.background || '#F7F5F0')}" disabled></div></label></div>${settingsActions()}</form><form id="seo-settings-form" style="margin-top:25px"><h2>Standaard SEO</h2><div class="form-grid"><label class="field">Websitetitel<input name="title" value="${escapeHtml(seo.title)}"></label><label class="field">Beschrijving<input name="description" value="${escapeHtml(seo.description)}"></label></div>${settingsActions()}</form>`,
-    security: `<h2>Account & beveiliging</h2><p>Werk je eigen wachtwoord veilig bij.</p><form id="password-form"><div class="form-grid"><label class="field">Huidig wachtwoord<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Nieuw wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="8" required></label></div>${settingsActions('Wachtwoord wijzigen')}</form>`,
+    security: `<h2>Account & beveiliging</h2><p>Wijzig je eigen wachtwoord. Na de wijziging worden alle andere actieve sessies afgemeld.</p><form id="password-form"><div class="form-grid"><label class="field field--full">Huidig wachtwoord<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Nieuw wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="12" required><small>Minimaal 12 tekens met hoofdletter, kleine letter, cijfer en speciaal teken.</small></label><label class="field">Herhaal nieuw wachtwoord<input name="password_confirm" type="password" autocomplete="new-password" minlength="12" required></label></div>${settingsActions('Wachtwoord wijzigen')}</form>`,
   }
   elements.content.innerHTML = `<div class="page-container">${pageHeader('settings')}<div class="settings-layout"><nav class="settings-nav panel"><button data-settings-tab="company" class="${category === 'company' ? 'is-active' : ''}">Bedrijf</button><button data-settings-tab="checkout" class="${category === 'checkout' ? 'is-active' : ''}">Checkout & btw</button><button data-settings-tab="website" class="${category === 'website' ? 'is-active' : ''}">Website & SEO</button><button data-settings-tab="security" class="${category === 'security' ? 'is-active' : ''}">Wachtwoord</button></nav><section class="settings-panel panel">${panels[category]}</section></div></div>`
   bindSettingsForms(category)
@@ -525,7 +531,23 @@ function bindSettingsForms(category) {
     event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget)); const { error } = await supabase.from('settings').upsert({ key: 'seo_defaults', category: 'website', label: 'Standaard SEO', value: values, is_public: true }); if (error) { toast('SEO opslaan mislukt', error.message, true); return } await recordActivity('SEO bijgewerkt', 'settings', 'seo_defaults'); toast('SEO opgeslagen'); await refreshCurrentRoute('website')
   })
   document.querySelector('#password-form')?.addEventListener('submit', async (event) => {
-    event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget)); const { error } = await supabase.auth.updateUser({ password: values.password, currentPassword: values.current_password }); if (error) { toast('Wachtwoord wijzigen mislukt', error.message, true); return } toast('Wachtwoord gewijzigd'); event.currentTarget.reset()
+    event.preventDefault()
+    const passwordForm = event.currentTarget
+    const button = passwordForm.querySelector('[type="submit"]')
+    const values = Object.fromEntries(new FormData(passwordForm))
+    if (values.password !== values.password_confirm) { toast('Wachtwoorden komen niet overeen', '', true); return }
+    if (!isStrongPassword(values.password)) { toast('Kies een sterker wachtwoord', 'Minimaal 12 tekens, hoofdletter, kleine letter, cijfer en speciaal teken.', true); return }
+    setBusy(button, true, 'Wachtwoord wijzigen')
+    const email = state.session?.user?.email
+    const { data: reauthenticated, error: reauthenticationError } = await supabase.auth.signInWithPassword({ email, password: values.current_password })
+    if (reauthenticationError) { toast('Huidig wachtwoord is niet juist', '', true); setBusy(button, false, 'Wachtwoord wijzigen'); return }
+    state.session = reauthenticated.session
+    const { error } = await supabase.auth.updateUser({ password: values.password, currentPassword: values.current_password })
+    if (error) { toast('Wachtwoord wijzigen mislukt', error.message, true); setBusy(button, false, 'Wachtwoord wijzigen'); return }
+    await supabase.auth.signOut({ scope: 'others' })
+    await recordActivity('Wachtwoord gewijzigd', 'admin', state.profile.id)
+    toast('Wachtwoord gewijzigd', 'Andere actieve sessies zijn afgemeld.')
+    passwordForm.reset(); setBusy(button, false, 'Wachtwoord wijzigen')
   })
 }
 
@@ -630,14 +652,6 @@ document.querySelector('#login-form').addEventListener('submit', async (event) =
   const values = Object.fromEntries(new FormData(form)); const { data, error } = await supabase.auth.signInWithPassword({ email: values.email.trim().toLowerCase(), password: values.password })
   if (error) { message.textContent = 'E-mailadres of wachtwoord is niet juist.'; message.classList.add('is-error'); setBusy(button, false, 'Inloggen'); return }
   await showAdmin(data.session)
-})
-
-document.querySelector('#signup-form').addEventListener('submit', async (event) => {
-  event.preventDefault(); const form = event.currentTarget; const message = document.querySelector('#signup-message'); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Account activeren')
-  const values = Object.fromEntries(new FormData(form)); const { data, error } = await supabase.auth.signUp({ email: values.email.trim().toLowerCase(), password: values.password, options: { data: { full_name: values.full_name.trim() }, emailRedirectTo: `${window.location.origin}/admin/` } })
-  if (error) { message.textContent = error.message; message.classList.add('is-error'); setBusy(button, false, 'Account activeren'); return }
-  message.textContent = data.session ? 'Account geactiveerd. De admin wordt geopend…' : 'Controleer je e-mail om het account te bevestigen.'; message.classList.remove('is-error'); setBusy(button, false, 'Account activeren')
-  if (data.session) await showAdmin(data.session)
 })
 
 document.querySelector('#reset-password').addEventListener('click', async () => {
