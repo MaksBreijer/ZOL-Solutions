@@ -5,61 +5,460 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="ZOL Solutions bouwt aan een zachtere landing voor jonge sporters."
+      content="ZOL maakt dempende, stabiele inlegzolen voor sportende kinderen met gevoelige hielen. Zachter landen, beter sporten."
     />
-    <meta name="theme-color" content="#f36f3f" />
-    <title>ZOL Solutions — Nieuwe website</title>
+    <meta name="theme-color" content="#33669b" />
+    <meta property="og:title" content="ZOL Solutions — Zachter landen. Beter sporten." />
+    <meta
+      property="og:description"
+      content="Extra comfort, demping en stabiliteit voor jonge sporters in de groei."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,500&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <title>ZOL Solutions — Zachter landen. Beter sporten.</title>
   </head>
   <body>
-    <main class="page-shell">
-      <nav class="topbar" aria-label="Hoofdnavigatie">
-        <a class="brand" href="/" aria-label="ZOL Solutions home">
-          <span class="brand-mark" aria-hidden="true">Z</span>
-          <span>ZOL Solutions</span>
+    <a class="skip-link" href="#main-content">Meteen naar de inhoud</a>
+
+    <aside class="announcement" aria-label="Mededeling">
+      <a href="#hielpijn">Last van hielpijn? Ontdek wat ZOL kan betekenen <span>→</span></a>
+    </aside>
+
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Hoofdnavigatie">
+        <a class="brand" href="#top" aria-label="ZOL Solutions home">
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/zol_wit.png?v=1774353653&width=180"
+            alt="ZOL Solutions"
+          />
         </a>
-        <span class="build-label">Nieuwe website</span>
+
+        <div class="nav-links" id="nav-links">
+          <a href="#verhaal">Ons verhaal</a>
+          <a href="#product">De ZOL'tjes</a>
+          <a href="#hielpijn">Hielpijn</a>
+          <a href="#ervaringen">Ervaringen</a>
+          <a href="mailto:info@zolsolutions.nl">Contact</a>
+        </div>
+
+        <a class="nav-cta" href="#product">Bekijk de ZOL'tjes</a>
+        <button
+          class="menu-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="nav-links"
+          aria-label="Menu openen"
+        >
+          <span></span><span></span>
+        </button>
       </nav>
+    </header>
 
-      <section class="hero" aria-labelledby="page-title">
-        <div class="eyebrow">Zachter landen. Beter sporten.</div>
-        <h1 id="page-title">We bouwen aan de nieuwe ZOL-ervaring.</h1>
-        <p class="hero-copy">
-          De nieuwe website wordt los van Shopify ontwikkeld. Cloudflare verzorgt de snelle
-          website, Supabase de veilige data en GitHub iedere gecontroleerde wijziging.
-        </p>
+    <main id="main-content">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Ontwikkeld voor jonge sporters</p>
+          <h1 id="hero-title">
+            Zachter landen.
+            <em>Beter sporten.</em>
+          </h1>
+          <p class="hero-intro">
+            Een dempende en stabiele basis voor kinderen die willen blijven bewegen — ook
+            wanneer groeiende hielen gevoelig zijn.
+          </p>
+          <div class="hero-actions">
+            <a class="button button--primary" href="#product">Ontdek ZOL</a>
+            <a class="text-link" href="#hielpijn">Meer over hielpijn <span>↗</span></a>
+          </div>
+          <div class="hero-proof" aria-label="Productvoordelen">
+            <span>Ontwikkeld met voetspecialisten</span>
+            <span>Handgemaakt in Nederland</span>
+          </div>
+        </div>
 
-        <div class="status-grid" aria-label="Technische status">
-          <article class="status-card">
-            <span class="status-dot status-dot--online" aria-hidden="true"></span>
+        <div class="hero-media reveal">
+          <video autoplay muted loop playsinline preload="metadata" aria-label="Jonge sporter in beweging">
+            <source
+              src="https://zolsolutions.nl/cdn/shop/videos/c/vp/9b2f8028627e418eafc58c7fa17e396c/9b2f8028627e418eafc58c7fa17e396c.HD-1080p-4.8Mbps-83950345.mp4?v=0"
+              type="video/mp4"
+            />
+          </video>
+          <div class="media-shade" aria-hidden="true"></div>
+          <p class="media-kicker">Van de zijlijn</p>
+          <p class="media-title">terug het veld op.</p>
+          <div class="media-chip media-chip--top">Ready to go</div>
+          <div class="media-chip media-chip--bottom">Demping + stabiliteit</div>
+        </div>
+      </section>
+
+      <section class="partners" aria-label="Partners">
+        <p>Vertrouwd door specialisten en sportorganisaties</p>
+        <div class="partner-track">
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/Tulp_Hoofdklasse_Playoffs_grijs.groen_-2f6f5ddb-4a3aa838-640w.png?v=1779793271&width=400"
+            alt="Tulp Hoofdklasse"
+          />
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/kidscare-logo.png?v=1785613565&width=400"
+            alt="B&amp;B Kids Care"
+          />
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/bp_college_logo_white.png?v=1776950919&width=400"
+            alt="BP College"
+          />
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/Bootfitter-wit.png?v=1776949512&width=400"
+            alt="Bootfitter"
+          />
+        </div>
+      </section>
+
+      <section class="story section" id="verhaal">
+        <div class="story-image reveal">
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/Ontwerp_zonder_titel_2.jpg?v=1776766536&width=1200"
+            alt="Het verhaal achter de ontwikkeling van ZOL"
+          />
+          <span class="image-caption">Ontstaan uit ervaring, ontwikkeld met aandacht.</span>
+        </div>
+
+        <div class="story-copy reveal">
+          <p class="section-label">Ons verhaal</p>
+          <h2>Een sportzool gebouwd vanuit <em>ervaring.</em></h2>
+          <p>
+            ZOL begon met een goed gesprek, niet met een businessplan. Vanuit persoonlijke
+            ervaring met de ziekte van Sever ontstond een duidelijke missie: jonge sporters
+            niet onnodig langs de kant laten staan.
+          </p>
+          <p>
+            Samen met voetspecialisten ontwikkelden we een verkorte sportzool die maximale
+            demping combineert met de stabiliteit die groeiende voeten nodig hebben.
+          </p>
+          <a class="text-link" href="#ontstaan">Lees hoe ZOL ontstond <span>→</span></a>
+        </div>
+      </section>
+
+      <section class="product section" id="product" aria-labelledby="product-title">
+        <div class="product-visual reveal">
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/DSC06659.jpg?v=1780586175&width=1946"
+            alt="ZOL-inlegzool in een sportschoen"
+          />
+          <div class="product-float-card">
+            <strong>3/4 vorm</strong>
+            <span>Past eenvoudig in verschillende sport- en vrijetijdsschoenen.</span>
+          </div>
+        </div>
+
+        <div class="product-copy reveal">
+          <p class="section-label section-label--light">De ZOL'tjes</p>
+          <h2 id="product-title">Comfort waar iedere stap <em>begint.</em></h2>
+          <p class="product-lead">
+            Dempende inlegzolen voor sportende kinderen met gevoelige hielen. Ontworpen voor
+            extra comfort, ondersteuning en stabiliteit tijdens rennen, springen en draaien.
+          </p>
+
+          <ul class="benefit-list">
+            <li><span>01</span> Zachte landing bij intensieve beweging</li>
+            <li><span>02</span> Stabiele ondersteuning van hiel en achtervoet</li>
+            <li><span>03</span> Makkelijk te verwisselen tussen schoenen</li>
+          </ul>
+
+          <div class="product-meta">
             <div>
-              <span class="status-label">Website</span>
-              <strong>Cloudflare klaar</strong>
+              <span>Prijs</span>
+              <strong>€99,95</strong>
             </div>
+            <div>
+              <span>Maten</span>
+              <strong>34/35 — 42/43</strong>
+            </div>
+          </div>
+
+          <a
+            class="button button--accent"
+            href="https://zolsolutions.nl/products/zol-inlegzolen-voor-kinderen-met-hielpijn"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Bekijk product
+          </a>
+          <p class="checkout-note">Bestellen verloopt tijdelijk via de bestaande ZOL-checkout.</p>
+        </div>
+      </section>
+
+      <section class="features section" aria-labelledby="features-title">
+        <div class="section-heading reveal">
+          <p class="section-label">Waarom ZOL</p>
+          <h2 id="features-title">Klaar voor <em>beweging.</em></h2>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card reveal">
+            <span class="feature-number">01</span>
+            <div class="feature-icon feature-icon--sole" aria-hidden="true"></div>
+            <h3>Ready to go</h3>
+            <p>Direct klaar voor gebruik. Plaats ZOL in de sportschoen en ga.</p>
           </article>
-
-          <article class="status-card">
-            <span id="supabase-dot" class="status-dot" aria-hidden="true"></span>
-            <div>
-              <span class="status-label">Database</span>
-              <strong id="supabase-status">Configuratie controleren…</strong>
-            </div>
+          <article class="feature-card reveal">
+            <span class="feature-number">02</span>
+            <div class="feature-icon feature-icon--switch" aria-hidden="true"></div>
+            <h3>Makkelijk te verwisselen</h3>
+            <p>De verkorte vorm verhuist eenvoudig mee van sportschoen naar sneaker.</p>
           </article>
-
-          <article class="status-card">
-            <span class="status-dot status-dot--online" aria-hidden="true"></span>
-            <div>
-              <span class="status-label">Broncode</span>
-              <strong>GitHub gekoppeld</strong>
-            </div>
+          <article class="feature-card feature-card--accent reveal">
+            <span class="feature-number">03</span>
+            <div class="feature-icon feature-icon--impact" aria-hidden="true"></div>
+            <h3>Ideale demping</h3>
+            <p>Ontworpen om harde klappen comfortabeler op te vangen, met behoud van steun.</p>
           </article>
         </div>
       </section>
 
-      <footer>
-        <span>© 2026 ZOL Solutions</span>
-        <a href="mailto:info@zolsolutions.nl">info@zolsolutions.nl</a>
-      </footer>
+      <section class="pain section" id="hielpijn">
+        <div class="pain-copy reveal">
+          <p class="section-label">Wat is hielpijn?</p>
+          <h2>Groeiende voeten verdienen een <em>zachte basis.</em></h2>
+          <p>
+            Wanneer kinderen hard groeien, kunnen sporten op kunstgras, gravel of zaalvloeren
+            behoorlijk intensief zijn voor de hielen. Vooral rennen, afzetten en springen geven
+            steeds opnieuw belasting.
+          </p>
+          <p>
+            ZOL geeft de hiel en achtervoet extra comfort en stabiliteit, zodat bewegen prettiger
+            kan aanvoelen.
+          </p>
+          <div class="sport-tags" aria-label="Geschikte sporten">
+            <span>Hockey</span><span>Voetbal</span><span>Tennis</span><span>Handbal</span>
+          </div>
+          <a class="button button--primary" href="mailto:info@zolsolutions.nl?subject=Vraag%20over%20hielpijn">
+            Stel ons een vraag
+          </a>
+        </div>
+        <div class="pain-image reveal">
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/ziekte_van_sever_hielpijn.png?v=1775822547&width=1200"
+            alt="Uitleg van gevoelige hielen bij kinderen in de groei"
+          />
+          <div class="pain-note">
+            <span>Goed om te weten</span>
+            <p>ZOL is een ondersteunend comfortproduct en geen medisch hulpmiddel.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="method section" aria-labelledby="method-title">
+        <div class="method-intro reveal">
+          <p class="section-label section-label--light">De ZOL-methode</p>
+          <h2 id="method-title">Van gevoelige hiel naar <em>vrij bewegen.</em></h2>
+        </div>
+
+        <ol class="method-steps">
+          <li class="reveal">
+            <span>01</span>
+            <h3>Plaats</h3>
+            <p>Leg de 3/4 zool achterin de sport- of vrijetijdsschoen.</p>
+          </li>
+          <li class="reveal">
+            <span>02</span>
+            <h3>Ondersteun</h3>
+            <p>Demping en stabiliteit werken samen rond hiel en achtervoet.</p>
+          </li>
+          <li class="reveal">
+            <span>03</span>
+            <h3>Beweeg</h3>
+            <p>Geef je jonge sporter een comfortabelere basis voor iedere training.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="origin section" id="ontstaan">
+        <div class="origin-gallery reveal">
+          <img
+            class="origin-main"
+            src="https://zolsolutions.nl/cdn/shop/files/DSC06583_09e69a5c-769e-434c-8451-c11116385894.jpg?v=1775822921&width=1200"
+            alt="Oprichters Maks Breijer en Thijn Koelemij"
+          />
+          <img
+            class="origin-detail"
+            src="https://zolsolutions.nl/cdn/shop/files/DSC06631.jpg?v=1780586255&width=600"
+            alt="Detail van de ZOL-inlegzool"
+          />
+        </div>
+        <div class="origin-copy reveal">
+          <p class="section-label">Zo ontstond ZOL</p>
+          <h2>Een bestaand idee kreeg een <em>nieuwe missie.</em></h2>
+          <p>
+            De basis van ZOL werd ontwikkeld door RegisterPodoloog Marco-Paul Breijer. Maks en
+            Thijn brachten het ontwerp verder, samen met een netwerk van podologen en hun eigen
+            ervaring als skibootfitters.
+          </p>
+          <blockquote>
+            “Kinderen niet onnodig langs de kant laten staan, maar ze de mogelijkheid geven om
+            te blijven bewegen.”
+          </blockquote>
+          <span class="signature">Maks &amp; Thijn — ZOL Solutions</span>
+        </div>
+      </section>
+
+      <section class="reviews section" id="ervaringen" aria-labelledby="reviews-title">
+        <div class="reviews-heading reveal">
+          <p class="section-label">Ervaringen</p>
+          <h2 id="reviews-title">We hoeven het niet alleen zelf te <em>zeggen.</em></h2>
+          <div class="rating"><span>★★★★★</span> 5,0 op basis van 9 Google-reviews</div>
+        </div>
+
+        <div class="review-grid">
+          <article class="review-card reveal">
+            <span class="quote-mark">“</span>
+            <p>
+              Mijn dochter had vaak last van haar hiel en enkel met handbal, maar nu gaat het
+              veel beter. De zooltjes zitten ook prettig.
+            </p>
+            <footer><strong>Eelco Groen</strong><span>Ouder van jonge sporter</span></footer>
+          </article>
+          <article class="review-card reveal">
+            <span class="quote-mark">“</span>
+            <p>
+              Sinds mijn zoon zooltjes draagt van ZOL heeft hij veel minder last van pijn. Ook
+              erg fijn advies van de jongens erachter.
+            </p>
+            <footer><strong>Sophie van Ham</strong><span>Google-review</span></footer>
+          </article>
+          <article class="review-card review-card--blue reveal">
+            <span class="quote-mark">“</span>
+            <p>
+              Mijn zoontje kan nu eindelijk weer tennissen dankzij deze zooltjes.
+            </p>
+            <footer><strong>Marcus Witkamp</strong><span>Google-review</span></footer>
+          </article>
+        </div>
+      </section>
+
+      <section class="press section" aria-labelledby="press-title">
+        <div class="section-heading reveal">
+          <p class="section-label">In de media</p>
+          <h2 id="press-title">Het verhaal wordt <em>opgepikt.</em></h2>
+        </div>
+
+        <div class="press-grid">
+          <a class="press-card reveal" href="https://tinyurl.com/2fhrhawn" target="_blank" rel="noreferrer">
+            <img
+              src="https://zolsolutions.nl/cdn/shop/files/Met_de_zooltjes_van_ZOL_Solutions_kunnen_de_kinderen_wel_blijven_sporten._Bron_Algemeen_Dagblad_2.png?v=1779284818&width=1200"
+              alt="Artikel over ZOL Solutions in het Algemeen Dagblad"
+            />
+            <div>
+              <span>Algemeen Dagblad</span>
+              <h3>Amsterdamse studenten bouwen een oplossing voor jonge sporters</h3>
+              <strong>Lees het artikel ↗</strong>
+            </div>
+          </a>
+          <a
+            class="press-card reveal"
+            href="https://hockey-magazine.nl/hielpijn-bij-je-sportkind-dit-is-wat-je-moet-weten/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <img
+              src="https://zolsolutions.nl/cdn/shop/files/Met_de_zooltjes_van_ZOL_Solutions_kunnen_de_kinderen_wel_blijven_sporten._Bron_Algemeen_Dagblad_4.png?v=1783497654&width=1200"
+              alt="Artikel over hielpijn bij sportkinderen"
+            />
+            <div>
+              <span>Hockey Magazine</span>
+              <h3>Hielpijn bij je sportkind: dit is wat je moet weten</h3>
+              <strong>Lees het artikel ↗</strong>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <section class="faq section" aria-labelledby="faq-title">
+        <div class="faq-heading reveal">
+          <p class="section-label">Veelgestelde vragen</p>
+          <h2 id="faq-title">Goed om te <em>weten.</em></h2>
+        </div>
+        <div class="faq-list reveal">
+          <details>
+            <summary>Voor welke sporten zijn de ZOL'tjes geschikt?</summary>
+            <p>
+              De verkorte zool past in vrijwel elke sport-, hockey-, voetbal- of tennisschoen,
+              maar ook in veel vrijetijdsschoenen.
+            </p>
+          </details>
+          <details>
+            <summary>Welke maat heeft mijn kind nodig?</summary>
+            <p>
+              XS is 34/35, S is 36/37, M is 38/39, L is 40/41 en XL is 42/43. Bij twijfel
+              tussen twee maten is voor sportgebruik meestal de grotere maat prettiger.
+            </p>
+          </details>
+          <details>
+            <summary>Is ZOL een medisch hulpmiddel?</summary>
+            <p>
+              Nee. ZOL is een ondersteunend comfortproduct en geen behandeling. Neem bij
+              aanhoudende of onverklaarbare klachten contact op met een arts, fysiotherapeut of
+              podotherapeut.
+            </p>
+          </details>
+          <details>
+            <summary>Kan ik de zool tussen schoenen verwisselen?</summary>
+            <p>
+              Ja. Juist door de 3/4 vorm is ZOL snel uit de ene schoen te halen en in de andere
+              te plaatsen.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta section reveal">
+        <p class="section-label section-label--light">Klaar voor de volgende training?</p>
+        <h2>Geef jonge voeten een <em>zachtere landing.</em></h2>
+        <p>Twijfel je over klachten, pasvorm of maat? We denken persoonlijk met je mee.</p>
+        <div>
+          <a class="button button--accent" href="#product">Bekijk de ZOL'tjes</a>
+          <a class="button button--ghost" href="mailto:info@zolsolutions.nl">Neem contact op</a>
+        </div>
+      </section>
     </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <img
+          src="https://zolsolutions.nl/cdn/shop/files/zol_wit.png?v=1774353653&width=180"
+          alt="ZOL Solutions"
+        />
+        <p>Zachter landen. Beter sporten.</p>
+      </div>
+      <div class="footer-links">
+        <div>
+          <strong>Ontdek</strong>
+          <a href="#product">De ZOL'tjes</a>
+          <a href="#hielpijn">Over hielpijn</a>
+          <a href="#verhaal">Ons verhaal</a>
+        </div>
+        <div>
+          <strong>Contact</strong>
+          <a href="mailto:info@zolsolutions.nl">info@zolsolutions.nl</a>
+          <a href="https://www.instagram.com/zolsolutions/" target="_blank" rel="noreferrer">Instagram</a>
+          <a href="https://www.linkedin.com/company/zolsolutions/" target="_blank" rel="noreferrer">LinkedIn</a>
+        </div>
+        <div>
+          <strong>Voorwaarden</strong>
+          <a href="https://zolsolutions.nl/policies/privacy-policy">Privacy</a>
+          <a href="https://zolsolutions.nl/policies/terms-of-service">Algemene voorwaarden</a>
+          <a href="https://zolsolutions.nl/policies/refund-policy">Retourbeleid</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 ZOL Solutions</span>
+        <span>Ontwikkeld in Nederland</span>
+      </div>
+    </footer>
 
     <script type="module" src="/src/main.js"></script>
   </body>
