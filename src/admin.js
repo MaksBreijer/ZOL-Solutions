@@ -76,6 +76,69 @@ const fullName = (item) => [item?.first_name, item?.last_name].filter(Boolean).j
 const initials = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'ZO'
 const isStrongPassword = (value = '') =>
   value.length >= 12 && /[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value)
+const visualContentTypes = new Set(['image', 'video', 'icon'])
+const iconChoices = [
+  ['builtin:place', 'Plaats'], ['builtin:fit', 'Pasvorm'], ['builtin:move', 'Bewegen'],
+  ['✓', 'Check'], ['→', 'Pijl'], ['↗', 'Schuin'], ['↓', 'Omlaag'], ['+', 'Plus'], ['●', 'Punt'], ['◇', 'Ruit'],
+]
+
+const isMediaUrl = (value = '') => /^(https?:\/\/|\/|blob:|data:image\/)/i.test(value.trim())
+const builtinIcon = (value = '') => ({ 'builtin:place': '◉', 'builtin:fit': '⌒', 'builtin:move': '↗' }[value] || '')
+
+function contentVisualMarkup(entry) {
+  const value = escapeHtml(entry.value)
+  if (entry.content_type === 'image') return `<div class="content-card-visual"><img src="${value}" alt="${escapeHtml(entry.label)}" loading="lazy"></div>`
+  if (entry.content_type === 'video') return `<div class="content-card-visual"><video src="${value}" muted playsinline preload="metadata"></video><span>VIDEO</span></div>`
+  if (entry.content_type === 'icon') {
+    const icon = isMediaUrl(entry.value) ? `<img src="${value}" alt="">` : `<b>${escapeHtml(builtinIcon(entry.value) || entry.value || '◇')}</b>`
+    return `<div class="content-card-visual content-card-visual--icon">${icon}<span>ICOON</span></div>`
+  }
+  if (entry.content_type === 'color') return `<div class="content-card-visual content-card-visual--color"><i style="background:${value}"></i><span>${value}</span></div>`
+  return ''
+}
+
+function contentCardMarkup(entry) {
+  return `<article class="content-card" data-action="open-content" data-id="${entry.id}">${contentVisualMarkup(entry)}<div class="content-card-body"><header><div><h3>${escapeHtml(entry.label)}</h3><code>${escapeHtml(entry.content_key)}</code></div>${statusPill(entry.active ? 'active' : 'inactive')}</header><p>${escapeHtml(entry.value)}</p></div></article>`
+}
+
+function sanitizePreviewHtml(value) {
+  const template = document.createElement('template')
+  template.innerHTML = value
+  template.content.querySelectorAll('script,style,iframe,object,embed,link,meta').forEach((element) => element.remove())
+  template.content.querySelectorAll('*').forEach((element) => {
+    ;[...element.attributes].forEach((attribute) => {
+      if (attribute.name.startsWith('on') || /^(javascript|data:text\/html):/i.test(attribute.value.trim())) element.removeAttribute(attribute.name)
+    })
+  })
+  return template.content
+}
+
+function renderContentPreview(container, type, value, label = 'Preview') {
+  container.replaceChildren()
+  container.dataset.type = type
+  if (!value) {
+    const empty = document.createElement('p'); empty.className = 'content-preview-empty'; empty.textContent = 'Kies media of vul inhoud in om de preview te zien.'; container.append(empty); return
+  }
+  if (type === 'image') {
+    const image = document.createElement('img'); image.src = value; image.alt = label; image.addEventListener('error', () => { image.replaceWith(Object.assign(document.createElement('p'), { className: 'content-preview-empty', textContent: 'Deze afbeelding kan niet worden geladen.' })) }); container.append(image); return
+  }
+  if (type === 'video') {
+    const video = document.createElement('video'); video.src = value; video.controls = true; video.muted = true; video.playsInline = true; video.preload = 'metadata'; container.append(video); return
+  }
+  if (type === 'icon') {
+    if (isMediaUrl(value)) { const image = document.createElement('img'); image.src = value; image.alt = label; container.append(image) }
+    else { const icon = document.createElement('span'); icon.className = 'content-preview-icon'; icon.textContent = builtinIcon(value) || value; container.append(icon) }
+    return
+  }
+  if (type === 'color') {
+    const swatch = document.createElement('span'); swatch.className = 'content-preview-swatch'; swatch.style.backgroundColor = value; const code = document.createElement('code'); code.textContent = value; container.append(swatch, code); return
+  }
+  if (type === 'button') { const button = document.createElement('button'); button.type = 'button'; button.className = 'content-preview-button'; button.textContent = value; container.append(button); return }
+  if (type === 'link') { const link = document.createElement('span'); link.className = 'content-preview-link'; link.textContent = value; container.append(link); return }
+  const copy = document.createElement('div'); copy.className = 'content-preview-copy'
+  if (type === 'html') copy.append(sanitizePreviewHtml(value)); else copy.textContent = value
+  container.append(copy)
+}
 
 function toast(title, message = '', error = false) {
   const item = document.createElement('div')
@@ -92,6 +155,7 @@ function setBusy(button, busy, label = 'Opslaan') {
 }
 
 function openDialog(title, eyebrow, body) {
+  elements.dialog.classList.remove('admin-dialog--wide')
   elements.dialogTitle.textContent = title
   elements.dialogEyebrow.textContent = eyebrow
   elements.dialogBody.innerHTML = body
@@ -100,6 +164,7 @@ function openDialog(title, eyebrow, body) {
 
 function closeDialog() {
   elements.dialog.close()
+  elements.dialog.classList.remove('admin-dialog--wide')
   elements.dialogBody.innerHTML = ''
 }
 
@@ -367,7 +432,7 @@ async function deleteProduct(productId) {
 
 function renderContent() {
   const pages = [...new Set(state.content.map((entry) => entry.page))]
-  const cards = state.content.map((entry) => `<article class="content-card" data-action="open-content" data-id="${entry.id}"><header><div><h3>${escapeHtml(entry.label)}</h3><code>${escapeHtml(entry.content_key)}</code></div>${statusPill(entry.active ? 'active' : 'inactive')}</header><p>${escapeHtml(entry.value)}</p></article>`).join('')
+  const cards = state.content.map(contentCardMarkup).join('')
   elements.content.innerHTML = `<div class="page-container">${pageHeader('content', '<button class="button" data-action="preview-site">Website bekijken ↗</button><button class="button button--primary" data-action="new-content">Content toevoegen</button>')}<section class="panel"><div class="filters"><input type="search" data-filter="content" placeholder="Zoek op label, sleutel of inhoud"><select data-filter-page="content"><option value="">Alle pagina's</option>${pages.map((page) => `<option>${escapeHtml(page)}</option>`).join('')}</select><select data-filter-type="content"><option value="">Alle typen</option><option value="text">Tekst</option><option value="html">Opgemaakte tekst</option><option value="image">Afbeelding</option><option value="video">Video</option><option value="icon">Icoon</option><option value="button">Button</option><option value="color">Kleur</option></select></div></section><div class="content-grid" id="content-grid">${cards || emptyState('Nog geen CMS-content', 'Voeg contentvelden toe en koppel ze aan onderdelen van de website.', '▤')}</div></div>`
 }
 
@@ -376,26 +441,116 @@ function filterContent() {
   const page = document.querySelector('[data-filter-page="content"]')?.value || ''
   const type = document.querySelector('[data-filter-type="content"]')?.value || ''
   const filtered = state.content.filter((entry) => (!query || [entry.label, entry.content_key, entry.value].some((value) => value.toLowerCase().includes(query))) && (!page || entry.page === page) && (!type || entry.content_type === type))
-  document.querySelector('#content-grid').innerHTML = filtered.map((entry) => `<article class="content-card" data-action="open-content" data-id="${entry.id}"><header><div><h3>${escapeHtml(entry.label)}</h3><code>${escapeHtml(entry.content_key)}</code></div>${statusPill(entry.active ? 'active' : 'inactive')}</header><p>${escapeHtml(entry.value)}</p></article>`).join('') || emptyState('Geen resultaten', 'Pas je zoekopdracht of filters aan.', '⌕')
+  document.querySelector('#content-grid').innerHTML = filtered.map(contentCardMarkup).join('') || emptyState('Geen resultaten', 'Pas je zoekopdracht of filters aan.', '⌕')
 }
 
 function contentForm(entry = {}) {
+  const mediaChoices = state.media.slice(0, 30).map((item) => `<button class="content-media-choice" type="button" data-content-media data-url="${escapeHtml(item.public_url)}" data-kind="${escapeHtml(item.kind)}" title="${escapeHtml(item.filename)}">${item.kind === 'video' ? `<video src="${escapeHtml(item.public_url)}" muted playsinline preload="metadata"></video>` : `<img src="${escapeHtml(item.public_url)}" alt="">`}<span>${escapeHtml(item.filename)}</span></button>`).join('')
+  const quickIcons = iconChoices.map(([value, label]) => `<button type="button" data-icon-value="${escapeHtml(value)}" title="${escapeHtml(label)}"><span>${escapeHtml(builtinIcon(value) || value)}</span><small>${escapeHtml(label)}</small></button>`).join('')
   openDialog(entry.id ? entry.label : 'Nieuw contentveld', 'Website CMS', `<form id="content-form"><div class="form-grid">
     <label class="field">Label<input name="label" value="${escapeHtml(entry.label)}" required></label><label class="field">Unieke sleutel<input name="content_key" value="${escapeHtml(entry.content_key)}" placeholder="home.hero.title" required></label>
     <label class="field">Pagina<input name="page" value="${escapeHtml(entry.page || 'global')}" required></label><label class="field">Sectie<input name="section" value="${escapeHtml(entry.section || 'general')}" required></label>
     <label class="field">Type<select name="content_type"><option value="text">Tekst</option><option value="html">Opgemaakte tekst</option><option value="image">Afbeelding</option><option value="video">Video</option><option value="icon">Icoon</option><option value="button">Button</option><option value="color">Kleur</option><option value="link">Link</option></select></label><label class="field">Eigenschap<select name="attribute"><option value="textContent">Tekst</option><option value="innerHTML">HTML</option><option value="src">Bronbestand (src)</option><option value="href">Link (href)</option><option value="style.backgroundColor">Achtergrondkleur</option></select></label>
     <label class="field field--full">CSS-koppeling <small>Hiermee wordt het juiste website-element gevonden.</small><input name="selector" value="${escapeHtml(entry.selector)}" placeholder="#hero-title"></label>
-    <label class="field field--full">Inhoud<textarea name="value" required>${escapeHtml(entry.value)}</textarea></label>
+    <label class="field field--full">Inhoud of media-URL<textarea name="value" id="content-value">${escapeHtml(entry.value)}</textarea></label>
+    <section class="content-media-tools field--full" id="content-media-tools" hidden>
+      <div class="content-media-toolbar"><label class="content-inline-upload"><input id="content-media-upload" type="file"><span>＋ Upload nieuw bestand</span></label><small id="content-file-status">Of kies hieronder uit je mediabibliotheek.</small></div>
+      <div class="content-icon-picker" id="content-icon-picker" hidden><strong>Kies een basisicoon</strong><div>${quickIcons}</div></div>
+      <div class="content-media-library" id="content-media-library">${mediaChoices || '<p>Nog geen media beschikbaar. Upload hierboven je eerste bestand.</p>'}</div>
+    </section>
+    <section class="content-live-preview field--full"><header><div><strong>Directe preview</strong><small>Je wijziging wordt pas gepubliceerd nadat je op Publiceren klikt.</small></div><span>LIVE</span></header><div class="content-preview-stage" id="content-preview"></div></section>
     <label class="checkbox-field field--full"><input name="active" type="checkbox" ${entry.active !== false ? 'checked' : ''}> Direct zichtbaar op de website</label>
   </div><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Publiceren</button></div></form>`)
-  const form = document.querySelector('#content-form'); form.elements.content_type.value = entry.content_type || 'text'; form.elements.attribute.value = entry.attribute || 'textContent'
+  elements.dialog.classList.add('admin-dialog--wide')
+  const form = document.querySelector('#content-form')
+  const preview = document.querySelector('#content-preview')
+  const mediaTools = document.querySelector('#content-media-tools')
+  const mediaLibrary = document.querySelector('#content-media-library')
+  const iconPicker = document.querySelector('#content-icon-picker')
+  const uploadInput = document.querySelector('#content-media-upload')
+  const fileStatus = document.querySelector('#content-file-status')
+  let pendingMediaFile = null
+  let pendingObjectUrl = ''
+  form.elements.content_type.value = entry.content_type || 'text'; form.elements.attribute.value = entry.attribute || 'textContent'
+
+  const cleanupObjectUrl = () => { if (pendingObjectUrl) URL.revokeObjectURL(pendingObjectUrl); pendingObjectUrl = '' }
+  elements.dialog.addEventListener('close', cleanupObjectUrl, { once: true })
+
+  const updatePreview = () => {
+    const type = form.elements.content_type.value
+    const value = pendingObjectUrl || form.elements.value.value.trim()
+    renderContentPreview(preview, type, value, form.elements.label.value || 'Websitecontent')
+    mediaTools.hidden = !visualContentTypes.has(type)
+    iconPicker.hidden = type !== 'icon'
+    uploadInput.accept = type === 'video' ? 'video/mp4,video/webm' : type === 'icon' ? '.svg,image/svg+xml,image/png,image/webp' : 'image/*'
+    mediaLibrary.querySelectorAll('[data-content-media]').forEach((button) => {
+      const matches = type === 'video' ? button.dataset.kind === 'video' : type === 'icon' ? ['icon', 'image'].includes(button.dataset.kind) : ['image', 'icon'].includes(button.dataset.kind)
+      button.hidden = !matches
+      button.classList.toggle('is-selected', !pendingMediaFile && button.dataset.url === form.elements.value.value.trim())
+    })
+  }
+
+  form.elements.content_type.addEventListener('change', () => {
+    const type = form.elements.content_type.value
+    if (!visualContentTypes.has(type) && pendingMediaFile) { pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''; fileStatus.textContent = 'Of kies hieronder uit je mediabibliotheek.' }
+    if (['image', 'video'].includes(type)) form.elements.attribute.value = 'src'
+    else if (type === 'icon') form.elements.attribute.value = 'textContent'
+    else if (type === 'html') form.elements.attribute.value = 'innerHTML'
+    else if (type === 'color') form.elements.attribute.value = 'style.backgroundColor'
+    else if (type === 'link') form.elements.attribute.value = 'href'
+    else form.elements.attribute.value = 'textContent'
+    updatePreview()
+  })
+  form.elements.value.addEventListener('input', (event) => {
+    if (event.isTrusted && pendingMediaFile) { pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''; fileStatus.textContent = 'Of kies hieronder uit je mediabibliotheek.' }
+    updatePreview()
+  })
+  form.elements.label.addEventListener('input', updatePreview)
+  mediaLibrary.addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-content-media]'); if (!choice) return
+    pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''
+    const currentType = form.elements.content_type.value
+    form.elements.content_type.value = choice.dataset.kind === 'video' ? 'video' : currentType === 'icon' || choice.dataset.kind === 'icon' ? 'icon' : 'image'
+    form.elements.attribute.value = form.elements.content_type.value === 'icon' ? 'textContent' : 'src'
+    form.elements.value.value = choice.dataset.url
+    fileStatus.textContent = 'Media geselecteerd uit de bibliotheek.'
+    updatePreview()
+  })
+  iconPicker.addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-icon-value]'); if (!choice) return
+    pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''; form.elements.value.value = choice.dataset.iconValue; fileStatus.textContent = 'Basisicoon geselecteerd.'; updatePreview()
+  })
+  uploadInput.addEventListener('change', () => {
+    const [file] = uploadInput.files || []; if (!file) return
+    const validationError = validateMediaFile(file)
+    if (validationError) { toast('Bestand niet bruikbaar', validationError, true); uploadInput.value = ''; return }
+    pendingMediaFile = file; cleanupObjectUrl(); pendingObjectUrl = URL.createObjectURL(file)
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    const detectedType = file.type.startsWith('video/') ? 'video' : extension === 'svg' ? 'icon' : 'image'
+    if (form.elements.content_type.value !== 'icon' || detectedType === 'video') form.elements.content_type.value = detectedType
+    form.elements.attribute.value = form.elements.content_type.value === 'icon' ? 'textContent' : 'src'
+    fileStatus.textContent = `${file.name} staat klaar om bij Publiceren te uploaden.`
+    updatePreview()
+  })
+  updatePreview()
   form.addEventListener('submit', async (event) => {
     event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true)
     const payload = Object.fromEntries(new FormData(form)); payload.active = form.elements.active.checked
+    if (pendingMediaFile) {
+      try {
+        const uploaded = await saveMediaFile(pendingMediaFile)
+        payload.value = uploaded.public_url
+        payload.content_type = form.elements.content_type.value
+      } catch (error) {
+        toast('Upload mislukt', error.message, true); setBusy(button, false, 'Publiceren'); return
+      }
+    }
+    if (!String(payload.value || '').trim()) { toast('Inhoud ontbreekt', 'Kies media of vul een waarde in.', true); setBusy(button, false, 'Publiceren'); return }
     const query = entry.id ? supabase.from('site_content').update(payload).eq('id', entry.id) : supabase.from('site_content').insert(payload)
     const { error } = await query
     if (error) { toast('Publiceren mislukt', error.message, true); setBusy(button, false, 'Publiceren'); return }
     await recordActivity(entry.id ? 'Websitecontent bijgewerkt' : 'Websitecontent toegevoegd', 'content', entry.id || payload.content_key, { key: payload.content_key })
+    cleanupObjectUrl()
     toast('Website bijgewerkt', 'De wijziging is direct gepubliceerd.'); closeDialog(); await refreshCurrentRoute()
   })
 }
@@ -413,22 +568,35 @@ function filterMedia() {
   document.querySelector('#media-grid').innerHTML = filtered.map((item) => `<article class="media-card"><div class="media-preview">${item.kind === 'image' || item.kind === 'icon' ? `<img src="${escapeHtml(item.public_url)}" alt="${escapeHtml(item.alt_text)}">` : item.kind === 'video' ? `<video src="${escapeHtml(item.public_url)}" muted></video>` : '<span>▤</span>'}</div><div class="media-card-actions"><button data-action="copy-media" data-url="${escapeHtml(item.public_url)}">⧉</button><button data-action="delete-media" data-id="${item.id}">×</button></div><div class="media-card-body"><strong>${escapeHtml(item.filename)}</strong><small>${escapeHtml(item.kind)}</small></div></article>`).join('') || emptyState('Geen media gevonden', 'Probeer een andere zoekopdracht.', '⌕')
 }
 
+function validateMediaFile(file) {
+  if (file.size > 50 * 1024 * 1024) return `${file.name} is groter dan 50 MB.`
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'video/mp4', 'video/webm'])
+  if (!allowedTypes.has(file.type) && extension !== 'svg') return 'Gebruik JPG, PNG, WebP, GIF, SVG, MP4 of WebM.'
+  return ''
+}
+
+async function saveMediaFile(file) {
+  const validationError = validateMediaFile(file); if (validationError) throw new Error(validationError)
+  const extension = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const safeName = slugify(file.name.replace(/\.[^.]+$/, '')) || 'bestand'
+  const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}-${safeName}.${extension}`
+  const { error: uploadError } = await supabase.storage.from('zol-media').upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined })
+  if (uploadError) throw uploadError
+  const { data: urlData } = supabase.storage.from('zol-media').getPublicUrl(path)
+  const kind = file.type.startsWith('video/') ? 'video' : extension === 'svg' ? 'icon' : 'image'
+  const { data, error } = await supabase.from('media').insert({ filename: file.name, storage_path: path, public_url: urlData.publicUrl, mime_type: file.type || 'application/octet-stream', size_bytes: file.size, kind, created_by: state.profile.id }).select().single()
+  if (error) { await supabase.storage.from('zol-media').remove([path]); throw error }
+  await recordActivity('Media geüpload', 'media', data.id, { filename: file.name })
+  return data
+}
+
 async function uploadMedia(event) {
   const files = [...event.target.files]
   for (const file of files) {
-    if (file.size > 50 * 1024 * 1024) { toast('Bestand te groot', `${file.name} is groter dan 50 MB.`, true); continue }
-    const extension = file.name.split('.').pop().toLowerCase()
-    const safeName = slugify(file.name.replace(/\.[^.]+$/, '')) || 'bestand'
-    const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}-${safeName}.${extension}`
     toast('Upload gestart', file.name)
-    const { error: uploadError } = await supabase.storage.from('zol-media').upload(path, file, { cacheControl: '3600', upsert: false })
-    if (uploadError) { toast('Upload mislukt', uploadError.message, true); continue }
-    const { data: urlData } = supabase.storage.from('zol-media').getPublicUrl(path)
-    const kind = file.type.startsWith('video/') ? 'video' : extension === 'svg' ? 'icon' : 'image'
-    const { error } = await supabase.from('media').insert({ filename: file.name, storage_path: path, public_url: urlData.publicUrl, mime_type: file.type || 'application/octet-stream', size_bytes: file.size, kind, created_by: state.profile.id })
-    if (error) { await supabase.storage.from('zol-media').remove([path]); toast('Media registreren mislukt', error.message, true); continue }
-    await recordActivity('Media geüpload', 'media', path, { filename: file.name })
-    toast('Upload voltooid', file.name)
+    try { await saveMediaFile(file); toast('Upload voltooid', file.name) }
+    catch (error) { toast('Upload mislukt', error.message, true) }
   }
   await refreshCurrentRoute()
 }

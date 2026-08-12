@@ -43,18 +43,24 @@ function applyEntry(entry) {
       element.replaceWith(video)
       return
     }
-    if (entry.content_type === 'image' && element.tagName === 'VIDEO') {
+    if (entry.content_type === 'image' && (element.tagName === 'VIDEO' || element.tagName === 'SOURCE')) {
       const image = document.createElement('img')
       image.src = entry.value
       image.alt = entry.label
-      element.replaceWith(image)
+      if (element.tagName === 'SOURCE' && element.parentElement?.tagName === 'VIDEO') element.parentElement.replaceWith(image)
+      else element.replaceWith(image)
       return
     }
-    if (entry.content_type === 'icon' && /^https?:\/\//.test(entry.value) && element.tagName !== 'IMG') {
-      const image = document.createElement('img')
-      image.src = entry.value
-      image.alt = entry.label
-      element.replaceChildren(image)
+    if (entry.content_type === 'icon') {
+      if (entry.value.startsWith('builtin:')) return
+      element.dataset.cmsIcon = 'true'
+      if (/^(https?:\/\/|\/|data:image\/)/i.test(entry.value) && element.tagName !== 'IMG') {
+        const image = document.createElement('img')
+        image.src = entry.value
+        image.alt = entry.label
+        element.replaceChildren(image)
+      } else if (element.tagName === 'IMG') element.src = entry.value
+      else element.textContent = entry.value
       return
     }
     if (entry.attribute === 'innerHTML') element.innerHTML = entry.value
