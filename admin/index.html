@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#f5f6f8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>ZOL Admin</title>
+  </head>
+  <body>
+    <div class="admin-loading" id="admin-loading" aria-live="polite">
+      <div class="zol-mark">ZOL</div>
+      <span class="spinner" aria-hidden="true"></span>
+      <p>Beheeromgeving laden…</p>
+    </div>
+
+    <main class="login-screen" id="login-screen" hidden>
+      <section class="login-panel">
+        <a class="login-brand" href="/" aria-label="Terug naar ZOL Solutions">
+          <span class="login-logo">ZOL</span>
+          <span><strong>Solutions</strong><small>Beheeromgeving</small></span>
+        </a>
+        <div class="login-copy">
+          <p class="eyebrow">Welkom terug</p>
+          <h1>Alles van ZOL.<br /><em>Op één plek.</em></h1>
+          <p>Beheer bestellingen, producten, klanten en je website veilig vanuit één omgeving.</p>
+        </div>
+        <form class="login-form" id="login-form">
+          <label>E-mailadres<input name="email" type="email" autocomplete="username" required /></label>
+          <label>Wachtwoord<input name="password" type="password" autocomplete="current-password" minlength="8" required /></label>
+          <button class="primary-action" type="submit">Inloggen <span>→</span></button>
+          <button class="text-action" type="button" id="reset-password">Wachtwoord vergeten?</button>
+          <p class="form-message" id="login-message" aria-live="polite"></p>
+        </form>
+        <details class="first-admin">
+          <summary>Eerste keer inloggen?</summary>
+          <p>Activeer het vooraf goedgekeurde beheeraccount met je e-mailadres en een nieuw wachtwoord.</p>
+          <form id="signup-form">
+            <label>Naam<input name="full_name" type="text" autocomplete="name" required /></label>
+            <label>E-mailadres<input name="email" type="email" autocomplete="email" required /></label>
+            <label>Nieuw wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
+            <button class="secondary-action" type="submit">Account activeren</button>
+            <p class="form-message" id="signup-message" aria-live="polite"></p>
+          </form>
+        </details>
+        <p class="login-security">Beveiligd met versleutelde Supabase-authenticatie.</p>
+      </section>
+      <aside class="login-visual" aria-hidden="true">
+        <div class="login-orbit"><span></span><span></span><span></span><i>Z</i></div>
+        <p>SPORT PERFORMANCE <span>×</span> MEDISCHE EXPERTISE</p>
+      </aside>
+    </main>
+
+    <div class="admin-app" id="admin-app" hidden>
+      <header class="admin-topbar">
+        <button class="mobile-menu-button" id="mobile-menu-button" type="button" aria-label="Menu openen">☰</button>
+        <a class="admin-brand" href="#dashboard" data-route="dashboard"><span>ZOL</span><strong>Admin</strong></a>
+        <label class="global-search">
+          <span>⌕</span>
+          <input id="global-search" type="search" placeholder="Zoeken in ZOL Admin" autocomplete="off" />
+          <kbd>⌘ K</kbd>
+        </label>
+        <div class="topbar-actions">
+          <a class="view-store" href="/" target="_blank" rel="noreferrer">Webshop ↗</a>
+          <button class="notification-button" type="button" aria-label="Meldingen">●</button>
+          <button class="account-button" id="account-button" type="button"><span id="account-initials">MB</span><strong id="account-name">Maks</strong><small id="account-role">Eigenaar</small></button>
+        </div>
+      </header>
+
+      <aside class="admin-sidebar" id="admin-sidebar">
+        <nav aria-label="Adminnavigatie">
+          <p>Overzicht</p>
+          <a href="#dashboard" data-route="dashboard"><span>⌂</span>Dashboard</a>
+          <a href="#orders" data-route="orders"><span>▣</span>Bestellingen <i id="open-order-count"></i></a>
+          <a href="#customers" data-route="customers"><span>♙</span>Klanten</a>
+
+          <p>Webshop</p>
+          <a href="#products" data-route="products"><span>◇</span>Producten</a>
+          <a href="#content" data-route="content"><span>▤</span>Website CMS</a>
+          <a href="#media" data-route="media"><span>▧</span>Media</a>
+          <a href="#payments" data-route="payments"><span>€</span>Betalingen</a>
+
+          <p>Inzichten</p>
+          <a href="#analytics" data-route="analytics"><span>⌁</span>Analytics</a>
+          <a href="#activity" data-route="activity"><span>◷</span>Activiteiten</a>
+
+          <p>Beheer</p>
+          <a href="#team" data-route="team"><span>♧</span>Beheerders</a>
+          <a href="#settings" data-route="settings"><span>⚙</span>Instellingen</a>
+        </nav>
+        <div class="sidebar-footer">
+          <div><span class="status-dot"></span><p><strong>Alle systemen online</strong><small>Supabase + Cloudflare</small></p></div>
+          <button id="sign-out" type="button">Uitloggen</button>
+        </div>
+      </aside>
+
+      <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Menu sluiten"></button>
+      <main class="admin-content" id="admin-content" tabindex="-1"></main>
+    </div>
+
+    <dialog class="admin-dialog" id="admin-dialog">
+      <div class="dialog-shell">
+        <header><div><p class="eyebrow" id="dialog-eyebrow">Bewerken</p><h2 id="dialog-title">Item bewerken</h2></div><button type="button" id="dialog-close" aria-label="Sluiten">×</button></header>
+        <div id="dialog-body"></div>
+      </div>
+    </dialog>
+
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    <script type="module" src="/src/admin.js"></script>
+  </body>
+</html>

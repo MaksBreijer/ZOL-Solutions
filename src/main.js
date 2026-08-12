@@ -1,4 +1,6 @@
 import './styles.css'
+import './site-runtime.js'
+import './product-commerce.js'
 
 document.documentElement.classList.add('js')
 
@@ -82,21 +84,6 @@ if (floatingProduct && !prefersReducedMotion) {
   )
 
   updateProductPosition()
-}
-
-const productCheckoutLink = document.querySelector('.product-checkout-link')
-const sizeOptions = document.querySelectorAll('.size-selector input[name="size"]')
-
-if (productCheckoutLink && sizeOptions.length) {
-  sizeOptions.forEach((option) => {
-    option.addEventListener('change', () => {
-      if (!option.checked) return
-
-      const selectedSize = option.dataset.size
-      productCheckoutLink.href = `https://zolsolutions.nl/products/zol-inlegzolen-voor-kinderen-met-hielpijn?variant=${option.value}`
-      productCheckoutLink.firstChild.textContent = `Kies ${selectedSize} en bestel `
-    })
-  })
 }
 
 document.querySelectorAll('.faq-list details').forEach((item) => {

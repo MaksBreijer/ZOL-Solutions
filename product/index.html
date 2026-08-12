@@ -44,6 +44,7 @@
           <a href="/#techniek">Techniek</a>
           <a href="/contact/">Contact</a>
         </div>
+        <a class="cart-link" href="/checkout/">Winkelwagen <span data-cart-count hidden>0</span></a>
         <a class="nav-cta" href="/contact/">Stel een vraag</a>
         <button
           class="menu-toggle"
@@ -102,15 +103,15 @@
             <label><input type="radio" name="size" value="53757641326929" data-size="42/43" /><span>42/43</span></label>
           </fieldset>
 
-          <a
-            class="button button--primary button--wide product-checkout-link"
-            href="https://zolsolutions.nl/products/zol-inlegzolen-voor-kinderen-met-hielpijn?variant=53757641195857"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Kies 34/35 en bestel <span>↗</span>
-          </a>
-          <p class="checkout-note">Je rondt je bestelling tijdelijk af in de bestaande beveiligde ZOL-checkout.</p>
+          <div class="purchase-controls">
+            <label for="product-quantity">Aantal</label>
+            <input id="product-quantity" type="number" min="1" max="10" value="1" inputmode="numeric" />
+          </div>
+          <div class="product-actions">
+            <button class="button button--outline button--wide" id="add-to-cart" type="button">In winkelwagen</button>
+            <button class="button button--primary button--wide" id="buy-now" type="button">Direct afrekenen <span>→</span></button>
+          </div>
+          <p class="checkout-note">Veilig bestellen via de nieuwe ZOL-checkout. Mollie kan later zonder nieuwe productpagina worden geactiveerd.</p>
 
           <div class="purchase-assurance">
             <span>Persoonlijk maatadvies</span><span>14 dagen bedenktijd</span>
