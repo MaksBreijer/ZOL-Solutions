@@ -75,6 +75,7 @@ Deno.serve(async (request) => {
           amount: { currency: "EUR", value: moneyValue(totalCents) },
           description: `ZOL bestelling #${order.order_number}`,
           redirectUrl: `https://zol-solutions.pages.dev/checkout/?order=${order.order_number}`,
+          webhookUrl: `${url}/functions/v1/mollie-webhook`,
           metadata: { order_id: order.order_id, order_number: order.order_number },
         }),
       })

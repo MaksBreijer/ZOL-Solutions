@@ -1,6 +1,7 @@
 import './styles.css'
 import './site-runtime.js'
 import './product-commerce.js'
+import { supabase } from './supabase-client.js'
 
 document.documentElement.classList.add('js')
 
@@ -98,23 +99,43 @@ document.querySelectorAll('.faq-list details').forEach((item) => {
 
 const contactForm = document.querySelector('#contact-form')
 
+async function edgeFunctionFailure(error, data, fallback) {
+  let details = data || null
+  if (!details && error?.context?.clone) {
+    try { details = await error.context.clone().json() } catch { /* Gebruik de veilige fallback. */ }
+  }
+  return { message: details?.error || fallback, saved: Boolean(details?.saved) }
+}
+
 if (contactForm) {
-  contactForm.addEventListener('submit', (event) => {
+  contactForm.addEventListener('submit', async (event) => {
     event.preventDefault()
-
-    const formData = new FormData(contactForm)
-    const name = String(formData.get('name') || '')
-    const email = String(formData.get('email') || '')
-    const phone = String(formData.get('phone') || 'Niet ingevuld')
-    const topic = String(formData.get('topic') || 'Contact via de website')
-    const message = String(formData.get('message') || '')
-    const subject = encodeURIComponent(`${topic} — ${name}`)
-    const body = encodeURIComponent(
-      `Naam: ${name}\nE-mailadres: ${email}\nTelefoonnummer: ${phone}\n\nBericht:\n${message}`,
-    )
     const formStatus = contactForm.querySelector('.form-status')
-
-    formStatus.textContent = 'Je e-mailapp wordt geopend met het bericht klaar om te versturen.'
-    window.location.href = `mailto:info@zolsolutions.nl?subject=${subject}&body=${body}`
+    const button = contactForm.querySelector('[type="submit"]')
+    const payload = Object.fromEntries(new FormData(contactForm))
+    button.disabled = true
+    button.innerHTML = 'Bericht versturen…'
+    formStatus.textContent = ''
+    formStatus.classList.remove('is-error')
+    const { data, error } = await supabase.functions.invoke('contact-email', { body: payload })
+    if (error || data?.error) {
+      const failure = await edgeFunctionFailure(error, data, 'Versturen is niet gelukt. Probeer het later opnieuw.')
+      if (failure.saved) {
+        contactForm.reset()
+        formStatus.textContent = 'Je bericht is veilig ontvangen. De e-mailmelding wordt nog gekoppeld.'
+        button.disabled = false
+        button.innerHTML = 'Verstuur bericht <span>→</span>'
+        return
+      }
+      formStatus.textContent = failure.message
+      formStatus.classList.add('is-error')
+      button.disabled = false
+      button.innerHTML = 'Verstuur bericht <span>→</span>'
+      return
+    }
+    contactForm.reset()
+    formStatus.textContent = 'Bedankt! Je bericht is rechtstreeks naar ZOL Solutions verstuurd.'
+    button.disabled = false
+    button.innerHTML = 'Verstuur bericht <span>→</span>'
   })
 }

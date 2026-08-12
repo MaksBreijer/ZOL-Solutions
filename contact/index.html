@@ -70,7 +70,7 @@
         <div class="contact-form-intro reveal">
           <p class="section-index">Stuur een bericht</p>
           <h2>Waar kunnen we je mee <em>helpen?</em></h2>
-          <p>Vul het formulier in. Na verzenden openen we je e-mailapp met het bericht klaar om te versturen.</p>
+          <p>Vul het formulier in. Je bericht wordt rechtstreeks en veilig naar ons verstuurd.</p>
           <dl>
             <div><dt>E-mail</dt><dd><a href="mailto:info@zolsolutions.nl">info@zolsolutions.nl</a></dd></div>
             <div><dt>Locatie</dt><dd>Amsterdam, Nederland</dd></div>
@@ -79,6 +79,7 @@
         </div>
 
         <form class="contact-form reveal" id="contact-form">
+          <label class="contact-honeypot" aria-hidden="true">Bedrijf<input type="text" name="company" tabindex="-1" autocomplete="off" /></label>
           <div class="field-row">
             <label>Naam<input type="text" name="name" autocomplete="name" required /></label>
             <label>E-mailadres<input type="email" name="email" autocomplete="email" required /></label>
@@ -97,7 +98,7 @@
           </div>
           <label>Bericht<textarea name="message" rows="7" required></textarea></label>
           <label class="consent-field"><input type="checkbox" required /><span>Ik ga ermee akkoord dat ZOL mijn gegevens gebruikt om mijn vraag te beantwoorden.</span></label>
-          <button class="button button--primary button--wide" type="submit">Open bericht in e-mail <span>→</span></button>
+          <button class="button button--primary button--wide" type="submit">Verstuur bericht <span>→</span></button>
           <p class="form-status" aria-live="polite"></p>
         </form>
       </section>

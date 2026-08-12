@@ -331,9 +331,13 @@ alter table public.analytics_events enable row level security;
 
 create policy "admins read allowed emails" on public.admin_allowed_emails
 for select to authenticated using (private.is_admin());
-create policy "owners manage allowed emails" on public.admin_allowed_emails
-for all to authenticated using (private.is_admin(array['owner']))
+create policy "owners add allowed emails" on public.admin_allowed_emails
+for insert to authenticated with check (private.is_admin(array['owner']));
+create policy "owners update allowed emails" on public.admin_allowed_emails
+for update to authenticated using (private.is_admin(array['owner']))
 with check (private.is_admin(array['owner']));
+create policy "owners delete allowed emails" on public.admin_allowed_emails
+for delete to authenticated using (private.is_admin(array['owner']));
 
 create policy "admins read profiles" on public.admin_profiles
 for select to authenticated using (id = (select auth.uid()) or private.is_admin());

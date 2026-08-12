@@ -1,5 +1,17 @@
 -- Role separation and expanded editable website content.
 
+drop policy if exists "owners manage allowed emails" on public.admin_allowed_emails;
+drop policy if exists "owners add allowed emails" on public.admin_allowed_emails;
+drop policy if exists "owners update allowed emails" on public.admin_allowed_emails;
+drop policy if exists "owners delete allowed emails" on public.admin_allowed_emails;
+create policy "owners add allowed emails" on public.admin_allowed_emails
+for insert to authenticated with check (private.is_admin(array['owner']));
+create policy "owners update allowed emails" on public.admin_allowed_emails
+for update to authenticated using (private.is_admin(array['owner']))
+with check (private.is_admin(array['owner']));
+create policy "owners delete allowed emails" on public.admin_allowed_emails
+for delete to authenticated using (private.is_admin(array['owner']));
+
 drop policy if exists "admins manage customers" on public.customers;
 create policy "admins read customers" on public.customers for select to authenticated using (private.is_admin());
 create policy "managers manage customers" on public.customers for all to authenticated

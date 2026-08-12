@@ -20,6 +20,7 @@ const state = {
   profile: null,
   orders: [],
   customers: [],
+  contactMessages: [],
   products: [],
   payments: [],
   media: [],
@@ -29,6 +30,7 @@ const state = {
   analytics: [],
   profiles: [],
   allowedEmails: [],
+  emailMessages: [],
   search: '',
 }
 
@@ -36,6 +38,7 @@ const routeMeta = {
   dashboard: ['Dashboard', 'Een helder overzicht van ZOL Solutions.'],
   orders: ['Bestellingen', 'Beheer betalingen, verzending en orderdetails.'],
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
+  messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
   products: ['Producten', 'Prijzen, maten, voorraad en productmedia.'],
   content: ['Website CMS', 'Bewerk teksten, knoppen, beelden, video en SEO zonder code.'],
   media: ['Mediabibliotheek', 'Eén centrale plek voor afbeeldingen, video en iconen.'],
@@ -62,12 +65,13 @@ const prettyStatus = (value = '') => ({
   pending: 'Openstaand', paid: 'Betaald', failed: 'Mislukt', refunded: 'Terugbetaald', partially_refunded: 'Deels terugbetaald',
   unfulfilled: 'Niet verzonden', processing: 'In behandeling', shipped: 'Verzonden', delivered: 'Bezorgd', returned: 'Retour',
   active: 'Actief', inactive: 'Uitgeschakeld', authorized: 'Geautoriseerd', expired: 'Verlopen',
+  new: 'Nieuw', read: 'Gelezen', replied: 'Beantwoord', email_failed: 'Melding mislukt', sent: 'Verstuurd', queued: 'In wachtrij',
 }[value] || value.replaceAll('_', ' '))
 
 const statusClass = (value = '') => {
-  if (['paid', 'completed', 'delivered', 'active', 'authorized'].includes(value)) return 'is-green'
-  if (['failed', 'cancelled', 'returned', 'refunded'].includes(value)) return 'is-red'
-  if (['open', 'shipped', 'processing'].includes(value)) return 'is-blue'
+  if (['paid', 'completed', 'delivered', 'active', 'authorized', 'sent', 'replied'].includes(value)) return 'is-green'
+  if (['failed', 'cancelled', 'returned', 'refunded', 'email_failed'].includes(value)) return 'is-red'
+  if (['open', 'shipped', 'processing', 'new'].includes(value)) return 'is-blue'
   return 'is-orange'
 }
 
@@ -154,6 +158,14 @@ function setBusy(button, busy, label = 'Opslaan') {
   button.textContent = busy ? 'Even geduld…' : label
 }
 
+async function edgeFunctionMessage(error, data, fallback) {
+  let details = data || null
+  if (!details && error?.context?.clone) {
+    try { details = await error.context.clone().json() } catch { /* Gebruik de veilige fallback. */ }
+  }
+  return details?.error || fallback
+}
+
 function openDialog(title, eyebrow, body) {
   elements.dialog.classList.remove('admin-dialog--wide')
   elements.dialogTitle.textContent = title
@@ -198,6 +210,7 @@ async function fetchAllData() {
   const requests = await Promise.all([
     supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(500),
     supabase.from('customers').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('contact_messages').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('products').select('*, product_variants(*)').order('updated_at', { ascending: false }),
     supabase.from('payments').select('*, orders(order_number, customer_name)').order('created_at', { ascending: false }).limit(500),
     supabase.from('media').select('*').order('created_at', { ascending: false }).limit(500),
@@ -207,6 +220,7 @@ async function fetchAllData() {
     supabase.from('analytics_events').select('*').order('created_at', { ascending: false }).limit(5000),
     supabase.from('admin_profiles').select('*').order('created_at'),
     supabase.from('admin_allowed_emails').select('*').order('created_at'),
+    supabase.from('email_messages').select('*').order('created_at', { ascending: false }).limit(200),
   ])
 
   const firstError = requests.find((request) => request.error)?.error
@@ -215,6 +229,7 @@ async function fetchAllData() {
   ;[
     state.orders,
     state.customers,
+    state.contactMessages,
     state.products,
     state.payments,
     state.media,
@@ -224,10 +239,13 @@ async function fetchAllData() {
     state.analytics,
     state.profiles,
     state.allowedEmails,
+    state.emailMessages,
   ] = requests.map((request) => request.data || [])
 
   const openOrders = state.orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
   document.querySelector('#open-order-count').textContent = openOrders || ''
+  const newMessages = state.contactMessages.filter((message) => ['new', 'email_failed'].includes(message.status)).length
+  document.querySelector('#new-message-count').textContent = newMessages || ''
 }
 
 function renderDashboard() {
@@ -305,6 +323,7 @@ function filterOrders() {
 }
 
 function openOrder(order) {
+  const emailEnabled = Boolean(settingsValue('email_config').enabled)
   openDialog(`Bestelling #${order.order_number}`, 'Bestelling', `<form id="order-form">
     <div class="dialog-summary"><div><span>Klant</span><strong>${escapeHtml(order.customer_name || order.customer_email)}</strong></div><div><span>Datum</span><strong>${formatDate(order.created_at)}</strong></div><div><span>Totaal</span><strong>${formatMoney(order.total_cents)}</strong></div></div>
     <div class="line-items">${(order.order_items || []).map((item) => `<div class="line-item"><div><strong>${escapeHtml(item.product_name)}</strong><small>${escapeHtml(item.variant_name)} · ${item.quantity} × ${formatMoney(item.unit_price_cents)}</small></div><strong>${formatMoney(item.total_cents)}</strong></div>`).join('') || '<div class="line-item">Geen orderregels</div>'}</div>
@@ -316,7 +335,7 @@ function openOrder(order) {
       <label class="field field--full">Interne notitie<textarea name="note">${escapeHtml(order.note)}</textarea></label>
       <label class="field field--full">Factuurlink<input name="invoice_url" type="url" value="${escapeHtml(order.invoice_url)}" placeholder="https://…"></label>
     </div>
-    <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button" type="button" data-action="print-invoice" data-id="${order.id}">Factuur bekijken</button>${order.invoice_url ? `<a class="button" href="${escapeHtml(order.invoice_url)}" target="_blank" rel="noreferrer">Externe factuur ↗</a>` : ''}<button class="button button--primary" type="submit">Wijzigingen opslaan</button></div>
+    <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button" type="button" data-action="print-invoice" data-id="${order.id}">Factuur bekijken</button>${order.payment_status === 'paid' ? `<button class="button" type="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging versturen</button>` : ''}${order.invoice_url ? `<a class="button" href="${escapeHtml(order.invoice_url)}" target="_blank" rel="noreferrer">Externe factuur ↗</a>` : ''}<button class="button button--primary" type="submit">Wijzigingen opslaan</button></div>
   </form>`)
   const form = document.querySelector('#order-form')
   form.elements.status.value = order.status
@@ -350,14 +369,32 @@ function filterCustomers() {
   document.querySelector('#customers-table').innerHTML = customersTable(filtered)
 }
 
+function renderMessages() {
+  const rows = state.contactMessages.map((message) => `<tr data-action="open-message" data-id="${message.id}"><td><strong>${escapeHtml(message.name)}</strong></td><td>${escapeHtml(message.topic)}</td><td>${escapeHtml(message.email)}</td><td>${statusPill(message.status)}</td><td>${formatDate(message.created_at, { hour: '2-digit', minute: '2-digit' })}</td></tr>`).join('')
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('messages', '<button class="button" data-action="refresh">Vernieuwen</button>')}<section class="metric-grid"><article class="metric-card"><header><span>Nieuwe berichten</span><i>✉</i></header><strong>${state.contactMessages.filter((message) => ['new', 'email_failed'].includes(message.status)).length}</strong><footer><span>Wacht op reactie</span><span>Actueel</span></footer></article><article class="metric-card"><header><span>Totaal ontvangen</span><i>▤</i></header><strong>${state.contactMessages.length}</strong><footer><span>Contactformulier</span><span>Totaal</span></footer></article></section><section class="panel">${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>Onderwerp</th><th>E-mail</th><th>Status</th><th>Ontvangen</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen berichten', 'Nieuwe vragen via het contactformulier verschijnen hier.', '✉')}</section></div>`
+}
+
+async function openContactMessage(message) {
+  if (!message) return
+  const replySubject = encodeURIComponent(`Re: ${message.topic}`)
+  openDialog(message.topic, 'Contactbericht', `<div class="dialog-summary"><div><span>Naam</span><strong>${escapeHtml(message.name)}</strong></div><div><span>E-mail</span><strong>${escapeHtml(message.email)}</strong></div><div><span>Ontvangen</span><strong>${formatDate(message.created_at, { hour: '2-digit', minute: '2-digit' })}</strong></div></div><div class="contact-message-copy">${escapeHtml(message.message)}</div>${message.phone ? `<p class="contact-message-meta"><strong>Telefoon:</strong> ${escapeHtml(message.phone)}</p>` : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Sluiten</button><a class="button button--primary" href="mailto:${escapeHtml(message.email)}?subject=${replySubject}">Beantwoorden →</a></div>`)
+  if (message.status === 'new' || message.status === 'email_failed') {
+    await supabase.from('contact_messages').update({ status: 'read' }).eq('id', message.id)
+    message.status = 'read'
+    document.querySelector('#new-message-count').textContent = state.contactMessages.filter((entry) => ['new', 'email_failed'].includes(entry.status)).length || ''
+  }
+}
+
 function customerForm(customer = {}) {
   const orders = state.orders.filter((order) => order.customer_id === customer.id)
+  const emailHistory = state.emailMessages.filter((email) => email.customer_id === customer.id).slice(0, 5)
+  const emailEnabled = Boolean(settingsValue('email_config').enabled)
   openDialog(customer.id ? fullName(customer) : 'Nieuwe klant', 'Klant', `<form id="customer-form"><div class="form-grid">
     <label class="field">Voornaam<input name="first_name" value="${escapeHtml(customer.first_name)}" required></label><label class="field">Achternaam<input name="last_name" value="${escapeHtml(customer.last_name)}"></label>
     <label class="field">E-mailadres<input name="email" type="email" value="${escapeHtml(customer.email)}" required></label><label class="field">Telefoon<input name="phone" value="${escapeHtml(customer.phone)}"></label>
     <label class="field field--full">Notities<textarea name="notes" placeholder="Interne notities over deze klant">${escapeHtml(customer.notes)}</textarea></label>
     <label class="checkbox-field field--full"><input name="marketing_opt_in" type="checkbox" ${customer.marketing_opt_in ? 'checked' : ''}> Klant heeft toestemming gegeven voor marketing</label>
-  </div>${customer.id ? `<h3>Bestelgeschiedenis</h3><div class="line-items">${orders.map((order) => `<div class="line-item"><div><strong>#${order.order_number}</strong><small>${formatDate(order.created_at)} · ${prettyStatus(order.status)}</small></div><strong>${formatMoney(order.total_cents)}</strong></div>`).join('') || '<div class="line-item">Nog geen bestellingen</div>'}</div>` : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Klant opslaan</button></div></form>`)
+  </div>${customer.id ? `<h3>Bestelgeschiedenis</h3><div class="line-items">${orders.map((order) => `<div class="line-item"><div><strong>#${order.order_number}</strong><small>${formatDate(order.created_at)} · ${prettyStatus(order.status)}</small></div><strong>${formatMoney(order.total_cents)}</strong></div>`).join('') || '<div class="line-item">Nog geen bestellingen</div>'}</div><h3>Recente e-mails</h3><div class="line-items">${emailHistory.map((email) => `<div class="line-item"><div><strong>${escapeHtml(email.subject)}</strong><small>${formatDate(email.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${statusPill(email.status)}</div>`).join('') || '<div class="line-item">Nog geen e-mails verstuurd</div>'}</div>` : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button>${customer.id ? `<button class="button" type="button" data-action="email-customer" data-id="${customer.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>E-mail sturen</button>` : ''}<button class="button button--primary" type="submit">Klant opslaan</button></div></form>`)
   const form = document.querySelector('#customer-form')
   form.addEventListener('submit', async (event) => {
     event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true)
@@ -368,6 +405,32 @@ function customerForm(customer = {}) {
     await recordActivity(customer.id ? 'Klant bijgewerkt' : 'Klant toegevoegd', 'customer', customer.id || data.email)
     toast('Klant opgeslagen'); closeDialog(); await refreshCurrentRoute()
   })
+}
+
+function customerEmailForm(customer) {
+  if (!customer) return
+  openDialog(`E-mail naar ${fullName(customer)}`, 'Klantcontact', `<form id="customer-email-form"><div class="form-grid">
+    <label class="field field--full">Aan<input value="${escapeHtml(customer.email)}" disabled></label>
+    <label class="field field--full">Onderwerp<input name="subject" maxlength="160" placeholder="Bijvoorbeeld: Antwoord op je vraag over ZOL" required></label>
+    <label class="field field--full">Bericht<textarea name="message" maxlength="10000" rows="10" placeholder="Schrijf hier je bericht…" required></textarea><small>De ZOL-header, huisstijl en afsluiting worden automatisch toegevoegd.</small></label>
+    <section class="mail-style-note field--full"><span>ZOL</span><div><strong>Automatisch in de ZOL-huisstijl</strong><small>De klant ontvangt een nette, mobiele e-mail met jullie kleuren en antwoordadres.</small></div></section>
+  </div><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">E-mail versturen</button></div></form>`)
+  const form = document.querySelector('#customer-email-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'E-mail versturen')
+    const values = Object.fromEntries(new FormData(form))
+    const { data, error } = await supabase.functions.invoke('send-customer-email', { body: { customer_id: customer.id, subject: values.subject.trim(), message: values.message.trim() } })
+    if (error || data?.error) { toast('E-mail versturen mislukt', await edgeFunctionMessage(error, data, 'De e-mail kon niet worden verstuurd.'), true); setBusy(button, false, 'E-mail versturen'); return }
+    toast('E-mail verstuurd', `${customer.email} ontvangt het bericht in de ZOL-huisstijl.`); closeDialog(); await refreshCurrentRoute()
+  })
+}
+
+async function sendOrderEmail(order) {
+  if (!order) return
+  const { data, error } = await supabase.functions.invoke('order-email', { body: { order_id: order.id } })
+  if (error || data?.error) { toast('Bevestiging versturen mislukt', await edgeFunctionMessage(error, data, 'De bevestiging kon niet worden verstuurd.'), true); return }
+  toast('Ordermails verstuurd', `De klant en info@zolsolutions.nl zijn geïnformeerd over #${order.order_number}.`)
+  closeDialog(); await refreshCurrentRoute()
 }
 
 function renderProducts() {
@@ -674,14 +737,15 @@ function inviteAdminForm() {
 function settingsValue(key) { return state.settings.find((setting) => setting.key === key)?.value || {} }
 
 function renderSettings(category = 'company') {
-  const company = settingsValue('company_profile'), commerce = settingsValue('commerce'), theme = settingsValue('theme'), seo = settingsValue('seo_defaults')
+  const company = settingsValue('company_profile'), commerce = settingsValue('commerce'), theme = settingsValue('theme'), seo = settingsValue('seo_defaults'), email = settingsValue('email_config')
   const panels = {
     company: `<h2>Bedrijfsgegevens</h2><p>Gegevens die op facturen en in contactinformatie worden gebruikt.</p><form id="settings-form" data-key="company_profile" data-category="company"><div class="form-grid"><label class="field">Bedrijfsnaam<input name="name" value="${escapeHtml(company.name)}"></label><label class="field">E-mailadres<input name="email" type="email" value="${escapeHtml(company.email)}"></label><label class="field">Telefoon<input name="phone" value="${escapeHtml(company.phone)}"></label><label class="field">KvK-nummer<input name="kvk" value="${escapeHtml(company.kvk)}"></label><label class="field">BTW-nummer<input name="vat_number" value="${escapeHtml(company.vat_number)}"></label><label class="field">Adres<input name="address" value="${escapeHtml(company.address)}"></label></div>${settingsActions()}</form>`,
     checkout: `<h2>Checkout & betalingen</h2><p>Verzending, belasting en de voorbereiding op Mollie.</p><form id="settings-form" data-key="commerce" data-category="checkout"><div class="form-grid"><label class="field">Verzendkosten (€)<input name="shipping_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.shipping_cents || 0) / 100).toFixed(2)}"></label><label class="field">Gratis verzending vanaf (€)<input name="free_shipping_threshold_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.free_shipping_threshold_cents || 0) / 100).toFixed(2)}"></label><label class="field">BTW-percentage<input name="tax_rate" type="number" min="0" step="0.01" value="${commerce.tax_rate ?? 21}"></label><label class="field">Valuta<select name="currency"><option value="EUR" ${commerce.currency === 'EUR' ? 'selected' : ''}>EUR — euro</option></select></label><label class="checkbox-field field--full"><input name="mollie_enabled" type="checkbox" ${commerce.mollie_enabled ? 'checked' : ''}> Mollie activeren zodra de API-sleutel veilig is ingesteld</label></div>${settingsActions()}</form>`,
     website: `<h2>Huisstijl & SEO</h2><p>Pas de basiskleuren en standaard zoekmachinegegevens aan.</p><form id="settings-form" data-key="theme" data-category="website"><div class="form-grid"><label class="field">ZOL-blauw<div class="color-row"><input name="primary" type="color" value="${escapeHtml(theme.primary || '#33669B')}"><input value="${escapeHtml(theme.primary || '#33669B')}" disabled></div></label><label class="field">Accentkleur<div class="color-row"><input name="accent" type="color" value="${escapeHtml(theme.accent || '#F28C57')}"><input value="${escapeHtml(theme.accent || '#F28C57')}" disabled></div></label><label class="field">Tekstkleur<div class="color-row"><input name="ink" type="color" value="${escapeHtml(theme.ink || '#10233B')}"><input value="${escapeHtml(theme.ink || '#10233B')}" disabled></div></label><label class="field">Achtergrond<div class="color-row"><input name="background" type="color" value="${escapeHtml(theme.background || '#F7F5F0')}"><input value="${escapeHtml(theme.background || '#F7F5F0')}" disabled></div></label></div>${settingsActions()}</form><form id="seo-settings-form" style="margin-top:25px"><h2>Standaard SEO</h2><div class="form-grid"><label class="field">Websitetitel<input name="title" value="${escapeHtml(seo.title)}"></label><label class="field">Beschrijving<input name="description" value="${escapeHtml(seo.description)}"></label></div>${settingsActions()}</form>`,
+    email: `<h2>E-mail</h2><p>Afzender, antwoordadres en interne meldingen. De geheime API-sleutel wordt nooit in de browser opgeslagen.</p><form id="settings-form" data-key="email_config" data-category="email"><div class="email-connection ${email.enabled ? 'is-connected' : ''}"><i>${email.enabled ? '✓' : '!'}</i><div><strong>${email.enabled ? 'E-mailverzending actief' : 'Wacht op domein en API-sleutel'}</strong><small>${email.enabled ? 'Order-, contact- en klantmails zijn ingeschakeld.' : 'De volledige mailflow staat klaar, maar verstuurt nog niets.'}</small></div></div><div class="form-grid"><label class="field">Afzendernaam<input name="from_name" value="${escapeHtml(email.from_name || 'ZOL Solutions')}"></label><label class="field">Afzenderadres<input name="from_email" type="email" value="${escapeHtml(email.from_email || 'info@zolsolutions.nl')}"></label><label class="field">Antwoordadres<input name="reply_to" type="email" value="${escapeHtml(email.reply_to || 'info@zolsolutions.nl')}"></label><label class="field">Interne meldingen naar<input name="admin_email" type="email" value="${escapeHtml(email.admin_email || 'info@zolsolutions.nl')}"></label><label class="field field--full">Website-URL<input name="website_url" type="url" value="${escapeHtml(email.website_url || 'https://zolsolutions.nl')}"></label><input name="provider" type="hidden" value="resend"><label class="checkbox-field field--full"><input name="enabled" type="checkbox" ${email.enabled ? 'checked' : ''}> Verzending activeren <small>(pas na domeinverificatie en server-side API-sleutel)</small></label></div>${settingsActions('E-mailinstellingen opslaan')}</form>`,
     security: `<h2>Account & beveiliging</h2><p>Wijzig je eigen wachtwoord. Na de wijziging worden alle andere actieve sessies afgemeld.</p><form id="password-form"><div class="form-grid"><label class="field field--full">Huidig wachtwoord<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Nieuw wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="12" required><small>Minimaal 12 tekens met hoofdletter, kleine letter, cijfer en speciaal teken.</small></label><label class="field">Herhaal nieuw wachtwoord<input name="password_confirm" type="password" autocomplete="new-password" minlength="12" required></label></div>${settingsActions('Wachtwoord wijzigen')}</form>`,
   }
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('settings')}<div class="settings-layout"><nav class="settings-nav panel"><button data-settings-tab="company" class="${category === 'company' ? 'is-active' : ''}">Bedrijf</button><button data-settings-tab="checkout" class="${category === 'checkout' ? 'is-active' : ''}">Checkout & btw</button><button data-settings-tab="website" class="${category === 'website' ? 'is-active' : ''}">Website & SEO</button><button data-settings-tab="security" class="${category === 'security' ? 'is-active' : ''}">Wachtwoord</button></nav><section class="settings-panel panel">${panels[category]}</section></div></div>`
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('settings')}<div class="settings-layout"><nav class="settings-nav panel"><button data-settings-tab="company" class="${category === 'company' ? 'is-active' : ''}">Bedrijf</button><button data-settings-tab="checkout" class="${category === 'checkout' ? 'is-active' : ''}">Checkout & btw</button><button data-settings-tab="website" class="${category === 'website' ? 'is-active' : ''}">Website & SEO</button><button data-settings-tab="email" class="${category === 'email' ? 'is-active' : ''}">E-mail</button><button data-settings-tab="security" class="${category === 'security' ? 'is-active' : ''}">Wachtwoord</button></nav><section class="settings-panel panel">${panels[category] || panels.company}</section></div></div>`
   bindSettingsForms(category)
 }
 
@@ -691,7 +755,7 @@ function bindSettingsForms(category) {
   const form = document.querySelector('#settings-form')
   form?.addEventListener('submit', async (event) => {
     event.preventDefault(); const values = Object.fromEntries(new FormData(form)); form.querySelectorAll('[data-cents]').forEach((input) => values[input.name] = Math.round(Number(input.value) * 100)); form.querySelectorAll('input[type="number"]:not([data-cents])').forEach((input) => values[input.name] = Number(input.value)); form.querySelectorAll('input[type="checkbox"]').forEach((input) => values[input.name] = input.checked)
-    const key = form.dataset.key; const { error } = await supabase.from('settings').upsert({ key, category: form.dataset.category, label: key === 'commerce' ? 'Webshopinstellingen' : key === 'theme' ? 'Huisstijl' : 'Bedrijfsgegevens', value: values, is_public: key !== 'company_profile' })
+    const key = form.dataset.key; const { error } = await supabase.from('settings').upsert({ key, category: form.dataset.category, label: key === 'commerce' ? 'Webshopinstellingen' : key === 'theme' ? 'Huisstijl' : key === 'email_config' ? 'E-mailinstellingen' : 'Bedrijfsgegevens', value: values, is_public: ['commerce', 'theme'].includes(key) })
     if (error) { toast('Instellingen opslaan mislukt', error.message, true); return }
     await recordActivity('Instellingen bijgewerkt', 'settings', key); toast('Instellingen opgeslagen'); await refreshCurrentRoute(category)
   })
@@ -722,7 +786,7 @@ function bindSettingsForms(category) {
 function renderRoute(route = currentRoute(), option) {
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, products: renderProducts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, products: renderProducts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   elements.content.focus({ preventScroll: true })
   window.scrollTo({ top: 0, behavior: 'instant' })
@@ -768,7 +832,9 @@ async function handleContentClick(event) {
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))
   if (action === 'new-order') toast('Bestelling aanmaken', 'Nieuwe handmatige orders worden in de volgende checkoutfase toegevoegd.')
   if (action === 'open-customer') customerForm(state.customers.find((item) => item.id === id))
+  if (action === 'open-message') await openContactMessage(state.contactMessages.find((item) => item.id === id))
   if (action === 'new-customer') customerForm()
+  if (action === 'email-customer') { const customer = state.customers.find((item) => item.id === id); closeDialog(); queueMicrotask(() => customerEmailForm(customer)) }
   if (action === 'open-product') productForm(state.products.find((item) => item.id === id))
   if (action === 'new-product') productForm()
   if (action === 'delete-product') await deleteProduct(id)
@@ -779,6 +845,7 @@ async function handleContentClick(event) {
   if (action === 'copy-media') { await navigator.clipboard.writeText(target.dataset.url); toast('Link gekopieerd') }
   if (action === 'delete-media') await deleteMedia(id)
   if (action === 'open-payment') paymentForm(state.payments.find((item) => item.id === id))
+  if (action === 'send-order-email') await sendOrderEmail(state.orders.find((item) => item.id === id))
   if (action === 'invite-admin') inviteAdminForm()
 }
 
