@@ -83,3 +83,51 @@ if (floatingProduct && !prefersReducedMotion) {
 
   updateProductPosition()
 }
+
+const productCheckoutLink = document.querySelector('.product-checkout-link')
+const sizeOptions = document.querySelectorAll('.size-selector input[name="size"]')
+
+if (productCheckoutLink && sizeOptions.length) {
+  sizeOptions.forEach((option) => {
+    option.addEventListener('change', () => {
+      if (!option.checked) return
+
+      const selectedSize = option.dataset.size
+      productCheckoutLink.href = `https://zolsolutions.nl/products/zol-inlegzolen-voor-kinderen-met-hielpijn?variant=${option.value}`
+      productCheckoutLink.firstChild.textContent = `Kies ${selectedSize} en bestel `
+    })
+  })
+}
+
+document.querySelectorAll('.faq-list details').forEach((item) => {
+  item.addEventListener('toggle', () => {
+    if (!item.open) return
+
+    document.querySelectorAll('.faq-list details').forEach((otherItem) => {
+      if (otherItem !== item) otherItem.removeAttribute('open')
+    })
+  })
+})
+
+const contactForm = document.querySelector('#contact-form')
+
+if (contactForm) {
+  contactForm.addEventListener('submit', (event) => {
+    event.preventDefault()
+
+    const formData = new FormData(contactForm)
+    const name = String(formData.get('name') || '')
+    const email = String(formData.get('email') || '')
+    const phone = String(formData.get('phone') || 'Niet ingevuld')
+    const topic = String(formData.get('topic') || 'Contact via de website')
+    const message = String(formData.get('message') || '')
+    const subject = encodeURIComponent(`${topic} — ${name}`)
+    const body = encodeURIComponent(
+      `Naam: ${name}\nE-mailadres: ${email}\nTelefoonnummer: ${phone}\n\nBericht:\n${message}`,
+    )
+    const formStatus = contactForm.querySelector('.form-status')
+
+    formStatus.textContent = 'Je e-mailapp wordt geopend met het bericht klaar om te versturen.'
+    window.location.href = `mailto:info@zolsolutions.nl?subject=${subject}&body=${body}`
+  })
+}
