@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#33669b" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <title>Winkelwagen & afrekenen — ZOL Solutions</title>
+  </head>
+  <body class="checkout-page">
+    <header class="checkout-header"><a href="/" class="checkout-brand"><span>ZOL</span><strong>Solutions</strong></a><a href="/product/">← Verder winkelen</a></header>
+    <main class="checkout-main">
+      <section class="checkout-flow">
+        <div class="checkout-heading"><p>Veilig afrekenen</p><h1>Jouw <em>ZOL'tjes.</em></h1></div>
+        <div id="checkout-cart"></div>
+        <form class="checkout-form" id="checkout-form">
+          <header><span>02</span><div><h2>Contact & bezorging</h2><p>Vul de gegevens in voor de bestelling.</p></div></header>
+          <div class="checkout-fields">
+            <label>Voornaam<input name="first_name" autocomplete="given-name" required></label><label>Achternaam<input name="last_name" autocomplete="family-name" required></label>
+            <label>E-mailadres<input name="email" type="email" autocomplete="email" required></label><label>Telefoon<input name="phone" type="tel" autocomplete="tel"></label>
+            <label class="wide">Straat en huisnummer<input name="street" autocomplete="street-address" required></label><label>Postcode<input name="postal_code" autocomplete="postal-code" required></label><label>Plaats<input name="city" autocomplete="address-level2" required></label>
+            <label class="wide">Opmerking <span>optioneel</span><textarea name="note" rows="3"></textarea></label>
+          </div>
+          <label class="checkout-consent"><input type="checkbox" required><span>Ik ga akkoord met de voorwaarden en het privacybeleid van ZOL Solutions.</span></label>
+          <button class="checkout-submit" type="submit">Bestelling plaatsen <span>→</span></button>
+          <p class="checkout-form-status" id="checkout-status" aria-live="polite"></p>
+        </form>
+      </section>
+      <aside class="checkout-summary" id="checkout-summary"></aside>
+    </main>
+    <footer class="checkout-footer"><span>Beveiligde verbinding</span><span>Persoonlijke ondersteuning</span><span>BTW inbegrepen</span></footer>
+    <script type="module" src="/src/checkout.js"></script>
+  </body>
+</html>
+
