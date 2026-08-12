@@ -1,0 +1,3 @@
+/zolsolutions/admin /admin/index.html 200
+/zolsolutions/admin/ /admin/index.html 200
+/zolsolutions/admin/* /admin/index.html 200
