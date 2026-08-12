@@ -126,3 +126,9 @@ set label = excluded.label,
     attribute = excluded.attribute,
     value = excluded.value,
     updated_at = now();
+
+insert into public.site_content (page, section, content_key, label, content_type, selector, attribute, value, sort_order) values
+  ('product', 'purchase', 'product.purchase.icon.ready', 'Icoon direct klaar voor gebruik', 'icon', '.benefit-icon--ready', 'textContent', '✓', 21),
+  ('product', 'purchase', 'product.purchase.icon.compact', 'Icoon compacte pasvorm', 'icon', '.benefit-icon--compact', 'textContent', '✓', 22),
+  ('product', 'purchase', 'product.purchase.icon.made', 'Icoon handgemaakt in Nederland', 'icon', '.benefit-icon--made', 'textContent', '✓', 23)
+on conflict (content_key) do nothing;

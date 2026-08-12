@@ -95,7 +95,7 @@ function contentVisualMarkup(entry) {
   if (entry.content_type === 'video') return `<div class="content-card-visual"><video src="${value}" muted playsinline preload="metadata"></video><span>VIDEO</span></div>`
   if (entry.content_type === 'icon') {
     const icon = isMediaUrl(entry.value) ? `<img src="${value}" alt="">` : `<b>${escapeHtml(builtinIcon(entry.value) || entry.value || '◇')}</b>`
-    return `<div class="content-card-visual content-card-visual--icon">${icon}<span>ICOON</span></div>`
+    return `<div class="content-card-visual content-card-visual--icon">${icon}<span>${isMediaUrl(entry.value) ? 'ICOON ALS BEELD' : 'ICOON'}</span></div>`
   }
   if (entry.content_type === 'color') return `<div class="content-card-visual content-card-visual--color"><i style="background:${value}"></i><span>${value}</span></div>`
   return ''
@@ -496,7 +496,7 @@ async function deleteProduct(productId) {
 function renderContent() {
   const pages = [...new Set(state.content.map((entry) => entry.page))]
   const cards = state.content.map(contentCardMarkup).join('')
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('content', '<button class="button" data-action="preview-site">Website bekijken ↗</button><button class="button button--primary" data-action="new-content">Content toevoegen</button>')}<section class="panel"><div class="filters"><input type="search" data-filter="content" placeholder="Zoek op label, sleutel of inhoud"><select data-filter-page="content"><option value="">Alle pagina's</option>${pages.map((page) => `<option>${escapeHtml(page)}</option>`).join('')}</select><select data-filter-type="content"><option value="">Alle typen</option><option value="text">Tekst</option><option value="html">Opgemaakte tekst</option><option value="image">Afbeelding</option><option value="video">Video</option><option value="icon">Icoon</option><option value="button">Button</option><option value="color">Kleur</option></select></div></section><div class="content-grid" id="content-grid">${cards || emptyState('Nog geen CMS-content', 'Voeg contentvelden toe en koppel ze aan onderdelen van de website.', '▤')}</div></div>`
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('content', '<button class="button" data-action="filter-icons">Iconen beheren</button><button class="button" data-action="preview-site">Website bekijken ↗</button><button class="button button--primary" data-action="new-content">Content toevoegen</button>')}<section class="panel"><div class="filters"><input type="search" data-filter="content" placeholder="Zoek op label, sleutel of inhoud"><select data-filter-page="content"><option value="">Alle pagina's</option>${pages.map((page) => `<option>${escapeHtml(page)}</option>`).join('')}</select><select data-filter-type="content"><option value="">Alle typen</option><option value="text">Tekst</option><option value="html">Opgemaakte tekst</option><option value="image">Afbeelding</option><option value="video">Video</option><option value="icon">Icoon</option><option value="button">Button</option><option value="color">Kleur</option></select></div></section><div class="content-grid" id="content-grid">${cards || emptyState('Nog geen CMS-content', 'Voeg contentvelden toe en koppel ze aan onderdelen van de website.', '▤')}</div></div>`
 }
 
 function filterContent() {
@@ -517,7 +517,8 @@ function contentForm(entry = {}) {
     <label class="field field--full">CSS-koppeling <small>Hiermee wordt het juiste website-element gevonden.</small><input name="selector" value="${escapeHtml(entry.selector)}" placeholder="#hero-title"></label>
     <label class="field field--full">Inhoud of media-URL<textarea name="value" id="content-value">${escapeHtml(entry.value)}</textarea></label>
     <section class="content-media-tools field--full" id="content-media-tools" hidden>
-      <div class="content-media-toolbar"><label class="content-inline-upload"><input id="content-media-upload" type="file"><span>＋ Upload nieuw bestand</span></label><small id="content-file-status">Of kies hieronder uit je mediabibliotheek.</small></div>
+      <div class="content-icon-source" id="content-icon-source" hidden><strong>Hoe wil je dit icoon tonen?</strong><div><button type="button" data-icon-source="builtin">Basisicoon</button><button type="button" data-icon-source="image">Eigen afbeelding</button></div><small>Een eigen JPG, PNG, WebP of SVG wordt passend binnen het bestaande icoonvlak getoond.</small></div>
+      <div class="content-media-toolbar" id="content-media-toolbar"><label class="content-inline-upload"><input id="content-media-upload" type="file"><span>＋ Upload nieuw bestand</span></label><small id="content-file-status">Of kies hieronder uit je mediabibliotheek.</small></div>
       <div class="content-icon-picker" id="content-icon-picker" hidden><strong>Kies een basisicoon</strong><div>${quickIcons}</div></div>
       <div class="content-media-library" id="content-media-library">${mediaChoices || '<p>Nog geen media beschikbaar. Upload hierboven je eerste bestand.</p>'}</div>
     </section>
@@ -529,11 +530,14 @@ function contentForm(entry = {}) {
   const preview = document.querySelector('#content-preview')
   const mediaTools = document.querySelector('#content-media-tools')
   const mediaLibrary = document.querySelector('#content-media-library')
+  const mediaToolbar = document.querySelector('#content-media-toolbar')
+  const iconSource = document.querySelector('#content-icon-source')
   const iconPicker = document.querySelector('#content-icon-picker')
   const uploadInput = document.querySelector('#content-media-upload')
   const fileStatus = document.querySelector('#content-file-status')
   let pendingMediaFile = null
   let pendingObjectUrl = ''
+  let iconSourceMode = entry.content_type === 'icon' && isMediaUrl(entry.value) ? 'image' : 'builtin'
   form.elements.content_type.value = entry.content_type || 'text'; form.elements.attribute.value = entry.attribute || 'textContent'
 
   const cleanupObjectUrl = () => { if (pendingObjectUrl) URL.revokeObjectURL(pendingObjectUrl); pendingObjectUrl = '' }
@@ -542,10 +546,16 @@ function contentForm(entry = {}) {
   const updatePreview = () => {
     const type = form.elements.content_type.value
     const value = pendingObjectUrl || form.elements.value.value.trim()
-    renderContentPreview(preview, type, value, form.elements.label.value || 'Websitecontent')
+    const iconValueMatchesMode = type !== 'icon' || (iconSourceMode === 'image' ? isMediaUrl(value) : !isMediaUrl(value))
+    renderContentPreview(preview, type, iconValueMatchesMode ? value : '', form.elements.label.value || 'Websitecontent')
+    if (type === 'icon' && !iconValueMatchesMode) preview.querySelector('.content-preview-empty').textContent = iconSourceMode === 'image' ? 'Upload een afbeelding of kies er één uit de mediabibliotheek.' : 'Kies hieronder een basisicoon.'
     mediaTools.hidden = !visualContentTypes.has(type)
-    iconPicker.hidden = type !== 'icon'
-    uploadInput.accept = type === 'video' ? 'video/mp4,video/webm' : type === 'icon' ? '.svg,image/svg+xml,image/png,image/webp' : 'image/*'
+    iconSource.hidden = type !== 'icon'
+    iconPicker.hidden = type !== 'icon' || iconSourceMode !== 'builtin'
+    mediaToolbar.hidden = type === 'icon' && iconSourceMode !== 'image'
+    mediaLibrary.hidden = type === 'icon' && iconSourceMode !== 'image'
+    iconSource.querySelectorAll('[data-icon-source]').forEach((button) => button.classList.toggle('is-active', button.dataset.iconSource === iconSourceMode))
+    uploadInput.accept = type === 'video' ? 'video/mp4,video/webm' : type === 'icon' ? 'image/jpeg,image/png,image/webp,image/gif,image/svg+xml,.svg' : 'image/*'
     mediaLibrary.querySelectorAll('[data-content-media]').forEach((button) => {
       const matches = type === 'video' ? button.dataset.kind === 'video' : type === 'icon' ? ['icon', 'image'].includes(button.dataset.kind) : ['image', 'icon'].includes(button.dataset.kind)
       button.hidden = !matches
@@ -555,6 +565,7 @@ function contentForm(entry = {}) {
 
   form.elements.content_type.addEventListener('change', () => {
     const type = form.elements.content_type.value
+    if (type === 'icon') iconSourceMode = isMediaUrl(form.elements.value.value) ? 'image' : 'builtin'
     if (!visualContentTypes.has(type) && pendingMediaFile) { pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''; fileStatus.textContent = 'Of kies hieronder uit je mediabibliotheek.' }
     if (['image', 'video'].includes(type)) form.elements.attribute.value = 'src'
     else if (type === 'icon') form.elements.attribute.value = 'textContent'
@@ -574,6 +585,7 @@ function contentForm(entry = {}) {
     pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''
     const currentType = form.elements.content_type.value
     form.elements.content_type.value = choice.dataset.kind === 'video' ? 'video' : currentType === 'icon' || choice.dataset.kind === 'icon' ? 'icon' : 'image'
+    if (form.elements.content_type.value === 'icon') iconSourceMode = 'image'
     form.elements.attribute.value = form.elements.content_type.value === 'icon' ? 'textContent' : 'src'
     form.elements.value.value = choice.dataset.url
     fileStatus.textContent = 'Media geselecteerd uit de bibliotheek.'
@@ -581,7 +593,14 @@ function contentForm(entry = {}) {
   })
   iconPicker.addEventListener('click', (event) => {
     const choice = event.target.closest('[data-icon-value]'); if (!choice) return
-    pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''; form.elements.value.value = choice.dataset.iconValue; fileStatus.textContent = 'Basisicoon geselecteerd.'; updatePreview()
+    iconSourceMode = 'builtin'; pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''; form.elements.value.value = choice.dataset.iconValue; fileStatus.textContent = 'Basisicoon geselecteerd.'; updatePreview()
+  })
+  iconSource.addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-icon-source]'); if (!choice || choice.dataset.iconSource === iconSourceMode) return
+    iconSourceMode = choice.dataset.iconSource
+    pendingMediaFile = null; cleanupObjectUrl(); uploadInput.value = ''
+    fileStatus.textContent = iconSourceMode === 'image' ? 'Upload een afbeelding of kies er hieronder één.' : 'Kies hieronder een basisicoon.'
+    updatePreview()
   })
   uploadInput.addEventListener('change', () => {
     const [file] = uploadInput.files || []; if (!file) return
@@ -591,6 +610,7 @@ function contentForm(entry = {}) {
     const extension = file.name.split('.').pop()?.toLowerCase()
     const detectedType = file.type.startsWith('video/') ? 'video' : extension === 'svg' ? 'icon' : 'image'
     if (form.elements.content_type.value !== 'icon' || detectedType === 'video') form.elements.content_type.value = detectedType
+    if (form.elements.content_type.value === 'icon') iconSourceMode = 'image'
     form.elements.attribute.value = form.elements.content_type.value === 'icon' ? 'textContent' : 'src'
     fileStatus.textContent = `${file.name} staat klaar om bij Publiceren te uploaden.`
     updatePreview()
@@ -608,6 +628,8 @@ function contentForm(entry = {}) {
         toast('Upload mislukt', error.message, true); setBusy(button, false, 'Publiceren'); return
       }
     }
+    if (payload.content_type === 'icon' && iconSourceMode === 'image' && !isMediaUrl(payload.value)) { toast('Kies een afbeelding', 'Upload een afbeelding of kies er één uit de mediabibliotheek.', true); setBusy(button, false, 'Publiceren'); return }
+    if (payload.content_type === 'icon' && iconSourceMode === 'builtin' && isMediaUrl(payload.value)) { toast('Kies een basisicoon', 'Selecteer eerst het gewenste basisicoon.', true); setBusy(button, false, 'Publiceren'); return }
     if (!String(payload.value || '').trim()) { toast('Inhoud ontbreekt', 'Kies media of vul een waarde in.', true); setBusy(button, false, 'Publiceren'); return }
     const query = entry.id ? supabase.from('site_content').update(payload).eq('id', entry.id) : supabase.from('site_content').insert(payload)
     const { error } = await query
@@ -841,6 +863,7 @@ async function handleContentClick(event) {
   if (action === 'preview-product') window.open('/product/', '_blank', 'noopener')
   if (action === 'open-content') contentForm(state.content.find((item) => item.id === id))
   if (action === 'new-content') contentForm()
+  if (action === 'filter-icons') { const filter = document.querySelector('[data-filter-type="content"]'); if (filter) { filter.value = 'icon'; filterContent() } }
   if (action === 'preview-site') window.open('/', '_blank', 'noopener')
   if (action === 'copy-media') { await navigator.clipboard.writeText(target.dataset.url); toast('Link gekopieerd') }
   if (action === 'delete-media') await deleteMedia(id)
