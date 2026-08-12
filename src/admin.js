@@ -249,7 +249,7 @@ function openOrder(order) {
       <label class="field field--full">Interne notitie<textarea name="note">${escapeHtml(order.note)}</textarea></label>
       <label class="field field--full">Factuurlink<input name="invoice_url" type="url" value="${escapeHtml(order.invoice_url)}" placeholder="https://…"></label>
     </div>
-    <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button>${order.invoice_url ? `<a class="button" href="${escapeHtml(order.invoice_url)}" target="_blank" rel="noreferrer">Factuur bekijken ↗</a>` : ''}<button class="button button--primary" type="submit">Wijzigingen opslaan</button></div>
+    <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button" type="button" data-action="print-invoice" data-id="${order.id}">Factuur bekijken</button>${order.invoice_url ? `<a class="button" href="${escapeHtml(order.invoice_url)}" target="_blank" rel="noreferrer">Externe factuur ↗</a>` : ''}<button class="button button--primary" type="submit">Wijzigingen opslaan</button></div>
   </form>`)
   const form = document.querySelector('#order-form')
   form.elements.status.value = order.status
@@ -551,6 +551,22 @@ async function exportOrders() {
   await recordActivity('Bestellingen geëxporteerd', 'order', '', { count: state.orders.length }); toast('Export aangemaakt')
 }
 
+function printInvoice(order) {
+  const company = settingsValue('company_profile')
+  const address = order.shipping_address || {}
+  const invoice = window.open('', '_blank', 'noopener,noreferrer')
+  if (!invoice) { toast('Pop-up geblokkeerd', 'Sta pop-ups toe om de factuur te openen.', true); return }
+  invoice.document.write(`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Factuur ZOL-${order.order_number}</title><style>
+    body{max-width:820px;margin:50px auto;padding:0 25px;color:#17212d;font:14px/1.55 Arial,sans-serif}header{display:flex;justify-content:space-between;gap:30px;padding-bottom:28px;border-bottom:3px solid #33669b}.logo{font:bold 34px Arial;color:#33669b}h1{font-size:30px;margin:0}.meta{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin:35px 0}.meta h2{font-size:12px;text-transform:uppercase;color:#33669b}table{width:100%;border-collapse:collapse;margin-top:25px}th,td{padding:12px 8px;border-bottom:1px solid #dfe3e8;text-align:left}th:last-child,td:last-child{text-align:right}.totals{width:310px;margin:25px 0 0 auto}.totals div{display:flex;justify-content:space-between;padding:6px}.totals .total{margin-top:7px;padding-top:12px;border-top:2px solid #17212d;font-size:18px;font-weight:bold}footer{margin-top:65px;padding-top:18px;border-top:1px solid #dfe3e8;color:#68737e;font-size:11px}@media print{body{margin:0}.no-print{display:none}}</style></head><body>
+    <header><div><div class="logo">ZOL</div><strong>${escapeHtml(company.name || 'ZOL Solutions')}</strong></div><div><h1>Factuur</h1><p>Factuurnummer: ZOL-${order.order_number}<br>Factuurdatum: ${formatDate(order.created_at)}</p></div></header>
+    <section class="meta"><div><h2>Van</h2><p><strong>${escapeHtml(company.name || 'ZOL Solutions')}</strong><br>${escapeHtml(company.address || '')}<br>${escapeHtml(company.email || 'info@zolsolutions.nl')}<br>${company.kvk ? `KvK: ${escapeHtml(company.kvk)}<br>` : ''}${company.vat_number ? `BTW: ${escapeHtml(company.vat_number)}` : ''}</p></div><div><h2>Factuur aan</h2><p><strong>${escapeHtml(order.customer_name)}</strong><br>${escapeHtml(address.street || '')}<br>${escapeHtml(address.postal_code || '')} ${escapeHtml(address.city || '')}<br>${escapeHtml(order.customer_email)}</p></div></section>
+    <table><thead><tr><th>Product</th><th>Aantal</th><th>Prijs</th><th>Totaal</th></tr></thead><tbody>${(order.order_items || []).map((item) => `<tr><td><strong>${escapeHtml(item.product_name)}</strong><br><small>${escapeHtml(item.variant_name)}</small></td><td>${item.quantity}</td><td>${formatMoney(item.unit_price_cents)}</td><td>${formatMoney(item.total_cents)}</td></tr>`).join('')}</tbody></table>
+    <div class="totals"><div><span>Subtotaal</span><strong>${formatMoney(order.subtotal_cents)}</strong></div><div><span>Verzending</span><strong>${formatMoney(order.shipping_cents)}</strong></div><div><span>Inclusief btw</span><strong>${formatMoney(order.tax_cents)}</strong></div><div class="total"><span>Totaal</span><strong>${formatMoney(order.total_cents)}</strong></div></div>
+    <footer>Betaalstatus: ${escapeHtml(prettyStatus(order.payment_status))} · Bedankt voor je bestelling bij ZOL Solutions.</footer></body></html>`)
+  invoice.document.close()
+  window.setTimeout(() => invoice.print(), 250)
+}
+
 async function handleContentClick(event) {
   const close = event.target.closest('[data-close-dialog]'); if (close) { closeDialog(); return }
   const jump = event.target.closest('[data-route-jump]'); if (jump) { window.location.hash = jump.dataset.routeJump; return }
@@ -558,6 +574,7 @@ async function handleContentClick(event) {
   const { action, id } = target.dataset
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
+  if (action === 'print-invoice') printInvoice(state.orders.find((item) => item.id === id))
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))
   if (action === 'new-order') toast('Bestelling aanmaken', 'Nieuwe handmatige orders worden in de volgende checkoutfase toegevoegd.')
   if (action === 'open-customer') customerForm(state.customers.find((item) => item.id === id))
@@ -637,6 +654,7 @@ elements.backdrop.addEventListener('click', () => elements.sidebar.classList.rem
 document.querySelector('#dialog-close').addEventListener('click', closeDialog)
 elements.dialog.addEventListener('click', (event) => { if (event.target === elements.dialog) closeDialog() })
 elements.content.addEventListener('click', handleContentClick)
+elements.dialogBody.addEventListener('click', handleContentClick)
 elements.content.addEventListener('input', handleFilters)
 elements.content.addEventListener('change', handleFilters)
 elements.content.addEventListener('click', (event) => { const tab = event.target.closest('[data-settings-tab]'); if (tab) renderSettings(tab.dataset.settingsTab) })
