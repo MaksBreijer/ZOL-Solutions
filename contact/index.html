@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Neem contact op met ZOL Solutions voor product-, maat- of samenwerkingsvragen." />
+    <meta name="theme-color" content="#33669b" />
+    <meta property="og:title" content="Contact — ZOL Solutions" />
+    <meta property="og:description" content="Een vraag over ZOL, de juiste maat of een samenwerking? We denken graag met je mee." />
+    <meta property="og:image" content="https://zol-solutions.pages.dev/og.jpg" />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,500&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <title>Contact — ZOL Solutions</title>
+  </head>
+  <body class="interior-page contact-page">
+    <a class="skip-link" href="#main-content">Meteen naar de inhoud</a>
+    <aside class="announcement" aria-label="Mededeling">
+      <a href="/product/">Ontdek de ZOL'tjes <span>Bekijk product →</span></a>
+    </aside>
+
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Hoofdnavigatie">
+        <a class="brand" href="/" aria-label="ZOL Solutions home">
+          <img src="https://zolsolutions.nl/cdn/shop/files/zol_wit.png?v=1774353653&width=180" alt="ZOL Solutions" />
+        </a>
+        <div class="nav-links" id="nav-links">
+          <a href="/#probleem">Het probleem</a><a href="/product/">De ZOL'tjes</a><a href="/#techniek">Techniek</a><a href="/contact/" aria-current="page">Contact</a>
+        </div>
+        <a class="nav-cta" href="/product/">Bekijk de ZOL'tjes</a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu openen"><span></span><span></span></button>
+      </nav>
+    </header>
+
+    <main id="main-content">
+      <section class="contact-hero">
+        <div class="contact-hero-copy reveal">
+          <p class="section-index">Contact</p>
+          <h1>Laten we in <em>gesprek gaan.</em></h1>
+          <p>Een vraag over hielklachten, de juiste maat of een mogelijke samenwerking? Stuur ons een bericht. We denken graag persoonlijk met je mee.</p>
+          <a class="button button--primary" href="#contactformulier">Stuur een bericht</a>
+        </div>
+        <div class="contact-orbit reveal" aria-hidden="true">
+          <span class="orbit-label orbit-label--question">Jouw vraag</span>
+          <i class="orbit-line orbit-line--one"></i>
+          <i class="orbit-line orbit-line--two"></i>
+          <span class="orbit-core">ZOL</span>
+          <span class="orbit-label orbit-label--answer">Persoonlijk antwoord</span>
+        </div>
+      </section>
+
+      <section class="contact-paths section" aria-label="Contactmogelijkheden">
+        <article class="contact-path reveal">
+          <span>01</span><h2>Product &amp; maat</h2><p>We helpen je graag bij vragen over pasvorm, schoentype en maatkeuze.</p><a href="mailto:info@zolsolutions.nl?subject=Vraag%20over%20product%20of%20maat">Vraag advies →</a>
+        </article>
+        <article class="contact-path reveal">
+          <span>02</span><h2>Samenwerken</h2><p>Voor sportclubs, zorgprofessionals, retailers en andere sterke partners.</p><a href="mailto:info@zolsolutions.nl?subject=Samenwerking%20met%20ZOL">Bespreek de mogelijkheden →</a>
+        </article>
+        <article class="contact-path reveal">
+          <span>03</span><h2>Bestelling</h2><p>Een vraag over een bestaande bestelling, levering of retour? Vermeld je bestelnummer.</p><a href="mailto:info@zolsolutions.nl?subject=Vraag%20over%20mijn%20bestelling">Mail ons →</a>
+        </article>
+      </section>
+
+      <section class="contact-form-section" id="contactformulier">
+        <div class="contact-form-intro reveal">
+          <p class="section-index">Stuur een bericht</p>
+          <h2>Waar kunnen we je mee <em>helpen?</em></h2>
+          <p>Vul het formulier in. Na verzenden openen we je e-mailapp met het bericht klaar om te versturen.</p>
+          <dl>
+            <div><dt>E-mail</dt><dd><a href="mailto:info@zolsolutions.nl">info@zolsolutions.nl</a></dd></div>
+            <div><dt>Locatie</dt><dd>Amsterdam, Nederland</dd></div>
+            <div><dt>Reactie</dt><dd>Zo snel mogelijk</dd></div>
+          </dl>
+        </div>
+
+        <form class="contact-form reveal" id="contact-form">
+          <div class="field-row">
+            <label>Naam<input type="text" name="name" autocomplete="name" required /></label>
+            <label>E-mailadres<input type="email" name="email" autocomplete="email" required /></label>
+          </div>
+          <div class="field-row">
+            <label>Telefoonnummer <span>optioneel</span><input type="tel" name="phone" autocomplete="tel" /></label>
+            <label>Onderwerp
+              <select name="topic" required>
+                <option value="">Maak een keuze</option>
+                <option>Product- of maatadvies</option>
+                <option>Vraag over bestelling</option>
+                <option>Samenwerking</option>
+                <option>Anders</option>
+              </select>
+            </label>
+          </div>
+          <label>Bericht<textarea name="message" rows="7" required></textarea></label>
+          <label class="consent-field"><input type="checkbox" required /><span>Ik ga ermee akkoord dat ZOL mijn gegevens gebruikt om mijn vraag te beantwoorden.</span></label>
+          <button class="button button--primary button--wide" type="submit">Open bericht in e-mail <span>→</span></button>
+          <p class="form-status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="contact-human section">
+        <div class="contact-human-image reveal">
+          <img
+            src="https://zolsolutions.nl/cdn/shop/files/DSC06583_09e69a5c-769e-434c-8451-c11116385894.jpg?v=1775822921&width=1400"
+            alt="Maks Breijer en Thijn Koelemij van ZOL Solutions"
+          />
+        </div>
+        <div class="contact-human-copy reveal">
+          <p class="section-index">Achter ZOL</p>
+          <h2>Geen helpdesk. Gewoon <em>Maks &amp; Thijn.</em></h2>
+          <p>Je bericht komt rechtstreeks bij ons terecht. We lezen je vraag zelf en denken vanuit de praktijk met je mee.</p>
+          <a class="text-link" href="mailto:info@zolsolutions.nl">info@zolsolutions.nl <span>↗</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="footer-brand" href="/" aria-label="ZOL Solutions home"><img src="https://zolsolutions.nl/cdn/shop/files/zol_wit.png?v=1774353653&width=180" alt="ZOL Solutions" /></a>
+      <p>Zachter landen. Beter sporten.</p>
+      <div class="footer-contact"><a href="/product/">De ZOL'tjes</a><a href="/contact/">Contact</a><a href="mailto:info@zolsolutions.nl">E-mail</a></div>
+      <div class="footer-legal"><span>© 2026 ZOL Solutions</span><a href="https://zolsolutions.nl/policies/privacy-policy">Privacy</a><a href="https://zolsolutions.nl/policies/terms-of-service">Voorwaarden</a></div>
+    </footer>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
