@@ -36,6 +36,16 @@ if (menuButton && navigation) {
   })
 }
 
+const processSection = document.querySelector('#werking')
+const storySection = document.querySelector('#ons-verhaal')
+const pressSection = document.querySelector('#in-de-media')
+const partnersSection = document.querySelector('#samenwerkingen')
+
+// Houd de sterke sportvideo vooraan en bouw daarna op van probleem naar product en bewijs.
+if (processSection && storySection && pressSection && partnersSection) {
+  processSection.after(storySection, pressSection, partnersSection)
+}
+
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const revealElements = document.querySelectorAll('.reveal')
 
