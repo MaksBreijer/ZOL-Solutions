@@ -255,6 +255,7 @@ async function fetchAllData() {
 }
 
 function renderDashboard() {
+  const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
   const now = new Date()
   const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const startWeek = new Date(startDay); startWeek.setDate(startDay.getDate() - 6)
@@ -275,7 +276,7 @@ function renderDashboard() {
   const maxRevenue = Math.max(...lastSevenDays.map((day) => day.value), 100)
 
   elements.content.innerHTML = `<div class="page-container">
-    ${pageHeader('dashboard', '<button class="button" data-action="refresh">Vernieuwen</button><button class="button button--primary" data-action="new-order">Bestelling maken</button>')}
+    ${pageHeader('dashboard', `<button class="button" data-action="refresh">Vernieuwen</button>${canManageOrders ? '<button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
     <section class="metric-grid" aria-label="Kerncijfers">
       <article class="metric-card"><header><span>Omzet vandaag</span><i>€</i></header><strong>${formatMoney(revenueSince(startDay))}</strong><footer><span class="trend-neutral">Actuele omzet</span><span>Vandaag</span></footer></article>
       <article class="metric-card"><header><span>Omzet 7 dagen</span><i>↗</i></header><strong>${formatMoney(revenueSince(startWeek))}</strong><footer><span class="trend-up">${state.orders.length} bestellingen totaal</span><span>7 dagen</span></footer></article>
@@ -313,9 +314,98 @@ function ordersTable(orders, showAll = true) {
 }
 
 function renderOrders() {
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('orders', '<button class="button" data-action="export-orders">Exporteren</button><button class="button button--primary" data-action="new-order">Bestelling maken</button>')}
+  const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('orders', `<button class="button" data-action="export-orders">Exporteren</button>${canManageOrders ? '<button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
     <section class="panel"><div class="filters"><input type="search" data-filter="orders" placeholder="Zoek op ordernummer, klant of e-mail"><select data-filter-status="orders"><option value="">Alle statussen</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select><select data-filter-payment="orders"><option value="">Elke betaling</option><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="refunded">Terugbetaald</option></select></div><div id="orders-table">${ordersTable(state.orders)}</div></section>
   </div>`
+}
+
+function orderVariantOptions() {
+  return state.products
+    .filter((product) => product.active)
+    .flatMap((product) => (product.product_variants || [])
+      .filter((variant) => variant.active)
+      .map((variant) => ({
+        id: variant.id,
+        label: `${product.name} · ${variant.title}`,
+        stock: variant.stock,
+        price: variant.price_cents ?? product.price_cents,
+      })))
+}
+
+function newOrderForm() {
+  if (!['owner', 'admin'].includes(state.profile?.role)) return
+  if (!state.customers.length) { toast('Voeg eerst een klant toe', 'Ga naar Klanten en maak de klant handmatig aan.', true); return }
+  const variants = orderVariantOptions()
+  if (!variants.length) { toast('Geen verkoopbare producten', 'Activeer eerst een product en maat.', true); return }
+  const customerOptions = state.customers.map((customer) => `<option value="${customer.id}">${escapeHtml(fullName(customer))} — ${escapeHtml(customer.email)}</option>`).join('')
+  const variantOptions = variants.map((variant) => `<option value="${variant.id}" data-price="${variant.price}" data-stock="${variant.stock}" ${variant.stock < 1 ? 'disabled' : ''}>${escapeHtml(variant.label)} · ${variant.stock < 1 ? 'uitverkocht' : `voorraad ${variant.stock}`} · ${formatMoney(variant.price)}</option>`).join('')
+
+  openDialog('Handmatige bestelling', 'Bestelling', `<form id="new-order-form">
+    <div class="form-grid">
+      <label class="field field--full">Klant<select name="customer_id" required><option value="">Kies een klant</option>${customerOptions}</select><small>Staat de klant er niet tussen? Voeg deze eerst toe via Klanten.</small></label>
+      <label class="field">Orderstatus<select name="status"><option value="open">Open</option><option value="draft">Concept</option><option value="completed">Afgerond</option></select></label>
+      <label class="field">Betaalstatus<select name="payment_status"><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="failed">Mislukt</option></select></label>
+      <label class="field">Verzendstatus<select name="fulfillment_status"><option value="unfulfilled">Niet verzonden</option><option value="processing">In behandeling</option><option value="shipped">Verzonden</option><option value="delivered">Bezorgd</option></select></label>
+      <label class="field">Verzendkosten (€)<input name="shipping" type="number" min="0" max="10000" step="0.01" value="0.00"></label>
+    </div>
+    <section class="manual-order-items">
+      <header><div><strong>Producten</strong><small>Kies de maten en aantallen voor deze bestelling.</small></div><button class="button button--small" type="button" data-action="add-order-line">＋ Regel toevoegen</button></header>
+      <div id="manual-order-lines"></div>
+      <footer><span>Voorlopig totaal</span><strong id="manual-order-total">€ 0,00</strong></footer>
+    </section>
+    <label class="field field--full">Interne notitie<textarea name="note" maxlength="1000" placeholder="Optionele notitie voor deze bestelling"></textarea></label>
+    <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Bestelling aanmaken</button></div>
+  </form>`)
+  elements.dialog.classList.add('admin-dialog--wide')
+  const form = document.querySelector('#new-order-form')
+  const lines = form.querySelector('#manual-order-lines')
+
+  const addLine = () => {
+    const row = document.createElement('div')
+    row.className = 'manual-order-line'
+    row.innerHTML = `<label class="field">Product en maat<select data-order-variant required><option value="">Kies een maat</option>${variantOptions}</select></label><label class="field">Aantal<input data-order-quantity type="number" min="1" max="100" value="1" required></label><button class="button button--danger button--small" type="button" data-action="remove-order-line" aria-label="Orderregel verwijderen">Verwijder</button>`
+    lines.append(row)
+    updateManualOrderTotal(form)
+  }
+  addLine()
+  form.addEventListener('input', () => updateManualOrderTotal(form))
+  form.addEventListener('change', () => updateManualOrderTotal(form))
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const button = form.querySelector('[type="submit"]')
+    const items = [...form.querySelectorAll('.manual-order-line')].map((row) => ({
+      variant_id: row.querySelector('[data-order-variant]').value,
+      quantity: Number(row.querySelector('[data-order-quantity]').value),
+    }))
+    if (!items.length || items.some((item) => !item.variant_id || !Number.isInteger(item.quantity) || item.quantity < 1)) { toast('Controleer de producten', 'Kies voor iedere regel een maat en geldig aantal.', true); return }
+    if (new Set(items.map((item) => item.variant_id)).size !== items.length) { toast('Dubbele maat gekozen', 'Combineer hetzelfde product en dezelfde maat in één regel.', true); return }
+    const values = Object.fromEntries(new FormData(form))
+    setBusy(button, true, 'Bestelling aanmaken')
+    const { data, error } = await supabase.rpc('create_admin_order', {
+      p_customer_id: values.customer_id,
+      p_items: items,
+      p_status: values.status,
+      p_payment_status: values.payment_status,
+      p_fulfillment_status: values.fulfillment_status,
+      p_shipping_cents: Math.round(Number(values.shipping || 0) * 100),
+      p_note: values.note || '',
+    })
+    if (error) { toast('Bestelling aanmaken mislukt', error.message, true); setBusy(button, false, 'Bestelling aanmaken'); return }
+    await recordActivity('Handmatige bestelling aangemaakt', 'order', data.order_id, { order_number: data.order_number })
+    toast('Bestelling aangemaakt', `Order #${data.order_number} staat in het overzicht.`)
+    closeDialog(); await refreshCurrentRoute()
+  })
+}
+
+function updateManualOrderTotal(form) {
+  let total = Math.round(Number(form.elements.shipping?.value || 0) * 100)
+  form.querySelectorAll('.manual-order-line').forEach((row) => {
+    const option = row.querySelector('[data-order-variant]')?.selectedOptions[0]
+    const quantity = Number(row.querySelector('[data-order-quantity]')?.value || 0)
+    total += Number(option?.dataset.price || 0) * Math.max(0, quantity)
+  })
+  form.querySelector('#manual-order-total').textContent = formatMoney(total)
 }
 
 function filterOrders() {
@@ -330,6 +420,7 @@ function filterOrders() {
 
 function openOrder(order) {
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
+  const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
   openDialog(`Bestelling #${order.order_number}`, 'Bestelling', `<form id="order-form">
     <div class="dialog-summary"><div><span>Klant</span><strong>${escapeHtml(order.customer_name || order.customer_email)}</strong></div><div><span>Datum</span><strong>${formatDate(order.created_at)}</strong></div><div><span>Totaal</span><strong>${formatMoney(order.total_cents)}</strong></div></div>
     <div class="line-items">${(order.order_items || []).map((item) => `<div class="line-item"><div><strong>${escapeHtml(item.product_name)}</strong><small>${escapeHtml(item.variant_name)} · ${item.quantity} × ${formatMoney(item.unit_price_cents)}</small></div><strong>${formatMoney(item.total_cents)}</strong></div>`).join('') || '<div class="line-item">Geen orderregels</div>'}</div>
@@ -341,7 +432,7 @@ function openOrder(order) {
       <label class="field field--full">Interne notitie<textarea name="note">${escapeHtml(order.note)}</textarea></label>
       <label class="field field--full">Factuurlink<input name="invoice_url" type="url" value="${escapeHtml(order.invoice_url)}" placeholder="https://…"></label>
     </div>
-    <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button" type="button" data-action="print-invoice" data-id="${order.id}">Factuur bekijken</button>${order.payment_status === 'paid' ? `<button class="button" type="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging versturen</button>` : ''}${order.invoice_url ? `<a class="button" href="${escapeHtml(order.invoice_url)}" target="_blank" rel="noreferrer">Externe factuur ↗</a>` : ''}<button class="button button--primary" type="submit">Wijzigingen opslaan</button></div>
+    <div class="form-actions">${canManageOrders ? `<button class="button button--danger" type="button" data-action="delete-order" data-id="${order.id}">Bestelling verwijderen</button>` : ''}<button class="button" type="button" data-close-dialog>Annuleren</button><button class="button" type="button" data-action="print-invoice" data-id="${order.id}">Factuur bekijken</button>${order.payment_status === 'paid' ? `<button class="button" type="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging versturen</button>` : ''}${order.invoice_url ? `<a class="button" href="${escapeHtml(order.invoice_url)}" target="_blank" rel="noreferrer">Externe factuur ↗</a>` : ''}<button class="button button--primary" type="submit">Wijzigingen opslaan</button></div>
   </form>`)
   const form = document.querySelector('#order-form')
   form.elements.status.value = order.status
@@ -357,6 +448,19 @@ function openOrder(order) {
     toast('Bestelling opgeslagen', `Order #${order.order_number} is bijgewerkt.`)
     closeDialog(); await refreshCurrentRoute()
   })
+}
+
+async function deleteOrder(orderId) {
+  if (!['owner', 'admin'].includes(state.profile?.role)) return
+  const order = state.orders.find((item) => item.id === orderId)
+  if (!order) return
+  const paidWarning = ['paid', 'partially_refunded'].includes(order.payment_status) ? ' Let op: regel eerst een eventuele terugbetaling af.' : ''
+  if (!window.confirm(`Weet je zeker dat je bestelling #${order.order_number} definitief wilt verwijderen? Productvoorraad wordt teruggezet.${paidWarning}`)) return
+  const { data, error } = await supabase.rpc('delete_admin_order', { p_order_id: order.id, p_restore_stock: true })
+  if (error) { toast('Bestelling verwijderen mislukt', error.message, true); return }
+  await recordActivity('Bestelling verwijderd', 'order', order.id, { order_number: order.order_number, stock_restored: data.stock_restored })
+  toast('Bestelling verwijderd', 'Productvoorraad en klanttotalen zijn bijgewerkt.')
+  closeDialog(); await refreshCurrentRoute()
 }
 
 function customersTable(customers) {
@@ -898,7 +1002,10 @@ async function handleContentClick(event) {
   if (action === 'export-orders') await exportOrders()
   if (action === 'print-invoice') printInvoice(state.orders.find((item) => item.id === id))
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))
-  if (action === 'new-order') toast('Bestelling aanmaken', 'Nieuwe handmatige orders worden in de volgende checkoutfase toegevoegd.')
+  if (action === 'new-order') newOrderForm()
+  if (action === 'delete-order') await deleteOrder(id)
+  if (action === 'add-order-line') { const form = document.querySelector('#new-order-form'); if (form) { const line = form.querySelector('.manual-order-line')?.cloneNode(true); if (line) { line.querySelector('[data-order-variant]').value = ''; line.querySelector('[data-order-quantity]').value = '1'; form.querySelector('#manual-order-lines').append(line); updateManualOrderTotal(form) } } }
+  if (action === 'remove-order-line') { const form = document.querySelector('#new-order-form'); const lines = form?.querySelectorAll('.manual-order-line'); if (lines?.length > 1) { target.closest('.manual-order-line')?.remove(); updateManualOrderTotal(form) } else toast('Minimaal één product nodig', '', true) }
   if (action === 'open-customer') customerForm(state.customers.find((item) => item.id === id))
   if (action === 'open-message') await openContactMessage(state.contactMessages.find((item) => item.id === id))
   if (action === 'new-customer') customerForm()
