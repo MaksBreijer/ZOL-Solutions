@@ -1115,6 +1115,40 @@ button {
   color: rgb(255 255 255 / 65%);
 }
 
+.solution-commerce {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3vw, 42px);
+  margin-top: clamp(28px, 4vw, 46px);
+  padding-top: 22px;
+  border-top: 1px solid rgb(255 255 255 / 24%);
+  grid-column: 2;
+}
+
+.solution-commerce div span,
+.solution-commerce div strong {
+  display: block;
+}
+
+.solution-commerce div span {
+  margin-bottom: 4px;
+  color: rgb(255 255 255 / 64%);
+  font-size: 0.68rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.solution-commerce div strong {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.solution-commerce .button {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 .solution h2 {
   color: #fff;
 }
@@ -3054,6 +3088,7 @@ button {
   .solution-heading .section-index,
   .solution-heading h2,
   .solution-heading > p:last-child,
+  .solution-commerce,
   .technology-heading > p:last-child,
   .reviews-heading .rating {
     grid-column: 1;
@@ -3299,6 +3334,18 @@ button {
   .solution-inner {
     padding-top: 100px;
     padding-bottom: 100px;
+  }
+
+  .solution-commerce {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .solution-commerce .button {
+    width: 100%;
+    margin: 0;
+    grid-column: 1 / -1;
   }
 
   .section h2,

@@ -37,11 +37,18 @@ if (menuButton && navigation) {
 }
 
 const processSection = document.querySelector('#werking')
+const signalSection = document.querySelector('.signal-strip')
+const solutionSection = document.querySelector('#oplossing')
 const storySection = document.querySelector('#ons-verhaal')
 const pressSection = document.querySelector('#in-de-media')
 const partnersSection = document.querySelector('#samenwerkingen')
 
-// Houd de sterke sportvideo vooraan en bouw daarna op van probleem naar product en bewijs.
+// Houd de sterke sportvideo vooraan en laat daarna direct zien wat ZOL verkoopt.
+if (signalSection && solutionSection) {
+  signalSection.after(solutionSection)
+}
+
+// Bouw daarna op van probleem en techniek naar het persoonlijke verhaal en extern bewijs.
 if (processSection && storySection && pressSection && partnersSection) {
   processSection.after(storySection, pressSection, partnersSection)
 }
