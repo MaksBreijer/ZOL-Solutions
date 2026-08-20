@@ -2643,6 +2643,12 @@ button {
   transform: translate(-50%, -50%);
 }
 
+.orbit-core img {
+  display: block;
+  width: 78px;
+  height: auto;
+}
+
 .orbit-label {
   position: absolute;
   z-index: 2;
