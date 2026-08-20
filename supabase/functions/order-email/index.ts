@@ -14,10 +14,31 @@ Deno.serve(async (request) => {
     const internalSecret = request.headers.get("x-zol-email-secret") || ""
     const { data: validInternalSecret } = internalSecret ? await db.rpc("verify_email_webhook_secret", { p_secret: internalSecret }) : { data: false }
     if (!validInternalSecret) await requireAdmin(request, db)
-    const { order_id: orderId } = await request.json()
+    const { order_id: orderId, action = "paid" } = await request.json()
     if (!/^[0-9a-f-]{36}$/i.test(String(orderId || ""))) return Response.json({ error: "Bestelling ontbreekt." }, { status: 400, headers })
     const { data: order, error: orderError } = await db.from("orders").select("*, order_items(*)").eq("id", orderId).maybeSingle()
     if (orderError || !order) return Response.json({ error: "Bestelling niet gevonden." }, { status: 404, headers })
+    if (action === "shipping") {
+      if (!order.tracking_code) return Response.json({ error: "Voeg eerst een trackingcode toe." }, { status: 409, headers })
+      const config = await getEmailConfig(db)
+      const trackingUrl = order.tracking_url || config.website_url || "https://zolsolutions.nl"
+      const carrier = order.tracking_carrier || "de bezorgdienst"
+      const content = `<div style="display:inline-block;margin-bottom:20px;padding:7px 11px;border-radius:999px;background:#e6f0f8;color:#245f8b;font-size:11px;font-weight:700">ONDERWEG</div><p style="margin:0 0 20px;color:#445b70;font-size:15px;line-height:1.7">Je bestelling is overgedragen aan ${escapeHtml(carrier)}. Met de onderstaande code kun je de zending volgen.</p><div style="padding:18px;border-radius:12px;background:#f3f6f8"><span style="display:block;color:#6b7b8b;font-size:11px">Trackingcode</span><strong style="display:block;margin-top:6px;color:#102b4a;font-size:20px;letter-spacing:.04em">${escapeHtml(order.tracking_code)}</strong></div><a href="${escapeHtml(trackingUrl)}" style="display:inline-block;margin-top:22px;padding:13px 20px;border-radius:8px;background:#33669b;color:#fff;font-size:13px;font-weight:700;text-decoration:none">Volg je bestelling →</a>`
+      const dedupe = `order-shipped-${order.id}-${order.tracking_code}`
+      const { data: existing } = await db.from("email_messages").select("id,status").eq("dedupe_key", dedupe).maybeSingle()
+      if (existing?.status === "sent") return Response.json({ success: true, results: [{ kind: "shipping_customer", status: "already_sent" }] }, { headers: { ...headers, "Content-Type": "application/json" } })
+      const subject = `Je ZOL-bestelling #${order.order_number} is onderweg`
+      const log = existing || await logEmail(db, { kind: "shipping_customer", recipient_email: order.customer_email, subject, order_id: order.id, customer_id: order.customer_id, dedupe_key: dedupe })
+      try {
+        const sent = await sendEmail({ to: order.customer_email, subject, html: emailShell(content, { eyebrow: `Bestelling #${order.order_number}`, title: "Je ZOL'tjes zijn onderweg.", intro: `Verzonden met ${carrier}.`, websiteUrl: config.website_url }), text: `Je bestelling #${order.order_number} is onderweg met ${carrier}. Trackingcode: ${order.tracking_code}. Volg je zending: ${trackingUrl}`, idempotencyKey: dedupe, config })
+        await markEmail(db, log.id, { status: "sent", providerId: sent.id })
+        return Response.json({ success: true, results: [{ kind: "shipping_customer", status: "sent" }] }, { headers: { ...headers, "Content-Type": "application/json" } })
+      } catch (sendError) {
+        const message = sendError instanceof Error ? sendError.message : "Verzendmail kon niet worden verstuurd."
+        await markEmail(db, log.id, { status: "failed", error: message })
+        return Response.json({ error: message }, { status: 503, headers })
+      }
+    }
     if (order.payment_status !== "paid") return Response.json({ error: "De bestelling is nog niet betaald." }, { status: 409, headers })
     const config = await getEmailConfig(db)
     const items = (order.order_items || []).map((item: Record<string, unknown>) => `<tr><td style="padding:13px 0;border-bottom:1px solid #e7ebef"><strong>${escapeHtml(item.product_name)}</strong><br><span style="color:#6b7b8b;font-size:12px">${escapeHtml(item.variant_name)} · ${item.quantity} × ${money(Number(item.unit_price_cents))}</span></td><td align="right" style="padding:13px 0;border-bottom:1px solid #e7ebef;font-weight:700">${money(Number(item.total_cents))}</td></tr>`).join("")

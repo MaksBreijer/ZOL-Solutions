@@ -25,7 +25,7 @@ for each row execute function private.set_updated_at();
 
 create table if not exists public.email_messages (
   id uuid primary key default gen_random_uuid(),
-  kind text not null check (kind in ('contact_notification', 'order_customer', 'order_admin', 'admin_customer')),
+  kind text not null check (kind in ('contact_notification', 'order_customer', 'order_admin', 'admin_customer', 'shipping_customer')),
   recipient_email text not null,
   subject text not null,
   body_preview text not null default '',

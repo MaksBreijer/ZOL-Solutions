@@ -1,18 +1,20 @@
 import './admin.css'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
-  BadgePercent, Bell, CalendarDays, ChartNoAxesCombined, ChevronRight, ChevronsUpDown,
-  CircleEuro, CreditCard, Download, History, House, Images, LogOut, Mail, MapPin,
-  Menu, Package, PanelsTopLeft, Plus, RadioTower, RefreshCw, Search, Settings,
-  ShoppingBag, Store, TrendingUp, UserCog, UserPlus, Users,
+  Archive, ArrowLeft, BadgePercent, Bell, CalendarDays, ChartNoAxesCombined,
+  CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
+  ExternalLink, FileText, History, House, Images, Link, LogOut, Mail, MapPin,
+  Menu, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw,
+  Search, Settings, ShoppingBag, Store, Tag, TrendingUp, Truck, UserCog, UserPlus, Users,
   createIcons,
 } from 'lucide'
 
 const adminIcons = {
-  BadgePercent, Bell, CalendarDays, ChartNoAxesCombined, ChevronRight, ChevronsUpDown,
-  CircleEuro, CreditCard, Download, History, House, Images, LogOut, Mail, MapPin,
-  Menu, Package, PanelsTopLeft, Plus, RadioTower, RefreshCw, Search, Settings,
-  ShoppingBag, Store, TrendingUp, UserCog, UserPlus, Users,
+  Archive, ArrowLeft, BadgePercent, Bell, CalendarDays, ChartNoAxesCombined,
+  CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
+  ExternalLink, FileText, History, House, Images, Link, LogOut, Mail, MapPin,
+  Menu, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw,
+  Search, Settings, ShoppingBag, Store, Tag, TrendingUp, Truck, UserCog, UserPlus, Users,
 }
 
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
@@ -48,6 +50,7 @@ const state = {
   allowedEmails: [],
   emailMessages: [],
   discounts: [],
+  orderNotes: [],
   search: '',
 }
 
@@ -300,7 +303,7 @@ async function recordActivity(action, entityType, entityId = '', details = {}) {
 
 async function fetchAllData() {
   const requests = await Promise.all([
-    supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }).limit(500),
+    supabase.from('orders').select('*, order_items(*, products(images))').order('created_at', { ascending: false }).limit(500),
     supabase.from('customers').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('contact_messages').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('products').select('*, product_variants(*)').order('updated_at', { ascending: false }),
@@ -308,12 +311,13 @@ async function fetchAllData() {
     supabase.from('media').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('site_content').select('*').order('page').order('sort_order'),
     supabase.from('settings').select('*').order('category').order('key'),
-    supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(100),
+    supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('analytics_events').select('*').order('created_at', { ascending: false }).limit(5000),
     supabase.from('admin_profiles').select('*').order('created_at'),
     supabase.from('admin_allowed_emails').select('*').order('created_at'),
     supabase.from('email_messages').select('*').order('created_at', { ascending: false }).limit(200),
     supabase.from('discounts').select('*').order('created_at', { ascending: false }),
+    supabase.from('order_notes').select('*').order('created_at', { ascending: false }).limit(1000),
   ])
 
   const firstError = requests.find((request) => request.error)?.error
@@ -334,6 +338,7 @@ async function fetchAllData() {
     state.allowedEmails,
     state.emailMessages,
     state.discounts,
+    state.orderNotes,
   ] = requests.map((request) => request.data || [])
 
   const openOrders = state.orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
@@ -500,36 +505,181 @@ function filterOrders() {
   document.querySelector('#orders-table').innerHTML = ordersTable(filtered)
 }
 
+function orderTrackingUrl(carrier, code, postalCode = '') {
+  const trackingCode = encodeURIComponent(String(code || '').trim())
+  const postal = encodeURIComponent(String(postalCode || '').replaceAll(' ', '').toUpperCase())
+  if (!trackingCode) return ''
+  if (carrier === 'PostNL') return `https://jouw.postnl.nl/track-and-trace/${trackingCode}-NL-${postal}`
+  if (carrier === 'DHL') return `https://www.dhl.com/nl-nl/home/traceren.html?tracking-id=${trackingCode}`
+  if (carrier === 'DPD') return `https://tracking.dpd.de/status/nl_NL/parcel/${trackingCode}`
+  if (carrier === 'UPS') return `https://www.ups.com/track?tracknum=${trackingCode}`
+  if (carrier === 'GLS') return `https://gls-group.com/NL/nl/pakket-volgen/?match=${trackingCode}`
+  return ''
+}
+
+function orderRisk(order, payment) {
+  if (['failed', 'refunded', 'partially_refunded'].includes(payment?.status || order.payment_status) || order.fulfillment_status === 'returned') return ['Hoog', 'is-high', 'Deze bestelling heeft een mislukte betaling, refund of retour. Controleer de tijdlijn.']
+  if (!['paid', 'authorized'].includes(payment?.status || order.payment_status)) return ['Gemiddeld', 'is-medium', 'De betaling is nog niet definitief verwerkt.']
+  return ['Laag', 'is-low', 'De betaling en klantgegevens geven geen directe risicosignalen.']
+}
+
+function orderTimeline(order) {
+  const events = []
+  state.activity.filter((item) => item.entity_type === 'order' && item.entity_id === order.id).forEach((item) => events.push({ id: `activity-${item.id}`, type: 'activity', title: item.action, detail: item.actor_email || 'Systeem', created_at: item.created_at }))
+  state.orderNotes.filter((item) => item.order_id === order.id).forEach((item) => events.push({ id: `note-${item.id}`, type: 'note', title: item.body, detail: item.author_email, created_at: item.created_at, noteId: item.id }))
+  state.emailMessages.filter((item) => item.order_id === order.id).forEach((item) => events.push({ id: `email-${item.id}`, type: 'email', title: item.status === 'sent' ? `E-mail verstuurd: ${item.subject}` : `E-mailstatus: ${item.subject}`, detail: prettyStatus(item.status), created_at: item.sent_at || item.created_at }))
+  state.payments.filter((item) => item.order_id === order.id).forEach((item) => events.push({ id: `payment-${item.id}`, type: 'payment', title: `Betaling ${prettyStatus(item.status).toLowerCase()} · ${formatMoney(item.amount_cents)}`, detail: item.provider === 'mollie' ? 'Mollie Payments' : 'Handmatige betaling', created_at: item.updated_at || item.created_at }))
+  events.push({ id: `order-${order.id}`, type: 'order', title: `${order.customer_name || order.customer_email} heeft deze bestelling geplaatst`, detail: order.source === 'admin' ? 'ZOL Admin' : 'ZOL-webshop', created_at: order.created_at })
+  return events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+}
+
+async function refreshOrderDetail(orderId) {
+  await fetchAllData()
+  const order = state.orders.find((item) => item.id === orderId)
+  if (order) openOrder(order); else renderOrders()
+}
+
 function openOrder(order) {
+  if (!order) return
+  const canManage = ['owner', 'admin'].includes(state.profile?.role)
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
-  const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
-  openDialog(`Bestelling #${order.order_number}`, 'Bestelling', `<form id="order-form">
-    <div class="dialog-summary"><div><span>Klant</span><strong>${escapeHtml(order.customer_name || order.customer_email)}</strong></div><div><span>Datum</span><strong>${formatDate(order.created_at)}</strong></div><div><span>Totaal</span><strong>${formatMoney(order.total_cents)}</strong></div></div>
-    <div class="line-items">${(order.order_items || []).map((item) => `<div class="line-item"><div><strong>${escapeHtml(item.product_name)}</strong><small>${escapeHtml(item.variant_name)} · ${item.quantity} × ${formatMoney(item.unit_price_cents)}</small></div><strong>${formatMoney(item.total_cents)}</strong></div>`).join('') || '<div class="line-item">Geen orderregels</div>'}</div>
-    <div class="form-grid">
-      <label class="field">Orderstatus<select name="status"><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label>
-      <label class="field">Betaalstatus<select name="payment_status"><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="failed">Mislukt</option><option value="partially_refunded">Deels terugbetaald</option><option value="refunded">Terugbetaald</option></select></label>
-      <label class="field">Verzendstatus<select name="fulfillment_status"><option value="unfulfilled">Niet verzonden</option><option value="processing">In behandeling</option><option value="shipped">Verzonden</option><option value="delivered">Bezorgd</option><option value="returned">Retour</option></select></label>
-      <label class="field">Trackingcode<input name="tracking_code" value="${escapeHtml(order.tracking_code)}"></label>
-      <label class="field field--full">Interne notitie<textarea name="note">${escapeHtml(order.note)}</textarea></label>
-      <label class="field field--full">Factuurlink<input name="invoice_url" type="url" value="${escapeHtml(order.invoice_url)}" placeholder="https://…"></label>
-    </div>
-    <div class="form-actions">${canManageOrders ? `<button class="button button--danger" type="button" data-action="delete-order" data-id="${order.id}">Bestelling verwijderen</button>` : ''}<button class="button" type="button" data-close-dialog>Annuleren</button><button class="button" type="button" data-action="print-invoice" data-id="${order.id}">Factuur bekijken</button>${order.payment_status === 'paid' ? `<button class="button" type="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging versturen</button>` : ''}${order.invoice_url ? `<a class="button" href="${escapeHtml(order.invoice_url)}" target="_blank" rel="noreferrer">Externe factuur ↗</a>` : ''}<button class="button button--primary" type="submit">Wijzigingen opslaan</button></div>
-  </form>`)
-  const form = document.querySelector('#order-form')
-  form.elements.status.value = order.status
-  form.elements.payment_status.value = order.payment_status
-  form.elements.fulfillment_status.value = order.fulfillment_status
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault()
-    const button = form.querySelector('[type="submit"]'); setBusy(button, true)
-    const values = Object.fromEntries(new FormData(form))
-    const { error } = await supabase.from('orders').update(values).eq('id', order.id)
-    if (error) { toast('Opslaan mislukt', error.message, true); setBusy(button, false, 'Wijzigingen opslaan'); return }
-    await recordActivity('Bestelling bijgewerkt', 'order', order.id, { order_number: order.order_number })
-    toast('Bestelling opgeslagen', `Order #${order.order_number} is bijgewerkt.`)
-    closeDialog(); await refreshCurrentRoute()
+  const payment = state.payments.find((item) => item.order_id === order.id)
+  const customer = state.customers.find((item) => item.id === order.customer_id)
+  const address = order.shipping_address || {}
+  const timeline = orderTimeline(order)
+  const trackingUrl = order.tracking_url || orderTrackingUrl(order.tracking_carrier, order.tracking_code, address.postal_code)
+  const refundable = payment ? Math.max(0, payment.amount_cents - payment.refunded_cents) : 0
+  const [riskLabel, riskClass, riskCopy] = orderRisk(order, payment)
+  const orderEvent = state.analytics.find((event) => event.event_name === 'order_created' && String(event.metadata?.order_number) === String(order.order_number))
+  const sessionEvents = orderEvent ? state.analytics.filter((event) => event.session_id === orderEvent.session_id) : []
+  const customerOrders = state.orders.filter((item) => item.customer_id === order.customer_id)
+  const itemCount = (order.order_items || []).reduce((sum, item) => sum + item.quantity, 0)
+  const itemRows = (order.order_items || []).map((item) => {
+    const image = Array.isArray(item.products?.images) ? item.products.images[0] : ''
+    return `<article class="order-product"><div class="order-product-image">${image ? `<img src="${escapeHtml(image)}" alt="">` : '<span>ZOL</span>'}</div><div><strong>${escapeHtml(item.product_name)}</strong><small>${escapeHtml(item.variant_name || item.sku)}</small></div><p>${formatMoney(item.unit_price_cents)} × ${item.quantity}</p><b>${formatMoney(item.total_cents)}</b></article>`
+  }).join('')
+  elements.content.innerHTML = `<div class="page-container order-detail-page">
+    <header class="order-detail-header"><div><button class="order-back" type="button" data-action="back-orders"><i data-lucide="arrow-left"></i></button><div><div class="order-title-line"><h1>#${order.order_number}</h1>${statusPill(order.payment_status)}${statusPill(order.fulfillment_status)}${order.archived ? '<span class="status-pill">Gearchiveerd</span>' : ''}</div><p>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit' })} via ${order.source === 'admin' ? 'ZOL Admin' : 'Webshop'}</p></div></div><div class="order-header-actions">${refundable && canManage ? `<button class="button" data-action="refund-order" data-id="${order.id}"><i data-lucide="rotate-ccw"></i> Terugbetalen</button>` : ''}${order.fulfillment_status !== 'returned' && canManage ? `<button class="button" data-action="return-order" data-id="${order.id}">Retourneren</button>` : ''}<button class="button" data-action="toggle-archive" data-id="${order.id}"><i data-lucide="archive"></i>${order.archived ? 'Uit archief' : 'Archiveren'}</button></div></header>
+    <div class="order-detail-grid"><main class="order-detail-main">
+      <section class="order-card fulfillment-card"><header><div><i data-lucide="truck"></i><div><h2>${prettyStatus(order.fulfillment_status)}</h2><p>${order.shipped_at ? `Verzonden ${formatDate(order.shipped_at, { hour: '2-digit', minute: '2-digit' })}` : 'Klaar voor verwerking'}</p></div></div><span>#${order.order_number}-F1</span></header>
+        ${order.tracking_code ? `<div class="tracking-summary"><div><span>${escapeHtml(order.tracking_carrier || 'Tracking')}</span><strong>${escapeHtml(order.tracking_code)}</strong>${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" target="_blank" rel="noreferrer">Zending volgen <i data-lucide="external-link"></i></a>` : ''}</div>${order.fulfillment_status === 'delivered' ? statusPill('delivered') : statusPill('shipped')}</div>` : ''}
+        <div class="order-products">${itemRows || '<p class="no-order-items">Geen orderregels.</p>'}</div>
+        <footer><span>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</span><div>${order.tracking_code ? `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="pencil"></i> Tracking wijzigen</button>` : `<button class="button button--primary" data-action="add-tracking" data-id="${order.id}"><i data-lucide="plus"></i> Tracking toevoegen</button>`}${order.fulfillment_status === 'shipped' ? `<button class="button" data-action="mark-delivered" data-id="${order.id}"><i data-lucide="check-circle"></i> Markeer bezorgd</button>` : ''}</div></footer>
+      </section>
+      <section class="order-card payment-card"><header><div><i data-lucide="credit-card"></i><h2>${prettyStatus(payment?.status || order.payment_status)}</h2></div><span>${escapeHtml(payment?.provider === 'mollie' ? 'Mollie Payments' : 'Handmatig')}</span></header><div class="payment-lines"><p><span>Subtotaal</span><small>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</small><strong>${formatMoney(order.subtotal_cents)}</strong></p>${order.discount_cents ? `<p><span>Korting ${order.discount_code ? `(${escapeHtml(order.discount_code)})` : ''}</span><small></small><strong>− ${formatMoney(order.discount_cents)}</strong></p>` : ''}<p><span>Verzending</span><small>Standaard</small><strong>${order.shipping_cents ? formatMoney(order.shipping_cents) : 'Gratis'}</strong></p><p class="payment-total"><span>Totaal</span><small></small><strong>${formatMoney(order.total_cents)}</strong></p>${payment?.refunded_cents ? `<p class="payment-refund"><span>Terugbetaald</span><small>${prettyStatus(payment.status)}</small><strong>− ${formatMoney(payment.refunded_cents)}</strong></p>` : ''}</div></section>
+      <section class="order-timeline"><h2>Tijdlijn</h2><form id="order-note-form" class="timeline-note"><span>${escapeHtml(initials(state.profile.full_name || state.profile.email))}</span><textarea name="body" rows="2" maxlength="2000" placeholder="Een interne opmerking plaatsen…" required></textarea><button class="button button--primary" type="submit">Plaatsen</button></form><p class="timeline-privacy">Alleen jij en andere beheerders kunnen opmerkingen zien.</p><ol>${timeline.map((item) => `<li class="is-${item.type}"><i></i><div><p>${escapeHtml(item.title)}</p><small>${escapeHtml(item.detail)} · ${formatDate(item.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${item.noteId && canManage ? `<button type="button" data-action="delete-order-note" data-id="${item.noteId}" data-order-id="${order.id}" aria-label="Notitie verwijderen">×</button>` : ''}</li>`).join('')}</ol></section>
+    </main><aside class="order-detail-side">
+      <section class="order-card order-note-card"><header><h2>Notities</h2>${canManage ? `<button data-action="edit-order-note" data-id="${order.id}" aria-label="Notitie bewerken"><i data-lucide="pencil"></i></button>` : ''}</header><p>${escapeHtml(order.note || 'Geen notities van klant')}</p></section>
+      <section class="order-card customer-card"><header><h2>Klant</h2></header><button class="customer-link" data-action="open-customer" data-id="${order.customer_id}">${escapeHtml(order.customer_name || order.customer_email)}</button><a href="#customers">${customerOrders.length} bestelling${customerOrders.length === 1 ? '' : 'en'}</a><h3>Contactgegevens</h3><a href="mailto:${escapeHtml(order.customer_email)}">${escapeHtml(order.customer_email)}</a>${customer?.phone ? `<a href="tel:${escapeHtml(customer.phone)}">${escapeHtml(customer.phone)}</a>` : ''}<h3>Bezorgadres</h3><address>${escapeHtml(order.customer_name)}<br>${escapeHtml(address.street || '')}<br>${escapeHtml(address.postal_code || '')} ${escapeHtml(address.city || '')}<br>${escapeHtml(address.country === 'NL' ? 'Nederland' : address.country || '')}</address>${address.street ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([address.street, address.postal_code, address.city].filter(Boolean).join(' '))}" target="_blank" rel="noreferrer">Kaart weergeven</a>` : ''}</section>
+      <section class="order-card conversion-card"><header><h2>Conversieoverzicht</h2></header><p><i data-lucide="shopping-bag"></i>Dit is hun ${customerOrders.length === 1 ? '1e' : `${customerOrders.length}e`} bestelling.</p><p><i data-lucide="link"></i>${orderEvent?.metadata?.referrer && orderEvent.metadata.referrer !== 'Direct' ? escapeHtml(orderEvent.metadata.referrer) : 'Sessie was direct naar de winkel'}</p><p><i data-lucide="chart-no-axes-combined"></i>${sessionEvents.length || 1} gemeten gebeurtenis${sessionEvents.length === 1 ? '' : 'sen'}</p></section>
+      <section class="order-card risk-card"><header><h2>Bestelrisico</h2><span class="risk-label ${riskClass}">${riskLabel}</span></header><div class="risk-meter ${riskClass}"><i></i></div><div class="risk-scale"><span>Laag</span><span>Gemiddeld</span><span>Hoog</span></div><p>${riskCopy}</p></section>
+      <section class="order-card tags-card"><header><h2>Tags</h2><i data-lucide="tag"></i></header><form id="order-tags-form"><input name="tags" maxlength="400" value="${escapeHtml((order.tags || []).join(', '))}" placeholder="bijv. club, spoed, VIP" ${canManage ? '' : 'disabled'}><button class="button" type="submit" ${canManage ? '' : 'disabled'}>Opslaan</button></form></section>
+      <section class="order-card status-card"><header><h2>Status beheren</h2></header><form id="order-status-form"><label>Bestelstatus<select name="status" ${canManage ? '' : 'disabled'}><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label><label>Verzendstatus<select name="fulfillment_status" ${canManage ? '' : 'disabled'}><option value="unfulfilled">Niet verzonden</option><option value="processing">In behandeling</option><option value="shipped">Verzonden</option><option value="delivered">Bezorgd</option></select></label><button class="button" type="submit" ${canManage ? '' : 'disabled'}>Status opslaan</button></form><div class="order-secondary-actions"><button class="button" data-action="print-invoice" data-id="${order.id}"><i data-lucide="file-text"></i> Factuur</button>${order.payment_status === 'paid' ? `<button class="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging</button>` : ''}${canManage ? `<button class="button button--danger" data-action="delete-order" data-id="${order.id}">Verwijderen</button>` : ''}</div></section>
+    </aside></div>
+  </div>`
+
+  const noteForm = document.querySelector('#order-note-form')
+  noteForm.addEventListener('submit', async (event) => {
+    event.preventDefault(); const button = noteForm.querySelector('[type="submit"]'); setBusy(button, true, 'Plaatsen'); const body = noteForm.elements.body.value.trim()
+    const { error } = await supabase.from('order_notes').insert({ order_id: order.id, author_id: state.profile.id, author_email: state.profile.email, body })
+    if (error) { toast('Notitie plaatsen mislukt', error.message, true); setBusy(button, false, 'Plaatsen'); return }
+    await refreshOrderDetail(order.id)
   })
+  const tagsForm = document.querySelector('#order-tags-form')
+  tagsForm.addEventListener('submit', async (event) => {
+    event.preventDefault(); const tags = [...new Set(tagsForm.elements.tags.value.split(',').map((tag) => tag.trim()).filter(Boolean))].slice(0, 12).map((tag) => tag.slice(0, 40))
+    const { error } = await supabase.from('orders').update({ tags }).eq('id', order.id)
+    if (error) { toast('Tags opslaan mislukt', error.message, true); return }
+    await recordActivity('Ordertags bijgewerkt', 'order', order.id, { order_number: order.order_number, tags }); toast('Tags opgeslagen'); await refreshOrderDetail(order.id)
+  })
+  const statusForm = document.querySelector('#order-status-form')
+  statusForm.elements.status.value = order.status
+  statusForm.elements.fulfillment_status.value = order.fulfillment_status === 'returned' ? 'delivered' : order.fulfillment_status
+  statusForm.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = Object.fromEntries(new FormData(statusForm)); const changes = { ...values }
+    if (values.fulfillment_status === 'shipped' && !order.shipped_at) changes.shipped_at = new Date().toISOString()
+    if (values.fulfillment_status === 'delivered' && !order.delivered_at) changes.delivered_at = new Date().toISOString()
+    const { error } = await supabase.from('orders').update(changes).eq('id', order.id)
+    if (error) { toast('Status opslaan mislukt', error.message, true); return }
+    await recordActivity('Orderstatus bijgewerkt', 'order', order.id, { order_number: order.order_number, ...values }); toast('Status opgeslagen'); await refreshOrderDetail(order.id)
+  })
+  refreshIcons()
+  elements.content.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'instant' })
+}
+
+function trackingForm(order) {
+  const address = order.shipping_address || {}
+  const emailEnabled = Boolean(settingsValue('email_config').enabled)
+  openDialog(order.tracking_code ? 'Tracking wijzigen' : 'Tracking toevoegen', `Bestelling #${order.order_number}`, `<form id="tracking-form"><div class="form-grid"><label class="field">Bezorgdienst<select name="tracking_carrier"><option value="PostNL">PostNL</option><option value="DHL">DHL</option><option value="DPD">DPD</option><option value="UPS">UPS</option><option value="GLS">GLS</option><option value="Anders">Anders</option></select></label><label class="field">Trackingcode<input name="tracking_code" maxlength="120" value="${escapeHtml(order.tracking_code || '')}" required></label><label class="field field--full">Trackinglink <span>optioneel; wordt anders automatisch ingevuld</span><input name="tracking_url" type="url" value="${escapeHtml(order.tracking_url || '')}" placeholder="https://…"></label><label class="field">Verzendmoment<input name="shipped_at" type="datetime-local" value="${order.shipped_at ? new Date(order.shipped_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)}"></label><label class="checkbox-field"><input name="notify" type="checkbox" ${emailEnabled ? 'checked' : 'disabled'}> Klant per e-mail informeren</label></div>${!emailEnabled ? '<p class="form-hint">Activeer de e-mailkoppeling bij Instellingen om automatisch een verzendmail te sturen.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Tracking opslaan</button></div></form>`)
+  const form = document.querySelector('#tracking-form'); form.elements.tracking_carrier.value = order.tracking_carrier || 'PostNL'
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Tracking opslaan'); const values = Object.fromEntries(new FormData(form)); const code = values.tracking_code.trim(); const carrier = values.tracking_carrier
+    const trackingUrl = values.tracking_url.trim() || orderTrackingUrl(carrier, code, address.postal_code)
+    const { error } = await supabase.from('orders').update({ tracking_code: code, tracking_carrier: carrier, tracking_url: trackingUrl, shipped_at: new Date(values.shipped_at).toISOString(), fulfillment_status: 'shipped' }).eq('id', order.id)
+    if (error) { toast('Tracking opslaan mislukt', error.message, true); setBusy(button, false, 'Tracking opslaan'); return }
+    await recordActivity(order.tracking_code ? 'Tracking bijgewerkt' : 'Tracking toegevoegd', 'order', order.id, { order_number: order.order_number, carrier, tracking_code: code })
+    if (values.notify === 'on') {
+      const { data, error: emailError } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'shipping' } })
+      if (emailError || data?.error) toast('Tracking opgeslagen, verzendmail mislukt', await edgeFunctionMessage(emailError, data, 'De e-mail kon niet worden verstuurd.'), true)
+      else toast('Tracking en verzendmail verwerkt', code)
+    } else toast('Tracking opgeslagen', code)
+    closeDialog(); await refreshOrderDetail(order.id)
+  })
+}
+
+function refundOrderForm(order) {
+  const payment = state.payments.find((item) => item.order_id === order.id)
+  const refundable = payment ? Math.max(0, payment.amount_cents - payment.refunded_cents) : 0
+  if (!payment || !refundable) { toast('Geen bedrag beschikbaar voor terugbetaling', '', true); return }
+  openDialog('Terugbetalen', `Bestelling #${order.order_number}`, `<form id="refund-form"><div class="dialog-summary"><div><span>Betaald</span><strong>${formatMoney(payment.amount_cents)}</strong></div><div><span>Eerder terugbetaald</span><strong>${formatMoney(payment.refunded_cents)}</strong></div><div><span>Beschikbaar</span><strong>${formatMoney(refundable)}</strong></div></div><label class="field">Terug te betalen bedrag (€)<input name="amount" type="number" min="0.01" max="${(refundable / 100).toFixed(2)}" step="0.01" value="${(refundable / 100).toFixed(2)}" required></label><p class="form-hint">Bij een Mollie-betaling wordt de terugbetaling direct bij Mollie aangevraagd. Handmatige betalingen worden administratief geregistreerd.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--danger" type="submit">Terugbetaling uitvoeren</button></div></form>`)
+  const form = document.querySelector('#refund-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Terugbetaling uitvoeren'); const amountCents = Math.round(Number(form.elements.amount.value) * 100)
+    const { data, error } = await supabase.functions.invoke('manage-order', { body: { action: 'refund', order_id: order.id, amount_cents: amountCents } })
+    if (error || data?.error) { toast('Terugbetaling mislukt', await edgeFunctionMessage(error, data, 'De terugbetaling kon niet worden uitgevoerd.'), true); setBusy(button, false, 'Terugbetaling uitvoeren'); return }
+    toast('Terugbetaling verwerkt', formatMoney(amountCents)); closeDialog(); await refreshOrderDetail(order.id)
+  })
+}
+
+function returnOrderForm(order) {
+  openDialog('Retour verwerken', `Bestelling #${order.order_number}`, `<form id="return-form"><p class="form-hint">De bestelling wordt als retour gemarkeerd. Je kunt daarna apart een volledige of gedeeltelijke terugbetaling uitvoeren.</p><label class="checkbox-field"><input name="restore_stock" type="checkbox" checked> Producten terugzetten in de voorraad</label><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Retour bevestigen</button></div></form>`)
+  const form = document.querySelector('#return-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Retour bevestigen')
+    const { data, error } = await supabase.rpc('return_admin_order', { p_order_id: order.id, p_restore_stock: form.elements.restore_stock.checked })
+    if (error) { toast('Retour verwerken mislukt', error.message, true); setBusy(button, false, 'Retour bevestigen'); return }
+    toast('Retour verwerkt', data.stock_restored ? `${data.stock_restored} artikel(en) terug op voorraad.` : 'Voorraad niet aangepast.'); closeDialog(); await refreshOrderDetail(order.id)
+  })
+}
+
+function editOrderNoteForm(order) {
+  openDialog('Ordernotitie bewerken', `Bestelling #${order.order_number}`, `<form id="order-copy-form"><label class="field">Notitie<textarea name="note" maxlength="1000" rows="7" placeholder="Interne informatie over deze bestelling">${escapeHtml(order.note || '')}</textarea></label><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Notitie opslaan</button></div></form>`)
+  const form = document.querySelector('#order-copy-form')
+  form.addEventListener('submit', async (event) => { event.preventDefault(); const note = form.elements.note.value.trim(); const { error } = await supabase.from('orders').update({ note }).eq('id', order.id); if (error) { toast('Notitie opslaan mislukt', error.message, true); return } await recordActivity('Ordernotitie bijgewerkt', 'order', order.id, { order_number: order.order_number }); closeDialog(); await refreshOrderDetail(order.id) })
+}
+
+async function toggleOrderArchive(order) {
+  if (!order) return
+  const archived = !order.archived
+  const { error } = await supabase.from('orders').update({ archived }).eq('id', order.id)
+  if (error) { toast('Archiefstatus wijzigen mislukt', error.message, true); return }
+  await recordActivity(archived ? 'Bestelling gearchiveerd' : 'Bestelling uit archief gehaald', 'order', order.id, { order_number: order.order_number })
+  toast(archived ? 'Bestelling gearchiveerd' : 'Bestelling teruggezet'); await refreshOrderDetail(order.id)
+}
+
+async function markOrderDelivered(order) {
+  if (!order) return
+  const { error } = await supabase.from('orders').update({ fulfillment_status: 'delivered', delivered_at: new Date().toISOString(), status: 'completed' }).eq('id', order.id)
+  if (error) { toast('Bezorgstatus wijzigen mislukt', error.message, true); return }
+  await recordActivity('Bestelling als bezorgd gemarkeerd', 'order', order.id, { order_number: order.order_number })
+  toast('Bestelling is bezorgd'); await refreshOrderDetail(order.id)
+}
+
+async function deleteOrderNote(noteId, orderId) {
+  if (!window.confirm('Deze interne tijdlijnnotitie verwijderen?')) return
+  const { error } = await supabase.from('order_notes').delete().eq('id', noteId)
+  if (error) { toast('Notitie verwijderen mislukt', error.message, true); return }
+  await refreshOrderDetail(orderId)
 }
 
 async function deleteOrder(orderId) {
@@ -637,7 +787,7 @@ async function sendOrderEmail(order) {
   const { data, error } = await supabase.functions.invoke('order-email', { body: { order_id: order.id } })
   if (error || data?.error) { toast('Bevestiging versturen mislukt', await edgeFunctionMessage(error, data, 'De bevestiging kon niet worden verstuurd.'), true); return }
   toast('Ordermails verstuurd', `De klant en info@zolsolutions.nl zijn geïnformeerd over #${order.order_number}.`)
-  closeDialog(); await refreshCurrentRoute()
+  await refreshOrderDetail(order.id)
 }
 
 function renderProducts() {
@@ -1273,6 +1423,14 @@ async function handleContentClick(event) {
   if (action === 'export-analytics') await exportAnalytics()
   if (action === 'print-invoice') printInvoice(state.orders.find((item) => item.id === id))
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))
+  if (action === 'back-orders') renderOrders()
+  if (action === 'add-tracking') trackingForm(state.orders.find((item) => item.id === id))
+  if (action === 'mark-delivered') await markOrderDelivered(state.orders.find((item) => item.id === id))
+  if (action === 'toggle-archive') await toggleOrderArchive(state.orders.find((item) => item.id === id))
+  if (action === 'refund-order') refundOrderForm(state.orders.find((item) => item.id === id))
+  if (action === 'return-order') returnOrderForm(state.orders.find((item) => item.id === id))
+  if (action === 'edit-order-note') editOrderNoteForm(state.orders.find((item) => item.id === id))
+  if (action === 'delete-order-note') await deleteOrderNote(id, target.dataset.orderId)
   if (action === 'new-order') newOrderForm()
   if (action === 'delete-order') await deleteOrder(id)
   if (action === 'add-order-line') { const form = document.querySelector('#new-order-form'); if (form) { const line = form.querySelector('.manual-order-line')?.cloneNode(true); if (line) { line.querySelector('[data-order-variant]').value = ''; line.querySelector('[data-order-quantity]').value = '1'; form.querySelector('#manual-order-lines').append(line); updateManualOrderTotal(form) } } }
