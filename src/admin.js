@@ -1,5 +1,19 @@
 import './admin.css'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
+import {
+  Bell, ChartNoAxesCombined, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard,
+  History, House, Images, LogOut, Mail, Menu, Package, PanelsTopLeft, RefreshCw,
+  Search, Settings, ShoppingBag, Store, TrendingUp, UserCog, UserPlus, Users,
+  createIcons,
+} from 'lucide'
+
+const adminIcons = {
+  Bell, ChartNoAxesCombined, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard,
+  History, House, Images, LogOut, Mail, Menu, Package, PanelsTopLeft, RefreshCw,
+  Search, Settings, ShoppingBag, Store, TrendingUp, UserCog, UserPlus, Users,
+}
+
+const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
 
 const elements = {
   loading: document.querySelector('#admin-loading'),
@@ -35,7 +49,7 @@ const state = {
 }
 
 const routeMeta = {
-  dashboard: ['Dashboard', 'Een helder overzicht van ZOL Solutions.'],
+  dashboard: ['Home', 'Alles wat vandaag aandacht nodig heeft, op één plek.'],
   orders: ['Bestellingen', 'Beheer betalingen, verzending en orderdetails.'],
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
   messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
@@ -191,9 +205,73 @@ function currentRoute() {
   return routeMeta[route] ? route : 'dashboard'
 }
 
+function globalSearchItems(query) {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return []
+  const includes = (...values) => values.filter(Boolean).join(' ').toLowerCase().includes(needle)
+  const items = []
+  Object.entries(routeMeta).forEach(([route, [title, subtitle]]) => {
+    if (includes(title, subtitle)) items.push({ route, label: title, meta: 'Pagina', icon: '↗' })
+  })
+  state.orders.forEach((order) => {
+    if (includes(order.order_number, order.customer_name, order.customer_email)) items.push({ route: 'orders', label: `#${order.order_number} · ${order.customer_name || order.customer_email}`, meta: 'Bestelling', icon: 'O', id: order.id, action: 'open-order' })
+  })
+  state.customers.forEach((customer) => {
+    if (includes(fullName(customer), customer.email, customer.phone)) items.push({ route: 'customers', label: fullName(customer), meta: customer.email || 'Klant', icon: 'K', id: customer.id, action: 'open-customer' })
+  })
+  state.products.forEach((product) => {
+    if (includes(product.name, product.slug, product.description)) items.push({ route: 'products', label: product.name, meta: 'Product', icon: 'P', id: product.id, action: 'open-product' })
+  })
+  state.contactMessages.forEach((message) => {
+    if (includes(message.name, message.email, message.subject, message.message)) items.push({ route: 'messages', label: message.subject || message.name || message.email, meta: 'Bericht', icon: 'B', id: message.id, action: 'open-message' })
+  })
+  state.content.forEach((entry) => {
+    if (includes(entry.label, entry.content_key, entry.value, entry.page)) items.push({ route: 'content', label: entry.label, meta: `CMS · ${entry.page}`, icon: 'C', id: entry.id, action: 'open-content' })
+  })
+  state.media.forEach((entry) => {
+    if (includes(entry.filename, entry.alt_text, entry.kind)) items.push({ route: 'media', label: entry.filename, meta: 'Media', icon: 'M', query: entry.filename })
+  })
+  return items.slice(0, 7)
+}
+
+function hideGlobalSearch() {
+  const input = document.querySelector('#global-search')
+  const results = document.querySelector('#global-search-results')
+  results.hidden = true
+  input.setAttribute('aria-expanded', 'false')
+}
+
+function renderGlobalSearch(query) {
+  const input = document.querySelector('#global-search')
+  const results = document.querySelector('#global-search-results')
+  if (!query.trim()) { hideGlobalSearch(); return }
+  const items = globalSearchItems(query)
+  results.innerHTML = items.length
+    ? `<p>Zoekresultaten</p>${items.map((item) => `<button type="button" data-search-route="${item.route}" data-search-id="${escapeHtml(item.id || '')}" data-search-action="${escapeHtml(item.action || '')}" data-search-query="${escapeHtml(item.query || query)}"><span>${item.icon}</span><span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.meta)}</small></span><em>Openen ↗</em></button>`).join('')}`
+    : '<div class="empty-state"><h3>Niets gevonden</h3><p>Probeer een ordernummer, klant, product of CMS-veld.</p></div>'
+  results.hidden = false
+  input.setAttribute('aria-expanded', 'true')
+}
+
+function openGlobalSearchResult(button) {
+  const { searchRoute: route, searchId: id, searchAction: action, searchQuery: query } = button.dataset
+  hideGlobalSearch()
+  document.querySelector('#global-search').value = ''
+  if (currentRoute() === route) renderRoute(route)
+  else window.location.hash = route
+  window.setTimeout(() => {
+    if (action && id) {
+      document.querySelector(`[data-action="${action}"][data-id="${CSS.escape(id)}"]`)?.click()
+      return
+    }
+    const filter = document.querySelector(`[data-filter="${route}"]`)
+    if (filter) { filter.value = query; filter.dispatchEvent(new Event('input', { bubbles: true })) }
+  }, 0)
+}
+
 function pageHeader(route, actions = '') {
   const [title, subtitle] = routeMeta[route]
-  return `<header class="page-header"><div><h1>${title}</h1><p>${subtitle}</p></div><div class="page-actions">${actions}</div></header>`
+  return `<header class="page-header"><div><div class="page-breadcrumb"><span>ZOL Solutions</span><i data-lucide="chevron-right"></i><strong>${title}</strong></div><h1>${title}</h1><p>${subtitle}</p></div><div class="page-actions">${actions}</div></header>`
 }
 
 function emptyState(title, text, icon = '◇') {
@@ -278,16 +356,10 @@ function renderDashboard() {
   elements.content.innerHTML = `<div class="page-container">
     ${pageHeader('dashboard', `<button class="button" data-action="refresh">Vernieuwen</button>${canManageOrders ? '<button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
     <section class="metric-grid" aria-label="Kerncijfers">
-      <article class="metric-card"><header><span>Omzet vandaag</span><i>€</i></header><strong>${formatMoney(revenueSince(startDay))}</strong><footer><span class="trend-neutral">Actuele omzet</span><span>Vandaag</span></footer></article>
-      <article class="metric-card"><header><span>Omzet 7 dagen</span><i>↗</i></header><strong>${formatMoney(revenueSince(startWeek))}</strong><footer><span class="trend-up">${state.orders.length} bestellingen totaal</span><span>7 dagen</span></footer></article>
-      <article class="metric-card"><header><span>Open bestellingen</span><i>▣</i></header><strong>${openOrders}</strong><footer><span>${state.orders.filter((order) => order.fulfillment_status === 'unfulfilled').length} nog te verzenden</span><span>Actueel</span></footer></article>
-      <article class="metric-card"><header><span>Conversie</span><i>%</i></header><strong>${conversionRate.toFixed(1)}%</strong><footer><span>${sessions} sessies gemeten</span><span>30 dagen</span></footer></article>
-    </section>
-    <section class="metric-grid" aria-label="Aanvullende cijfers">
-      <article class="metric-card"><header><span>Omzet deze maand</span><i>€</i></header><strong>${formatMoney(revenueSince(startMonth))}</strong><footer><span>Totaal ${formatMoney(totalRevenue)}</span><span>Maand</span></footer></article>
-      <article class="metric-card"><header><span>Bestellingen</span><i>▤</i></header><strong>${state.orders.length}</strong><footer><span>${paid.length} betaald</span><span>Totaal</span></footer></article>
-      <article class="metric-card"><header><span>Nieuwe klanten</span><i>+</i></header><strong>${newCustomers}</strong><footer><span>${state.customers.length} klanten totaal</span><span>Maand</span></footer></article>
-      <article class="metric-card"><header><span>Voorraad</span><i>◇</i></header><strong>${state.products.flatMap((product) => product.product_variants || []).reduce((sum, variant) => sum + variant.stock, 0)}</strong><footer><span>${state.products.length} producten</span><span>Stuks</span></footer></article>
+      <article class="metric-card"><header><span>Omzet deze maand</span><span class="metric-icon"><i data-lucide="circle-euro"></i></span></header><strong>${formatMoney(revenueSince(startMonth))}</strong><footer><span class="trend-up">${formatMoney(revenueSince(startDay))} vandaag</span><span>Maand</span></footer></article>
+      <article class="metric-card"><header><span>Open bestellingen</span><span class="metric-icon"><i data-lucide="shopping-bag"></i></span></header><strong>${openOrders}</strong><footer><span>${state.orders.filter((order) => order.fulfillment_status === 'unfulfilled').length} nog te verzenden</span><span>Actueel</span></footer></article>
+      <article class="metric-card"><header><span>Conversie</span><span class="metric-icon"><i data-lucide="trending-up"></i></span></header><strong>${conversionRate.toFixed(1)}%</strong><footer><span>${sessions} sessies gemeten</span><span>30 dagen</span></footer></article>
+      <article class="metric-card"><header><span>Nieuwe klanten</span><span class="metric-icon"><i data-lucide="user-plus"></i></span></header><strong>${newCustomers}</strong><footer><span>${state.customers.length} klanten totaal</span><span>Maand</span></footer></article>
     </section>
     <div class="dashboard-grid">
       <div>
@@ -299,7 +371,7 @@ function renderDashboard() {
       <aside class="dashboard-side">
         <section class="panel"><header class="panel-header"><div><h2>Recente activiteit</h2><p>Wijzigingen in de admin</p></div><a href="#activity">Logboek →</a></header>${activityList(state.activity.slice(0, 7))}</section>
         <section class="panel"><header class="panel-header"><div><h2>Snel beheren</h2><p>Direct naar een veelgebruikte actie</p></div></header><div class="quick-actions">
-          <button data-action="new-product"><span>＋</span>Product toevoegen</button><button data-route-jump="media"><span>▧</span>Media uploaden</button><button data-route-jump="content"><span>▤</span>Website bewerken</button><button data-route-jump="settings"><span>⚙</span>Instellingen</button>
+          <button data-action="new-product"><span><i data-lucide="package"></i></span>Product toevoegen</button><button data-route-jump="media"><span><i data-lucide="images"></i></span>Media uploaden</button><button data-route-jump="content"><span><i data-lucide="panels-top-left"></i></span>Website bewerken</button><button data-route-jump="settings"><span><i data-lucide="settings"></i></span>Instellingen</button>
         </div></section>
       </aside>
     </div>
@@ -960,6 +1032,7 @@ function renderRoute(route = currentRoute(), option) {
   elements.sidebar.classList.remove('is-open')
   const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, products: renderProducts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
+  refreshIcons()
   elements.content.focus({ preventScroll: true })
   window.scrollTo({ top: 0, behavior: 'instant' })
 }
@@ -1087,7 +1160,18 @@ elements.content.addEventListener('change', handleFilters)
 elements.content.addEventListener('click', (event) => { const tab = event.target.closest('[data-settings-tab]'); if (tab) renderSettings(tab.dataset.settingsTab) })
 window.addEventListener('hashchange', () => renderRoute())
 document.addEventListener('keydown', (event) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); document.querySelector('#global-search').focus() } if (event.key === 'Escape') elements.sidebar.classList.remove('is-open') })
-document.querySelector('#global-search').addEventListener('keydown', (event) => { if (event.key === 'Enter') { state.search = event.currentTarget.value; window.location.hash = 'orders'; requestAnimationFrame(() => { const input = document.querySelector('[data-filter="orders"]'); if (input) { input.value = state.search; filterOrders() } }) } })
+document.querySelector('#global-search').addEventListener('input', (event) => renderGlobalSearch(event.currentTarget.value))
+document.querySelector('#global-search').addEventListener('keydown', (event) => {
+  const results = document.querySelector('#global-search-results')
+  if (event.key === 'Enter') { event.preventDefault(); results.querySelector('button')?.click() }
+  if (event.key === 'ArrowDown') { event.preventDefault(); results.querySelector('button')?.focus() }
+  if (event.key === 'Escape') hideGlobalSearch()
+})
+document.querySelector('#global-search-results').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-search-route]')
+  if (button) openGlobalSearchResult(button)
+})
+document.addEventListener('click', (event) => { if (!event.target.closest('.global-search-shell')) hideGlobalSearch() })
 
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_OUT') { state.session = null; state.profile = null; showLogin() }
@@ -1095,3 +1179,5 @@ supabase.auth.onAuthStateChange((event, session) => {
 })
 
 boot()
+
+refreshIcons()

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex,nofollow" />
-    <meta name="theme-color" content="#f5f6f8" />
+    <meta name="theme-color" content="#102f4f" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -48,45 +48,52 @@
 
     <div class="admin-app" id="admin-app" hidden>
       <header class="admin-topbar">
-        <button class="mobile-menu-button" id="mobile-menu-button" type="button" aria-label="Menu openen">☰</button>
-        <a class="admin-brand" href="#dashboard" data-route="dashboard"><span>ZOL</span><strong>Admin</strong></a>
-        <label class="global-search">
-          <span>⌕</span>
-          <input id="global-search" type="search" placeholder="Zoeken in ZOL Admin" autocomplete="off" />
-          <kbd>⌘ K</kbd>
-        </label>
+        <button class="mobile-menu-button" id="mobile-menu-button" type="button" aria-label="Menu openen"><i data-lucide="menu"></i></button>
+        <a class="admin-brand" href="#dashboard" data-route="dashboard" aria-label="ZOL Solutions beheer">
+          <span class="admin-brand-mark">ZOL</span>
+          <span class="admin-store-copy"><strong>ZOL Solutions</strong><small>Webshopbeheer</small></span>
+          <i data-lucide="chevrons-up-down" aria-hidden="true"></i>
+        </a>
+        <div class="global-search-shell">
+          <label class="global-search">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <input id="global-search" type="search" placeholder="Zoeken in ZOL Admin" autocomplete="off" aria-label="Zoeken in ZOL Admin" aria-controls="global-search-results" aria-expanded="false" />
+            <kbd>⌘K</kbd>
+          </label>
+          <div class="global-search-results" id="global-search-results" hidden></div>
+        </div>
         <div class="topbar-actions">
-          <a class="view-store" href="/" target="_blank" rel="noreferrer">Webshop ↗</a>
-          <button class="notification-button" type="button" aria-label="Meldingen">●</button>
+          <a class="view-store" href="/" target="_blank" rel="noreferrer"><i data-lucide="store"></i><span>Webshop</span></a>
+          <button class="notification-button" type="button" aria-label="Meldingen"><i data-lucide="bell"></i><span class="notification-dot"></span></button>
           <button class="account-button" id="account-button" type="button"><span id="account-initials">MB</span><strong id="account-name">Maks</strong><small id="account-role">Eigenaar</small></button>
         </div>
       </header>
 
       <aside class="admin-sidebar" id="admin-sidebar">
         <nav aria-label="Adminnavigatie">
-          <p>Overzicht</p>
-          <a href="#dashboard" data-route="dashboard"><span>⌂</span>Dashboard</a>
-          <a href="#orders" data-route="orders"><span>▣</span>Bestellingen <i id="open-order-count"></i></a>
-          <a href="#customers" data-route="customers"><span>♙</span>Klanten</a>
-          <a href="#messages" data-route="messages"><span>✉</span>Berichten <i id="new-message-count"></i></a>
+          <p>Verkoop</p>
+          <a href="#dashboard" data-route="dashboard"><span><i data-lucide="house"></i></span>Home</a>
+          <a href="#orders" data-route="orders"><span><i data-lucide="shopping-bag"></i></span>Bestellingen <i id="open-order-count"></i></a>
+          <a href="#customers" data-route="customers"><span><i data-lucide="users"></i></span>Klanten</a>
+          <a href="#messages" data-route="messages"><span><i data-lucide="mail"></i></span>Berichten <i id="new-message-count"></i></a>
 
           <p>Webshop</p>
-          <a href="#products" data-route="products"><span>◇</span>Producten</a>
-          <a href="#content" data-route="content"><span>▤</span>Website CMS</a>
-          <a href="#media" data-route="media"><span>▧</span>Media</a>
-          <a href="#payments" data-route="payments"><span>€</span>Betalingen</a>
+          <a href="#products" data-route="products"><span><i data-lucide="package"></i></span>Producten</a>
+          <a href="#content" data-route="content"><span><i data-lucide="panels-top-left"></i></span>Website CMS</a>
+          <a href="#media" data-route="media"><span><i data-lucide="images"></i></span>Media</a>
+          <a href="#payments" data-route="payments"><span><i data-lucide="credit-card"></i></span>Betalingen</a>
 
           <p>Inzichten</p>
-          <a href="#analytics" data-route="analytics"><span>⌁</span>Analytics</a>
-          <a href="#activity" data-route="activity"><span>◷</span>Activiteiten</a>
+          <a href="#analytics" data-route="analytics"><span><i data-lucide="chart-no-axes-combined"></i></span>Analytics</a>
+          <a href="#activity" data-route="activity"><span><i data-lucide="history"></i></span>Activiteiten</a>
 
           <p>Beheer</p>
-          <a href="#team" data-route="team"><span>♧</span>Beheerders</a>
-          <a href="#settings" data-route="settings"><span>⚙</span>Instellingen</a>
+          <a href="#team" data-route="team"><span><i data-lucide="user-cog"></i></span>Beheerders</a>
+          <a href="#settings" data-route="settings"><span><i data-lucide="settings"></i></span>Instellingen</a>
         </nav>
         <div class="sidebar-footer">
           <div><span class="status-dot"></span><p><strong>Alle systemen online</strong><small>Supabase + Cloudflare</small></p></div>
-          <button id="sign-out" type="button">Uitloggen</button>
+          <button id="sign-out" type="button"><i data-lucide="log-out"></i> Uitloggen</button>
         </div>
       </aside>
 

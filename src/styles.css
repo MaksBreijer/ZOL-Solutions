@@ -1054,27 +1054,46 @@ button {
 .anatomy-marker::after {
   position: absolute;
   top: 4px;
-  width: 100px;
+  width: 58px;
   border-top: 1px solid var(--orange);
   content: "";
 }
 
+.anatomy-marker::before {
+  position: absolute;
+  top: -7px;
+  color: var(--orange);
+  content: attr(data-label);
+  font-family: var(--heading);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
 .anatomy-marker--one {
-  top: 47%;
-  left: 30%;
+  top: 59%;
+  left: 21.5%;
 }
 
 .anatomy-marker--one::after {
-  left: 14px;
+  right: 14px;
+}
+
+.anatomy-marker--one::before {
+  right: 80px;
 }
 
 .anatomy-marker--two {
-  right: 30%;
-  bottom: 25%;
+  top: 63.5%;
+  left: 29%;
 }
 
 .anatomy-marker--two::after {
-  right: 14px;
+  left: 14px;
+}
+
+.anatomy-marker--two::before {
+  left: 80px;
 }
 
 .anatomy-figure figcaption {
@@ -1566,7 +1585,7 @@ button {
 .partners {
   display: grid;
   min-height: 185px;
-  padding: 36px max(24px, calc((100vw - 1180px) / 2));
+  padding: 36px max(24px, calc((100vw - 1280px) / 2));
   grid-template-columns: minmax(180px, 0.5fr) minmax(0, 1.5fr);
   align-items: center;
   gap: clamp(40px, 8vw, 100px);
@@ -1610,10 +1629,12 @@ button {
   display: block;
   color: var(--orange);
   font-family: var(--serif);
+  font-size: 0.9em;
   font-weight: 400;
   letter-spacing: -0.025em;
   line-height: 1;
   text-transform: none;
+  white-space: nowrap;
 }
 
 .partners-lead {
@@ -3814,7 +3835,6 @@ blockquote {
   .signal-strip,
   .solution-inner,
   .press-inner,
-  .partners,
   .emotion-copy {
     width: min(100% - 48px, 1180px);
   }
@@ -3905,7 +3925,6 @@ blockquote {
   .signal-strip,
   .solution-inner,
   .press-inner,
-  .partners,
   .emotion-copy {
     width: min(100% - 32px, 1180px);
   }
@@ -4162,7 +4181,6 @@ blockquote {
   .press-inner,
   .price-comparison-inner,
   .professionals-inner,
-  .partners,
   .emotion-copy,
   .product-detail-hero,
   .contact-hero,
@@ -4182,6 +4200,11 @@ blockquote {
 }
 
 @media (max-width: 700px) {
+  .partners {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
   .site-footer {
     width: 100%;
     padding: 44px 16px calc(104px + env(safe-area-inset-bottom));
