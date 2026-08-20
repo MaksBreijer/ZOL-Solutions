@@ -1,6 +1,7 @@
 import './checkout.css'
 import { clearCart, getCart, updateCartItem } from './cart.js'
 import { formatMoney, supabase } from './supabase-client.js'
+import { trackEvent } from './site-runtime.js'
 
 const cartElement = document.querySelector('#checkout-cart')
 const summaryElement = document.querySelector('#checkout-summary')
@@ -11,6 +12,8 @@ const commerce = commerceSetting?.value || { shipping_cents: 0, free_shipping_th
 const returnParams = new URLSearchParams(window.location.search)
 const returnOrderId = returnParams.get('ref')
 const returnToken = returnParams.get('token')
+
+if (!returnOrderId) trackEvent('begin_checkout', { page: '/checkout/' })
 
 function render() {
   const cart = getCart()
@@ -96,15 +99,17 @@ form.addEventListener('submit', async (event) => {
   const status = document.querySelector('#checkout-status')
   button.disabled = true; button.innerHTML = 'Bestelling verwerken…'; status.textContent = ''; status.classList.remove('is-error')
   const customer = Object.fromEntries(new FormData(form))
+  const discountCode = String(customer.discount_code || '').trim().toUpperCase()
+  delete customer.discount_code
   const sessionId = sessionStorage.getItem('zol_session_id') || crypto.randomUUID()
-  const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, note: customer.note, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
+  const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discount_code: discountCode, note: customer.note, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
   if (error || data?.error) {
     status.textContent = data?.error || error.message || 'Afrekenen is niet gelukt.'; status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Bestelling plaatsen <span>→</span>'; return
   }
   if (data.checkout_url) { window.location.href = data.checkout_url; return }
   clearCart()
   document.querySelector('.checkout-flow').innerHTML = `<section class="cart-block"><div class="checkout-success"><span>✓</span><h2>Bestelling #${data.order_number} is ontvangen</h2><p>Je bestelling staat veilig in ZOL Admin. Online betalen wordt geactiveerd zodra Mollie is gekoppeld; ZOL neemt tot die tijd persoonlijk contact met je op over de betaling.</p><a href="/">Terug naar ZOL Solutions</a></div></section>`
-  summaryElement.innerHTML = `<h2>Ontvangen</h2><div class="summary-line total"><span>Totaal</span><strong>${formatMoney(data.total_cents)}</strong></div><p class="summary-note">Bewaar bestelnummer #${data.order_number} voor vragen over je bestelling.</p>`
+  summaryElement.innerHTML = `<h2>Ontvangen</h2>${data.discount_cents ? `<div class="summary-line"><span>Korting ${data.discount_code ? `(${data.discount_code})` : ''}</span><strong>− ${formatMoney(data.discount_cents)}</strong></div>` : ''}<div class="summary-line total"><span>Totaal</span><strong>${formatMoney(data.total_cents)}</strong></div><p class="summary-note">Bewaar bestelnummer #${data.order_number} voor vragen over je bestelling.</p>`
 })
 
 window.addEventListener('zol:cart', render)

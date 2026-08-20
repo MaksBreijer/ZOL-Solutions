@@ -90,6 +90,33 @@ create trigger admin_profiles_updated_at
 before update on public.admin_profiles
 for each row execute function private.set_updated_at();
 
+create table public.discounts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null check (char_length(title) between 1 and 100),
+  code text,
+  method text not null default 'code' check (method in ('code', 'automatic')),
+  discount_type text not null default 'percentage' check (discount_type in ('percentage', 'fixed_amount', 'free_shipping')),
+  value integer not null default 0 check (value >= 0),
+  minimum_subtotal_cents integer not null default 0 check (minimum_subtotal_cents >= 0),
+  usage_limit integer check (usage_limit is null or usage_limit > 0),
+  usage_count integer not null default 0 check (usage_count >= 0),
+  starts_at timestamptz not null default now(),
+  ends_at timestamptz,
+  active boolean not null default true,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check ((method = 'code' and code is not null and code = upper(code) and code ~ '^[A-Z0-9][A-Z0-9_-]{2,39}$') or (method = 'automatic' and code is null)),
+  check ((discount_type = 'percentage' and value between 1 and 100) or (discount_type = 'fixed_amount' and value > 0) or (discount_type = 'free_shipping' and value = 0)),
+  check (ends_at is null or ends_at > starts_at)
+);
+
+create unique index discounts_code_unique_idx on public.discounts (upper(code)) where code is not null;
+create index discounts_active_dates_idx on public.discounts (active, starts_at, ends_at);
+create index discounts_created_by_idx on public.discounts (created_by);
+create trigger discounts_updated_at before update on public.discounts
+for each row execute function private.set_updated_at();
+
 create table public.customers (
   id uuid primary key default gen_random_uuid(),
   email text not null,
@@ -165,6 +192,9 @@ create table public.orders (
   fulfillment_status text not null default 'unfulfilled' check (fulfillment_status in ('unfulfilled', 'processing', 'shipped', 'delivered', 'returned')),
   subtotal_cents integer not null default 0 check (subtotal_cents >= 0),
   shipping_cents integer not null default 0 check (shipping_cents >= 0),
+  discount_id uuid references public.discounts(id) on delete set null,
+  discount_code text,
+  discount_cents integer not null default 0 check (discount_cents >= 0),
   tax_cents integer not null default 0 check (tax_cents >= 0),
   total_cents integer not null default 0 check (total_cents >= 0),
   currency text not null default 'EUR',
@@ -181,6 +211,7 @@ create table public.orders (
 create index orders_created_at_idx on public.orders (created_at desc);
 create index orders_customer_idx on public.orders (customer_id, created_at desc);
 create index orders_status_idx on public.orders (status, payment_status, fulfillment_status);
+create index orders_discount_id_idx on public.orders (discount_id);
 create trigger orders_updated_at before update on public.orders
 for each row execute function private.set_updated_at();
 
@@ -199,6 +230,17 @@ create table public.order_items (
 );
 
 create index order_items_order_idx on public.order_items (order_id);
+
+create table public.discount_redemptions (
+  id uuid primary key default gen_random_uuid(),
+  discount_id uuid not null references public.discounts(id) on delete restrict,
+  order_id uuid not null unique references public.orders(id) on delete cascade,
+  code text,
+  amount_cents integer not null check (amount_cents >= 0),
+  created_at timestamptz not null default now()
+);
+
+create index discount_redemptions_discount_idx on public.discount_redemptions (discount_id, created_at desc);
 
 create table public.payments (
   id uuid primary key default gen_random_uuid(),
@@ -303,6 +345,8 @@ grant select, insert, update, delete on public.products to authenticated;
 grant select, insert, update, delete on public.product_variants to authenticated;
 grant select, insert, update, delete on public.orders to authenticated;
 grant select, insert, update, delete on public.order_items to authenticated;
+grant select, insert, update, delete on public.discounts to authenticated;
+grant select on public.discount_redemptions to authenticated;
 grant select, insert, update, delete on public.payments to authenticated;
 grant select, insert, update, delete on public.media to authenticated;
 grant select, insert, update, delete on public.site_content to authenticated;
@@ -322,6 +366,8 @@ alter table public.products enable row level security;
 alter table public.product_variants enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
+alter table public.discounts enable row level security;
+alter table public.discount_redemptions enable row level security;
 alter table public.payments enable row level security;
 alter table public.media enable row level security;
 alter table public.site_content enable row level security;
@@ -366,6 +412,17 @@ create policy "admins manage orders" on public.orders
 for all to authenticated using (private.is_admin()) with check (private.is_admin());
 create policy "admins manage order items" on public.order_items
 for all to authenticated using (private.is_admin()) with check (private.is_admin());
+create policy "admins read discounts" on public.discounts
+for select to authenticated using (private.is_admin());
+create policy "owners and admins create discounts" on public.discounts
+for insert to authenticated with check (private.is_admin(array['owner', 'admin']));
+create policy "owners and admins update discounts" on public.discounts
+for update to authenticated using (private.is_admin(array['owner', 'admin']))
+with check (private.is_admin(array['owner', 'admin']));
+create policy "owners and admins delete discounts" on public.discounts
+for delete to authenticated using (private.is_admin(array['owner', 'admin']));
+create policy "admins read discount redemptions" on public.discount_redemptions
+for select to authenticated using (private.is_admin());
 create policy "admins manage payments" on public.payments
 for all to authenticated using (private.is_admin()) with check (private.is_admin());
 
@@ -396,6 +453,14 @@ for insert to anon, authenticated with check (
 );
 create policy "admins read analytics" on public.analytics_events
 for select to authenticated using (private.is_admin());
+
+do $$
+begin
+  alter publication supabase_realtime add table public.analytics_events;
+exception
+  when duplicate_object then null;
+end;
+$$;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -478,6 +543,11 @@ insert into public.settings (key, category, label, value, is_public) values
   ('theme', 'website', 'Huisstijl', '{"primary":"#33669B","accent":"#F28C57","ink":"#10233B","background":"#F7F5F0"}'::jsonb, true),
   ('seo_defaults', 'website', 'Standaard SEO', '{"title":"ZOL Solutions","description":"Zachter landen. Beter sporten."}'::jsonb, true)
 on conflict (key) do nothing;
+
+insert into public.discounts (title, code, method, discount_type, value, minimum_subtotal_cents, starts_at, active)
+values ('20% korting op ZOL – Inlegzolen voor kinderen met hielpijn', 'KIDSCARE20', 'code', 'percentage', 20, 0, now(), true)
+on conflict (upper(code)) where code is not null do update
+set title = excluded.title, discount_type = excluded.discount_type, value = excluded.value, active = excluded.active, updated_at = now();
 
 insert into public.site_content (page, section, content_key, label, content_type, selector, attribute, value, sort_order) values
   ('global', 'navigation', 'global.nav.product', 'Navigatie: product', 'text', '.nav-links a[href="/product/"]', 'textContent', 'De ZOL''tjes', 10),

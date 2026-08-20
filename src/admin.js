@@ -1,16 +1,18 @@
 import './admin.css'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
-  Bell, ChartNoAxesCombined, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard,
-  History, House, Images, LogOut, Mail, Menu, Package, PanelsTopLeft, RefreshCw,
-  Search, Settings, ShoppingBag, Store, TrendingUp, UserCog, UserPlus, Users,
+  BadgePercent, Bell, CalendarDays, ChartNoAxesCombined, ChevronRight, ChevronsUpDown,
+  CircleEuro, CreditCard, Download, History, House, Images, LogOut, Mail, MapPin,
+  Menu, Package, PanelsTopLeft, Plus, RadioTower, RefreshCw, Search, Settings,
+  ShoppingBag, Store, TrendingUp, UserCog, UserPlus, Users,
   createIcons,
 } from 'lucide'
 
 const adminIcons = {
-  Bell, ChartNoAxesCombined, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard,
-  History, House, Images, LogOut, Mail, Menu, Package, PanelsTopLeft, RefreshCw,
-  Search, Settings, ShoppingBag, Store, TrendingUp, UserCog, UserPlus, Users,
+  BadgePercent, Bell, CalendarDays, ChartNoAxesCombined, ChevronRight, ChevronsUpDown,
+  CircleEuro, CreditCard, Download, History, House, Images, LogOut, Mail, MapPin,
+  Menu, Package, PanelsTopLeft, Plus, RadioTower, RefreshCw, Search, Settings,
+  ShoppingBag, Store, TrendingUp, UserCog, UserPlus, Users,
 }
 
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
@@ -45,6 +47,7 @@ const state = {
   profiles: [],
   allowedEmails: [],
   emailMessages: [],
+  discounts: [],
   search: '',
 }
 
@@ -54,10 +57,12 @@ const routeMeta = {
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
   messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
   products: ['Producten', 'Prijzen, maten, voorraad en productmedia.'],
+  discounts: ['Kortingen', 'Maak kortingscodes en automatische acties voor de ZOL-webshop.'],
   content: ['Website CMS', 'Bewerk teksten, knoppen, beelden, video en SEO zonder code.'],
   media: ['Mediabibliotheek', 'Eén centrale plek voor afbeeldingen, video en iconen.'],
   payments: ['Betalingen', 'Betaalstatussen en terugbetalingen, klaar voor Mollie.'],
-  analytics: ['Analytics', 'Verkeer, winkelwagenacties en conversie.'],
+  analytics: ['Analytics', 'Verkeer, omzet, winkelgedrag en conversie in één rapport.'],
+  live: ['Live View', 'Bekijk live bezoekers, winkelgedrag en bestellingen.'],
   activity: ['Activiteiten', 'Recente wijzigingen door beheerders.'],
   team: ['Beheerders', 'Nodig beheerders uit en beheer hun rechten.'],
   settings: ['Instellingen', 'Bedrijf, checkout, btw, verzending en huisstijl.'],
@@ -231,6 +236,9 @@ function globalSearchItems(query) {
   state.media.forEach((entry) => {
     if (includes(entry.filename, entry.alt_text, entry.kind)) items.push({ route: 'media', label: entry.filename, meta: 'Media', icon: 'M', query: entry.filename })
   })
+  state.discounts.forEach((discount) => {
+    if (includes(discount.title, discount.code, discount.discount_type)) items.push({ route: 'discounts', label: discount.code || discount.title, meta: 'Korting', icon: '%', id: discount.id, action: 'open-discount' })
+  })
   return items.slice(0, 7)
 }
 
@@ -305,6 +313,7 @@ async function fetchAllData() {
     supabase.from('admin_profiles').select('*').order('created_at'),
     supabase.from('admin_allowed_emails').select('*').order('created_at'),
     supabase.from('email_messages').select('*').order('created_at', { ascending: false }).limit(200),
+    supabase.from('discounts').select('*').order('created_at', { ascending: false }),
   ])
 
   const firstError = requests.find((request) => request.error)?.error
@@ -324,6 +333,7 @@ async function fetchAllData() {
     state.profiles,
     state.allowedEmails,
     state.emailMessages,
+    state.discounts,
   ] = requests.map((request) => request.data || [])
 
   const openOrders = state.orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
@@ -910,16 +920,192 @@ function paymentForm(payment) {
   })
 }
 
+const dayKey = (date) => new Date(date).toISOString().slice(0, 10)
+const percent = (value, total) => total ? `${((value / total) * 100).toFixed(1)}%` : '0%'
+const analyticsSince = (days) => {
+  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - (days - 1))
+  return state.analytics.filter((event) => new Date(event.created_at) >= start)
+}
+const ordersSince = (days) => {
+  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - (days - 1))
+  return state.orders.filter((order) => new Date(order.created_at) >= start)
+}
+
+function barSeriesMarkup(values, formatter = (value) => value) {
+  const max = Math.max(...values.map((item) => item.value), 1)
+  return `<div class="report-bars">${values.map((item) => `<div class="report-bar" title="${escapeHtml(item.label)}: ${escapeHtml(formatter(item.value))}"><i style="height:${Math.max(3, (item.value / max) * 100)}%"></i><small>${escapeHtml(item.short || item.label)}</small></div>`).join('')}</div>`
+}
+
+function analyticsSeries(days, events, orders) {
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (days - 1 - index))
+    const key = dayKey(date)
+    return {
+      label: date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+      short: index % Math.max(1, Math.floor(days / 7)) === 0 ? date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) : '',
+      sessions: new Set(events.filter((event) => dayKey(event.created_at) === key).map((event) => event.session_id)).size,
+      revenue: orders.filter((order) => dayKey(order.created_at) === key && order.payment_status === 'paid').reduce((sum, order) => sum + order.total_cents, 0),
+    }
+  })
+}
+
 function renderAnalytics() {
-  const pageViews = state.analytics.filter((event) => event.event_name === 'page_view')
+  const events = analyticsSince(30)
+  const periodOrders = ordersSince(30)
+  const paidOrders = periodOrders.filter((order) => order.payment_status === 'paid')
+  const pageViews = events.filter((event) => event.event_name === 'page_view')
   const sessions = new Set(pageViews.map((event) => event.session_id)).size
-  const productViews = state.analytics.filter((event) => event.event_name === 'product_view').length
-  const carts = state.analytics.filter((event) => event.event_name === 'add_to_cart').length
-  const checkouts = state.analytics.filter((event) => event.event_name === 'begin_checkout').length
-  const orders = state.analytics.filter((event) => event.event_name === 'order_created').length
-  const conversion = sessions ? (orders / sessions) * 100 : 0
+  const productViews = events.filter((event) => event.event_name === 'product_view').length
+  const carts = events.filter((event) => event.event_name === 'add_to_cart').length
+  const checkouts = events.filter((event) => event.event_name === 'begin_checkout').length
+  const completed = events.filter((event) => event.event_name === 'order_created').length
+  const revenue = paidOrders.reduce((sum, order) => sum + order.total_cents, 0)
+  const averageOrder = paidOrders.length ? revenue / paidOrders.length : 0
+  const fulfilled = periodOrders.filter((order) => ['shipped', 'delivered'].includes(order.fulfillment_status)).length
+  const customerOrderCounts = periodOrders.reduce((result, order) => { const key = order.customer_email || order.customer_id; result[key] = (result[key] || 0) + 1; return result }, {})
+  const returningCustomers = Object.values(customerOrderCounts).filter((count) => count > 1).length
+  const returningRate = percent(returningCustomers, Object.keys(customerOrderCounts).length)
   const pages = Object.entries(pageViews.reduce((result, event) => { result[event.page || '/'] = (result[event.page || '/'] || 0) + 1; return result }, {})).sort((a, b) => b[1] - a[1])
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('analytics', '<button class="button" data-action="refresh">Vernieuwen</button>')}<section class="metric-grid"><article class="metric-card"><header><span>Sessies</span><i>◉</i></header><strong>${sessions}</strong><footer><span>${pageViews.length} paginaweergaven</span><span>Gemeten</span></footer></article><article class="metric-card"><header><span>Product bekeken</span><i>◇</i></header><strong>${productViews}</strong><footer><span>${sessions ? ((productViews / sessions) * 100).toFixed(1) : 0}% van sessies</span><span>Totaal</span></footer></article><article class="metric-card"><header><span>Toegevoegd aan winkelwagen</span><i>＋</i></header><strong>${carts}</strong><footer><span>${checkouts} checkouts gestart</span><span>Totaal</span></footer></article><article class="metric-card"><header><span>Conversie</span><i>%</i></header><strong>${conversion.toFixed(1)}%</strong><footer><span>${orders} orders</span><span>Totaal</span></footer></article></section><div class="dashboard-grid"><section class="panel"><header class="panel-header"><div><h2>Conversietrechter</h2><p>Van bezoek tot bestelling</p></div></header><div class="chart-wrap"><div class="chart">${[['Sessies', sessions], ['Product', productViews], ['Winkelwagen', carts], ['Checkout', checkouts], ['Order', orders]].map(([label, value]) => `<div class="chart-column"><i style="height:${Math.max(3, sessions ? (value / sessions) * 170 : 3)}px"></i><small>${label}</small></div>`).join('')}</div></div></section><section class="panel"><header class="panel-header"><div><h2>Populaire pagina's</h2><p>Op basis van paginaweergaven</p></div></header><ul class="activity-list">${pages.slice(0, 8).map(([page, count]) => `<li><i>↗</i><p><strong>${escapeHtml(page)}</strong><small>${count} weergaven</small></p></li>`).join('') || '<li><p>Nog geen gegevens.</p></li>'}</ul></section></div></div>`
+  const devices = Object.entries(pageViews.reduce((result, event) => { const device = event.metadata?.device || 'Onbekend'; result[device] = (result[device] || 0) + 1; return result }, {})).sort((a, b) => b[1] - a[1])
+  const referrers = Object.entries(pageViews.reduce((result, event) => { let referrer = event.metadata?.referrer || 'Direct'; try { referrer = referrer === 'Direct' ? referrer : new URL(referrer).hostname.replace(/^www\./, '') } catch { /* Toon de aangeleverde bron. */ } result[referrer] = (result[referrer] || 0) + 1; return result }, {})).sort((a, b) => b[1] - a[1])
+  const series = analyticsSeries(30, events, periodOrders)
+  const maxFunnel = Math.max(sessions, 1)
+  const productRevenue = paidOrders.flatMap((order) => order.order_items || []).reduce((result, item) => { result[item.product_name] = (result[item.product_name] || 0) + item.total_cents; return result }, {})
+  elements.content.innerHTML = `<div class="page-container analytics-page">
+    ${pageHeader('analytics', '<button class="button" data-action="export-analytics"><i data-lucide="download"></i> Exporteren</button><button class="button button--primary" data-action="refresh"><i data-lucide="refresh-cw"></i> Vernieuwen</button>')}
+    <div class="analytics-toolbar"><button type="button"><i data-lucide="calendar-days"></i>Afgelopen 30 dagen</button><button type="button">Vergelijking: vorige periode</button><span>EUR €</span></div>
+    <section class="analytics-summary">
+      <article><span>Bruto-omzet</span><strong>${formatMoney(revenue)}</strong><small>${paidOrders.length} betaalde bestellingen</small></article>
+      <article><span>Terugkerende klanten</span><strong>${returningRate}</strong><small>${returningCustomers} klanten</small></article>
+      <article><span>Afgehandelde bestellingen</span><strong>${fulfilled}</strong><small>Van ${periodOrders.length} bestellingen</small></article>
+      <article><span>Conversiepercentage</span><strong>${percent(completed, sessions)}</strong><small>${completed} conversies</small></article>
+    </section>
+    <section class="analytics-report-grid">
+      <article class="report-card report-card--wide"><header><div><span>Totale omzet in de loop van de tijd</span><strong>${formatMoney(revenue)}</strong></div><small>30 dagen</small></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.revenue })), formatMoney)}</article>
+      <article class="report-card"><header><div><span>Uitsplitsing totale omzet</span><strong>${formatMoney(revenue)}</strong></div></header><ul class="report-breakdown"><li><span>Bruto-omzet</span><b>${formatMoney(paidOrders.reduce((sum, order) => sum + order.subtotal_cents, 0))}</b></li><li><span>Kortingen</span><b>− ${formatMoney(paidOrders.reduce((sum, order) => sum + (order.discount_cents || 0), 0))}</b></li><li><span>Verzendkosten</span><b>${formatMoney(paidOrders.reduce((sum, order) => sum + order.shipping_cents, 0))}</b></li><li><span>Netto-omzet</span><b>${formatMoney(revenue)}</b></li></ul></article>
+      <article class="report-card"><header><div><span>Omzet per verkoopkanaal</span><strong>Webshop</strong></div></header><div class="donut-wrap"><div class="report-donut" style="--part:100"></div><p><strong>${formatMoney(revenue)}</strong><small>100% ZOL-webshop</small></p></div></article>
+      <article class="report-card"><header><div><span>Gemiddelde bestelwaarde</span><strong>${formatMoney(averageOrder)}</strong></div></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.revenue })), formatMoney)}</article>
+      <article class="report-card"><header><div><span>Totale omzet per product</span><strong>${Object.keys(productRevenue).length} producten</strong></div></header><ul class="rank-list">${Object.entries(productRevenue).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${formatMoney(value)}</b></li>`).join('') || '<li class="no-data">Nog geen betaalde productomzet.</li>'}</ul></article>
+      <article class="report-card report-card--wide"><header><div><span>Sessies in de loop van de tijd</span><strong>${sessions}</strong></div><small>${pageViews.length} paginaweergaven</small></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.sessions })))}</article>
+      <article class="report-card"><header><div><span>Conversietrechter</span><strong>${percent(completed, sessions)}</strong></div></header><div class="conversion-funnel">${[['Sessies', sessions], ['Product bekeken', productViews], ['Winkelwagen', carts], ['Checkout', checkouts], ['Bestelling', completed]].map(([label, value]) => `<div style="--width:${Math.max(8, (value / maxFunnel) * 100)}%"><span>${escapeHtml(label)}</span><i></i><b>${value}</b></div>`).join('')}</div></article>
+      <article class="report-card"><header><div><span>Sessies per apparaattype</span><strong>${sessions}</strong></div></header><ul class="rank-list">${devices.map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value} · ${percent(value, pageViews.length)}</b></li>`).join('') || '<li class="no-data">Nog geen apparaatgegevens.</li>'}</ul></article>
+      <article class="report-card"><header><div><span>Sessies per landingspagina</span><strong>${pages.length} pagina's</strong></div></header><ul class="rank-list">${pages.slice(0, 7).map(([page, value]) => `<li><span>${escapeHtml(page)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen paginaweergaven.</li>'}</ul></article>
+      <article class="report-card"><header><div><span>Sessies per verwijzer</span><strong>${referrers.length} bronnen</strong></div></header><ul class="rank-list">${referrers.slice(0, 7).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen verwijzers.</li>'}</ul></article>
+    </section>
+  </div>`
+}
+
+let liveRefreshTimer = null
+let liveChannel = null
+
+function liveLocation(event) {
+  return event.metadata?.city || event.metadata?.country || 'Locatie niet gedeeld'
+}
+
+function renderLive() {
+  const now = Date.now()
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const recent = state.analytics.filter((event) => now - new Date(event.created_at).getTime() <= 5 * 60 * 1000)
+  const todayEvents = state.analytics.filter((event) => new Date(event.created_at) >= today)
+  const activeSessions = new Set(recent.map((event) => event.session_id)).size
+  const sessionsToday = new Set(todayEvents.filter((event) => event.event_name === 'page_view').map((event) => event.session_id)).size
+  const todayOrders = state.orders.filter((order) => new Date(order.created_at) >= today)
+  const todayRevenue = todayOrders.filter((order) => order.payment_status === 'paid').reduce((sum, order) => sum + order.total_cents, 0)
+  const carts = new Set(recent.filter((event) => event.event_name === 'add_to_cart').map((event) => event.session_id)).size
+  const checkouts = new Set(recent.filter((event) => event.event_name === 'begin_checkout').map((event) => event.session_id)).size
+  const purchases = recent.filter((event) => event.event_name === 'order_created').length
+  const locations = Object.entries(todayEvents.reduce((result, event) => { const name = liveLocation(event); result[name] = (result[name] || 0) + 1; return result }, {})).sort((a, b) => b[1] - a[1])
+  const dots = [...new Set(recent.map((event) => event.session_id))].slice(0, 16).map((session, index) => { const seed = [...session].reduce((sum, char) => sum + char.charCodeAt(0), 0); return `<i class="globe-visitor" style="--x:${18 + ((seed * 17 + index * 13) % 64)}%;--y:${19 + ((seed * 29 + index * 7) % 62)}%;--delay:${index * -.17}s"></i>` }).join('')
+  elements.content.innerHTML = `<div class="page-container live-page">
+    ${pageHeader('live', '<span class="live-now"><i></i>Live</span><button class="button" data-action="refresh-live"><i data-lucide="refresh-cw"></i> Nu verversen</button>')}
+    <div class="live-layout">
+      <section class="live-insights">
+        <div class="live-kpis"><article><span>Bezoekers op dit moment</span><strong>${activeSessions}</strong><small>Laatste 5 minuten</small></article><article><span>Totale omzet vandaag</span><strong>${formatMoney(todayRevenue)}</strong><small>${todayOrders.length} bestellingen</small></article><article><span>Sessies vandaag</span><strong>${sessionsToday}</strong><small>Unieke browsers</small></article><article><span>Bestellingen vandaag</span><strong>${todayOrders.length}</strong><small>Alle statussen</small></article></div>
+        <article class="live-panel"><header><span>Klantgedrag</span><small>Laatste 5 minuten</small></header><div class="live-funnel"><div><strong>${carts}</strong><span>Actieve winkelwagens</span></div><div><strong>${checkouts}</strong><span>Bij de checkout</span></div><div><strong>${purchases}</strong><span>Aankoop voltooid</span></div></div></article>
+        <article class="live-panel live-locations"><header><span>Sessies per locatie</span><small>Vandaag</small></header><ul>${locations.slice(0, 7).map(([name, value]) => `<li><i data-lucide="map-pin"></i><span>${escapeHtml(name)}</span><b>${value}</b></li>`).join('') || '<li><span>Nog geen locatiegegevens beschikbaar.</span></li>'}</ul></article>
+      </section>
+      <section class="live-map" aria-label="Live bezoekerskaart"><div class="live-map-search"><i data-lucide="search"></i><span>Wereldwijd overzicht</span></div><div class="zol-globe"><div class="globe-grid"></div>${dots}<strong>ZOL</strong></div><div class="map-legend"><span><i></i>${activeSessions} bezoekers op dit moment</span><span><b></b>${purchases} bestellingen</span></div></section>
+    </div>
+  </div>`
+  refreshIcons()
+}
+
+function stopLiveUpdates() {
+  if (liveRefreshTimer) window.clearInterval(liveRefreshTimer)
+  liveRefreshTimer = null
+  if (liveChannel) supabase.removeChannel(liveChannel)
+  liveChannel = null
+}
+
+function startLiveUpdates() {
+  stopLiveUpdates()
+  liveChannel = supabase.channel('zol-admin-live').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'analytics_events' }, ({ new: event }) => {
+    state.analytics.unshift(event)
+    if (currentRoute() === 'live') renderLive()
+  }).subscribe()
+  liveRefreshTimer = window.setInterval(async () => {
+    if (currentRoute() !== 'live') return
+    const { data } = await supabase.from('analytics_events').select('*').order('created_at', { ascending: false }).limit(5000)
+    if (data) { state.analytics = data; renderLive() }
+  }, 15000)
+}
+
+function discountStatus(discount) {
+  const now = new Date()
+  if (!discount.active) return 'inactive'
+  if (discount.ends_at && new Date(discount.ends_at) < now) return 'expired'
+  if (discount.starts_at && new Date(discount.starts_at) > now) return 'pending'
+  if (discount.usage_limit && discount.usage_count >= discount.usage_limit) return 'expired'
+  return 'active'
+}
+
+function discountValue(discount) {
+  if (discount.discount_type === 'percentage') return `${discount.value}%`
+  if (discount.discount_type === 'free_shipping') return 'Gratis verzending'
+  return formatMoney(discount.value)
+}
+
+function renderDiscounts() {
+  const canManage = ['owner', 'admin'].includes(state.profile?.role)
+  const rows = state.discounts.map((discount) => `<tr data-action="open-discount" data-id="${discount.id}"><td><strong class="discount-code">${escapeHtml(discount.code || discount.title)}</strong><small class="table-subline">${escapeHtml(discount.title)}</small></td><td>${statusPill(discountStatus(discount))}</td><td>${discount.method === 'automatic' ? 'Automatisch' : 'Code'}</td><td>Alle klanten</td><td>${escapeHtml(discountValue(discount))}</td><td>${discount.usage_count}${discount.usage_limit ? ` / ${discount.usage_limit}` : ''}</td><td>${discount.ends_at ? formatDate(discount.ends_at) : 'Geen einddatum'}</td></tr>`).join('')
+  elements.content.innerHTML = `<div class="page-container discounts-page">${pageHeader('discounts', `${canManage ? '<button class="button button--primary" data-action="new-discount"><i data-lucide="plus"></i> Korting aanmaken</button>' : ''}`)}<section class="panel"><div class="discount-toolbar"><label><i data-lucide="search"></i><input type="search" data-filter="discounts" placeholder="Zoeken en filteren"></label><select data-filter-status="discounts"><option value="">Alle statussen</option><option value="active">Actief</option><option value="pending">Gepland</option><option value="expired">Verlopen</option><option value="inactive">Uitgeschakeld</option></select></div>${rows ? `<div class="table-scroll"><table class="data-table discount-table"><thead><tr><th>Titel</th><th>Status</th><th>Methode</th><th>Geschiktheid</th><th>Waarde</th><th>Gebruikt</th><th>Einddatum</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen kortingen', 'Maak een kortingscode of automatische korting voor de webshop.', '%')}</section></div>`
+}
+
+function discountForm(discount = null) {
+  if (!['owner', 'admin'].includes(state.profile?.role)) return
+  const starts = discount?.starts_at ? new Date(discount.starts_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)
+  const ends = discount?.ends_at ? new Date(discount.ends_at).toISOString().slice(0, 16) : ''
+  openDialog(discount ? 'Korting bewerken' : 'Korting aanmaken', 'Webshop', `<form id="discount-form"><div class="form-grid"><label class="field field--full">Titel<input name="title" maxlength="100" value="${escapeHtml(discount?.title || '')}" placeholder="Bijvoorbeeld KidsCare actie" required></label><label class="field">Methode<select name="method"><option value="code">Kortingscode</option><option value="automatic">Automatische korting</option></select></label><label class="field">Code<input name="code" maxlength="40" value="${escapeHtml(discount?.code || '')}" placeholder="KIDSCARE20"></label><label class="field">Type<select name="discount_type"><option value="percentage">Percentage</option><option value="fixed_amount">Vast bedrag</option><option value="free_shipping">Gratis verzending</option></select></label><label class="field">Waarde<input name="value" type="number" min="0" step="0.01" value="${discount ? (discount.discount_type === 'fixed_amount' ? discount.value / 100 : discount.value) : '20'}"></label><label class="field">Minimale bestelwaarde (€)<input name="minimum_subtotal" type="number" min="0" step="0.01" value="${((discount?.minimum_subtotal_cents || 0) / 100).toFixed(2)}"></label><label class="field">Gebruikslimiet<input name="usage_limit" type="number" min="1" value="${discount?.usage_limit || ''}" placeholder="Onbeperkt"></label><label class="field">Startdatum<input name="starts_at" type="datetime-local" value="${starts}" required></label><label class="field">Einddatum<input name="ends_at" type="datetime-local" value="${ends}"></label><label class="checkbox-field field--full"><input name="active" type="checkbox" ${discount?.active !== false ? 'checked' : ''}> Korting actief</label></div><div class="form-actions">${discount ? '<button class="button button--danger" type="button" data-action="delete-discount" data-id="' + discount.id + '">Verwijderen</button>' : ''}<button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Korting opslaan</button></div></form>`)
+  const form = document.querySelector('#discount-form')
+  form.elements.code.pattern = '[A-Za-z0-9][A-Za-z0-9_-]{2,39}'
+  form.elements.code.title = 'Gebruik 3–40 letters, cijfers, koppeltekens of underscores.'
+  form.elements.method.value = discount?.method || 'code'; form.elements.discount_type.value = discount?.discount_type || 'percentage'
+  const syncDiscountFields = () => { form.elements.code.required = form.elements.method.value === 'code'; form.elements.code.closest('label').hidden = form.elements.method.value === 'automatic'; form.elements.value.closest('label').hidden = form.elements.discount_type.value === 'free_shipping' }
+  form.addEventListener('change', syncDiscountFields); syncDiscountFields()
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Korting opslaan')
+    const values = Object.fromEntries(new FormData(form)); const fixed = values.discount_type === 'fixed_amount'
+    const payload = { title: values.title.trim(), method: values.method, code: values.method === 'code' ? values.code.trim().toUpperCase() : null, discount_type: values.discount_type, value: values.discount_type === 'free_shipping' ? 0 : Math.round(Number(values.value) * (fixed ? 100 : 1)), minimum_subtotal_cents: Math.round(Number(values.minimum_subtotal || 0) * 100), usage_limit: values.usage_limit ? Number(values.usage_limit) : null, starts_at: new Date(values.starts_at).toISOString(), ends_at: values.ends_at ? new Date(values.ends_at).toISOString() : null, active: values.active === 'on', created_by: state.profile.id }
+    const query = discount ? supabase.from('discounts').update(payload).eq('id', discount.id) : supabase.from('discounts').insert(payload)
+    const { error } = await query
+    if (error) { toast('Korting opslaan mislukt', error.message, true); setBusy(button, false, 'Korting opslaan'); return }
+    await recordActivity(discount ? 'Korting bijgewerkt' : 'Korting aangemaakt', 'discount', discount?.id || payload.code || payload.title, { code: payload.code, type: payload.discount_type })
+    toast('Korting opgeslagen', payload.code || payload.title); closeDialog(); await refreshCurrentRoute()
+  })
+}
+
+async function deleteDiscount(id) {
+  const discount = state.discounts.find((item) => item.id === id)
+  if (!discount || !window.confirm(`Korting ${discount.code || discount.title} definitief verwijderen?`)) return
+  const { error } = await supabase.from('discounts').delete().eq('id', id)
+  if (error) { toast('Korting verwijderen mislukt', error.message, true); return }
+  await recordActivity('Korting verwijderd', 'discount', id, { code: discount.code }); toast('Korting verwijderd'); closeDialog(); await refreshCurrentRoute()
+}
+
+function filterDiscounts() {
+  const query = document.querySelector('[data-filter="discounts"]')?.value.toLowerCase() || ''
+  const status = document.querySelector('[data-filter-status="discounts"]')?.value || ''
+  document.querySelectorAll('.discount-table tbody tr').forEach((row) => { const discount = state.discounts.find((item) => item.id === row.dataset.id); row.hidden = !discount || (!`${discount.title} ${discount.code || ''}`.toLowerCase().includes(query)) || (status && discountStatus(discount) !== status) })
 }
 
 function activityList(items) {
@@ -1028,10 +1214,12 @@ function bindSettingsForms(category) {
 }
 
 function renderRoute(route = currentRoute(), option) {
+  if (route !== 'live') stopLiveUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, products: renderProducts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
+  if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
   refreshIcons()
   elements.content.focus({ preventScroll: true })
   window.scrollTo({ top: 0, behavior: 'instant' })
@@ -1050,6 +1238,14 @@ async function exportOrders() {
   await recordActivity('Bestellingen geëxporteerd', 'order', '', { count: state.orders.length }); toast('Export aangemaakt')
 }
 
+async function exportAnalytics() {
+  const rows = [['Datum', 'Event', 'Sessie', 'Pagina', 'Apparaat', 'Verwijzer'], ...analyticsSince(30).map((event) => [event.created_at, event.event_name, event.session_id, event.page, event.metadata?.device || '', event.metadata?.referrer || ''])]
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n')
+  const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a'); link.href = url; link.download = `zol-analytics-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
+  await recordActivity('Analytics geëxporteerd', 'analytics', '', { events: rows.length - 1 }); toast('Analytics-export aangemaakt')
+}
+
 function printInvoice(order) {
   const company = settingsValue('company_profile')
   const address = order.shipping_address || {}
@@ -1060,7 +1256,7 @@ function printInvoice(order) {
     <header><div><div class="logo">ZOL</div><strong>${escapeHtml(company.name || 'ZOL Solutions')}</strong></div><div><h1>Factuur</h1><p>Factuurnummer: ZOL-${order.order_number}<br>Factuurdatum: ${formatDate(order.created_at)}</p></div></header>
     <section class="meta"><div><h2>Van</h2><p><strong>${escapeHtml(company.name || 'ZOL Solutions')}</strong><br>${escapeHtml(company.address || '')}<br>${escapeHtml(company.email || 'info@zolsolutions.nl')}<br>${company.kvk ? `KvK: ${escapeHtml(company.kvk)}<br>` : ''}${company.vat_number ? `BTW: ${escapeHtml(company.vat_number)}` : ''}</p></div><div><h2>Factuur aan</h2><p><strong>${escapeHtml(order.customer_name)}</strong><br>${escapeHtml(address.street || '')}<br>${escapeHtml(address.postal_code || '')} ${escapeHtml(address.city || '')}<br>${escapeHtml(order.customer_email)}</p></div></section>
     <table><thead><tr><th>Product</th><th>Aantal</th><th>Prijs</th><th>Totaal</th></tr></thead><tbody>${(order.order_items || []).map((item) => `<tr><td><strong>${escapeHtml(item.product_name)}</strong><br><small>${escapeHtml(item.variant_name)}</small></td><td>${item.quantity}</td><td>${formatMoney(item.unit_price_cents)}</td><td>${formatMoney(item.total_cents)}</td></tr>`).join('')}</tbody></table>
-    <div class="totals"><div><span>Subtotaal</span><strong>${formatMoney(order.subtotal_cents)}</strong></div><div><span>Verzending</span><strong>${formatMoney(order.shipping_cents)}</strong></div><div><span>Inclusief btw</span><strong>${formatMoney(order.tax_cents)}</strong></div><div class="total"><span>Totaal</span><strong>${formatMoney(order.total_cents)}</strong></div></div>
+    <div class="totals"><div><span>Subtotaal</span><strong>${formatMoney(order.subtotal_cents)}</strong></div><div><span>Verzending</span><strong>${formatMoney(order.shipping_cents)}</strong></div>${order.discount_cents ? `<div><span>Korting ${order.discount_code ? `(${escapeHtml(order.discount_code)})` : ''}</span><strong>− ${formatMoney(order.discount_cents)}</strong></div>` : ''}<div><span>Inclusief btw</span><strong>${formatMoney(order.tax_cents)}</strong></div><div class="total"><span>Totaal</span><strong>${formatMoney(order.total_cents)}</strong></div></div>
     <footer>Betaalstatus: ${escapeHtml(prettyStatus(order.payment_status))} · Bedankt voor je bestelling bij ZOL Solutions.</footer></body></html>`)
   invoice.document.close()
   window.setTimeout(() => invoice.print(), 250)
@@ -1072,7 +1268,9 @@ async function handleContentClick(event) {
   const target = event.target.closest('[data-action]'); if (!target) return
   const { action, id } = target.dataset
   if (action === 'refresh') await refreshCurrentRoute()
+  if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
+  if (action === 'export-analytics') await exportAnalytics()
   if (action === 'print-invoice') printInvoice(state.orders.find((item) => item.id === id))
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))
   if (action === 'new-order') newOrderForm()
@@ -1087,6 +1285,9 @@ async function handleContentClick(event) {
   if (action === 'open-product') productForm(state.products.find((item) => item.id === id))
   if (action === 'new-product') productForm()
   if (action === 'delete-product') await deleteProduct(id)
+  if (action === 'new-discount') discountForm()
+  if (action === 'open-discount') discountForm(state.discounts.find((item) => item.id === id))
+  if (action === 'delete-discount') await deleteDiscount(id)
   if (action === 'preview-product') window.open('/product/', '_blank', 'noopener')
   if (action === 'open-content') contentForm(state.content.find((item) => item.id === id))
   if (action === 'new-content') contentForm()
@@ -1105,6 +1306,7 @@ function handleFilters(event) {
   if (event.target.matches('[data-filter="customers"], [data-filter-marketing="customers"]')) filterCustomers()
   if (event.target.matches('[data-filter="content"], [data-filter-page="content"], [data-filter-type="content"]')) filterContent()
   if (event.target.matches('[data-filter="media"], [data-filter-kind="media"]')) filterMedia()
+  if (event.target.matches('[data-filter="discounts"], [data-filter-status="discounts"]')) filterDiscounts()
 }
 
 async function showAdmin(session) {
@@ -1148,7 +1350,7 @@ document.querySelector('#reset-password').addEventListener('click', async () => 
   toast('Herstellink verstuurd', 'Controleer je inbox.')
 })
 
-document.querySelector('#sign-out').addEventListener('click', () => supabase.auth.signOut())
+document.querySelector('#sign-out').addEventListener('click', () => { stopLiveUpdates(); supabase.auth.signOut() })
 document.querySelector('#mobile-menu-button').addEventListener('click', () => elements.sidebar.classList.toggle('is-open'))
 elements.backdrop.addEventListener('click', () => elements.sidebar.classList.remove('is-open'))
 document.querySelector('#dialog-close').addEventListener('click', closeDialog)
@@ -1174,7 +1376,7 @@ document.querySelector('#global-search-results').addEventListener('click', (even
 document.addEventListener('click', (event) => { if (!event.target.closest('.global-search-shell')) hideGlobalSearch() })
 
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') { state.session = null; state.profile = null; showLogin() }
+  if (event === 'SIGNED_OUT') { stopLiveUpdates(); state.session = null; state.profile = null; showLogin() }
   if (event === 'PASSWORD_RECOVERY') { window.location.hash = 'settings'; if (session) showAdmin(session).then(() => renderSettings('security')) }
 })
 

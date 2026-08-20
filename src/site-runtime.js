@@ -22,7 +22,12 @@ export async function trackEvent(eventName, metadata = {}) {
       session_id: getSessionId(),
       event_name: eventName,
       page: `${window.location.pathname}${window.location.search}`.slice(0, 300),
-      metadata,
+      metadata: {
+        device: window.innerWidth < 768 ? 'Mobiel' : window.innerWidth < 1100 ? 'Tablet' : 'Desktop',
+        referrer: document.referrer || 'Direct',
+        language: navigator.language || 'nl-NL',
+        ...metadata,
+      },
     })
   } catch {
     // Analytics mag de website nooit blokkeren.

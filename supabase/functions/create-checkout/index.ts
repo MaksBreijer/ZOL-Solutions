@@ -175,6 +175,7 @@ Deno.serve(async (request) => {
       p_items: normalizedItems,
       p_note: String(body.note || "").slice(0, 1000),
       p_session_id: String(body.session_id || crypto.randomUUID()).slice(0, 120),
+      p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
     })
     if (orderError) throw orderError
 
@@ -206,6 +207,8 @@ Deno.serve(async (request) => {
       success: true,
       order_number: order.order_number,
       total_cents: Number(order.total_cents),
+      discount_code: order.discount_code || null,
+      discount_cents: Number(order.discount_cents || 0),
       checkout_url: checkoutUrl,
       payment_ready: Boolean(checkoutUrl),
     }, { headers: { ...headers, "Content-Type": "application/json" } })
