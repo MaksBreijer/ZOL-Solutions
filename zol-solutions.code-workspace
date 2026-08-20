@@ -1,0 +1,30 @@
+{
+  "folders": [
+    {
+      "name": "ZOL Solutions",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.git": true,
+      "**/node_modules": true,
+      "dist": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "dist": true,
+      "package-lock.json": true
+    },
+    "editor.formatOnSave": false,
+    "editor.tabSize": 2,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true
+  },
+  "extensions": {
+    "recommendations": [
+      "ecmel.vscode-html-css",
+      "esbenp.prettier-vscode"
+    ]
+  }
+}

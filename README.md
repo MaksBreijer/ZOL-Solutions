@@ -1,6 +1,60 @@
 # ZOL Solutions website
 
-Nieuwe ZOL Solutions-website, los van Shopify.
+De volledige ZOL Solutions-website en beheeromgeving zijn handmatig te bewerken in Visual Studio Code. Er is geen afgesloten page-builder nodig: de pagina's bestaan uit normale HTML, CSS en JavaScript.
+
+## Openen in Visual Studio Code
+
+Open `zol-solutions.code-workspace` door erop te dubbelklikken, of kies in Visual Studio Code **File → Open Workspace from File…**.
+
+Vanuit een terminal kan het ook zo:
+
+```bash
+code zol-solutions.code-workspace
+```
+
+Installeer daarna de aanbevolen extensies wanneer Visual Studio Code dit vraagt. Gebruik **Terminal → Run Task… → ZOL: Website starten** om de lokale website te openen.
+
+## Waar pas ik wat aan?
+
+| Onderdeel | Bestand |
+| --- | --- |
+| Homepage en alle secties | `index.html` |
+| Algemene vormgeving en responsive gedrag | `src/styles.css` |
+| Interacties op de website | `src/main.js` en `src/site-runtime.js` |
+| Productpagina | `product/index.html` en `src/product-commerce.js` |
+| Winkelwagen | `src/cart.js` |
+| Checkout | `checkout/index.html`, `src/checkout.js` en `src/checkout.css` |
+| Contactpagina | `contact/index.html` |
+| Kennisbank | `kennisbank/` en `src/knowledge.js` |
+| Adminpagina | `admin/index.html` |
+| Adminvormgeving | `src/admin.css` |
+| Adminfunctionaliteit en Supabase-data | `src/admin.js` |
+| Afbeeldingen en publieke bestanden | `public/` |
+| Supabase-database en serverfuncties | `supabase/` |
+| Pagina's die Vite bouwt | `vite.config.js` |
+
+### Tekst of sectie op de homepage aanpassen
+
+1. Open `index.html`.
+2. Zoek met `Cmd + F` of `Ctrl + F` naar de zichtbare tekst of de `id` van de sectie.
+3. Pas de tekst of HTML aan en sla op.
+4. De lokale website ververst automatisch zolang `npm run dev` actief is.
+
+### Kleur, ruimte of responsive gedrag aanpassen
+
+Open `src/styles.css`. De algemene ontwerpvariabelen staan bovenin. Responsive aanpassingen staan in de `@media`-blokken lager in het bestand.
+
+Voor de beheeromgeving gebruik je dezelfde werkwijze in `src/admin.css`. De HTML-structuur staat in `admin/index.html`; gegevens, tabellen, dialogen en acties worden opgebouwd in `src/admin.js`.
+
+### Afbeelding vervangen
+
+Plaats het nieuwe bestand in `public/images/` en verwijs er vanuit HTML of JavaScript naar met een pad vanaf `/images/`, bijvoorbeeld:
+
+```html
+<img src="/images/nieuwe-productfoto.jpg" alt="Duidelijke beschrijving" />
+```
+
+Bestanden in `dist/` nooit handmatig wijzigen. Die map wordt bij iedere build opnieuw gegenereerd.
 
 ## Stack
 
@@ -16,6 +70,8 @@ cp .env.example .env
 npm install
 npm run dev
 ```
+
+Vite toont daarna het lokale adres, meestal `http://127.0.0.1:5173/`. De beheeromgeving staat op `/admin/`.
 
 Vul uitsluitend de publieke Supabase-waarden in:
 
@@ -33,6 +89,18 @@ npm run build
 ```
 
 Cloudflare Pages publiceert de map `dist`.
+
+Controleer vóór publicatie altijd:
+
+```bash
+npm run build
+```
+
+## Handmatig werken zonder het CMS
+
+De CMS-velden in ZOL Admin schrijven dynamische inhoud naar Supabase. De broncode zelf blijft volledig lokaal bewerkbaar. Vaste lay-out, componenten, animaties en standaardteksten wijzig je in Visual Studio Code; dagelijkse content kan desgewenst via ZOL Admin worden bijgehouden.
+
+Wijzig nooit de gegenereerde bestanden in `dist/` en zet geen geheime sleutels in HTML, JavaScript of een `VITE_`-variabele.
 
 ## Transactionele e-mail activeren
 
