@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.112.3"
 
 const allowedOrigins = new Set([
   "https://zol-solutions.pages.dev",
+  "https://codex-zol-premium-launch.zol-solutions.pages.dev",
   "https://zolsolutions.nl",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -50,7 +51,7 @@ function adminClient() {
 async function getCheckout(db: ReturnType<typeof adminClient>, orderId: string, token: string) {
   if (!/^[0-9a-f-]{36}$/i.test(orderId) || !/^[0-9a-f]{64}$/i.test(token)) return null
   const [{ data: order }, { data: payment }] = await Promise.all([
-    db.from("orders").select("id,order_number,total_cents,currency,payment_status").eq("id", orderId).maybeSingle(),
+    db.from("orders").select("id,order_number,subtotal_cents,shipping_cents,discount_code,discount_cents,tax_cents,total_cents,currency,payment_status").eq("id", orderId).maybeSingle(),
     db.from("payments").select("id,order_id,provider_payment_id,status,amount_cents,currency,metadata").eq("order_id", orderId).maybeSingle(),
   ])
   if (!order || !payment) return null
@@ -142,22 +143,37 @@ Deno.serve(async (request) => {
       return Response.json({
         success: true,
         order_number: checkout.order.order_number,
+        subtotal_cents: checkout.order.subtotal_cents,
+        shipping_cents: checkout.order.shipping_cents,
+        discount_code: checkout.order.discount_code,
+        discount_cents: checkout.order.discount_cents,
+        tax_cents: checkout.order.tax_cents,
         total_cents: checkout.order.total_cents,
         payment_status: payment.status,
       }, { headers: { ...headers, "Content-Type": "application/json" } })
     }
 
     const items = Array.isArray(body.items) ? body.items.slice(0, 20) : []
-    const customer = body.customer || {}
-    const email = String(customer.email || "").trim().toLowerCase()
     if (!items.length) return Response.json({ error: "De winkelwagen is leeg." }, { status: 400, headers })
-    if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Vul een geldig e-mailadres in." }, { status: 400, headers })
 
     const normalizedItems = items.map((item: { variant_id?: string; quantity?: number }) => ({
       variant_id: String(item.variant_id || ""),
       quantity: Math.min(10, Math.max(1, Number.parseInt(String(item.quantity || 1), 10) || 1)),
     })).filter((item: { variant_id: string }) => /^[0-9a-f-]{36}$/i.test(item.variant_id))
     if (normalizedItems.length !== items.length) return Response.json({ error: "Een productvariant is ongeldig." }, { status: 400, headers })
+
+    if (body.action === "quote") {
+      const { data: quote, error: quoteError } = await db.rpc("quote_checkout_order", {
+        p_items: normalizedItems,
+        p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
+      })
+      if (quoteError) return Response.json({ error: quoteError.message }, { status: 400, headers })
+      return Response.json({ success: true, ...quote }, { headers: { ...headers, "Content-Type": "application/json" } })
+    }
+
+    const customer = body.customer || {}
+    const email = String(customer.email || "").trim().toLowerCase()
+    if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Vul een geldig e-mailadres in." }, { status: 400, headers })
 
     const { data: commerceSetting } = await db.from("settings").select("value").eq("key", "commerce").maybeSingle()
     const commerce = commerceSetting?.value || {}
@@ -214,6 +230,7 @@ Deno.serve(async (request) => {
     }, { headers: { ...headers, "Content-Type": "application/json" } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Afrekenen is niet gelukt."
-    return Response.json({ error: message }, { status: 500, headers })
+    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres/i.test(message) ? 400 : 500
+    return Response.json({ error: message }, { status, headers })
   }
 })
