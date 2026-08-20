@@ -20,6 +20,8 @@ export default defineConfig({
         severExercises: resolve(import.meta.dirname, 'kennisbank/oefeningen-bij-ziekte-van-sever/index.html'),
         severInsoles: resolve(import.meta.dirname, 'kennisbank/inlegzolen-bij-ziekte-van-sever/index.html'),
         checkout: resolve(import.meta.dirname, 'checkout/index.html'),
+        privacy: resolve(import.meta.dirname, 'privacy/index.html'),
+        terms: resolve(import.meta.dirname, 'algemene-voorwaarden/index.html'),
         admin: resolve(import.meta.dirname, 'admin/index.html'),
         adminAlias: resolve(import.meta.dirname, 'zolsolutions/admin/index.html'),
       },
