@@ -203,7 +203,7 @@ form.addEventListener('submit', async (event) => {
     status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Bestelling plaatsen <span>→</span>'; return
   }
   const sessionId = sessionStorage.getItem('zol_session_id') || crypto.randomUUID()
-  const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discount_code: discountCode, note: customer.note, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
+  const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
   if (error || data?.error) {
     status.textContent = await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'); status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Bestelling plaatsen <span>→</span>'; return
   }
