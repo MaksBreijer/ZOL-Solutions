@@ -5,6 +5,7 @@ const allowedOrigins = new Set([
   "https://zol-solutions.pages.dev",
   "https://codex-zol-premium-launch.zol-solutions.pages.dev",
   "https://zolsolutions.nl",
+  "https://www.zolsolutions.nl",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ])
@@ -189,7 +190,7 @@ Deno.serve(async (request) => {
     const { data: order, error: orderError } = await db.rpc("create_checkout_order", {
       p_customer: customer,
       p_items: normalizedItems,
-      p_note: String(body.note || "").slice(0, 1000),
+      p_note: "",
       p_session_id: String(body.session_id || crypto.randomUUID()).slice(0, 120),
       p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
     })

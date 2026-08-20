@@ -113,3 +113,24 @@ De mailflow staat standaard veilig uit. Activeer deze pas nadat het afzenderdome
 5. Schakel daar **Verzending activeren** in.
 
 Daarna worden contactberichten naar het interne adres verstuurd, krijgen klant en beheer automatisch bericht zodra een bestelling betaald is, en kunnen beheerders vanuit een klantprofiel e-mailen. De betaalmail wordt getriggerd door de orderstatus; de Mollie-webhook werkt zodra ook `MOLLIE_API_KEY` server-side is ingesteld.
+
+## Mollie activeren
+
+De betaalintegratie draait volledig in Supabase Edge Functions. Plaats een Mollie-sleutel daarom alleen als server-side secret en nooit in `.env`, HTML of een `VITE_`-variabele.
+
+1. Voeg in Supabase onder **Edge Functions → Secrets** de Mollie-testsleutel toe als `MOLLIE_API_KEY`.
+2. Zet in ZOL Admin onder **Instellingen → Checkout & btw** Mollie aan.
+3. Doorloop een testbestelling en controleer betaling, terugkeer naar de website, orderstatus en terugbetaling.
+4. Vervang na een geslaagde test de secret door de live-sleutel.
+
+De checkout ondersteunt `zol-solutions.pages.dev`, de branch-preview, `zolsolutions.nl`, `www.zolsolutions.nl` en de lokale ontwikkelomgeving. Voeg nieuwe productie- of previewdomeinen ook toe aan de originlijsten in `supabase/functions/create-checkout/index.ts` en `supabase/functions/_shared/email.ts`.
+
+## Domein omschakelen
+
+De website-assets in `public/media/` zijn lokaal opgeslagen en hebben geen Shopify-CDN meer nodig. De DNS-omschakeling kan daardoor zonder ontbrekende beelden worden uitgevoerd.
+
+1. Bewaar vóór de verhuizing alle bestaande DNS-records, in het bijzonder MX, SPF, DKIM en DMARC voor e-mail.
+2. Voeg `zolsolutions.nl` en `www.zolsolutions.nl` eerst toe aan het Cloudflare Pages-project.
+3. Zet daarna de nameservers bij de domeinbeheerder om en controleer of alle mailrecords in Cloudflare staan.
+4. Laat `www` permanent doorsturen naar `https://zolsolutions.nl`.
+5. Controleer homepage, product, checkout, admin, privacy, voorwaarden, sitemap en e-mail voordat Shopify definitief wordt losgekoppeld.
