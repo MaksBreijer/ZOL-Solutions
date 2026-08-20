@@ -39,18 +39,27 @@ if (menuButton && navigation) {
 const processSection = document.querySelector('#werking')
 const signalSection = document.querySelector('.signal-strip')
 const solutionSection = document.querySelector('#oplossing')
+const heroSection = document.querySelector('.hero')
+const problemSection = document.querySelector('#probleem')
+const priceSection = document.querySelector('#prijs')
+const technologySection = document.querySelector('#techniek')
 const storySection = document.querySelector('#ons-verhaal')
 const pressSection = document.querySelector('#in-de-media')
 const partnersSection = document.querySelector('#samenwerkingen')
+const whySection = document.querySelector('#waarom')
+const emotionSection = document.querySelector('.emotion')
+const reviewsSection = document.querySelector('#ervaringen')
+const professionalsSection = document.querySelector('#professionals')
+const knowledgeSection = document.querySelector('#kennisbank')
+const buySection = document.querySelector('#product')
 
-// Houd de sterke sportvideo vooraan en laat daarna direct zien wat ZOL verkoopt.
-if (signalSection && solutionSection) {
-  signalSection.after(solutionSection)
-}
-
-// Bouw daarna op van probleem en techniek naar het persoonlijke verhaal en extern bewijs.
-if (processSection && storySection && pressSection && partnersSection) {
-  processSection.after(storySection, pressSection, partnersSection)
+// Vertel het verhaal in de volgorde waarin een ouder beslist: herkennen, begrijpen,
+// oplossing, bewijs en pas daarna bestellen.
+if (heroSection) {
+  const sections = [signalSection, problemSection, solutionSection, priceSection, technologySection,
+    processSection, storySection, whySection, emotionSection, reviewsSection, professionalsSection,
+    knowledgeSection, buySection, pressSection, partnersSection].filter(Boolean)
+  heroSection.after(...sections)
 }
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -139,7 +148,7 @@ if (contactForm) {
       const failure = await edgeFunctionFailure(error, data, 'Versturen is niet gelukt. Probeer het later opnieuw.')
       if (failure.saved) {
         contactForm.reset()
-        formStatus.textContent = 'Je bericht is veilig ontvangen. De e-mailmelding wordt nog gekoppeld.'
+        formStatus.textContent = 'Bedankt! Je bericht is ontvangen. We nemen zo snel mogelijk contact met je op.'
         button.disabled = false
         button.innerHTML = 'Verstuur bericht <span>→</span>'
         return

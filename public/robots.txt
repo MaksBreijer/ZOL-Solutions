@@ -1,2 +1,7 @@
 User-agent: *
-Disallow: /
+Allow: /
+Disallow: /admin/
+Disallow: /checkout/
+Disallow: /zolsolutions/admin/
+
+Sitemap: https://zolsolutions.nl/sitemap.xml

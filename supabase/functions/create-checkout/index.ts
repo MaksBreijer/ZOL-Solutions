@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { createClient } from "jsr:@supabase/supabase-js@2"
+import { createClient } from "jsr:@supabase/supabase-js@2.112.3"
 
 const allowedOrigins = new Set([
   "https://zol-solutions.pages.dev",
@@ -7,6 +7,8 @@ const allowedOrigins = new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ])
+const retriableStatuses = new Set(["failed", "cancelled", "expired"])
+const mollieStatuses = new Set(["open", "pending", "authorized", "paid", "failed", "cancelled", "expired"])
 
 function corsHeaders(request: Request) {
   const origin = request.headers.get("origin") || ""
@@ -18,8 +20,101 @@ function corsHeaders(request: Request) {
   }
 }
 
+function checkoutOrigin(request: Request) {
+  const origin = request.headers.get("origin") || ""
+  return allowedOrigins.has(origin) ? origin : "https://zol-solutions.pages.dev"
+}
+
 function moneyValue(cents: number) {
   return (cents / 100).toFixed(2)
+}
+
+async function hashToken(token: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))
+  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("")
+}
+
+function randomToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("")
+}
+
+function adminClient() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } },
+  )
+}
+
+async function getCheckout(db: ReturnType<typeof adminClient>, orderId: string, token: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !/^[0-9a-f]{64}$/i.test(token)) return null
+  const [{ data: order }, { data: payment }] = await Promise.all([
+    db.from("orders").select("id,order_number,total_cents,currency,payment_status").eq("id", orderId).maybeSingle(),
+    db.from("payments").select("id,order_id,provider_payment_id,status,amount_cents,currency,metadata").eq("order_id", orderId).maybeSingle(),
+  ])
+  if (!order || !payment) return null
+  const expectedHash = String(payment.metadata?.return_token_hash || "")
+  if (!expectedHash || expectedHash !== await hashToken(token)) return null
+  return { order, payment }
+}
+
+async function refreshPayment(db: ReturnType<typeof adminClient>, payment: Record<string, any>, mollieKey: string) {
+  if (!payment.provider_payment_id) return payment
+  const response = await fetch(`https://api.mollie.com/v2/payments/${encodeURIComponent(payment.provider_payment_id)}`, {
+    headers: { "Authorization": `Bearer ${mollieKey}` },
+  })
+  const remote = await response.json()
+  if (!response.ok) throw new Error("De betaalstatus kon niet worden gecontroleerd.")
+  const refundedCents = Math.round(Number(remote.amountRefunded?.value || 0) * 100)
+  const paidCents = Math.round(Number(remote.amount?.value || 0) * 100)
+  const status = refundedCents > 0
+    ? (refundedCents >= paidCents ? "refunded" : "partially_refunded")
+    : (mollieStatuses.has(remote.status) ? remote.status : "pending")
+  const metadata = { ...(payment.metadata || {}), ...(remote.metadata || {}) }
+  const { data, error } = await db.from("payments").update({
+    status,
+    method: remote.method || "",
+    refunded_cents: refundedCents,
+    metadata,
+  }).eq("id", payment.id).select("id,order_id,provider_payment_id,status,amount_cents,currency,metadata").single()
+  if (error) throw error
+  return data
+}
+
+async function startMolliePayment(input: {
+  db: ReturnType<typeof adminClient>
+  order: Record<string, any>
+  payment: Record<string, any>
+  token: string
+  origin: string
+  supabaseUrl: string
+  mollieKey: string
+}) {
+  const redirect = `${input.origin}/checkout/?ref=${encodeURIComponent(input.order.id)}&token=${encodeURIComponent(input.token)}`
+  const response = await fetch("https://api.mollie.com/v2/payments", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${input.mollieKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: { currency: input.order.currency || "EUR", value: moneyValue(Number(input.order.total_cents)) },
+      description: `ZOL bestelling #${input.order.order_number}`,
+      redirectUrl: redirect,
+      cancelUrl: `${redirect}&cancelled=1`,
+      webhookUrl: `${input.supabaseUrl}/functions/v1/mollie-webhook`,
+      metadata: { order_id: input.order.id, order_number: input.order.order_number },
+    }),
+  })
+  const mollie = await response.json()
+  if (!response.ok) throw new Error(mollie.detail || "Mollie kon de betaling niet starten.")
+  const checkoutUrl = mollie._links?.checkout?.href || null
+  if (!checkoutUrl || !mollie.id) throw new Error("Mollie gaf geen geldige betaallink terug.")
+  const { error } = await input.db.from("payments").update({
+    provider_payment_id: mollie.id,
+    status: "open",
+    metadata: { ...(input.payment.metadata || {}), checkout_ready: true },
+  }).eq("id", input.payment.id)
+  if (error) throw error
+  return checkoutUrl
 }
 
 Deno.serve(async (request) => {
@@ -29,6 +124,29 @@ Deno.serve(async (request) => {
 
   try {
     const body = await request.json()
+    const db = adminClient()
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!
+    const mollieKey = Deno.env.get("MOLLIE_API_KEY") || ""
+
+    if (body.action === "status" || body.action === "retry") {
+      const checkout = await getCheckout(db, String(body.order_id || ""), String(body.token || ""))
+      if (!checkout) return Response.json({ error: "Deze bestelling kon niet veilig worden gevonden." }, { status: 404, headers })
+      let payment = checkout.payment
+      if (mollieKey && payment.provider_payment_id) payment = await refreshPayment(db, payment, mollieKey)
+      if (body.action === "retry") {
+        if (!mollieKey) return Response.json({ error: "Online betalen is nog niet beschikbaar." }, { status: 503, headers })
+        if (!retriableStatuses.has(payment.status)) return Response.json({ error: "Deze betaling kan niet opnieuw worden gestart." }, { status: 409, headers })
+        const checkoutUrl = await startMolliePayment({ db, order: checkout.order, payment, token: body.token, origin: checkoutOrigin(request), supabaseUrl, mollieKey })
+        return Response.json({ success: true, checkout_url: checkoutUrl }, { headers: { ...headers, "Content-Type": "application/json" } })
+      }
+      return Response.json({
+        success: true,
+        order_number: checkout.order.order_number,
+        total_cents: checkout.order.total_cents,
+        payment_status: payment.status,
+      }, { headers: { ...headers, "Content-Type": "application/json" } })
+    }
+
     const items = Array.isArray(body.items) ? body.items.slice(0, 20) : []
     const customer = body.customer || {}
     const email = String(customer.email || "").trim().toLowerCase()
@@ -41,20 +159,17 @@ Deno.serve(async (request) => {
     })).filter((item: { variant_id: string }) => /^[0-9a-f-]{36}$/i.test(item.variant_id))
     if (normalizedItems.length !== items.length) return Response.json({ error: "Een productvariant is ongeldig." }, { status: 400, headers })
 
-    const url = Deno.env.get("SUPABASE_URL")!
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    const db = createClient(url, serviceRoleKey, { auth: { persistSession: false } })
+    const { data: commerceSetting } = await db.from("settings").select("value").eq("key", "commerce").maybeSingle()
+    const commerce = commerceSetting?.value || {}
+    if (commerce.mollie_enabled && !mollieKey) return Response.json({ error: "Online betalen is tijdelijk niet beschikbaar. Probeer het later opnieuw." }, { status: 503, headers })
 
     const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown"
     const userAgent = request.headers.get("user-agent") || "unknown"
-    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${ip}|${userAgent}`))
-    const fingerprint = [...new Uint8Array(hash)].map((value) => value.toString(16).padStart(2, "0")).join("")
+    const fingerprint = await hashToken(`${ip}|${userAgent}`)
     const { data: rateAllowed, error: rateError } = await db.rpc("enforce_checkout_rate_limit", { p_fingerprint: fingerprint })
     if (rateError) throw rateError
     if (!rateAllowed) return Response.json({ error: "Te veel bestelverzoeken. Probeer het over 15 minuten opnieuw." }, { status: 429, headers })
 
-    const { data: commerceSetting } = await db.from("settings").select("value").eq("key", "commerce").maybeSingle()
-    const commerce = commerceSetting?.value || {}
     const { data: order, error: orderError } = await db.rpc("create_checkout_order", {
       p_customer: customer,
       p_items: normalizedItems,
@@ -62,42 +177,40 @@ Deno.serve(async (request) => {
       p_session_id: String(body.session_id || crypto.randomUUID()).slice(0, 120),
     })
     if (orderError) throw orderError
-    const totalCents = Number(order.total_cents)
+
+    const token = randomToken()
+    const { data: payment, error: paymentError } = await db.from("payments").update({
+      metadata: { checkout_ready: false, return_token_hash: await hashToken(token) },
+    }).eq("order_id", order.order_id).select("id,order_id,provider_payment_id,status,amount_cents,currency,metadata").single()
+    if (paymentError) throw paymentError
 
     let checkoutUrl: string | null = null
-    let providerPaymentId: string | null = null
-    const mollieKey = Deno.env.get("MOLLIE_API_KEY")
-    if (commerce.mollie_enabled && mollieKey) {
-      const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${mollieKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: { currency: "EUR", value: moneyValue(totalCents) },
-          description: `ZOL bestelling #${order.order_number}`,
-          redirectUrl: `https://zol-solutions.pages.dev/checkout/?order=${order.order_number}`,
-          webhookUrl: `${url}/functions/v1/mollie-webhook`,
-          metadata: { order_id: order.order_id, order_number: order.order_number },
-        }),
-      })
-      const mollieData = await mollieResponse.json()
-      if (!mollieResponse.ok) throw new Error(mollieData.detail || "Mollie kon de betaling niet starten.")
-      checkoutUrl = mollieData._links?.checkout?.href || null
-      providerPaymentId = mollieData.id || null
+    if (commerce.mollie_enabled) {
+      try {
+        checkoutUrl = await startMolliePayment({
+          db,
+          order: { id: order.order_id, order_number: order.order_number, total_cents: order.total_cents, currency: "EUR" },
+          payment,
+          token,
+          origin: checkoutOrigin(request),
+          supabaseUrl,
+          mollieKey,
+        })
+      } catch (error) {
+        await db.from("payments").update({ status: "failed" }).eq("id", payment.id)
+        throw error
+      }
     }
 
-    await db.from("payments").update({
-      provider_payment_id: providerPaymentId,
-      status: checkoutUrl ? "open" : "pending",
-      metadata: { checkout_ready: Boolean(checkoutUrl) },
-    }).eq("order_id", order.order_id)
-
-    return Response.json({ success: true, order_number: order.order_number, total_cents: totalCents, checkout_url: checkoutUrl, payment_ready: Boolean(checkoutUrl) }, { headers: { ...headers, "Content-Type": "application/json" } })
+    return Response.json({
+      success: true,
+      order_number: order.order_number,
+      total_cents: Number(order.total_cents),
+      checkout_url: checkoutUrl,
+      payment_ready: Boolean(checkoutUrl),
+    }, { headers: { ...headers, "Content-Type": "application/json" } })
   } catch (error) {
-    const message = error instanceof Error
-      ? error.message
-      : typeof error === "object" && error && "message" in error
-        ? String(error.message)
-        : "Afrekenen is niet gelukt."
+    const message = error instanceof Error ? error.message : "Afrekenen is niet gelukt."
     return Response.json({ error: message }, { status: 500, headers })
   }
 })

@@ -14,7 +14,7 @@
     <header class="checkout-header"><a href="/" class="checkout-brand"><span>ZOL</span><strong>Solutions</strong></a><a href="/product/">← Verder winkelen</a></header>
     <main class="checkout-main">
       <section class="checkout-flow">
-        <div class="checkout-heading"><p>Veilig afrekenen</p><h1>Jouw <em>ZOL'tjes.</em></h1></div>
+        <div class="checkout-heading"><p>Bestelling afronden</p><h1>Jouw <em>ZOL'tjes.</em></h1></div>
         <div id="checkout-cart"></div>
         <form class="checkout-form" id="checkout-form">
           <header><span>02</span><div><h2>Contact & bezorging</h2><p>Vul de gegevens in voor de bestelling.</p></div></header>
@@ -24,7 +24,7 @@
             <label class="wide">Straat en huisnummer<input name="street" autocomplete="street-address" required></label><label>Postcode<input name="postal_code" autocomplete="postal-code" required></label><label>Plaats<input name="city" autocomplete="address-level2" required></label>
             <label class="wide">Opmerking <span>optioneel</span><textarea name="note" rows="3"></textarea></label>
           </div>
-          <label class="checkout-consent"><input type="checkbox" required><span>Ik ga akkoord met de voorwaarden en het privacybeleid van ZOL Solutions.</span></label>
+          <label class="checkout-consent"><input type="checkbox" required><span>Ik ga akkoord met de <a href="https://zolsolutions.nl/policies/terms-of-service" target="_blank" rel="noopener noreferrer">algemene voorwaarden</a> en het <a href="https://zolsolutions.nl/policies/privacy-policy" target="_blank" rel="noopener noreferrer">privacybeleid</a> van ZOL Solutions.</span></label>
           <button class="checkout-submit" type="submit">Bestelling plaatsen <span>→</span></button>
           <p class="checkout-form-status" id="checkout-status" aria-live="polite"></p>
         </form>
@@ -35,4 +35,3 @@
     <script type="module" src="/src/checkout.js"></script>
   </body>
 </html>
-
