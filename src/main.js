@@ -1,9 +1,11 @@
 import './styles.css'
 import './site-runtime.js'
 import './product-commerce.js'
+import { Activity, Footprints, Ruler, createIcons } from 'lucide'
 import { supabase } from './supabase-client.js'
 
 document.documentElement.classList.add('js')
+createIcons({ icons: { Activity, Footprints, Ruler } })
 
 const menuButton = document.querySelector('.menu-toggle')
 const navigation = document.querySelector('.nav-links')
@@ -46,7 +48,6 @@ const technologySection = document.querySelector('#techniek')
 const storySection = document.querySelector('#ons-verhaal')
 const pressSection = document.querySelector('#in-de-media')
 const partnersSection = document.querySelector('#samenwerkingen')
-const whySection = document.querySelector('#waarom')
 const emotionSection = document.querySelector('.emotion')
 const reviewsSection = document.querySelector('#ervaringen')
 const professionalsSection = document.querySelector('#professionals')
@@ -57,7 +58,7 @@ const buySection = document.querySelector('#product')
 // oplossing, bewijs en pas daarna bestellen.
 if (heroSection) {
   const sections = [signalSection, problemSection, solutionSection, priceSection, technologySection,
-    processSection, storySection, whySection, emotionSection, reviewsSection, professionalsSection,
+    processSection, storySection, emotionSection, reviewsSection, professionalsSection,
     knowledgeSection, buySection, pressSection, partnersSection].filter(Boolean)
   heroSection.after(...sections)
 }
