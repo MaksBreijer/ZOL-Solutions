@@ -4286,3 +4286,196 @@ blockquote {
     width: calc(100% - 32px);
   }
 }
+
+/* Slightly calmer desktop density: more of each section stays visible at once. */
+@media (min-width: 1181px) {
+  .nav-shell,
+  .hero,
+  .section,
+  .signal-strip,
+  .solution-inner,
+  .press-inner,
+  .price-comparison-inner,
+  .professionals-inner,
+  .emotion-copy,
+  .product-detail-hero,
+  .contact-hero,
+  .knowledge-hero-inner,
+  .knowledge-index-grid {
+    width: min(1380px, calc(100% - 72px));
+  }
+
+  .hero {
+    min-height: 740px;
+    padding-top: 126px;
+    padding-bottom: 64px;
+    gap: clamp(44px, 5vw, 78px);
+  }
+
+  .hero h1 {
+    max-width: 700px;
+    font-size: clamp(4.6rem, 7vw, 7.1rem);
+  }
+
+  .hero-intro {
+    margin-top: 26px;
+    font-size: 1.16rem;
+  }
+
+  .hero-actions {
+    margin-top: 28px;
+  }
+
+  .hero-proof {
+    margin-top: 30px;
+  }
+
+  .hero-media,
+  .hero-media video {
+    min-height: 590px;
+  }
+
+  .section,
+  .solution-inner,
+  .press,
+  .price-comparison-inner,
+  .professionals-inner {
+    padding-top: 96px;
+    padding-bottom: 96px;
+  }
+
+  .section h2,
+  .solution h2,
+  .why h2,
+  .emotion h2,
+  .buy h2,
+  .price-comparison-heading h2,
+  .professionals h2,
+  .knowledge-heading h2 {
+    font-size: clamp(3.7rem, 5.5vw, 5.75rem);
+  }
+
+  .story,
+  .story-image,
+  .story-image img {
+    min-height: 800px;
+  }
+
+  .story-copy {
+    padding-top: 88px;
+    padding-bottom: 88px;
+  }
+
+  .story-copy h2,
+  .press-heading h2,
+  .partners-intro h2,
+  .product-in-use h2,
+  .contact-form-section h2,
+  .contact-human h2,
+  .page-cta h2 {
+    font-size: clamp(3.5rem, 5.2vw, 5.35rem);
+  }
+
+  .recognition-grid {
+    margin-top: 44px;
+    margin-bottom: 74px;
+  }
+
+  .problem-grid,
+  .product-blueprint,
+  .technology-layout {
+    margin-top: 72px;
+  }
+
+  .product-blueprint {
+    min-height: 790px;
+  }
+
+  .product-photo img {
+    height: 710px;
+  }
+
+  .technology-photo,
+  .technology-photo img {
+    min-height: 600px;
+  }
+
+  .process-steps,
+  .review-list {
+    margin-top: 62px;
+  }
+
+  .process-steps li {
+    min-height: 335px;
+  }
+
+  .step-symbol {
+    margin-top: 38px;
+    margin-bottom: 38px;
+  }
+
+  .why-image img {
+    min-height: 750px;
+  }
+
+  .emotion {
+    min-height: min(78vh, 800px);
+  }
+
+  .emotion-copy {
+    padding-top: 108px;
+    padding-bottom: 108px;
+  }
+
+  .partners--featured {
+    min-height: 310px;
+    padding-top: 52px;
+    padding-bottom: 52px;
+  }
+
+  .product-detail-hero {
+    padding-top: 126px;
+    padding-bottom: 88px;
+    gap: clamp(44px, 5vw, 76px);
+  }
+
+  .product-gallery-main,
+  .product-gallery-main img {
+    min-height: 680px;
+  }
+
+  .product-gallery-secondary img {
+    height: 334px;
+  }
+
+  .product-purchase h1,
+  .contact-hero h1 {
+    font-size: clamp(4rem, 5.4vw, 5.65rem);
+  }
+
+  .product-in-use-image img {
+    min-height: 740px;
+  }
+
+  .contact-hero {
+    min-height: 720px;
+    padding-top: 126px;
+    padding-bottom: 64px;
+    gap: clamp(44px, 6vw, 90px);
+  }
+
+  .knowledge-hero {
+    padding-top: 170px;
+    padding-bottom: 92px;
+  }
+
+  .knowledge-hero h1 {
+    font-size: clamp(4rem, 7.4vw, 7.2rem);
+  }
+
+  .knowledge-index,
+  .article-shell {
+    padding-top: 82px;
+    padding-bottom: 82px;
+  }
+}
