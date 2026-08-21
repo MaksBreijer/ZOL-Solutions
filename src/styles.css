@@ -2802,6 +2802,10 @@ button {
 
 /* Contact */
 
+.contact-page {
+  overflow-x: clip;
+}
+
 .contact-hero {
   display: grid;
   width: min(1280px, calc(100% - 48px));
@@ -2827,7 +2831,7 @@ button {
 .contact-orbit {
   position: relative;
   min-height: 560px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .contact-orbit::before,
@@ -3993,23 +3997,26 @@ button {
 
   .orbit-core {
     top: 50%;
-    width: 112px;
-    height: 112px;
+    width: 72px;
+    height: 72px;
   }
 
   .orbit-core img {
-    width: 76px;
+    width: 52px;
   }
 
   .orbit-label {
-    left: 155px;
-    min-width: 142px;
-    padding: 13px 18px;
-    font-size: 13px;
+    left: 90px;
+    width: 96px;
+    min-width: 96px;
+    padding: 11px 10px;
+    font-size: 12px;
+    white-space: normal;
   }
 
   .orbit-satellite--answer .orbit-label {
-    min-width: 194px;
+    width: 108px;
+    min-width: 108px;
   }
 
   .contact-paths {
