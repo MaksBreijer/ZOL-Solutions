@@ -49,6 +49,7 @@ const state = {
   profiles: [],
   allowedEmails: [],
   emailMessages: [],
+  emailTemplates: [],
   discounts: [],
   orderNotes: [],
   search: '',
@@ -59,6 +60,7 @@ const routeMeta = {
   orders: ['Bestellingen', 'Beheer betalingen, verzending en orderdetails.'],
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
   messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
+  emails: ['E-mails', 'Bewerk alle automatische bestel- en bedankmails in de ZOL-huisstijl.'],
   products: ['Producten', 'Prijzen, maten, voorraad en productmedia.'],
   discounts: ['Kortingen', 'Maak kortingscodes en automatische acties voor de ZOL-webshop.'],
   content: ['Website CMS', 'Bewerk teksten, knoppen, beelden, video en SEO zonder code.'],
@@ -318,6 +320,7 @@ async function fetchAllData() {
     supabase.from('email_messages').select('*').order('created_at', { ascending: false }).limit(200),
     supabase.from('discounts').select('*').order('created_at', { ascending: false }),
     supabase.from('order_notes').select('*').order('created_at', { ascending: false }).limit(1000),
+    supabase.from('email_templates').select('*').order('sort_order'),
   ])
 
   const firstError = requests.find((request) => request.error)?.error
@@ -339,6 +342,7 @@ async function fetchAllData() {
     state.emailMessages,
     state.discounts,
     state.orderNotes,
+    state.emailTemplates,
   ] = requests.map((request) => request.data || [])
 
   const openOrders = state.orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
@@ -717,6 +721,67 @@ function renderMessages() {
   elements.content.innerHTML = `<div class="page-container">${pageHeader('messages', '<button class="button" data-action="refresh">Vernieuwen</button>')}<section class="metric-grid"><article class="metric-card"><header><span>Nieuwe berichten</span><i>✉</i></header><strong>${state.contactMessages.filter((message) => ['new', 'email_failed'].includes(message.status)).length}</strong><footer><span>Wacht op reactie</span><span>Actueel</span></footer></article><article class="metric-card"><header><span>Totaal ontvangen</span><i>▤</i></header><strong>${state.contactMessages.length}</strong><footer><span>Contactformulier</span><span>Totaal</span></footer></article></section><section class="panel">${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>Onderwerp</th><th>E-mail</th><th>Status</th><th>Ontvangen</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen berichten', 'Nieuwe vragen via het contactformulier verschijnen hier.', '✉')}</section></div>`
 }
 
+const emailSampleVariables = {
+  customer_first_name: 'Sophie', customer_name: 'Sophie de Vries', customer_email: 'sophie@example.nl',
+  order_id: 'voorbeeld', order_number: '1042', order_total: '€ 99,95', order_subtotal: '€ 99,95',
+  shipping_cost: 'Gratis', discount_amount: '€ 0,00', discount_code: '', carrier: 'PostNL',
+  tracking_code: '3SZOL123456789', tracking_url: 'https://jouw.postnl.nl/', refund_amount: '€ 99,95',
+  refunded_total: '€ 99,95', website_url: 'https://zolsolutions.nl', admin_url: 'https://zol-solutions.pages.dev/admin/',
+}
+
+function fillEmailVariables(value = '', variables = emailSampleVariables) {
+  return String(value).replace(/{{\s*([a-z0-9_]+)\s*}}/gi, (_, key) => String(variables[key] ?? `{{${key}}}`))
+}
+
+function emailPreviewDocument(template) {
+  const email = settingsValue('email_config')
+  const logoUrl = email.logo_url || '/media/zol-logo.png'
+  const body = fillEmailVariables(template.body_template).split(/\n{2,}/).map((part) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeHtml(part).replaceAll('\n', '<br>')}</p>`).join('')
+  const label = fillEmailVariables(template.button_label_template)
+  const url = fillEmailVariables(template.button_url_template) || '#'
+  return `<!doctype html><html lang="nl"><meta name="viewport" content="width=device-width"><body style="margin:0;padding:22px 10px;background:#eef1f4;font-family:Arial,sans-serif"><table width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:auto;overflow:hidden;border-radius:18px;background:white"><tr><td style="padding:30px 34px;background:#102b4a;color:white"><img src="${escapeHtml(logoUrl)}" width="96" alt="ZOL Solutions" style="display:block;filter:brightness(0) invert(1)"><p style="margin:22px 0 7px;color:#9fc4e8;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase">${escapeHtml(fillEmailVariables(template.eyebrow_template))}</p><h1 style="margin:0;font-size:31px;line-height:1.08">${escapeHtml(fillEmailVariables(template.title_template))}</h1><p style="margin:14px 0 0;color:#dfeaf4;font-size:14px;line-height:1.6">${escapeHtml(fillEmailVariables(template.intro_template))}</p></td></tr><tr><td style="padding:30px 34px">${body}<div style="margin:20px 0;padding:16px;border-radius:11px;background:#f3f6f8;color:#53677a;font-size:12px">Bestelgegevens, bedragen of tracking worden hier automatisch toegevoegd wanneer deze mail wordt verstuurd.</div>${label ? `<a href="${escapeHtml(url)}" style="display:inline-block;padding:13px 19px;border-radius:8px;background:#33669b;color:white;font-size:13px;font-weight:700;text-decoration:none">${escapeHtml(label)} →</a>` : ''}</td></tr><tr><td style="padding:20px 34px;border-top:1px solid #e4e9ee;color:#66798c;font-size:11px;line-height:1.6">ZOL Solutions · Zachter landen. Beter sporten.</td></tr></table></body></html>`
+}
+
+function renderEmails() {
+  const email = settingsValue('email_config')
+  const sent = state.emailMessages.filter((item) => item.status === 'sent').length
+  const failed = state.emailMessages.filter((item) => item.status === 'failed').length
+  const cards = state.emailTemplates.map((template) => `<article class="email-template-card" data-action="edit-email-template" data-id="${escapeHtml(template.template_key)}"><header><span>${template.audience === 'admin' ? 'INTERN' : 'KLANT'}</span>${statusPill(template.enabled ? 'active' : 'inactive')}</header><h2>${escapeHtml(template.name)}</h2><p>${escapeHtml(template.description)}</p><div><strong>${escapeHtml(fillEmailVariables(template.subject_template))}</strong><small>${(template.variables || []).length} beschikbare variabelen</small></div><button class="button" type="button">Bewerken & preview →</button></article>`).join('')
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('emails', '<button class="button" data-route-jump="settings">Afzender instellen</button>')}<section class="email-flow-summary"><div class="email-connection ${email.enabled ? 'is-connected' : ''}"><i>${email.enabled ? '✓' : '!'}</i><div><strong>${email.enabled ? 'Automatische verzending staat aan' : 'Sjablonen klaar — verzending staat nog uit'}</strong><small>${email.enabled ? `Verzonden: ${sent} · mislukt: ${failed}` : 'Activeer Resend pas nadat het afzenderdomein en de server-sleutel zijn ingesteld.'}</small></div></div><p><strong>Volledige bestelreis</strong><span>Ontvangen → betaald → verzonden → bezorgd/bedankt → retour of terugbetaling</span></p></section><section class="email-template-grid">${cards || emptyState('Geen e-mailsjablonen', 'Voer de e-mailmigratie uit om de standaardmails toe te voegen.', '✉')}</section></div>`
+}
+
+function emailTemplateForm(template) {
+  if (!template) return
+  const variableButtons = (template.variables || []).map((variable) => `<button type="button" data-email-variable="${escapeHtml(variable)}">{{${escapeHtml(variable)}}}</button>`).join('')
+  openDialog(template.name, 'Automatische e-mail', `<form id="email-template-form"><div class="email-editor-grid"><div><div class="form-grid"><label class="field field--full">Onderwerp<input name="subject_template" maxlength="240" value="${escapeHtml(template.subject_template)}" required></label><label class="field">Bovenregel<input name="eyebrow_template" maxlength="160" value="${escapeHtml(template.eyebrow_template)}"></label><label class="field">Grote titel<input name="title_template" maxlength="180" value="${escapeHtml(template.title_template)}" required></label><label class="field field--full">Inleidende regel<input name="intro_template" maxlength="300" value="${escapeHtml(template.intro_template)}"></label><label class="field field--full">Bericht<textarea name="body_template" rows="8" maxlength="5000">${escapeHtml(template.body_template)}</textarea><small>Gebruik een lege regel voor een nieuwe alinea. Bestelregels, bedragen en tracking worden automatisch toegevoegd.</small></label><label class="field">Knoptekst<input name="button_label_template" maxlength="100" value="${escapeHtml(template.button_label_template)}"></label><label class="field">Knoplink<input name="button_url_template" maxlength="500" value="${escapeHtml(template.button_url_template)}"></label><label class="checkbox-field field--full"><input name="enabled" type="checkbox" ${template.enabled ? 'checked' : ''}> Deze automatische e-mail gebruiken</label></div><section class="email-variable-picker"><strong>Variabelen invoegen</strong><p>Klik eerst in een veld en daarna op een variabele.</p><div>${variableButtons}</div></section></div><aside class="email-preview-pane"><header><strong>Mobiele preview</strong><span>LIVE</span></header><iframe id="email-template-preview" title="Voorbeeld van ${escapeHtml(template.name)}"></iframe></aside></div><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">E-mail opslaan</button></div></form>`)
+  elements.dialog.classList.add('admin-dialog--wide')
+  const form = document.querySelector('#email-template-form')
+  const preview = document.querySelector('#email-template-preview')
+  let activeField = form.elements.body_template
+  const updatePreview = () => {
+    const values = Object.fromEntries(new FormData(form))
+    preview.srcdoc = emailPreviewDocument({ ...template, ...values, enabled: form.elements.enabled.checked })
+  }
+  form.querySelectorAll('input[type="text"], input:not([type]), textarea').forEach((field) => field.addEventListener('focus', () => { activeField = field }))
+  form.addEventListener('input', updatePreview)
+  form.querySelector('.email-variable-picker').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-email-variable]'); if (!button) return
+    const token = `{{${button.dataset.emailVariable}}}`
+    const start = activeField.selectionStart ?? activeField.value.length
+    const end = activeField.selectionEnd ?? start
+    activeField.setRangeText(token, start, end, 'end'); activeField.focus(); updatePreview()
+  })
+  updatePreview()
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'E-mail opslaan')
+    const values = Object.fromEntries(new FormData(form)); values.enabled = form.elements.enabled.checked; values.updated_by = state.profile.id
+    const { error } = await supabase.from('email_templates').update(values).eq('template_key', template.template_key)
+    if (error) { toast('E-mail opslaan mislukt', error.message, true); setBusy(button, false, 'E-mail opslaan'); return }
+    await recordActivity('E-mailsjabloon bijgewerkt', 'email_template', template.template_key, { name: template.name })
+    toast('E-mail opgeslagen', `${template.name} gebruikt voortaan deze tekst.`); closeDialog(); await refreshCurrentRoute()
+  })
+}
+
 async function openContactMessage(message) {
   if (!message) return
   const replySubject = encodeURIComponent(`Re: ${message.topic}`)
@@ -784,9 +849,9 @@ function customerEmailForm(customer) {
 
 async function sendOrderEmail(order) {
   if (!order) return
-  const { data, error } = await supabase.functions.invoke('order-email', { body: { order_id: order.id } })
+  const { data, error } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'payment_confirmed' } })
   if (error || data?.error) { toast('Bevestiging versturen mislukt', await edgeFunctionMessage(error, data, 'De bevestiging kon niet worden verstuurd.'), true); return }
-  toast('Ordermails verstuurd', `De klant en info@zolsolutions.nl zijn geïnformeerd over #${order.order_number}.`)
+  toast('Betaalbevestiging verwerkt', `De klant is geïnformeerd over bestelling #${order.order_number}.`)
   await refreshOrderDetail(order.id)
 }
 
@@ -1367,7 +1432,7 @@ function renderRoute(route = currentRoute(), option) {
   if (route !== 'live') stopLiveUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, emails: renderEmails, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
   refreshIcons()
@@ -1414,7 +1479,7 @@ function printInvoice(order) {
 
 async function handleContentClick(event) {
   const close = event.target.closest('[data-close-dialog]'); if (close) { closeDialog(); return }
-  const jump = event.target.closest('[data-route-jump]'); if (jump) { window.location.hash = jump.dataset.routeJump; return }
+  const jump = event.target.closest('[data-route-jump]'); if (jump) { const fromEmails = currentRoute() === 'emails' && jump.dataset.routeJump === 'settings'; window.location.hash = jump.dataset.routeJump; if (fromEmails) window.setTimeout(() => renderSettings('email'), 0); return }
   const target = event.target.closest('[data-action]'); if (!target) return
   const { action, id } = target.dataset
   if (action === 'refresh') await refreshCurrentRoute()
@@ -1454,6 +1519,7 @@ async function handleContentClick(event) {
   if (action === 'copy-media') { await navigator.clipboard.writeText(target.dataset.url); toast('Link gekopieerd') }
   if (action === 'delete-media') await deleteMedia(id)
   if (action === 'open-payment') paymentForm(state.payments.find((item) => item.id === id))
+  if (action === 'edit-email-template') emailTemplateForm(state.emailTemplates.find((item) => item.template_key === id))
   if (action === 'send-order-email') await sendOrderEmail(state.orders.find((item) => item.id === id))
   if (action === 'invite-admin') inviteAdminForm(target.dataset.return || 'team')
   if (action === 'remove-admin') await removeAdmin(id, target.dataset.email, target.dataset.return || 'team')
