@@ -585,7 +585,7 @@ insert into public.site_content (page, section, content_key, label, content_type
   ('home', 'hero', 'home.hero.eyebrow', 'Hero bovenregel', 'text', '.hero .eyebrow', 'textContent', 'Ontwikkeld voor jonge sporters', 10),
   ('home', 'hero', 'home.hero.title', 'Hero titel', 'html', '#hero-title', 'innerHTML', 'Zachter landen. <em>Beter sporten.</em>', 20),
   ('home', 'hero', 'home.hero.intro', 'Hero introductie', 'text', '.hero-intro', 'textContent', 'Een dempende en stabiele basis voor kinderen die willen blijven bewegen — ook wanneer groeiende hielen gevoelig zijn.', 30),
-  ('home', 'hero', 'home.hero.cta', 'Hero knop', 'text', '.hero-actions .button--primary', 'textContent', 'Ontdek ZOL', 40),
+  ('home', 'hero', 'home.hero.cta', 'Hero knop', 'text', '.hero-actions .button--primary', 'textContent', 'Bekijk de ZOL''tjes — €99,95', 40),
   ('home', 'partners', 'home.partner.tulp', 'Logo Tulp Hoofdklasse', 'image', '.partner-track a:nth-child(1) img', 'src', '/media/partner-tulp.png', 10),
   ('home', 'partners', 'home.partner.kidscare', 'Logo B&B Kids Care', 'image', '.partner-track a:nth-child(2) img', 'src', '/media/partner-kidscare.png', 20),
   ('home', 'partners', 'home.partner.bpcollege', 'Logo BP College', 'image', '.partner-track a:nth-child(3) img', 'src', '/media/partner-bpcollege.png', 30),
