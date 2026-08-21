@@ -759,6 +759,43 @@ button {
   text-transform: uppercase;
 }
 
+.story-origin {
+  position: relative;
+  display: grid;
+  margin: 30px 0 24px;
+  padding: 22px 24px 23px 30px;
+  gap: 3px;
+  overflow: hidden;
+  border: 1px solid rgb(51 102 155 / 16%);
+  border-radius: 14px;
+  background: rgb(51 102 155 / 6%);
+}
+
+.story-origin::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--orange);
+  content: "";
+}
+
+.story-origin span,
+.story-origin small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.story-origin strong {
+  color: var(--blue-deep);
+  font-family: var(--heading);
+  font-size: clamp(1.75rem, 2.5vw, 2.25rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .press {
   padding: clamp(100px, 12vw, 170px) 0;
   overflow: hidden;
