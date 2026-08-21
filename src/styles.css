@@ -4609,7 +4609,8 @@ blockquote {
 }
 
 .trust-logo--hockey {
-  padding: 9px 5px;
+  padding: 0;
+  border-color: #f4a600;
 }
 
 .trust-link-copy {
