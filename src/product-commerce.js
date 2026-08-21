@@ -12,7 +12,38 @@ if (purchase) {
   const addButton = purchase.querySelector('#add-to-cart')
   const buyButton = purchase.querySelector('#buy-now')
   const quantityInput = purchase.querySelector('#product-quantity')
+  const bundleInputs = [...purchase.querySelectorAll('input[name="bundle"]')]
+  const bundlePriceOne = purchase.querySelector('[data-bundle-price="1"]')
+  const bundlePriceTwo = purchase.querySelector('[data-bundle-price="2"]')
+  const bundleOriginal = purchase.querySelector('[data-bundle-original]')
   let product = null
+
+  function selectedVariant() {
+    const variantId = selector.querySelector('input[name="size"]:checked')?.value
+    return product?.product_variants?.find((item) => item.id === variantId) || null
+  }
+
+  function unitPrice() {
+    const variant = selectedVariant()
+    return variant?.price_cents ?? product?.price_cents ?? 9995
+  }
+
+  function renderBundlePrices() {
+    const currentUnitPrice = unitPrice()
+    const originalBundlePrice = currentUnitPrice * 2
+    const discountedBundlePrice = originalBundlePrice - Math.round(originalBundlePrice * 0.1)
+    if (bundlePriceOne) bundlePriceOne.textContent = formatMoney(currentUnitPrice)
+    if (bundlePriceTwo) bundlePriceTwo.textContent = formatMoney(discountedBundlePrice)
+    if (bundleOriginal) bundleOriginal.textContent = formatMoney(originalBundlePrice)
+  }
+
+  function selectBundle(input) {
+    const quantity = input?.value === '2' ? 2 : 1
+    if (quantityInput) quantityInput.value = String(quantity)
+    purchase.querySelectorAll('.bundle-option').forEach((option) => {
+      option.classList.toggle('is-selected', option.contains(input))
+    })
+  }
 
   const { data, error } = await supabase.from('products').select('*, product_variants(*)').eq('slug', 'zol-inlegzolen').eq('active', true).single()
   if (!error && data) {
@@ -24,11 +55,11 @@ if (purchase) {
     }
     const variants = (product.product_variants || []).filter((variant) => variant.active).sort((a, b) => a.sort_order - b.sort_order)
     selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant, index) => `<label><input type="radio" name="size" value="${variant.id}" ${index === 0 ? 'checked' : ''} ${variant.stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`).join('')}`
+    renderBundlePrices()
   }
 
   function selectedItem() {
-    const variantId = selector.querySelector('input[name="size"]:checked')?.value
-    const variant = product?.product_variants?.find((item) => item.id === variantId)
+    const variant = selectedVariant()
     if (!product || !variant) return null
     return {
       product_id: product.id,
@@ -56,7 +87,10 @@ if (purchase) {
     }
   }
 
+  bundleInputs.forEach((input) => input.addEventListener('change', () => selectBundle(input)))
+  selector?.addEventListener('change', renderBundlePrices)
+  selectBundle(bundleInputs.find((input) => input.checked))
+  renderBundlePrices()
   addButton?.addEventListener('click', () => add(false))
   buyButton?.addEventListener('click', () => add(true))
 }
-

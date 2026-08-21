@@ -105,10 +105,33 @@
             <label><input type="radio" name="size" value="53757641326929" data-size="42/43" /><span>42/43</span></label>
           </fieldset>
 
-          <div class="purchase-controls">
-            <label for="product-quantity">Aantal</label>
-            <input id="product-quantity" type="number" min="1" max="10" value="1" inputmode="numeric" />
-          </div>
+          <fieldset class="bundle-selector">
+            <legend>Kies je aantal</legend>
+            <label class="bundle-option is-selected">
+              <input type="radio" name="bundle" value="1" checked />
+              <span class="bundle-radio" aria-hidden="true"></span>
+              <span class="bundle-copy">
+                <strong>1 paar ZOL'tjes</strong>
+                <small>Eén paar in de gekozen maat</small>
+              </span>
+              <span class="bundle-price"><strong data-bundle-price="1">€99,95</strong></span>
+            </label>
+            <label class="bundle-option bundle-option--featured">
+              <span class="bundle-badge">Meest gekozen</span>
+              <input type="radio" name="bundle" value="2" />
+              <span class="bundle-radio" aria-hidden="true"></span>
+              <span class="bundle-copy">
+                <strong>2 paar ZOL'tjes</strong>
+                <small>Twee paar in de gekozen maat</small>
+                <em data-bundle-saving>10% bundelkorting</em>
+              </span>
+              <span class="bundle-price">
+                <strong data-bundle-price="2">€179,91</strong>
+                <del data-bundle-original>€199,90</del>
+              </span>
+            </label>
+          </fieldset>
+          <input id="product-quantity" type="hidden" value="1" />
           <div class="product-actions">
             <button class="button button--outline button--wide" id="add-to-cart" type="button">In winkelwagen</button>
             <button class="button button--primary button--wide" id="buy-now" type="button">Direct afrekenen <span>→</span></button>

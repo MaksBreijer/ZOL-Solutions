@@ -577,6 +577,26 @@ values ('20% korting op ZOL – Inlegzolen voor kinderen met hielpijn', 'KIDSCAR
 on conflict (upper(code)) where code is not null do update
 set title = excluded.title, discount_type = excluded.discount_type, value = excluded.value, active = excluded.active, updated_at = now();
 
+update public.discounts
+set discount_type = 'percentage',
+    value = 10,
+    minimum_subtotal_cents = 19990,
+    starts_at = coalesce(starts_at, now()),
+    ends_at = null,
+    active = true,
+    updated_at = now()
+where method = 'automatic'
+  and title = '10% bundelkorting bij 2 paar';
+
+insert into public.discounts (title, code, method, discount_type, value, minimum_subtotal_cents, starts_at, active)
+select '10% bundelkorting bij 2 paar', null, 'automatic', 'percentage', 10, 19990, now(), true
+where not exists (
+  select 1
+  from public.discounts
+  where method = 'automatic'
+    and title = '10% bundelkorting bij 2 paar'
+);
+
 insert into public.site_content (page, section, content_key, label, content_type, selector, attribute, value, sort_order) values
   ('global', 'navigation', 'global.nav.product', 'Navigatie: product', 'text', '.nav-links a[href="/product/"]', 'textContent', 'De ZOL''tjes', 10),
   ('global', 'navigation', 'global.nav.contact', 'Navigatie: contact', 'text', '.nav-links a[href="/contact/"]', 'textContent', 'Contact', 20),
