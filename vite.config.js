@@ -22,6 +22,7 @@ export default defineConfig({
         checkout: resolve(import.meta.dirname, 'checkout/index.html'),
         privacy: resolve(import.meta.dirname, 'privacy/index.html'),
         terms: resolve(import.meta.dirname, 'algemene-voorwaarden/index.html'),
+        unsubscribe: resolve(import.meta.dirname, 'uitschrijven/index.html'),
         admin: resolve(import.meta.dirname, 'admin/index.html'),
         adminAlias: resolve(import.meta.dirname, 'zolsolutions/admin/index.html'),
       },

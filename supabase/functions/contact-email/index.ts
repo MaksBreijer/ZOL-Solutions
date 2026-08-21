@@ -14,7 +14,10 @@ Deno.serve(async (request) => {
     const phone = String(body.phone || "").trim().slice(0, 80)
     const topic = String(body.topic || "Contact via de website").trim().slice(0, 140)
     const message = String(body.message || "").trim().slice(0, 5000)
+    const privacyConsent = [true, "true", "on", "yes", "1"].includes(body.privacy_consent)
+    const marketingOptIn = [true, "true", "on", "yes", "1"].includes(body.marketing_opt_in)
     if (!name || !message || !/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Controleer je naam, e-mailadres en bericht." }, { status: 400, headers })
+    if (!privacyConsent) return Response.json({ error: "Bevestig dat we je gegevens mogen gebruiken om je vraag te beantwoorden." }, { status: 400, headers })
 
     const db = adminClient()
     const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown"
@@ -24,7 +27,49 @@ Deno.serve(async (request) => {
     if (rateError) throw rateError
     if (!allowed) return Response.json({ error: "Te veel berichten. Probeer het over 15 minuten opnieuw." }, { status: 429, headers })
 
-    const { data: contact, error: contactError } = await db.from("contact_messages").insert({ name, email, phone, topic, message }).select("id").single()
+    const nameParts = name.split(/\s+/).filter(Boolean)
+    const firstName = nameParts.shift() || name
+    const lastName = nameParts.join(" ")
+    const { data: existingCustomer, error: existingCustomerError } = await db.from("customers").select("id,first_name,last_name,phone,marketing_opt_in").eq("email", email).maybeSingle()
+    if (existingCustomerError) throw existingCustomerError
+
+    const customerValues: Record<string, unknown> = {
+      first_name: existingCustomer?.first_name || firstName,
+      last_name: existingCustomer?.last_name || lastName,
+      phone: phone || existingCustomer?.phone || "",
+    }
+    if (marketingOptIn) Object.assign(customerValues, {
+      marketing_opt_in: true,
+      marketing_opt_in_at: new Date().toISOString(),
+      marketing_opt_in_source: "contactformulier",
+      marketing_unsubscribed_at: null,
+      marketing_next_send_at: new Date(Date.now() + 21 * 86_400_000).toISOString(),
+    })
+
+    let customerId = existingCustomer?.id
+    if (customerId) {
+      const { error: customerUpdateError } = await db.from("customers").update(customerValues).eq("id", customerId)
+      if (customerUpdateError) throw customerUpdateError
+    } else {
+      const { data: customer, error: customerInsertError } = await db.from("customers").insert({
+        email,
+        ...customerValues,
+        marketing_opt_in: marketingOptIn,
+        ...(marketingOptIn ? {} : { marketing_opt_in_source: "" }),
+      }).select("id").single()
+      if (customerInsertError) throw customerInsertError
+      customerId = customer.id
+    }
+
+    const { data: contact, error: contactError } = await db.from("contact_messages").insert({
+      name,
+      email,
+      phone,
+      topic,
+      message,
+      customer_id: customerId,
+      metadata: { source: "website_contact_form", privacy_consent: true, marketing_opt_in: marketingOptIn },
+    }).select("id").single()
     if (contactError) throw contactError
     const config = await getEmailConfig(db)
     const subject = `${topic} — ${name}`

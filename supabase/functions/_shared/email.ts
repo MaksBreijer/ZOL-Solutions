@@ -42,6 +42,8 @@ export function money(cents: number, currency = "EUR") {
 
 export type EmailConfig = {
   enabled?: boolean
+  marketing_enabled?: boolean
+  marketing_interval_days?: number
   from_name?: string
   from_email?: string
   reply_to?: string

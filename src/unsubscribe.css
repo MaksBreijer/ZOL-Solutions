@@ -1,0 +1,91 @@
+.unsubscribe-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgb(51 102 155 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(51 102 155 / 6%) 1px, transparent 1px),
+    var(--paper);
+  background-size: 72px 72px;
+  color: var(--blue-deep);
+}
+
+.unsubscribe-header {
+  width: min(1180px, calc(100% - 40px));
+  margin-inline: auto;
+  padding-top: 28px;
+}
+
+.unsubscribe-header a {
+  width: 108px;
+  display: block;
+}
+
+.unsubscribe-header img {
+  width: 100%;
+  display: block;
+}
+
+.unsubscribe-page main {
+  min-height: calc(100vh - 100px);
+  padding: 54px 20px 90px;
+  display: grid;
+  place-items: center;
+}
+
+.unsubscribe-card {
+  width: min(620px, 100%);
+  padding: clamp(32px, 6vw, 62px);
+  border: 1px solid rgb(51 102 155 / 16%);
+  border-radius: 28px;
+  background: rgb(255 255 255 / 84%);
+  box-shadow: 0 30px 80px rgb(16 43 74 / 10%);
+  text-align: center;
+}
+
+.unsubscribe-eyebrow {
+  margin: 0 0 18px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.unsubscribe-card h1 {
+  margin: 0;
+  font-family: var(--heading);
+  font-size: clamp(3.4rem, 9vw, 5.5rem);
+  line-height: .88;
+  text-transform: uppercase;
+}
+
+.unsubscribe-card h1 em {
+  display: block;
+  color: var(--orange);
+  font-family: var(--serif);
+  font-weight: 400;
+  text-transform: none;
+}
+
+.unsubscribe-card > p:not(.unsubscribe-eyebrow, .unsubscribe-status) {
+  max-width: 480px;
+  margin: 28px auto;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.unsubscribe-status {
+  min-height: 20px;
+  margin: 18px 0 0;
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.unsubscribe-status.is-error { color: #a63d4c; }
+.unsubscribe-back { display: inline-block; margin-top: 22px; color: var(--blue-deep); font-weight: 700; text-underline-offset: 4px; }
+
+@media (max-width: 600px) {
+  .unsubscribe-header { padding-top: 20px; }
+  .unsubscribe-page main { padding-top: 24px; }
+  .unsubscribe-card { border-radius: 22px; }
+}

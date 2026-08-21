@@ -3062,6 +3062,18 @@ button {
   margin-top: 1px;
 }
 
+.consent-field--marketing {
+  margin-top: -8px;
+  padding: 13px 14px;
+  border: 1px solid rgb(51 102 155 / 14%);
+  border-radius: 12px;
+  background: rgb(51 102 155 / 5%);
+}
+
+.consent-field--marketing span {
+  color: var(--blue-deep);
+}
+
 .form-status {
   min-height: 20px;
   margin: -8px 0 0;
