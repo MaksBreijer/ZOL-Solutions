@@ -1421,10 +1421,9 @@ function teamManagementMarkup(returnTo = 'team', compact = false) {
   const activeManagerCount = state.profiles.filter((profile) => profile.active && ['owner', 'admin'].includes(profile.role)).length
   const rows = state.profiles.map((profile) => {
     const isCurrentAccount = profile.id === state.profile.id
-    const isOwner = profile.role === 'owner'
     const isLastActiveManager = profile.active && ['owner', 'admin'].includes(profile.role) && activeManagerCount <= 1
-    const removable = canManage && !isCurrentAccount && !isOwner && !isLastActiveManager
-    const protectedLabel = isLastActiveManager ? 'Minimaal één actief' : isCurrentAccount ? 'Jouw account' : isOwner ? 'Eigenaar beschermd' : ''
+    const removable = canManage && !isCurrentAccount && !isLastActiveManager
+    const protectedLabel = isLastActiveManager ? 'Minimaal één actief' : isCurrentAccount ? 'Jouw account' : ''
     return `<tr><td><strong>${escapeHtml(profile.full_name || profile.email)}</strong>${isCurrentAccount ? '<small class="table-subline">Jij</small>' : ''}</td><td>${escapeHtml(profile.email)}</td><td>${statusPill(profile.active ? 'active' : 'inactive')}</td><td>${escapeHtml(roleLabel(profile.role))}</td><td>${formatDate(profile.created_at)}</td><td class="table-actions">${removable ? `<button class="button button--danger button--small" data-action="remove-admin" data-id="${profile.id}" data-return="${returnTo}">Verwijderen</button>` : protectedLabel ? `<small class="admin-protected-label">${protectedLabel}</small>` : ''}</td></tr>`
   }).join('')
   const pending = state.allowedEmails.filter((allowed) => !state.profiles.some((profile) => profile.email === allowed.email))

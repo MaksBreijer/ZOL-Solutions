@@ -31,7 +31,6 @@ Deno.serve(async (request) => {
     }
 
     if (target.id === caller.id) return Response.json({ error: "Je kunt je eigen eigenaarsaccount niet verwijderen." }, { status: 409, headers })
-    if (target.role === "owner") return Response.json({ error: "Een eigenaarsaccount kan niet via de admin worden verwijderd." }, { status: 409, headers })
 
     if (target.active && ["owner", "admin"].includes(target.role)) {
       const { count: activeManagerCount, error: countError } = await db
