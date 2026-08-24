@@ -68,6 +68,21 @@ function paymentMethodSupportedOnDevice(methodId) {
   return Boolean(window.ApplePaySession && window.ApplePaySession.canMakePayments())
 }
 
+function createPaymentMethodMark(method, fallback) {
+  const mark = document.createElement('span')
+  mark.className = 'payment-method-mark'
+  const source = String(method.image || '')
+  if (source.startsWith('https://')) {
+    const image = document.createElement('img')
+    image.src = source
+    image.alt = ''
+    image.loading = 'eager'
+    image.addEventListener('error', () => { mark.textContent = fallback }, { once: true })
+    mark.append(image)
+  } else mark.textContent = fallback
+  return mark
+}
+
 function renderPaymentMethods(methods = []) {
   if (!commerce.mollie_enabled) {
     paymentMethodsElement.hidden = true
@@ -107,10 +122,8 @@ function renderPaymentMethods(methods = []) {
     const detail = document.createElement('small')
     detail.textContent = presentation.detail
     copy.append(title, detail)
-    const mark = document.createElement('span')
-    mark.className = 'payment-method-mark'
-    mark.textContent = presentation.mark
-    option.append(input, radio, copy, mark)
+    const mark = createPaymentMethodMark(method, presentation.mark)
+    option.append(input, radio, mark, copy)
     paymentMethodOptions.append(option)
   })
 }

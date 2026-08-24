@@ -16,7 +16,41 @@ if (purchase) {
   const bundlePriceOne = purchase.querySelector('[data-bundle-price="1"]')
   const bundlePriceTwo = purchase.querySelector('[data-bundle-price="2"]')
   const bundleOriginal = purchase.querySelector('[data-bundle-original]')
+  const paymentSupport = purchase.querySelector('[data-payment-support]')
   let product = null
+
+  function renderPaymentSupport(methods = []) {
+    if (!paymentSupport) return
+    const list = paymentSupport.querySelector('.product-payment-methods')
+    const visibleMethods = methods.filter((method) => method.id !== 'applepay' || (window.ApplePaySession && window.ApplePaySession.canMakePayments()))
+    if (!visibleMethods.length) {
+      paymentSupport.hidden = true
+      return
+    }
+    list.replaceChildren(...visibleMethods.map((method) => {
+      const badge = document.createElement('i')
+      badge.className = `product-payment-method product-payment-method--${method.id}`
+      badge.title = method.description || method.id
+      const source = String(method.image || '')
+      if (source.startsWith('https://')) {
+        const image = document.createElement('img')
+        image.src = source
+        image.alt = method.description || method.id
+        image.loading = 'lazy'
+        image.addEventListener('error', () => { badge.textContent = method.description || method.id }, { once: true })
+        badge.append(image)
+      } else badge.textContent = method.description || method.id
+      return badge
+    }))
+  }
+
+  async function loadPaymentSupport(variant) {
+    if (!variant || !paymentSupport) return
+    const { data } = await supabase.functions.invoke('create-checkout', {
+      body: { action: 'quote', items: [{ variant_id: variant.id, quantity: 1 }] },
+    })
+    renderPaymentSupport(data?.payment_methods || [])
+  }
 
   function selectedVariant() {
     const variantId = selector.querySelector('input[name="size"]:checked')?.value
@@ -56,6 +90,7 @@ if (purchase) {
     const variants = (product.product_variants || []).filter((variant) => variant.active).sort((a, b) => a.sort_order - b.sort_order)
     selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant, index) => `<label><input type="radio" name="size" value="${variant.id}" ${index === 0 ? 'checked' : ''} ${variant.stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`).join('')}`
     renderBundlePrices()
+    void loadPaymentSupport(variants.find((variant) => variant.stock > 0) || variants[0])
   }
 
   function selectedItem() {

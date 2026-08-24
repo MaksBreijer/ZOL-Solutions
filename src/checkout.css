@@ -18,19 +18,20 @@
 /* Mollie payment methods */
 .payment-methods{margin:0;padding:21px;border:0;border-top:1px solid var(--line)}
 .payment-methods[hidden]{display:none}
-.payment-methods legend{float:left;width:100%;margin:0 0 4px;padding:0;color:#253645;font-size:14px;font-weight:800}
+.payment-methods legend{float:left;width:100%;margin:0 0 4px;padding:0;color:#253645;font-size:16px;font-weight:800}
 .payment-methods>p{clear:both;margin:0 0 15px;color:var(--muted);font-size:10px;line-height:1.45}
-.payment-method-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.payment-method-card{position:relative;min-height:76px;padding:13px;display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #d7dde2;border-radius:11px;background:#fff;cursor:pointer;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.payment-method-options{display:grid;grid-template-columns:1fr;gap:8px}
+.payment-method-card{position:relative;min-height:70px;padding:11px 14px;display:grid;grid-template-columns:18px 52px minmax(0,1fr);gap:12px;align-items:center;border:1px solid #d7dde2;border-radius:11px;background:#fff;cursor:pointer;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
 .payment-method-card:hover{border-color:#9fb6ca;transform:translateY(-1px)}
 .payment-method-card:has(input:checked){border-color:var(--blue);box-shadow:0 0 0 3px rgba(51,102,155,.1)}
 .payment-method-card input{position:absolute;opacity:0;pointer-events:none}
 .payment-method-radio{width:17px;height:17px;border:1.5px solid #aeb8c1;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 4px #fff}
 .payment-method-card:has(input:checked) .payment-method-radio{border-color:var(--blue);background:var(--blue)}
 .payment-method-copy{min-width:0;display:grid;gap:3px}
-.payment-method-copy strong{font-size:12px;color:#26333e}
+.payment-method-copy strong{font-size:13px;color:#26333e}
 .payment-method-copy small{color:var(--muted);font-size:9px;line-height:1.25}
-.payment-method-mark{min-width:52px;min-height:31px;padding:7px 8px;display:grid;place-items:center;border:1px solid #e1e5e8;border-radius:7px;background:#fafafa;color:#17212b;font:800 10px/1 "Barlow Semi Condensed";white-space:nowrap}
+.payment-method-mark{width:52px;height:38px;padding:5px 7px;display:grid;place-items:center;border:1px solid #e1e5e8;border-radius:7px;background:#fff;color:#17212b;font:800 10px/1 "Barlow Semi Condensed";white-space:nowrap}
+.payment-method-mark img{display:block;width:100%;height:100%;object-fit:contain}
 .payment-method-card--ideal .payment-method-mark{color:#cc0066;background:#fff7fb}
 .payment-method-card--paypal .payment-method-mark{color:#1164a3;background:#f6fbff}
 .payment-method-card--applepay .payment-method-mark{font-size:13px}
@@ -45,4 +46,4 @@
 .payment-method-loading{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .payment-method-loading span{height:72px;border-radius:11px;background:linear-gradient(100deg,#f0f2f3 20%,#f8f9fa 45%,#f0f2f3 70%);background-size:200% 100%;animation:payment-loading 1.2s linear infinite}
 @keyframes payment-loading{to{background-position:-200% 0}}
-@media(max-width:560px){.payment-methods{padding:17px}.payment-method-options{grid-template-columns:1fr}}
+@media(max-width:560px){.payment-methods{padding:17px}.payment-method-card{grid-template-columns:18px 48px minmax(0,1fr);gap:10px}.payment-method-mark{width:48px}}

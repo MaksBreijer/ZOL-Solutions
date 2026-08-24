@@ -56,7 +56,11 @@ async function listPaymentMethods(mollieKey: string, amountCents: number) {
       return (aIndex === -1 ? preferred.length : aIndex) - (bIndex === -1 ? preferred.length : bIndex)
     })
     .slice(0, 8)
-    .map((method: Record<string, any>) => ({ id: method.id, description: String(method.description || method.id) }))
+    .map((method: Record<string, any>) => {
+      const image = [method.image?.svg, method.image?.size2x, method.image?.size1x]
+        .find((source) => typeof source === "string" && source.startsWith("https://")) || ""
+      return { id: method.id, description: String(method.description || method.id), image }
+    })
 }
 
 async function hashToken(token: string) {
@@ -210,7 +214,7 @@ Deno.serve(async (request) => {
         p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
       })
       if (quoteError) return Response.json({ error: quoteError.message }, { status: 400, headers })
-      let paymentMethods: Array<{ id: string, description: string }> = []
+      let paymentMethods: Array<{ id: string, description: string, image: string }> = []
       if (commerce.mollie_enabled && mollieKey) {
         try {
           paymentMethods = await listPaymentMethods(mollieKey, Number(quote.total_cents || 0))
