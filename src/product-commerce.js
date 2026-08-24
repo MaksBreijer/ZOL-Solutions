@@ -16,6 +16,7 @@ if (purchase) {
   const bundlePriceOne = purchase.querySelector('[data-bundle-price="1"]')
   const bundlePriceTwo = purchase.querySelector('[data-bundle-price="2"]')
   const bundleOriginal = purchase.querySelector('[data-bundle-original]')
+  const stockStatus = purchase.querySelector('[data-stock-status]')
   const paymentSupport = purchase.querySelector('[data-payment-support]')
   let product = null
 
@@ -82,6 +83,37 @@ if (purchase) {
     })
   }
 
+  function renderStockState() {
+    const variant = selectedVariant()
+    const stock = Math.max(0, Number(variant?.stock) || 0)
+    const available = Boolean(variant && stock > 0)
+    const bundleOne = bundleInputs.find((input) => input.value === '1')
+    const bundleTwo = bundleInputs.find((input) => input.value === '2')
+
+    if (stockStatus) {
+      stockStatus.className = `stock-status ${stock > 4 ? 'is-available' : stock > 0 ? 'is-low' : 'is-unavailable'}`
+      if (!variant) stockStatus.textContent = 'Deze maten zijn momenteel uitverkocht.'
+      else if (stock > 4) stockStatus.textContent = `Op voorraad — maat ${variant.shoe_size || variant.size}`
+      else if (stock > 0) stockStatus.textContent = `Nog maar ${stock} op voorraad — maat ${variant.shoe_size || variant.size}`
+      else stockStatus.textContent = `Maat ${variant.shoe_size || variant.size} is uitverkocht.`
+    }
+
+    if (bundleTwo) {
+      bundleTwo.disabled = stock < 2
+      const option = bundleTwo.closest('.bundle-option')
+      option?.classList.toggle('is-unavailable', stock < 2)
+      if (option) option.title = stock < 2 ? 'Voor deze maat zijn geen twee paar meer beschikbaar.' : ''
+      if (bundleTwo.checked && bundleTwo.disabled && bundleOne) {
+        bundleOne.checked = true
+        selectBundle(bundleOne)
+        renderBundlePrices()
+      }
+    }
+
+    if (addButton) addButton.disabled = !available
+    if (buyButton) buyButton.disabled = !available
+  }
+
   const { data, error } = await supabase.from('products').select('*, product_variants(*)').eq('slug', 'zol-inlegzolen').eq('active', true).single()
   if (!error && data) {
     product = data
@@ -91,14 +123,21 @@ if (purchase) {
       if (summary) summary.textContent = product.description
     }
     const variants = (product.product_variants || []).filter((variant) => variant.active).sort((a, b) => a.sort_order - b.sort_order)
-    selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant, index) => `<label><input type="radio" name="size" value="${variant.id}" ${index === 0 ? 'checked' : ''} ${variant.stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`).join('')}`
+    const firstAvailable = variants.find((variant) => variant.stock > 0)
+    selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant) => {
+      const stock = Math.max(0, Number(variant.stock) || 0)
+      const availability = stock > 4 ? 'Op voorraad' : stock > 0 ? `Nog ${stock}` : 'Uitverkocht'
+      const availabilityClass = stock > 4 ? 'is-available' : stock > 0 ? 'is-low' : 'is-unavailable'
+      return `<label><input type="radio" name="size" value="${variant.id}" ${variant.id === firstAvailable?.id ? 'checked' : ''} ${stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span><em class="size-stock ${availabilityClass}">${availability}</em></label>`
+    }).join('')}`
     renderBundlePrices()
+    renderStockState()
     void loadPaymentSupport(variants.find((variant) => variant.stock > 0) || variants[0])
   }
 
   function selectedItem() {
     const variant = selectedVariant()
-    if (!product || !variant) return null
+    if (!product || !variant || variant.stock < 1) return null
     return {
       product_id: product.id,
       variant_id: variant.id,
@@ -109,7 +148,7 @@ if (purchase) {
       sku: variant.sku,
       image: Array.isArray(product.images) ? product.images[0] : '',
       price_cents: variant.price_cents ?? product.price_cents,
-      quantity: Math.min(10, Math.max(1, Number(quantityInput?.value) || 1)),
+      quantity: Math.min(variant.stock, 10, Math.max(1, Number(quantityInput?.value) || 1)),
     }
   }
 
@@ -129,7 +168,11 @@ if (purchase) {
     selectBundle(input)
     renderBundlePrices()
   }))
-  selector?.addEventListener('change', renderBundlePrices)
+  selector?.addEventListener('change', () => {
+    renderStockState()
+    renderBundlePrices()
+    void loadPaymentSupport(selectedVariant())
+  })
   selectBundle(bundleInputs.find((input) => input.checked))
   renderBundlePrices()
   addButton?.addEventListener('click', () => add(false))

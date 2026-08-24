@@ -878,6 +878,8 @@ function renderProducts() {
 function productForm(product = {}) {
   const variants = (product.product_variants || []).sort((a, b) => a.sort_order - b.sort_order)
   const variantText = variants.map((variant) => `${variant.size}|${variant.shoe_size}|${variant.stock}|${variant.sku}`).join('\n')
+  const stockEditor = variants.length ? `<section class="variant-stock-editor field--full"><header><div><strong>Voorraad per maat</strong><small>Pas de aantallen aan. Bij 4 of minder ziet de klant automatisch hoeveel er nog zijn.</small></div></header><div class="variant-stock-grid">${variants.map((variant, index) => `<label class="variant-stock-row"><span><strong>${escapeHtml(variant.size)}</strong><small>Maat ${escapeHtml(variant.shoe_size)}</small></span><span><input class="variant-stock-input" type="number" min="0" step="1" value="${variant.stock}" data-variant-index="${index}" aria-label="Voorraad ${escapeHtml(variant.size)}"> stuks</span></label>`).join('')}</div><footer><small>Wijzigingen zijn direct zichtbaar op de webshop.</small><button class="button button--primary" type="button" data-action="save-stock">Voorraad direct opslaan</button></footer></section>` : ''
+  const variantEditor = variants.length ? `<details class="variant-advanced field--full"><summary>Maten, schoenmaten en SKU's bewerken</summary><label class="field">Geavanceerd <small>Per regel: maat | schoenmaat | voorraad | SKU</small><textarea name="variants" placeholder="XS|34/35|20|ZOL-XS-3435">${escapeHtml(variantText)}</textarea></label></details>` : `<label class="field field--full">Maten en voorraad <small>Per regel: maat | schoenmaat | voorraad | SKU</small><textarea name="variants" placeholder="XS|34/35|20|ZOL-XS-3435">${escapeHtml(variantText)}</textarea></label>`
   const images = Array.isArray(product.images) ? product.images.join('\n') : ''
   openDialog(product.id ? product.name : 'Nieuw product', 'Product', `<form id="product-form"><div class="form-grid">
     <label class="field">Productnaam<input name="name" value="${escapeHtml(product.name)}" required></label><label class="field">URL-naam<input name="slug" value="${escapeHtml(product.slug)}" placeholder="zol-inlegzolen" required></label>
@@ -885,12 +887,39 @@ function productForm(product = {}) {
     <label class="field field--full">Productbeschrijving<textarea name="description" required>${escapeHtml(product.description)}</textarea></label>
     <label class="field field--full">Afbeeldingen <small>Eén URL per regel; de eerste afbeelding is de hoofdafbeelding.</small><textarea name="images">${escapeHtml(images)}</textarea></label>
     <label class="field field--full">Video-URL<input name="video_url" type="url" value="${escapeHtml(product.video_url)}" placeholder="https://…"></label>
-    <label class="field field--full">Maten en voorraad <small>Per regel: maat | schoenmaat | voorraad | SKU</small><textarea name="variants" placeholder="XS|34/35|20|ZOL-XS-3435">${escapeHtml(variantText)}</textarea></label>
+    ${stockEditor}${variantEditor}
     <label class="field">SEO-titel<input name="seo_title" value="${escapeHtml(product.seo_title)}"></label><label class="field">SEO-beschrijving<input name="seo_description" value="${escapeHtml(product.seo_description)}"></label>
     <label class="checkbox-field"><input name="active" type="checkbox" ${product.active !== false ? 'checked' : ''}> Product zichtbaar</label><label class="checkbox-field"><input name="featured" type="checkbox" ${product.featured ? 'checked' : ''}> Uitgelicht product</label>
   </div><div class="form-actions">${product.id ? '<button class="button button--danger" type="button" data-action="delete-product" data-id="' + product.id + '">Verwijderen</button>' : ''}<button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Product opslaan</button></div></form>`)
   const form = document.querySelector('#product-form')
   form.elements.name.addEventListener('input', () => { if (!product.id) form.elements.slug.value = slugify(form.elements.name.value) })
+  const stockInputs = [...form.querySelectorAll('.variant-stock-input')]
+  const syncVariantText = () => {
+    if (!form.elements.variants || !stockInputs.length) return
+    const lines = form.elements.variants.value.split('\n')
+    stockInputs.forEach((input) => {
+      const index = Number(input.dataset.variantIndex)
+      const parts = (lines[index] || '').split('|').map((part) => part.trim())
+      parts[2] = String(Math.max(0, Number.parseInt(input.value, 10) || 0))
+      lines[index] = parts.join('|')
+    })
+    form.elements.variants.value = lines.join('\n')
+  }
+  stockInputs.forEach((input) => input.addEventListener('input', syncVariantText))
+  form.querySelector('[data-action="save-stock"]')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget
+    const invalidInput = stockInputs.find((input) => !Number.isInteger(Number(input.value)) || Number(input.value) < 0)
+    if (invalidInput) { invalidInput.focus(); toast('Controleer de voorraad', 'Gebruik per maat een heel getal van 0 of hoger.', true); return }
+    setBusy(button, true, 'Voorraad opslaan')
+    const updates = await Promise.all(variants.map((variant, index) => supabase.from('product_variants').update({ stock: Number(stockInputs[index].value) }).eq('id', variant.id)))
+    const failed = updates.find((result) => result.error)
+    if (failed) { toast('Voorraad opslaan mislukt', failed.error.message, true); setBusy(button, false, 'Voorraad direct opslaan'); return }
+    variants.forEach((variant, index) => { variant.stock = Number(stockInputs[index].value) })
+    syncVariantText()
+    await recordActivity('Voorraad bijgewerkt', 'product', product.id, { stock_by_size: Object.fromEntries(variants.map((variant) => [variant.size, variant.stock])) })
+    toast('Voorraad opgeslagen', 'De nieuwe aantallen zijn direct zichtbaar op de webshop.')
+    setBusy(button, false, 'Voorraad direct opslaan')
+  })
   form.addEventListener('submit', async (event) => {
     event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true)
     const raw = Object.fromEntries(new FormData(form))

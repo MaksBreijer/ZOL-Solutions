@@ -326,6 +326,24 @@ svg { display: block; }
 .field--full { grid-column: 1 / -1; }
 .field textarea { min-height: 110px; resize: vertical; }
 .field small { color: var(--admin-muted); font-size: 8px; font-weight: 500; }
+.variant-stock-editor { overflow: hidden; border: 1px solid #d6e1e8; border-radius: 11px; background: #f8fafb; }
+.variant-stock-editor > header { padding: 14px 16px; border-bottom: 1px solid #e0e7ec; background: #fff; }
+.variant-stock-editor header strong, .variant-stock-editor header small { display: block; }
+.variant-stock-editor header strong { color: var(--admin-navy); font-size: 11px; }
+.variant-stock-editor header small { margin-top: 4px; color: var(--admin-muted); font-size: 8px; }
+.variant-stock-grid { padding: 11px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.variant-stock-row { min-height: 54px; padding: 9px 11px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #dde4e9; border-radius: 8px; background: #fff; }
+.variant-stock-row > span:first-child strong, .variant-stock-row > span:first-child small { display: block; }
+.variant-stock-row > span:first-child strong { color: var(--admin-navy); font-size: 11px; }
+.variant-stock-row > span:first-child small { margin-top: 2px; color: var(--admin-muted); font-size: 8px; }
+.variant-stock-row > span:last-child { display: flex; align-items: center; gap: 5px; color: var(--admin-muted); font-size: 8px; }
+.variant-stock-row input { width: 72px; height: 36px; padding: 0 8px; border: 1px solid #cbd5dc; border-radius: 7px; color: var(--admin-navy); font-size: 12px; font-weight: 750; text-align: right; }
+.variant-stock-editor > footer { padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #e0e7ec; background: #fff; }
+.variant-stock-editor > footer small { color: var(--admin-muted); font-size: 8px; }
+.variant-advanced { padding: 0 14px; border: 1px solid #dce3e8; border-radius: 9px; background: #fff; }
+.variant-advanced summary { padding: 12px 0; color: var(--admin-blue); font-size: 9px; font-weight: 750; cursor: pointer; }
+.variant-advanced .field { padding-bottom: 14px; }
+.variant-advanced textarea { margin-top: 6px; }
 .checkbox-field { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 650; }
 .checkbox-field input { accent-color: var(--admin-blue); }
 .form-actions { margin-top: 20px; padding-top: 15px; display: flex; justify-content: flex-end; gap: 9px; border-top: 1px solid #e8ebee; }
@@ -674,6 +692,9 @@ svg { display: block; }
   .settings-nav button { width: auto; white-space: nowrap; }
   .form-grid { grid-template-columns: 1fr; }
   .field--full { grid-column: auto; }
+  .variant-stock-grid { grid-template-columns: 1fr; }
+  .variant-stock-editor > footer { align-items: stretch; flex-direction: column; }
+  .variant-stock-editor > footer .button { justify-content: center; }
   .admin-dialog { width: calc(100% - 14px); max-height: calc(100vh - 14px); }
   .dialog-shell > #dialog-body { padding: 17px 15px 22px; }
   .dialog-shell header { padding: 16px 15px 13px; }

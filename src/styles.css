@@ -2392,6 +2392,10 @@ button {
 }
 
 .size-selector label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-direction: column;
   cursor: pointer;
 }
 
@@ -2428,6 +2432,51 @@ button {
 .size-selector input:disabled + span {
   cursor: not-allowed;
   opacity: 0.35;
+}
+
+.size-stock {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.size-stock.is-available,
+.stock-status.is-available {
+  color: #25724f;
+}
+
+.size-stock.is-low,
+.stock-status.is-low {
+  color: #b95a20;
+}
+
+.size-stock.is-unavailable,
+.stock-status.is-unavailable {
+  color: var(--muted);
+}
+
+.stock-status {
+  min-height: 18px;
+  margin: -17px 0 25px;
+  padding-left: 18px;
+  position: relative;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stock-status::before {
+  position: absolute;
+  top: 0.4em;
+  left: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
 }
 
 .bundle-selector {
@@ -2530,6 +2579,17 @@ button {
 .bundle-option input:focus-visible + .bundle-radio {
   outline: 3px solid var(--orange-light);
   outline-offset: 4px;
+}
+
+.bundle-option.is-unavailable {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
+.product-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .bundle-copy,
