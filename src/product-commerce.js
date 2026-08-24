@@ -66,6 +66,9 @@ if (purchase) {
     const currentUnitPrice = unitPrice()
     const originalBundlePrice = currentUnitPrice * 2
     const discountedBundlePrice = originalBundlePrice - Math.round(originalBundlePrice * 0.1)
+    const selectedQuantity = bundleInputs.find((input) => input.checked)?.value === '2' ? 2 : 1
+    const selectedPrice = selectedQuantity === 2 ? discountedBundlePrice : currentUnitPrice
+    if (price) price.innerHTML = `${formatMoney(selectedPrice)} <span>incl. btw</span>`
     if (bundlePriceOne) bundlePriceOne.textContent = formatMoney(currentUnitPrice)
     if (bundlePriceTwo) bundlePriceTwo.textContent = formatMoney(discountedBundlePrice)
     if (bundleOriginal) bundleOriginal.textContent = formatMoney(originalBundlePrice)
@@ -122,7 +125,10 @@ if (purchase) {
     }
   }
 
-  bundleInputs.forEach((input) => input.addEventListener('change', () => selectBundle(input)))
+  bundleInputs.forEach((input) => input.addEventListener('change', () => {
+    selectBundle(input)
+    renderBundlePrices()
+  }))
   selector?.addEventListener('change', renderBundlePrices)
   selectBundle(bundleInputs.find((input) => input.checked))
   renderBundlePrices()
