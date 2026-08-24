@@ -104,6 +104,16 @@ async function loadCms() {
     if (seo.title) document.title = seo.title
     const description = document.querySelector('meta[name="description"]')
     if (description && seo.description) description.content = seo.description
+    const socialValues = {
+      'meta[property="og:title"]': seo.title,
+      'meta[property="og:description"]': seo.description,
+      'meta[name="twitter:title"]': seo.title,
+      'meta[name="twitter:description"]': seo.description,
+    }
+    Object.entries(socialValues).forEach(([selector, value]) => {
+      const meta = document.querySelector(selector)
+      if (meta && value) meta.content = value
+    })
   }
 }
 
