@@ -1,10 +1,9 @@
 import { supabase } from './supabase-client.js'
 
-const pageName = window.location.pathname.startsWith('/product')
-  ? 'product'
-  : window.location.pathname.startsWith('/contact')
-    ? 'contact'
-    : 'home'
+const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
+const pageName = normalizedPath === '/'
+  ? 'home'
+  : normalizedPath.slice(1).replaceAll('/', '.')
 
 function getSessionId() {
   const key = 'zol_session_id'
@@ -18,7 +17,11 @@ function getSessionId() {
 
 export async function trackEvent(eventName, metadata = {}) {
   try {
-    await supabase.from('analytics_events').insert({
+    const search = new URLSearchParams(window.location.search)
+    const attribution = Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
+      .map((key) => [key, search.get(key)])
+      .filter(([, value]) => value))
+    const { error } = await supabase.from('analytics_events').insert({
       session_id: getSessionId(),
       event_name: eventName,
       page: `${window.location.pathname}${window.location.search}`.slice(0, 300),
@@ -26,9 +29,11 @@ export async function trackEvent(eventName, metadata = {}) {
         device: window.innerWidth < 768 ? 'Mobiel' : window.innerWidth < 1100 ? 'Tablet' : 'Desktop',
         referrer: document.referrer || 'Direct',
         language: navigator.language || 'nl-NL',
+        ...attribution,
         ...metadata,
       },
     })
+    if (error && import.meta.env.DEV) console.warn('Analytics-event niet opgeslagen:', error.message)
   } catch {
     // Analytics mag de website nooit blokkeren.
   }
@@ -106,3 +111,14 @@ loadCms().catch(() => {})
 trackEvent('page_view', { page: pageName })
 
 if (pageName === 'product') trackEvent('product_view', { slug: 'zol-inlegzolen' })
+
+document.addEventListener('click', (event) => {
+  const target = event.target.closest('a, button')
+  if (!target || target.closest('.admin-app')) return
+  const isCta = target.matches('.button, .nav-cta, .cart-link, .text-link, .knowledge-index-card, .contact-path a, .checkout-submit')
+  if (!isCta) return
+  trackEvent('cta_click', {
+    label: (target.textContent || target.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+    destination: target instanceof HTMLAnchorElement ? target.href.slice(0, 300) : '',
+  })
+})

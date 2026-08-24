@@ -1,4 +1,5 @@
 import './styles.css'
+import './site-runtime.js'
 
 document.documentElement.classList.add('js')
 const main = document.querySelector('main')

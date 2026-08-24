@@ -128,6 +128,10 @@ function renderPaymentMethods(methods = []) {
   })
 }
 
+paymentMethodOptions.addEventListener('change', (event) => {
+  if (event.target.matches('input[name="payment_method"]')) trackEvent('payment_method_selected', { method: event.target.value })
+})
+
 async function functionErrorMessage(error, data, fallback) {
   if (data?.error) return data.error
   try {
@@ -287,6 +291,7 @@ form.addEventListener('submit', async (event) => {
   delete customer.payment_method
   const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
   if (error || data?.error) {
+    trackEvent('checkout_error', { stage: 'create_checkout' })
     status.textContent = await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'); status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Veilig betalen <span>→</span>'; return
   }
   if (data.checkout_url) { window.location.href = data.checkout_url; return }

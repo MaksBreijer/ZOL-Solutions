@@ -1,0 +1,13 @@
+{
+  "name": "ZOL Solutions",
+  "short_name": "ZOL",
+  "description": "Zachter landen. Beter sporten.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f5f0",
+  "theme_color": "#33669b",
+  "icons": [
+    { "src": "/favicon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/favicon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

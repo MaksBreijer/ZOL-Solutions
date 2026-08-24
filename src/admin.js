@@ -1176,13 +1176,19 @@ function paymentForm(payment) {
 
 const dayKey = (date) => new Date(date).toISOString().slice(0, 10)
 const percent = (value, total) => total ? `${((value / total) * 100).toFixed(1)}%` : '0%'
-const analyticsSince = (days) => {
-  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - (days - 1))
-  return state.analytics.filter((event) => new Date(event.created_at) >= start)
+let analyticsDays = 30
+let analyticsCompare = true
+const analyticsWindow = (items, days, offset = 0) => {
+  const end = new Date(); end.setHours(24, 0, 0, 0); end.setDate(end.getDate() - (days * offset))
+  const start = new Date(end); start.setDate(start.getDate() - days)
+  return items.filter((item) => { const date = new Date(item.created_at); return date >= start && date < end })
 }
-const ordersSince = (days) => {
-  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - (days - 1))
-  return state.orders.filter((order) => new Date(order.created_at) >= start)
+const comparisonMarkup = (current, previous) => {
+  if (!analyticsCompare) return ''
+  const change = previous ? ((current - previous) / previous) * 100 : current ? 100 : 0
+  const direction = change > 0 ? 'is-up' : change < 0 ? 'is-down' : 'is-even'
+  const prefix = change > 0 ? '+' : ''
+  return `<em class="analytics-change ${direction}">${prefix}${change.toFixed(1)}% t.o.v. vorige periode</em>`
 }
 
 function barSeriesMarkup(values, formatter = (value) => value) {
@@ -1199,21 +1205,33 @@ function analyticsSeries(days, events, orders) {
       short: index % Math.max(1, Math.floor(days / 7)) === 0 ? date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) : '',
       sessions: new Set(events.filter((event) => dayKey(event.created_at) === key).map((event) => event.session_id)).size,
       revenue: orders.filter((order) => dayKey(order.created_at) === key && order.payment_status === 'paid').reduce((sum, order) => sum + order.total_cents, 0),
+      orderCount: orders.filter((order) => dayKey(order.created_at) === key && order.payment_status === 'paid').length,
     }
-  })
+  }).map((day) => ({ ...day, averageOrder: day.orderCount ? day.revenue / day.orderCount : 0 }))
 }
 
 function renderAnalytics() {
-  const events = analyticsSince(30)
-  const periodOrders = ordersSince(30)
+  const events = analyticsWindow(state.analytics, analyticsDays)
+  const periodOrders = analyticsWindow(state.orders, analyticsDays)
+  const previousEvents = analyticsWindow(state.analytics, analyticsDays, 1)
+  const previousOrders = analyticsWindow(state.orders, analyticsDays, 1)
   const paidOrders = periodOrders.filter((order) => order.payment_status === 'paid')
+  const previousPaidOrders = previousOrders.filter((order) => order.payment_status === 'paid')
   const pageViews = events.filter((event) => event.event_name === 'page_view')
+  const previousPageViews = previousEvents.filter((event) => event.event_name === 'page_view')
   const sessions = new Set(pageViews.map((event) => event.session_id)).size
+  const previousSessions = new Set(previousPageViews.map((event) => event.session_id)).size
   const productViews = events.filter((event) => event.event_name === 'product_view').length
   const carts = events.filter((event) => event.event_name === 'add_to_cart').length
   const checkouts = events.filter((event) => event.event_name === 'begin_checkout').length
   const completed = events.filter((event) => event.event_name === 'order_created').length
+  const previousCompleted = previousEvents.filter((event) => event.event_name === 'order_created').length
+  const ctaClicks = events.filter((event) => event.event_name === 'cta_click').length
+  const contactSubmits = events.filter((event) => event.event_name === 'contact_submit').length
+  const paymentSelections = events.filter((event) => event.event_name === 'payment_method_selected').length
+  const checkoutErrors = events.filter((event) => event.event_name === 'checkout_error').length
   const revenue = paidOrders.reduce((sum, order) => sum + order.total_cents, 0)
+  const previousRevenue = previousPaidOrders.reduce((sum, order) => sum + order.total_cents, 0)
   const averageOrder = paidOrders.length ? revenue / paidOrders.length : 0
   const fulfilled = periodOrders.filter((order) => ['shipped', 'delivered'].includes(order.fulfillment_status)).length
   const customerOrderCounts = periodOrders.reduce((result, order) => { const key = order.customer_email || order.customer_id; result[key] = (result[key] || 0) + 1; return result }, {})
@@ -1222,29 +1240,30 @@ function renderAnalytics() {
   const pages = Object.entries(pageViews.reduce((result, event) => { result[event.page || '/'] = (result[event.page || '/'] || 0) + 1; return result }, {})).sort((a, b) => b[1] - a[1])
   const devices = Object.entries(pageViews.reduce((result, event) => { const device = event.metadata?.device || 'Onbekend'; result[device] = (result[device] || 0) + 1; return result }, {})).sort((a, b) => b[1] - a[1])
   const referrers = Object.entries(pageViews.reduce((result, event) => { let referrer = event.metadata?.referrer || 'Direct'; try { referrer = referrer === 'Direct' ? referrer : new URL(referrer).hostname.replace(/^www\./, '') } catch { /* Toon de aangeleverde bron. */ } result[referrer] = (result[referrer] || 0) + 1; return result }, {})).sort((a, b) => b[1] - a[1])
-  const series = analyticsSeries(30, events, periodOrders)
+  const series = analyticsSeries(analyticsDays, events, periodOrders)
   const maxFunnel = Math.max(sessions, 1)
   const productRevenue = paidOrders.flatMap((order) => order.order_items || []).reduce((result, item) => { result[item.product_name] = (result[item.product_name] || 0) + item.total_cents; return result }, {})
   elements.content.innerHTML = `<div class="page-container analytics-page">
     ${pageHeader('analytics', '<button class="button" data-action="export-analytics"><i data-lucide="download"></i> Exporteren</button><button class="button button--primary" data-action="refresh"><i data-lucide="refresh-cw"></i> Vernieuwen</button>')}
-    <div class="analytics-toolbar"><button type="button"><i data-lucide="calendar-days"></i>Afgelopen 30 dagen</button><button type="button">Vergelijking: vorige periode</button><span>EUR €</span></div>
+    <div class="analytics-toolbar"><div class="analytics-period" role="group" aria-label="Analyseperiode"><i data-lucide="calendar-days"></i>${[7, 30, 90].map((days) => `<button type="button" data-action="analytics-range" data-days="${days}" class="${analyticsDays === days ? 'is-active' : ''}">${days} dagen</button>`).join('')}</div><button type="button" data-action="toggle-analytics-compare" class="${analyticsCompare ? 'is-active' : ''}" aria-pressed="${analyticsCompare}">Vergelijking: ${analyticsCompare ? 'aan' : 'uit'}</button><span>EUR €</span></div>
     <section class="analytics-summary">
-      <article><span>Bruto-omzet</span><strong>${formatMoney(revenue)}</strong><small>${paidOrders.length} betaalde bestellingen</small></article>
+      <article><span>Bruto-omzet</span><strong>${formatMoney(revenue)}</strong><small>${paidOrders.length} betaalde bestellingen${comparisonMarkup(revenue, previousRevenue)}</small></article>
       <article><span>Terugkerende klanten</span><strong>${returningRate}</strong><small>${returningCustomers} klanten</small></article>
       <article><span>Afgehandelde bestellingen</span><strong>${fulfilled}</strong><small>Van ${periodOrders.length} bestellingen</small></article>
-      <article><span>Conversiepercentage</span><strong>${percent(completed, sessions)}</strong><small>${completed} conversies</small></article>
+      <article><span>Conversiepercentage</span><strong>${percent(completed, sessions)}</strong><small>${completed} conversies${comparisonMarkup(sessions ? completed / sessions : 0, previousSessions ? previousCompleted / previousSessions : 0)}</small></article>
     </section>
     <section class="analytics-report-grid">
-      <article class="report-card report-card--wide"><header><div><span>Totale omzet in de loop van de tijd</span><strong>${formatMoney(revenue)}</strong></div><small>30 dagen</small></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.revenue })), formatMoney)}</article>
+      <article class="report-card report-card--wide"><header><div><span>Totale omzet in de loop van de tijd</span><strong>${formatMoney(revenue)}</strong></div><small>${analyticsDays} dagen</small></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.revenue })), formatMoney)}</article>
       <article class="report-card"><header><div><span>Uitsplitsing totale omzet</span><strong>${formatMoney(revenue)}</strong></div></header><ul class="report-breakdown"><li><span>Bruto-omzet</span><b>${formatMoney(paidOrders.reduce((sum, order) => sum + order.subtotal_cents, 0))}</b></li><li><span>Kortingen</span><b>− ${formatMoney(paidOrders.reduce((sum, order) => sum + (order.discount_cents || 0), 0))}</b></li><li><span>Verzendkosten</span><b>${formatMoney(paidOrders.reduce((sum, order) => sum + order.shipping_cents, 0))}</b></li><li><span>Netto-omzet</span><b>${formatMoney(revenue)}</b></li></ul></article>
       <article class="report-card"><header><div><span>Omzet per verkoopkanaal</span><strong>Webshop</strong></div></header><div class="donut-wrap"><div class="report-donut" style="--part:100"></div><p><strong>${formatMoney(revenue)}</strong><small>100% ZOL-webshop</small></p></div></article>
-      <article class="report-card"><header><div><span>Gemiddelde bestelwaarde</span><strong>${formatMoney(averageOrder)}</strong></div></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.revenue })), formatMoney)}</article>
+      <article class="report-card"><header><div><span>Gemiddelde bestelwaarde</span><strong>${formatMoney(averageOrder)}</strong></div></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.averageOrder })), formatMoney)}</article>
       <article class="report-card"><header><div><span>Totale omzet per product</span><strong>${Object.keys(productRevenue).length} producten</strong></div></header><ul class="rank-list">${Object.entries(productRevenue).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${formatMoney(value)}</b></li>`).join('') || '<li class="no-data">Nog geen betaalde productomzet.</li>'}</ul></article>
       <article class="report-card report-card--wide"><header><div><span>Sessies in de loop van de tijd</span><strong>${sessions}</strong></div><small>${pageViews.length} paginaweergaven</small></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.sessions })))}</article>
       <article class="report-card"><header><div><span>Conversietrechter</span><strong>${percent(completed, sessions)}</strong></div></header><div class="conversion-funnel">${[['Sessies', sessions], ['Product bekeken', productViews], ['Winkelwagen', carts], ['Checkout', checkouts], ['Bestelling', completed]].map(([label, value]) => `<div style="--width:${Math.max(8, (value / maxFunnel) * 100)}%"><span>${escapeHtml(label)}</span><i></i><b>${value}</b></div>`).join('')}</div></article>
       <article class="report-card"><header><div><span>Sessies per apparaattype</span><strong>${sessions}</strong></div></header><ul class="rank-list">${devices.map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value} · ${percent(value, pageViews.length)}</b></li>`).join('') || '<li class="no-data">Nog geen apparaatgegevens.</li>'}</ul></article>
       <article class="report-card"><header><div><span>Sessies per landingspagina</span><strong>${pages.length} pagina's</strong></div></header><ul class="rank-list">${pages.slice(0, 7).map(([page, value]) => `<li><span>${escapeHtml(page)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen paginaweergaven.</li>'}</ul></article>
       <article class="report-card"><header><div><span>Sessies per verwijzer</span><strong>${referrers.length} bronnen</strong></div></header><ul class="rank-list">${referrers.slice(0, 7).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen verwijzers.</li>'}</ul></article>
+      <article class="report-card"><header><div><span>Interacties</span><strong>${ctaClicks + contactSubmits}</strong></div></header><ul class="rank-list"><li><span>CTA-klikken</span><b>${ctaClicks}</b></li><li><span>Contactformulieren</span><b>${contactSubmits}</b></li><li><span>Betaalmethode gekozen</span><b>${paymentSelections}</b></li><li><span>Checkoutfouten</span><b>${checkoutErrors}</b></li></ul></article>
     </section>
   </div>`
 }
@@ -1493,10 +1512,10 @@ async function exportOrders() {
 }
 
 async function exportAnalytics() {
-  const rows = [['Datum', 'Event', 'Sessie', 'Pagina', 'Apparaat', 'Verwijzer'], ...analyticsSince(30).map((event) => [event.created_at, event.event_name, event.session_id, event.page, event.metadata?.device || '', event.metadata?.referrer || ''])]
+  const rows = [['Datum', 'Event', 'Sessie', 'Pagina', 'Apparaat', 'Verwijzer', 'Campagne', 'Actie'], ...analyticsWindow(state.analytics, analyticsDays).map((event) => [event.created_at, event.event_name, event.session_id, event.page, event.metadata?.device || '', event.metadata?.referrer || '', event.metadata?.utm_campaign || '', event.metadata?.label || event.metadata?.method || ''])]
   const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n')
   const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
-  const link = document.createElement('a'); link.href = url; link.download = `zol-analytics-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
+  const link = document.createElement('a'); link.href = url; link.download = `zol-analytics-${analyticsDays}-dagen-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
   await recordActivity('Analytics geëxporteerd', 'analytics', '', { events: rows.length - 1 }); toast('Analytics-export aangemaakt')
 }
 
@@ -1525,6 +1544,8 @@ async function handleContentClick(event) {
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
   if (action === 'export-analytics') await exportAnalytics()
+  if (action === 'analytics-range') { analyticsDays = Number(target.dataset.days) || 30; renderAnalytics() }
+  if (action === 'toggle-analytics-compare') { analyticsCompare = !analyticsCompare; renderAnalytics() }
   if (action === 'print-invoice') printInvoice(state.orders.find((item) => item.id === id))
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))
   if (action === 'back-orders') renderOrders()
@@ -1614,6 +1635,8 @@ document.querySelector('#reset-password').addEventListener('click', async () => 
 })
 
 document.querySelector('#sign-out').addEventListener('click', () => { stopLiveUpdates(); supabase.auth.signOut() })
+document.querySelector('#notification-button').addEventListener('click', () => { window.location.hash = 'activity' })
+document.querySelector('#account-button').addEventListener('click', () => { window.location.hash = 'settings'; window.setTimeout(() => renderSettings('security'), 0) })
 document.querySelector('#mobile-menu-button').addEventListener('click', () => elements.sidebar.classList.toggle('is-open'))
 elements.backdrop.addEventListener('click', () => elements.sidebar.classList.remove('is-open'))
 document.querySelector('#dialog-close').addEventListener('click', closeDialog)

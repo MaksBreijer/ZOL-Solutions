@@ -1,5 +1,6 @@
 import './styles.css'
 import './legal.css'
+import './site-runtime.js'
 import { bindCartCounters } from './cart.js'
 
 document.documentElement.classList.add('js')

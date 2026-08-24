@@ -3,5 +3,6 @@ Allow: /
 Disallow: /admin/
 Disallow: /checkout/
 Disallow: /zolsolutions/admin/
+Disallow: /uitschrijven/
 
 Sitemap: https://zolsolutions.nl/sitemap.xml

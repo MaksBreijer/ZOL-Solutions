@@ -348,9 +348,9 @@ create index activity_log_created_at_idx on public.activity_log (created_at desc
 create table public.analytics_events (
   id bigint generated always as identity primary key,
   session_id text not null,
-  event_name text not null check (event_name in ('page_view', 'product_view', 'add_to_cart', 'begin_checkout', 'order_created')),
+  event_name text not null check (event_name in ('page_view', 'product_view', 'add_to_cart', 'begin_checkout', 'payment_method_selected', 'checkout_error', 'contact_submit', 'cta_click', 'order_created')),
   page text not null default '',
-  metadata jsonb not null default '{}'::jsonb,
+  metadata jsonb not null default '{}'::jsonb check (octet_length(metadata::text) <= 4096),
   created_at timestamptz not null default now()
 );
 

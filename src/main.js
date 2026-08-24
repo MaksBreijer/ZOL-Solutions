@@ -1,5 +1,5 @@
 import './styles.css'
-import './site-runtime.js'
+import { trackEvent } from './site-runtime.js'
 import './product-commerce.js'
 import { Activity, Footprints, Ruler, createIcons } from 'lucide'
 import { supabase } from './supabase-client.js'
@@ -123,6 +123,7 @@ if (contactForm) {
     if (error || data?.error) {
       const failure = await edgeFunctionFailure(error, data, 'Versturen is niet gelukt. Probeer het later opnieuw.')
       if (failure.saved) {
+        trackEvent('contact_submit', { topic: String(payload.topic || 'contact').slice(0, 80) })
         contactForm.reset()
         formStatus.textContent = 'Bedankt! Je bericht is ontvangen. We nemen zo snel mogelijk contact met je op.'
         button.disabled = false
@@ -136,6 +137,7 @@ if (contactForm) {
       return
     }
     contactForm.reset()
+    trackEvent('contact_submit', { topic: String(payload.topic || 'contact').slice(0, 80) })
     formStatus.textContent = 'Bedankt! Je bericht is rechtstreeks naar ZOL Solutions verstuurd.'
     button.disabled = false
     button.innerHTML = 'Verstuur bericht <span>→</span>'

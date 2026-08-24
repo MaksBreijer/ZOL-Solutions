@@ -498,12 +498,21 @@ svg { display: block; }
 .analytics-toolbar button, .analytics-toolbar span { min-height: 32px; padding: 0 10px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--admin-line); border-radius: 8px; background: #fff; color: #4c5a66; font-size: 9px; font-weight: 650; }
 .analytics-toolbar button:hover { border-color: #b8c4ce; }
 .analytics-toolbar svg { width: 14px; height: 14px; }
+.analytics-toolbar > button.is-active { border-color: #96bad3; background: var(--admin-blue-soft); color: var(--admin-blue-dark); }
+.analytics-period { min-height: 32px; padding: 3px 4px 3px 9px; display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--admin-line); border-radius: 8px; background: #fff; color: #60707d; }
+.analytics-period > svg { margin-right: 3px; }
+.analytics-toolbar .analytics-period button { min-height: 25px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; font-size: 8px; }
+.analytics-toolbar .analytics-period button.is-active { background: var(--admin-blue); color: #fff; }
 .analytics-summary { margin-bottom: 12px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .analytics-summary article { min-width: 0; padding: 13px 14px; border: 1px solid var(--admin-line); border-radius: 11px; background: #fff; box-shadow: 0 1px 2px rgb(22 38 54 / 4%); }
 .analytics-summary span, .analytics-summary strong, .analytics-summary small { display: block; }
 .analytics-summary span { overflow: hidden; color: #52606c; font-size: 9px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .analytics-summary strong { margin-top: 7px; color: var(--admin-ink); font-size: 19px; letter-spacing: -.03em; }
 .analytics-summary small { margin-top: 5px; color: var(--admin-muted); font-size: 8px; }
+.analytics-change { margin-top: 4px; display: block; font-size: 7px; font-style: normal; font-weight: 750; }
+.analytics-change.is-up { color: var(--admin-green); }
+.analytics-change.is-down { color: #a64050; }
+.analytics-change.is-even { color: var(--admin-muted); }
 .analytics-report-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; align-items: stretch; }
 .report-card { min-width: 0; min-height: 225px; padding: 15px; overflow: hidden; border: 1px solid var(--admin-line); border-radius: 11px; background: #fff; box-shadow: 0 1px 2px rgb(22 38 54 / 4%); }
 .report-card--wide { grid-column: span 2; }
