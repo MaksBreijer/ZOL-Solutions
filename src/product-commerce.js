@@ -126,9 +126,7 @@ if (purchase) {
     const firstAvailable = variants.find((variant) => variant.stock > 0)
     selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant) => {
       const stock = Math.max(0, Number(variant.stock) || 0)
-      const availability = stock > 4 ? 'Op voorraad' : stock > 0 ? `Nog ${stock}` : 'Uitverkocht'
-      const availabilityClass = stock > 4 ? 'is-available' : stock > 0 ? 'is-low' : 'is-unavailable'
-      return `<label><input type="radio" name="size" value="${variant.id}" ${variant.id === firstAvailable?.id ? 'checked' : ''} ${stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span><em class="size-stock ${availabilityClass}">${availability}</em></label>`
+      return `<label><input type="radio" name="size" value="${variant.id}" ${variant.id === firstAvailable?.id ? 'checked' : ''} ${stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`
     }).join('')}`
     renderBundlePrices()
     renderStockState()
