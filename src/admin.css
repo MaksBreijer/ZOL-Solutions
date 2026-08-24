@@ -81,7 +81,7 @@ svg { display: block; }
 .login-orbit span:nth-child(2) { top: 48%; right: 9%; }
 .login-orbit span:nth-child(3) { bottom: 13%; left: 22%; background: var(--admin-orange); }
 
-/* Shopify-inspired application shell in ZOL styling */
+/* ZOL administration shell */
 .admin-app { min-height: 100vh; }
 .admin-topbar { position: fixed; z-index: 40; inset: 0 0 auto; height: var(--admin-topbar); padding: 0 12px; display: grid; grid-template-columns: var(--admin-sidebar) minmax(280px, 640px) 1fr; align-items: center; gap: 20px; background: var(--admin-navy-deep); color: #fff; box-shadow: 0 1px 0 rgb(255 255 255 / 8%); }
 .admin-brand { min-width: 0; display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 8px; color: #fff; text-decoration: none; }
@@ -166,6 +166,10 @@ svg { display: block; }
 .panel, .metric-card { border: 1px solid #d7dde2; border-radius: 12px; background: var(--admin-card); box-shadow: 0 1px 0 rgb(17 28 38 / 4%), 0 2px 5px rgb(17 28 38 / 4%); }
 .panel { overflow: hidden; }
 .panel + .panel { margin-top: 16px; }
+.customer-database-note { margin-bottom: 16px; padding: 15px 17px; display: flex; align-items: center; gap: 13px; border: 1px solid #c8e3d4; border-radius: 11px; background: #f0f8f3; }
+.customer-database-note > span { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #47a574; color: #fff; font-size: 14px; font-weight: 800; }
+.customer-database-note strong { display: block; color: #264c3a; font-size: 11px; }
+.customer-database-note p { margin: 4px 0 0; color: #587166; font-size: 9px; line-height: 1.5; }
 .panel-header { min-height: 57px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 1px solid #e1e5e8; }
 .panel-header h2 { margin: 0; color: #253745; font-size: 13px; }
 .panel-header p { margin: 4px 0 0; color: var(--admin-muted); font-size: 9px; }

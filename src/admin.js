@@ -303,10 +303,25 @@ async function recordActivity(action, entityType, entityId = '', details = {}) {
   })
 }
 
+async function fetchAllRows(table, select = '*', orderColumn = 'created_at') {
+  const pageSize = 500
+  const rows = []
+  for (let from = 0; ; from += pageSize) {
+    const result = await supabase
+      .from(table)
+      .select(select)
+      .order(orderColumn, { ascending: false })
+      .range(from, from + pageSize - 1)
+    if (result.error) return result
+    rows.push(...(result.data || []))
+    if ((result.data || []).length < pageSize) return { data: rows, error: null }
+  }
+}
+
 async function fetchAllData() {
   const requests = await Promise.all([
-    supabase.from('orders').select('*, order_items(*, products(images))').order('created_at', { ascending: false }).limit(500),
-    supabase.from('customers').select('*').order('created_at', { ascending: false }).limit(500),
+    fetchAllRows('orders', '*, order_items(*, products(images))'),
+    fetchAllRows('customers'),
     supabase.from('contact_messages').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('products').select('*, product_variants(*)').order('updated_at', { ascending: false }),
     supabase.from('payments').select('*, orders(order_number, customer_name)').order('created_at', { ascending: false }).limit(500),
@@ -706,7 +721,7 @@ function customersTable(customers) {
 
 function renderCustomers() {
   const actions = ['owner', 'admin'].includes(state.profile?.role) ? '<button class="button button--primary" data-action="new-customer">Klant toevoegen</button>' : ''
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('customers', actions)}<section class="panel"><div class="filters"><input type="search" data-filter="customers" placeholder="Zoek op naam, e-mail of telefoon"><select data-filter-marketing="customers"><option value="">Alle klanten</option><option value="yes">Marketing toegestaan</option><option value="no">Geen marketing</option></select></div><div id="customers-table">${customersTable(state.customers)}</div></section></div>`
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('customers', actions)}<section class="customer-database-note"><span>✓</span><div><strong>Rechtstreeks opgeslagen in de ZOL-klantendatabase</strong><p>Klanten uit de webshop, handmatige bestellingen en contactaanvragen komen samen in één dossier. De aantallen en bestelhistorie worden uit de echte gegevens berekend.</p></div></section><section class="panel"><div class="filters"><input type="search" data-filter="customers" placeholder="Zoek op naam, e-mail of telefoon"><select data-filter-marketing="customers"><option value="">Alle klanten</option><option value="yes">Marketing toegestaan</option><option value="no">Geen marketing</option></select></div><div id="customers-table">${customersTable(state.customers)}</div></section></div>`
 }
 
 function filterCustomers() {
@@ -802,9 +817,11 @@ function customerForm(customer = {}) {
   const emailHistory = state.emailMessages.filter((email) => email.customer_id === customer.id).slice(0, 5)
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
   const canManageCustomers = ['owner', 'admin'].includes(state.profile?.role)
+  const address = customer.address || {}
   openDialog(customer.id ? fullName(customer) : 'Nieuwe klant', 'Klant', `<form id="customer-form"><div class="form-grid">
     <label class="field">Voornaam<input name="first_name" value="${escapeHtml(customer.first_name)}" required></label><label class="field">Achternaam<input name="last_name" value="${escapeHtml(customer.last_name)}"></label>
     <label class="field">E-mailadres<input name="email" type="email" value="${escapeHtml(customer.email)}" required></label><label class="field">Telefoon<input name="phone" value="${escapeHtml(customer.phone)}"></label>
+    <label class="field field--full">Straat en huisnummer<input name="address_street" value="${escapeHtml(address.street)}"></label><label class="field">Postcode<input name="address_postal_code" value="${escapeHtml(address.postal_code)}"></label><label class="field">Plaats<input name="address_city" value="${escapeHtml(address.city)}"></label>
     <label class="field field--full">Notities<textarea name="notes" placeholder="Interne notities over deze klant">${escapeHtml(customer.notes)}</textarea></label>
     <label class="checkbox-field field--full"><input name="marketing_opt_in" type="checkbox" ${customer.marketing_opt_in ? 'checked' : ''}> Klant heeft aantoonbaar toestemming gegeven voor de driewekelijkse productmail</label>
     ${customer.marketing_opt_in_at ? `<p class="form-hint field--full">Toestemming: ${formatDate(customer.marketing_opt_in_at, { hour: '2-digit', minute: '2-digit' })}${customer.marketing_opt_in_source ? ` via ${escapeHtml(customer.marketing_opt_in_source)}` : ''}.${customer.marketing_next_send_at ? ` Volgende mail vanaf ${formatDate(customer.marketing_next_send_at)}.` : ''}</p>` : ''}
@@ -813,6 +830,8 @@ function customerForm(customer = {}) {
   form.addEventListener('submit', async (event) => {
     event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true)
     const data = Object.fromEntries(new FormData(form)); data.email = data.email.toLowerCase(); data.marketing_opt_in = form.elements.marketing_opt_in.checked
+    data.address = { street: data.address_street.trim(), postal_code: data.address_postal_code.trim().toUpperCase(), city: data.address_city.trim(), country: address.country || 'NL' }
+    delete data.address_street; delete data.address_postal_code; delete data.address_city
     if (data.marketing_opt_in && !customer.marketing_opt_in) {
       data.marketing_opt_in_at = new Date().toISOString(); data.marketing_opt_in_source = 'handmatig vastgelegd in admin'; data.marketing_unsubscribed_at = null; data.marketing_next_send_at = new Date(Date.now() + 21 * 86_400_000).toISOString()
     } else if (!data.marketing_opt_in && customer.marketing_opt_in) {

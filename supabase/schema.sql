@@ -119,7 +119,7 @@ for each row execute function private.set_updated_at();
 
 create table public.customers (
   id uuid primary key default gen_random_uuid(),
-  email text not null,
+  email text not null check (email = lower(btrim(email))),
   first_name text not null default '',
   last_name text not null default '',
   phone text not null default '',
@@ -128,6 +128,8 @@ create table public.customers (
   notes text not null default '',
   total_orders integer not null default 0 check (total_orders >= 0),
   total_spent_cents integer not null default 0 check (total_spent_cents >= 0),
+  legacy_order_count integer not null default 0 check (legacy_order_count >= 0),
+  legacy_spent_cents integer not null default 0 check (legacy_spent_cents >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (email)
@@ -135,6 +137,7 @@ create table public.customers (
 
 create index customers_created_at_idx on public.customers (created_at desc);
 create index customers_name_idx on public.customers (last_name, first_name);
+create unique index customers_normalized_email_idx on public.customers (lower(btrim(email)));
 create trigger customers_updated_at before update on public.customers
 for each row execute function private.set_updated_at();
 
