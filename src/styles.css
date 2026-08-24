@@ -766,6 +766,19 @@ button {
   background: rgb(51 102 155 / 6%);
 }
 
+.story-mission {
+  margin: 24px 0 0;
+  padding-left: 18px;
+  border-left: 2px solid var(--orange);
+  color: var(--blue-deep);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.story-mission strong {
+  color: var(--orange);
+}
+
 .story-origin summary {
   display: grid;
   min-height: 80px;
@@ -827,6 +840,10 @@ button {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.story-origin-detail p + p {
+  margin-top: 12px;
 }
 
 .press {
