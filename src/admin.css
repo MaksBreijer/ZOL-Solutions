@@ -219,6 +219,7 @@ svg { display: block; }
 .data-table tbody tr:hover { background: #f7fafc; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table td strong { color: #213443; }
+.admin-protected-label { padding: 5px 8px; display: inline-block; border-radius: 99px; background: #eef3f6; color: #64737e; font-size: 8px; font-weight: 750; white-space: nowrap; }
 .table-actions { width: 1%; text-align: right; white-space: nowrap; }
 .table-subline { margin-top: 3px; display: block; color: var(--admin-blue); font-size: 7px; font-weight: 750; text-transform: uppercase; }
 .table-footer { padding: 11px 13px; display: flex; align-items: center; justify-content: space-between; gap: 15px; border-top: 1px solid #edf0f2; color: var(--admin-muted); font-size: 8px; }

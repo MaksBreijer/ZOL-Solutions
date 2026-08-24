@@ -33,6 +33,16 @@ Deno.serve(async (request) => {
     if (target.id === caller.id) return Response.json({ error: "Je kunt je eigen eigenaarsaccount niet verwijderen." }, { status: 409, headers })
     if (target.role === "owner") return Response.json({ error: "Een eigenaarsaccount kan niet via de admin worden verwijderd." }, { status: 409, headers })
 
+    if (target.active && ["owner", "admin"].includes(target.role)) {
+      const { count: activeManagerCount, error: countError } = await db
+        .from("admin_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("active", true)
+        .in("role", ["owner", "admin"])
+      if (countError) throw countError
+      if ((activeManagerCount || 0) <= 1) return Response.json({ error: "De laatste actieve beheerder kan niet worden verwijderd." }, { status: 409, headers })
+    }
+
     const { error: revokeError } = await db.from("admin_profiles").update({ active: false }).eq("id", target.id)
     if (revokeError) throw revokeError
     await db.from("admin_allowed_emails").delete().eq("email", target.email)

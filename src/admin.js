@@ -1418,13 +1418,18 @@ function renderActivity() {
 
 function teamManagementMarkup(returnTo = 'team', compact = false) {
   const canManage = state.profile?.role === 'owner'
+  const activeManagerCount = state.profiles.filter((profile) => profile.active && ['owner', 'admin'].includes(profile.role)).length
   const rows = state.profiles.map((profile) => {
-    const removable = canManage && profile.id !== state.profile.id && profile.role !== 'owner'
-    return `<tr><td><strong>${escapeHtml(profile.full_name || profile.email)}</strong>${profile.id === state.profile.id ? '<small class="table-subline">Jij</small>' : ''}</td><td>${escapeHtml(profile.email)}</td><td>${statusPill(profile.active ? 'active' : 'inactive')}</td><td>${escapeHtml(roleLabel(profile.role))}</td><td>${formatDate(profile.created_at)}</td><td class="table-actions">${removable ? `<button class="button button--danger button--small" data-action="remove-admin" data-id="${profile.id}" data-return="${returnTo}">Verwijderen</button>` : ''}</td></tr>`
+    const isCurrentAccount = profile.id === state.profile.id
+    const isOwner = profile.role === 'owner'
+    const isLastActiveManager = profile.active && ['owner', 'admin'].includes(profile.role) && activeManagerCount <= 1
+    const removable = canManage && !isCurrentAccount && !isOwner && !isLastActiveManager
+    const protectedLabel = isLastActiveManager ? 'Minimaal één actief' : isCurrentAccount ? 'Jouw account' : isOwner ? 'Eigenaar beschermd' : ''
+    return `<tr><td><strong>${escapeHtml(profile.full_name || profile.email)}</strong>${isCurrentAccount ? '<small class="table-subline">Jij</small>' : ''}</td><td>${escapeHtml(profile.email)}</td><td>${statusPill(profile.active ? 'active' : 'inactive')}</td><td>${escapeHtml(roleLabel(profile.role))}</td><td>${formatDate(profile.created_at)}</td><td class="table-actions">${removable ? `<button class="button button--danger button--small" data-action="remove-admin" data-id="${profile.id}" data-return="${returnTo}">Verwijderen</button>` : protectedLabel ? `<small class="admin-protected-label">${protectedLabel}</small>` : ''}</td></tr>`
   }).join('')
   const pending = state.allowedEmails.filter((allowed) => !state.profiles.some((profile) => profile.email === allowed.email))
   const addButton = canManage ? `<button class="button button--primary" data-action="invite-admin" data-return="${returnTo}">Beheerder toevoegen</button>` : ''
-  return `<section class="${compact ? 'settings-team-block' : 'panel'}"><header class="panel-header"><div><h2>Actieve beheerders</h2><p>${canManage ? 'Voeg accounts toe of trek toegang direct in.' : 'Alleen de eigenaar kan toegang wijzigen.'}</p></div>${addButton}</header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>E-mail</th><th>Status</th><th>Rol</th><th>Sinds</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen actieve beheerders', 'De eigenaar kan hier een beheerder toevoegen.', '♧')}</section>${pending.length ? `<section class="${compact ? 'settings-team-block' : 'panel'}"><header class="panel-header"><div><h2>Wacht op activering</h2><p>Account is nog niet geactiveerd</p></div></header><div class="table-scroll"><table class="data-table"><thead><tr><th>E-mail</th><th>Rol</th><th>Toegevoegd</th><th></th></tr></thead><tbody>${pending.map((entry) => `<tr><td>${escapeHtml(entry.email)}</td><td>${escapeHtml(roleLabel(entry.role))}</td><td>${formatDate(entry.created_at)}</td><td class="table-actions">${canManage ? `<button class="button button--danger button--small" data-action="remove-admin" data-email="${escapeHtml(entry.email)}" data-return="${returnTo}">Verwijderen</button>` : ''}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`
+  return `<section class="${compact ? 'settings-team-block' : 'panel'}"><header class="panel-header"><div><h2>Actieve beheerders</h2><p>${canManage ? 'Verwijder toegang wanneer nodig. De laatste actieve beheerder blijft altijd beschermd.' : 'Alleen de eigenaar kan toegang wijzigen.'}</p></div>${addButton}</header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>E-mail</th><th>Status</th><th>Rol</th><th>Sinds</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen actieve beheerders', 'De eigenaar kan hier een beheerder toevoegen.', '♧')}</section>${pending.length ? `<section class="${compact ? 'settings-team-block' : 'panel'}"><header class="panel-header"><div><h2>Wacht op activering</h2><p>Account is nog niet geactiveerd</p></div></header><div class="table-scroll"><table class="data-table"><thead><tr><th>E-mail</th><th>Rol</th><th>Toegevoegd</th><th></th></tr></thead><tbody>${pending.map((entry) => `<tr><td>${escapeHtml(entry.email)}</td><td>${escapeHtml(roleLabel(entry.role))}</td><td>${formatDate(entry.created_at)}</td><td class="table-actions">${canManage ? `<button class="button button--danger button--small" data-action="remove-admin" data-email="${escapeHtml(entry.email)}" data-return="${returnTo}">Verwijderen</button>` : ''}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`
 }
 
 function renderTeam() {
@@ -1450,6 +1455,8 @@ function inviteAdminForm(returnTo = 'team') {
 async function removeAdmin(profileId, email, returnTo = 'team') {
   if (state.profile?.role !== 'owner') return
   const profile = state.profiles.find((item) => item.id === profileId)
+  const activeManagerCount = state.profiles.filter((item) => item.active && ['owner', 'admin'].includes(item.role)).length
+  if (profile?.active && ['owner', 'admin'].includes(profile.role) && activeManagerCount <= 1) { toast('Beheerder is beschermd', 'Er moet altijd minimaal één actieve beheerder blijven.', true); return }
   const targetEmail = profile?.email || email
   if (!targetEmail || !window.confirm(`Weet je zeker dat je de beheerder ${targetEmail} wilt verwijderen? De toegang wordt direct ingetrokken.`)) return
   const { data, error } = await supabase.functions.invoke('remove-admin', { body: { target_id: profileId || null, email: targetEmail } })
