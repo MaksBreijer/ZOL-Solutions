@@ -75,7 +75,7 @@ svg { display: block; }
 .login-orbit::before, .login-orbit::after { content: ""; position: absolute; border: 1px solid rgb(255 255 255 / 22%); border-radius: 50%; }
 .login-orbit::before { inset: 16%; }
 .login-orbit::after { inset: 34%; background: rgb(255 255 255 / 7%); backdrop-filter: blur(14px); }
-.login-orbit i { z-index: 1; font: 800 96px/1 "Barlow Condensed", sans-serif; font-style: normal; }
+.login-orbit > img { z-index: 1; width: clamp(118px, 14vw, 180px); height: auto; filter: drop-shadow(0 8px 22px rgb(1 18 34 / 24%)); }
 .login-orbit span { position: absolute; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 9px rgb(255 255 255 / 11%); }
 .login-orbit span:nth-child(1) { top: 12%; left: 28%; }
 .login-orbit span:nth-child(2) { top: 48%; right: 9%; }
