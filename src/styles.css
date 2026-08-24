@@ -2079,16 +2079,11 @@ button {
   line-height: 1;
 }
 
-.footer-payment-badge--ideal {
-  color: #c06;
-}
-
-.footer-payment-badge--paypal {
-  color: #1164a3;
-}
-
-.footer-payment-badge--bancontact {
-  color: #005498;
+.footer-payment-badge img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .footer-legal {
