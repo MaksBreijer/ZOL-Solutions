@@ -1,4 +1,5 @@
 import './admin.css'
+import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
   Archive, ArrowLeft, BadgePercent, Bell, CalendarDays, ChartNoAxesCombined,
@@ -415,13 +416,13 @@ function renderDashboard() {
 function ordersTable(orders, showAll = true) {
   if (!orders.length) return emptyState('Nog geen bestellingen', 'Nieuwe bestellingen verschijnen hier zodra de checkout wordt gebruikt.', '▣')
   return `<div class="table-scroll"><table class="data-table"><thead><tr><th>Bestelling</th><th>Datum</th><th>Klant</th><th>Totaal</th><th>Betaling</th><th>Verzending</th><th>Status</th></tr></thead><tbody>
-    ${orders.map((order) => `<tr data-action="open-order" data-id="${order.id}"><td><strong>#${order.order_number}</strong></td><td>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit', year: undefined })}</td><td>${escapeHtml(order.customer_name || order.customer_email)}</td><td><strong>${formatMoney(order.total_cents, order.currency)}</strong></td><td>${statusPill(order.payment_status)}</td><td>${statusPill(order.fulfillment_status)}</td><td>${statusPill(order.status)}</td></tr>`).join('')}
+    ${orders.map((order) => `<tr data-action="open-order" data-id="${order.id}"><td><strong>#${order.order_number}</strong>${order.external_reference ? `<small class="table-subline">Import: ${escapeHtml(order.external_reference)}</small>` : ''}</td><td>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit', year: undefined })}</td><td>${escapeHtml(order.customer_name || order.customer_email)}</td><td><strong>${formatMoney(order.total_cents, order.currency)}</strong></td><td>${statusPill(order.payment_status)}</td><td>${statusPill(order.fulfillment_status)}</td><td>${statusPill(order.status)}</td></tr>`).join('')}
   </tbody></table></div>${showAll ? `<footer class="table-footer"><span>${orders.length} bestellingen</span><span>Klik op een bestelling om deze te bewerken</span></footer>` : ''}`
 }
 
 function renderOrders() {
   const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('orders', `<button class="button" data-action="export-orders">Exporteren</button>${canManageOrders ? '<button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('orders', `<button class="button" data-action="export-orders">Exporteren</button>${canManageOrders ? '<button class="button" data-action="import-orders">CSV importeren</button><button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
     <section class="panel"><div class="filters"><input type="search" data-filter="orders" placeholder="Zoek op ordernummer, klant of e-mail"><select data-filter-status="orders"><option value="">Alle statussen</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select><select data-filter-payment="orders"><option value="">Elke betaling</option><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="refunded">Terugbetaald</option></select></div><div id="orders-table">${ordersTable(state.orders)}</div></section>
   </div>`
 }
@@ -519,7 +520,7 @@ function filterOrders() {
   const orderStatus = document.querySelector('[data-filter-status="orders"]')?.value || ''
   const paymentStatus = document.querySelector('[data-filter-payment="orders"]')?.value || ''
   const filtered = state.orders.filter((order) =>
-    (!query || [order.order_number, order.customer_name, order.customer_email].some((value) => String(value || '').toLowerCase().includes(query))) &&
+    (!query || [order.order_number, order.external_reference, order.customer_name, order.customer_email].some((value) => String(value || '').toLowerCase().includes(query))) &&
     (!orderStatus || order.status === orderStatus) && (!paymentStatus || order.payment_status === paymentStatus))
   document.querySelector('#orders-table').innerHTML = ordersTable(filtered)
 }
@@ -578,7 +579,7 @@ function openOrder(order) {
     return `<article class="order-product"><div class="order-product-image">${image ? `<img src="${escapeHtml(image)}" alt="">` : '<span>ZOL</span>'}</div><div><strong>${escapeHtml(item.product_name)}</strong><small>${escapeHtml(item.variant_name || item.sku)}</small></div><p>${formatMoney(item.unit_price_cents)} × ${item.quantity}</p><b>${formatMoney(item.total_cents)}</b></article>`
   }).join('')
   elements.content.innerHTML = `<div class="page-container order-detail-page">
-    <header class="order-detail-header"><div><button class="order-back" type="button" data-action="back-orders"><i data-lucide="arrow-left"></i></button><div><div class="order-title-line"><h1>#${order.order_number}</h1>${statusPill(order.payment_status)}${statusPill(order.fulfillment_status)}${order.archived ? '<span class="status-pill">Gearchiveerd</span>' : ''}</div><p>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit' })} via ${order.source === 'admin' ? 'ZOL Admin' : 'Webshop'}</p></div></div><div class="order-header-actions">${refundable && canManage ? `<button class="button" data-action="refund-order" data-id="${order.id}"><i data-lucide="rotate-ccw"></i> Terugbetalen</button>` : ''}${order.fulfillment_status !== 'returned' && canManage ? `<button class="button" data-action="return-order" data-id="${order.id}">Retourneren</button>` : ''}<button class="button" data-action="toggle-archive" data-id="${order.id}"><i data-lucide="archive"></i>${order.archived ? 'Uit archief' : 'Archiveren'}</button></div></header>
+    <header class="order-detail-header"><div><button class="order-back" type="button" data-action="back-orders"><i data-lucide="arrow-left"></i></button><div><div class="order-title-line"><h1>#${order.order_number}</h1>${statusPill(order.payment_status)}${statusPill(order.fulfillment_status)}${order.archived ? '<span class="status-pill">Gearchiveerd</span>' : ''}</div><p>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit' })} via ${order.source === 'admin' ? 'ZOL Admin' : order.source === 'csv-import' ? `CSV-import${order.external_reference ? ` · ${escapeHtml(order.external_reference)}` : ''}` : 'Webshop'}</p></div></div><div class="order-header-actions">${refundable && canManage ? `<button class="button" data-action="refund-order" data-id="${order.id}"><i data-lucide="rotate-ccw"></i> Terugbetalen</button>` : ''}${order.fulfillment_status !== 'returned' && canManage ? `<button class="button" data-action="return-order" data-id="${order.id}">Retourneren</button>` : ''}<button class="button" data-action="toggle-archive" data-id="${order.id}"><i data-lucide="archive"></i>${order.archived ? 'Uit archief' : 'Archiveren'}</button></div></header>
     <div class="order-detail-grid"><main class="order-detail-main">
       <section class="order-card fulfillment-card"><header><div><i data-lucide="truck"></i><div><h2>${prettyStatus(order.fulfillment_status)}</h2><p>${order.shipped_at ? `Verzonden ${formatDate(order.shipped_at, { hour: '2-digit', minute: '2-digit' })}` : 'Klaar voor verwerking'}</p></div></div><span>#${order.order_number}-F1</span></header>
         ${order.tracking_code ? `<div class="tracking-summary"><div><span>${escapeHtml(order.tracking_carrier || 'Tracking')}</span><strong>${escapeHtml(order.tracking_code)}</strong>${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" target="_blank" rel="noreferrer">Zending volgen <i data-lucide="external-link"></i></a>` : ''}</div>${order.fulfillment_status === 'delivered' ? statusPill('delivered') : statusPill('shipped')}</div>` : ''}
@@ -716,7 +717,7 @@ async function deleteOrder(orderId) {
 
 function customersTable(customers) {
   if (!customers.length) return emptyState('Nog geen klanten', 'Klanten worden automatisch aangemaakt bij een nieuwe bestelling.', '♙')
-  return `<div class="table-scroll"><table class="data-table"><thead><tr><th>Klant</th><th>E-mail</th><th>Marketing</th><th>Bestellingen</th><th>Besteed</th><th>Sinds</th></tr></thead><tbody>${customers.map((customer) => `<tr data-action="open-customer" data-id="${customer.id}"><td><strong>${escapeHtml(fullName(customer))}</strong><small class="table-subline">${escapeHtml(customer.phone || 'Geen telefoonnummer')}</small></td><td>${escapeHtml(customer.email)}</td><td>${statusPill(customer.marketing_opt_in ? 'active' : 'inactive')}</td><td>${customer.total_orders}</td><td><strong>${formatMoney(customer.total_spent_cents)}</strong></td><td>${formatDate(customer.created_at)}</td></tr>`).join('')}</tbody></table></div><footer class="table-footer"><span>${customers.length} klanten</span><span>Klik om gegevens en bestelgeschiedenis te bekijken</span></footer>`
+  return `<div class="table-scroll customer-table-scroll"><table class="data-table"><thead><tr><th>Klant</th><th>E-mail</th><th>Marketing</th><th>Bestellingen</th><th>Besteed</th><th>Sinds</th></tr></thead><tbody>${customers.map((customer) => `<tr data-action="open-customer" data-id="${customer.id}"><td><strong>${escapeHtml(fullName(customer))}</strong><small class="table-subline">${escapeHtml(customer.phone || 'Geen telefoonnummer')}</small></td><td>${escapeHtml(customer.email)}</td><td>${statusPill(customer.marketing_opt_in ? 'active' : 'inactive')}</td><td>${customer.total_orders}</td><td><strong>${formatMoney(customer.total_spent_cents)}</strong></td><td>${formatDate(customer.created_at)}</td></tr>`).join('')}</tbody></table></div><footer class="table-footer"><span>${customers.length} klanten</span><span>Scroll in de lijst en klik op een klant voor de details</span></footer>`
 }
 
 function renderCustomers() {
@@ -930,10 +931,17 @@ function productForm(product = {}) {
     const invalidInput = stockInputs.find((input) => !Number.isInteger(Number(input.value)) || Number(input.value) < 0)
     if (invalidInput) { invalidInput.focus(); toast('Controleer de voorraad', 'Gebruik per maat een heel getal van 0 of hoger.', true); return }
     setBusy(button, true, 'Voorraad opslaan')
-    const updates = await Promise.all(variants.map((variant, index) => supabase.from('product_variants').update({ stock: Number(stockInputs[index].value) }).eq('id', variant.id)))
-    const failed = updates.find((result) => result.error)
-    if (failed) { toast('Voorraad opslaan mislukt', failed.error.message, true); setBusy(button, false, 'Voorraad direct opslaan'); return }
-    variants.forEach((variant, index) => { variant.stock = Number(stockInputs[index].value) })
+    const stockByVariant = Object.fromEntries(variants.map((variant, index) => [variant.id, Number(stockInputs[index].value)]))
+    const { error } = await supabase.rpc('update_product_inventory', { p_product_id: product.id, p_stock: stockByVariant })
+    if (error) { toast('Voorraad opslaan mislukt', error.message, true); setBusy(button, false, 'Voorraad direct opslaan'); return }
+    const { data: freshVariants, error: verifyError } = await supabase.from('product_variants').select('*').eq('product_id', product.id).order('sort_order')
+    if (verifyError) { toast('Voorraad is opgeslagen', 'Ververs de pagina om de gecontroleerde aantallen te zien.'); setBusy(button, false, 'Voorraad direct opslaan'); return }
+    const freshById = new Map((freshVariants || []).map((variant) => [variant.id, variant]))
+    variants.forEach((variant, index) => {
+      Object.assign(variant, freshById.get(variant.id) || { stock: Number(stockInputs[index].value) })
+      stockInputs[index].value = String(variant.stock)
+    })
+    product.product_variants = freshVariants
     syncVariantText()
     await recordActivity('Voorraad bijgewerkt', 'product', product.id, { stock_by_size: Object.fromEntries(variants.map((variant) => [variant.size, variant.stock])) })
     toast('Voorraad opgeslagen', 'De nieuwe aantallen zijn direct zichtbaar op de webshop.')
@@ -1523,11 +1531,71 @@ async function refreshCurrentRoute(option) {
 
 async function exportOrders() {
   if (!state.orders.length) { toast('Geen bestellingen om te exporteren'); return }
-  const rows = [['Bestelling', 'Datum', 'Klant', 'E-mail', 'Totaal', 'Betaling', 'Verzending', 'Status'], ...state.orders.map((order) => [order.order_number, order.created_at, order.customer_name, order.customer_email, (order.total_cents / 100).toFixed(2), order.payment_status, order.fulfillment_status, order.status])]
+  const rows = [['Bestelling', 'Extern nummer', 'Datum', 'Klant', 'E-mail', 'Totaal', 'Betaling', 'Verzending', 'Status'], ...state.orders.map((order) => [order.order_number, order.external_reference || '', order.created_at, order.customer_name, order.customer_email, (order.total_cents / 100).toFixed(2), order.payment_status, order.fulfillment_status, order.status])]
   const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n')
   const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a'); link.href = url; link.download = `zol-bestellingen-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
   await recordActivity('Bestellingen geëxporteerd', 'order', '', { count: state.orders.length }); toast('Export aangemaakt')
+}
+
+function downloadOrderImportTemplate() {
+  const url = URL.createObjectURL(new Blob([orderImportTemplateCsv()], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'zol-bestellingen-import-voorbeeld.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function importOrdersForm() {
+  openDialog('Bestellingen importeren', 'CSV-import', `<form id="order-import-form">
+    <section class="csv-import-intro"><strong>CSV uit Excel, Numbers, Shopify of een ander spreadsheetprogramma</strong><p>Bestellingen met hetzelfde bestelnummer worden samengevoegd. Een bestaande import wordt veilig overgeslagen. Historische imports veranderen de huidige voorraad niet.</p></section>
+    <label class="csv-file-field"><span>CSV-bestand kiezen</span><input id="order-import-file" type="file" accept=".csv,text/csv,text/plain" required><small>Maximaal 10 MB. Komma, puntkomma en tab worden automatisch herkend.</small></label>
+    <section class="csv-import-preview" id="order-import-preview" aria-live="polite"><span>Nog geen bestand gekozen</span><p>Na het kiezen zie je eerst een controle. Er wordt dan nog niets geïmporteerd.</p></section>
+    <div class="form-actions"><button class="button" type="button" data-action="download-order-template"><i data-lucide="download"></i> Voorbeeld downloaden</button><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit" disabled>Gecontroleerde orders importeren</button></div>
+  </form>`)
+  elements.dialog.classList.add('admin-dialog--wide')
+  refreshIcons()
+  const form = document.querySelector('#order-import-form')
+  const fileInput = form.querySelector('#order-import-file')
+  const preview = form.querySelector('#order-import-preview')
+  const submit = form.querySelector('[type="submit"]')
+  let parsed = null
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0]
+    parsed = null
+    submit.disabled = true
+    if (!file) { preview.innerHTML = '<span>Nog geen bestand gekozen</span><p>Kies een CSV-bestand om het te controleren.</p>'; return }
+    if (file.size > 10 * 1024 * 1024) { preview.innerHTML = '<span class="is-error">Bestand is te groot</span><p>Gebruik een CSV-bestand van maximaal 10 MB.</p>'; return }
+    try {
+      parsed = parseOrderCsv(await file.text())
+      const issuePreview = parsed.issues.slice(0, 6).map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')
+      const moreIssues = parsed.issues.length > 6 ? `<li>En nog ${parsed.issues.length - 6} andere regels.</li>` : ''
+      preview.innerHTML = `<header><div><span>${escapeHtml(file.name)}</span><small>${parsed.delimiter === '\t' ? 'Tab' : parsed.delimiter === ';' ? 'Puntkomma' : 'Komma'} als scheidingsteken</small></div><strong>${parsed.orders.length} bestellingen</strong></header><div class="csv-import-stats"><span>${parsed.lineCount} gegevensregels</span><span>${parsed.orders.reduce((sum, order) => sum + order.items.length, 0)} productregels</span><span>${parsed.issues.length} fouten</span></div>${parsed.issues.length ? `<div class="csv-import-errors"><strong>Los deze regels eerst op:</strong><ul>${issuePreview}${moreIssues}</ul></div>` : '<p class="csv-import-ready">✓ Bestand is gecontroleerd en klaar voor import.</p>'}`
+      submit.disabled = !parsed.orders.length || parsed.issues.length > 0
+    } catch (error) {
+      preview.innerHTML = `<span class="is-error">Bestand kon niet worden gelezen</span><p>${escapeHtml(error.message)}</p>`
+    }
+  })
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    if (!parsed?.orders.length || parsed.issues.length) return
+    setBusy(submit, true, 'Importeren')
+    let imported = 0
+    let skipped = 0
+    for (let offset = 0; offset < parsed.orders.length; offset += 200) {
+      const { data, error } = await supabase.rpc('import_admin_orders', { p_orders: parsed.orders.slice(offset, offset + 200) })
+      if (error) { toast('Importeren mislukt', error.message, true); setBusy(submit, false, 'Gecontroleerde orders importeren'); return }
+      imported += Number(data?.imported || 0)
+      skipped += Number(data?.skipped || 0)
+    }
+    await recordActivity('Bestellingen via CSV geïmporteerd', 'order', '', { imported, skipped, filename: fileInput.files?.[0]?.name || '' })
+    closeDialog()
+    await refreshCurrentRoute()
+    toast('CSV-import voltooid', `${imported} bestellingen toegevoegd${skipped ? ` · ${skipped} bestaande imports overgeslagen` : ''}.`)
+  })
 }
 
 async function exportAnalytics() {
@@ -1562,6 +1630,8 @@ async function handleContentClick(event) {
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
+  if (action === 'import-orders') importOrdersForm()
+  if (action === 'download-order-template') downloadOrderImportTemplate()
   if (action === 'export-analytics') await exportAnalytics()
   if (action === 'analytics-range') { analyticsDays = Number(target.dataset.days) || 30; renderAnalytics() }
   if (action === 'toggle-analytics-compare') { analyticsCompare = !analyticsCompare; renderAnalytics() }

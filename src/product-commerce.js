@@ -114,6 +114,19 @@ if (purchase) {
     if (buyButton) buyButton.disabled = !available
   }
 
+  function renderVariantSelector(preferredVariantId = '') {
+    const variants = (product?.product_variants || []).filter((variant) => variant.active).sort((a, b) => a.sort_order - b.sort_order)
+    const preferred = variants.find((variant) => variant.id === preferredVariantId && variant.stock > 0)
+    const selected = preferred || variants.find((variant) => variant.stock > 0)
+    selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant) => {
+      const stock = Math.max(0, Number(variant.stock) || 0)
+      return `<label><input type="radio" name="size" value="${variant.id}" ${variant.id === selected?.id ? 'checked' : ''} ${stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`
+    }).join('')}`
+    renderBundlePrices()
+    renderStockState()
+    return selected || variants[0] || null
+  }
+
   const { data, error } = await supabase.from('products').select('*, product_variants(*)').eq('slug', 'zol-inlegzolen').eq('active', true).single()
   if (!error && data) {
     product = data
@@ -122,15 +135,18 @@ if (purchase) {
       const summary = purchase.querySelector('.product-summary')
       if (summary) summary.textContent = product.description
     }
-    const variants = (product.product_variants || []).filter((variant) => variant.active).sort((a, b) => a.sort_order - b.sort_order)
-    const firstAvailable = variants.find((variant) => variant.stock > 0)
-    selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant) => {
-      const stock = Math.max(0, Number(variant.stock) || 0)
-      return `<label><input type="radio" name="size" value="${variant.id}" ${variant.id === firstAvailable?.id ? 'checked' : ''} ${stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`
-    }).join('')}`
-    renderBundlePrices()
-    renderStockState()
-    void loadPaymentSupport(variants.find((variant) => variant.stock > 0) || variants[0])
+    const selected = renderVariantSelector()
+    void loadPaymentSupport(selected)
+
+    const inventoryChannel = supabase.channel(`product-inventory-${product.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'product_variants', filter: `product_id=eq.${product.id}` }, ({ new: updatedVariant }) => {
+        const selectedId = selector.querySelector('input[name="size"]:checked')?.value || ''
+        product.product_variants = (product.product_variants || []).map((variant) => variant.id === updatedVariant.id ? { ...variant, ...updatedVariant } : variant)
+        const selectedAfterUpdate = renderVariantSelector(selectedId)
+        if (selectedAfterUpdate?.id !== selectedId) void loadPaymentSupport(selectedAfterUpdate)
+      })
+      .subscribe()
+    window.addEventListener('pagehide', () => { void supabase.removeChannel(inventoryChannel) }, { once: true })
   }
 
   function selectedItem() {

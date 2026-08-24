@@ -213,6 +213,8 @@ create table public.orders (
   delivered_at timestamptz,
   returned_at timestamptz,
   source text not null default 'webshop',
+  external_reference text,
+  imported_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (order_number)
@@ -223,6 +225,8 @@ create index orders_customer_idx on public.orders (customer_id, created_at desc)
 create index orders_status_idx on public.orders (status, payment_status, fulfillment_status);
 create index orders_discount_id_idx on public.orders (discount_id);
 create index orders_archived_created_idx on public.orders (archived, created_at desc);
+create unique index orders_csv_external_reference_idx on public.orders (lower(btrim(external_reference)))
+where source = 'csv-import' and external_reference is not null;
 create trigger orders_updated_at before update on public.orders
 for each row execute function private.set_updated_at();
 
