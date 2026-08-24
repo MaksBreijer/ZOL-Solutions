@@ -760,26 +760,32 @@ button {
 }
 
 .story-origin {
-  position: relative;
-  display: grid;
   margin: 30px 0 24px;
-  padding: 22px 24px 23px 30px;
-  gap: 3px;
-  overflow: hidden;
   border: 1px solid rgb(51 102 155 / 16%);
   border-radius: 14px;
   background: rgb(51 102 155 / 6%);
 }
 
-.story-origin::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: var(--orange);
-  content: "";
+.story-origin summary {
+  display: grid;
+  min-height: 80px;
+  padding: 18px 20px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  cursor: pointer;
+  list-style: none;
 }
 
-.story-origin span,
+.story-origin summary::-webkit-details-marker {
+  display: none;
+}
+
+.story-origin summary > span {
+  display: grid;
+  gap: 4px;
+}
+
 .story-origin small {
   color: var(--muted);
   font-size: 10px;
@@ -790,10 +796,37 @@ button {
 
 .story-origin strong {
   color: var(--blue-deep);
-  font-family: var(--heading);
-  font-size: clamp(1.75rem, 2.5vw, 2.25rem);
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.story-origin summary i {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgb(51 102 155 / 22%);
+  border-radius: 50%;
+  color: var(--blue);
+  font-size: 21px;
+  font-style: normal;
   line-height: 1;
-  text-transform: uppercase;
+  transition: transform 180ms ease;
+}
+
+.story-origin[open] summary i {
+  transform: rotate(45deg);
+}
+
+.story-origin-detail {
+  padding: 0 72px 20px 20px;
+}
+
+.story-origin-detail p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .press {
@@ -2008,12 +2041,61 @@ button {
   color: #fff;
 }
 
-.footer-legal {
+.footer-payments {
   display: flex;
-  padding-top: 22px;
+  padding-top: 20px;
   grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
   gap: 22px;
   border-top: 1px solid rgb(255 255 255 / 12%);
+}
+
+.footer-payments > span {
+  color: rgb(255 255 255 / 48%);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.footer-payment-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.footer-payment-badge {
+  display: grid;
+  min-width: 62px;
+  min-height: 32px;
+  padding: 7px 10px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 7px;
+  background: #fff;
+  color: #17212b;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.footer-payment-badge--ideal {
+  color: #c06;
+}
+
+.footer-payment-badge--paypal {
+  color: #1164a3;
+}
+
+.footer-payment-badge--bancontact {
+  color: #005498;
+}
+
+.footer-legal {
+  display: flex;
+  padding-top: 0;
+  grid-column: 1 / -1;
+  gap: 22px;
   color: rgb(255 255 255 / 36%);
   font-size: 12px;
 }
@@ -3742,6 +3824,7 @@ button {
   }
 
   .footer-contact,
+  .footer-payments,
   .footer-legal {
     grid-column: 1;
     flex-wrap: wrap;
@@ -4532,6 +4615,24 @@ blockquote {
     align-items: center;
     border-bottom: 1px solid rgb(255 255 255 / 12%);
     font-size: 15px;
+  }
+
+  .footer-payments {
+    display: grid;
+    width: 100%;
+    margin-top: 28px;
+    padding-top: 22px;
+    grid-column: 1;
+    gap: 14px;
+  }
+
+  .footer-payment-badges {
+    width: 100%;
+  }
+
+  .footer-payment-badge {
+    min-width: 0;
+    flex: 1;
   }
 
   .footer-legal {
