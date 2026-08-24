@@ -10,6 +10,8 @@ const checkoutFlow = document.querySelector('.checkout-flow')
 const discountInput = form.elements.discount_code
 const discountButton = document.querySelector('#apply-discount')
 const discountStatus = document.querySelector('#discount-status')
+const paymentMethodsElement = document.querySelector('#payment-methods')
+const paymentMethodOptions = document.querySelector('#payment-method-options')
 const { data: commerceSetting } = await supabase.from('settings').select('value').eq('key', 'commerce').eq('is_public', true).maybeSingle()
 const commerce = commerceSetting?.value || { shipping_cents: 0, free_shipping_threshold_cents: 0, tax_rate: 21 }
 const returnParams = new URLSearchParams(window.location.search)
@@ -20,6 +22,17 @@ let currentQuote = null
 let quotedCart = ''
 let quotedCode = null
 let quoteRequest = 0
+
+const paymentMethodPresentation = {
+  ideal: { label: 'iDEAL', detail: 'Betaal direct via je eigen bank', mark: 'iDEAL' },
+  creditcard: { label: 'Creditcard', detail: 'Visa, Mastercard en meer', mark: 'VISA · MC' },
+  applepay: { label: 'Apple Pay', detail: 'Snel betalen met je Apple-apparaat', mark: ' Pay' },
+  paypal: { label: 'PayPal', detail: 'Betaal met je PayPal-account', mark: 'PayPal' },
+  bancontact: { label: 'Bancontact', detail: 'Veilig betalen vanuit België', mark: 'Bancontact' },
+  banktransfer: { label: 'Bankoverschrijving', detail: 'Handmatig via je bank', mark: 'SEPA' },
+  in3: { label: 'iDEAL in3', detail: 'Betaal in drie delen', mark: 'in3' },
+  klarna: { label: 'Klarna', detail: 'Betaal met Klarna', mark: 'Klarna' },
+}
 
 if (!returnOrderId) trackEvent('begin_checkout', { page: '/checkout/' })
 
@@ -48,6 +61,58 @@ function localTotals(cart) {
 function setDiscountStatus(message = '', type = '') {
   discountStatus.textContent = message
   discountStatus.className = type ? `is-${type}` : ''
+}
+
+function paymentMethodSupportedOnDevice(methodId) {
+  if (methodId !== 'applepay') return true
+  return Boolean(window.ApplePaySession && window.ApplePaySession.canMakePayments())
+}
+
+function renderPaymentMethods(methods = []) {
+  if (!commerce.mollie_enabled) {
+    paymentMethodsElement.hidden = true
+    return
+  }
+  paymentMethodsElement.hidden = false
+  const visibleMethods = methods.filter((method) => paymentMethodSupportedOnDevice(method.id))
+  paymentMethodOptions.replaceChildren()
+  if (!visibleMethods.length) {
+    const fallback = document.createElement('div')
+    fallback.className = 'payment-method-fallback'
+    fallback.innerHTML = '<span aria-hidden="true">M</span><div><strong>Veilig betalen via Mollie</strong><small>Je kiest je betaalmethode in de volgende stap.</small></div>'
+    paymentMethodOptions.append(fallback)
+    return
+  }
+  visibleMethods.forEach((method, index) => {
+    const presentation = paymentMethodPresentation[method.id] || {
+      label: method.description || method.id,
+      detail: 'Veilig betalen via Mollie',
+      mark: '€',
+    }
+    const option = document.createElement('label')
+    option.className = `payment-method-card payment-method-card--${method.id}`
+    const input = document.createElement('input')
+    input.type = 'radio'
+    input.name = 'payment_method'
+    input.value = method.id
+    input.required = true
+    input.checked = index === 0
+    const radio = document.createElement('span')
+    radio.className = 'payment-method-radio'
+    radio.setAttribute('aria-hidden', 'true')
+    const copy = document.createElement('span')
+    copy.className = 'payment-method-copy'
+    const title = document.createElement('strong')
+    title.textContent = presentation.label
+    const detail = document.createElement('small')
+    detail.textContent = presentation.detail
+    copy.append(title, detail)
+    const mark = document.createElement('span')
+    mark.className = 'payment-method-mark'
+    mark.textContent = presentation.mark
+    option.append(input, radio, copy, mark)
+    paymentMethodOptions.append(option)
+  })
 }
 
 async function functionErrorMessage(error, data, fallback) {
@@ -91,12 +156,14 @@ async function requestQuote({ code = discountCode(), announce = true } = {}) {
   if (error || data?.error) {
     currentQuote = null; quotedCart = ''; quotedCode = null
     renderSummary(cart)
+    renderPaymentMethods([])
     setDiscountStatus(await functionErrorMessage(error, data, 'De kortingscode kon niet worden gecontroleerd.'), 'error')
     return false
   }
   currentQuote = data
   quotedCart = cartSignature(cart)
   quotedCode = normalizedCode
+  renderPaymentMethods(data.payment_methods || [])
   renderSummary(cart)
   if (data.discount_title) {
     const saving = data.discount_cents ? `${formatMoney(data.discount_cents)} korting` : 'geldig voor deze bestelling'
@@ -200,12 +267,14 @@ form.addEventListener('submit', async (event) => {
   const quoteIsCurrent = currentQuote && quotedCart === cartSignature(cart) && quotedCode === discountCode
   if (!quoteIsCurrent && !await requestQuote({ code: discountCode, announce: false })) {
     status.textContent = discountCode ? 'Controleer eerst de kortingscode hierboven.' : 'De actuele prijs kon niet worden gecontroleerd. Probeer het opnieuw.'
-    status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Bestelling plaatsen <span>→</span>'; return
+    status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Veilig betalen <span>→</span>'; return
   }
   const sessionId = sessionStorage.getItem('zol_session_id') || crypto.randomUUID()
-  const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
+  const paymentMethod = String(customer.payment_method || '')
+  delete customer.payment_method
+  const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
   if (error || data?.error) {
-    status.textContent = await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'); status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Bestelling plaatsen <span>→</span>'; return
+    status.textContent = await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'); status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Veilig betalen <span>→</span>'; return
   }
   if (data.checkout_url) { window.location.href = data.checkout_url; return }
   clearCart()

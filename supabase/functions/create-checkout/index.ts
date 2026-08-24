@@ -31,6 +31,34 @@ function moneyValue(cents: number) {
   return (cents / 100).toFixed(2)
 }
 
+async function listPaymentMethods(mollieKey: string, amountCents: number) {
+  if (!mollieKey) return []
+  const query = new URLSearchParams({
+    locale: "nl_NL",
+    sequenceType: "oneoff",
+    billingCountry: "NL",
+    includeWallets: "applepay",
+    "amount[value]": moneyValue(amountCents),
+    "amount[currency]": "EUR",
+  })
+  const response = await fetch(`https://api.mollie.com/v2/methods?${query}`, {
+    headers: { "Authorization": `Bearer ${mollieKey}` },
+  })
+  const payload = await response.json()
+  if (!response.ok) throw new Error("De betaalmethoden konden niet worden geladen.")
+  const preferred = ["ideal", "creditcard", "applepay", "paypal", "bancontact", "banktransfer", "in3", "klarna"]
+  const methods = Array.isArray(payload?._embedded?.methods) ? payload._embedded.methods : []
+  return methods
+    .filter((method: Record<string, any>) => typeof method?.id === "string")
+    .sort((a: Record<string, any>, b: Record<string, any>) => {
+      const aIndex = preferred.indexOf(a.id)
+      const bIndex = preferred.indexOf(b.id)
+      return (aIndex === -1 ? preferred.length : aIndex) - (bIndex === -1 ? preferred.length : bIndex)
+    })
+    .slice(0, 8)
+    .map((method: Record<string, any>) => ({ id: method.id, description: String(method.description || method.id) }))
+}
+
 async function hashToken(token: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))
   return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("")
@@ -92,6 +120,7 @@ async function startMolliePayment(input: {
   origin: string
   supabaseUrl: string
   mollieKey: string
+  method?: string
 }) {
   const redirect = `${input.origin}/checkout/?ref=${encodeURIComponent(input.order.id)}&token=${encodeURIComponent(input.token)}`
   const response = await fetch("https://api.mollie.com/v2/payments", {
@@ -104,6 +133,7 @@ async function startMolliePayment(input: {
       cancelUrl: `${redirect}&cancelled=1`,
       webhookUrl: `${input.supabaseUrl}/functions/v1/mollie-webhook`,
       metadata: { order_id: input.order.id, order_number: input.order.order_number },
+      ...(input.method ? { method: input.method } : {}),
     }),
   })
   const mollie = await response.json()
@@ -113,7 +143,7 @@ async function startMolliePayment(input: {
   const { error } = await input.db.from("payments").update({
     provider_payment_id: mollie.id,
     status: "open",
-    metadata: { ...(input.payment.metadata || {}), checkout_ready: true },
+    metadata: { ...(input.payment.metadata || {}), checkout_ready: true, selected_method: input.method || null },
   }).eq("id", input.payment.id)
   if (error) throw error
   return checkoutUrl
@@ -129,6 +159,8 @@ Deno.serve(async (request) => {
     const db = adminClient()
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!
     const mollieKey = Deno.env.get("MOLLIE_API_KEY") || ""
+    const { data: commerceSetting } = await db.from("settings").select("value").eq("key", "commerce").maybeSingle()
+    const commerce = commerceSetting?.value || {}
 
     if (body.action === "status" || body.action === "retry") {
       const checkout = await getCheckout(db, String(body.order_id || ""), String(body.token || ""))
@@ -138,7 +170,16 @@ Deno.serve(async (request) => {
       if (body.action === "retry") {
         if (!mollieKey) return Response.json({ error: "Online betalen is nog niet beschikbaar." }, { status: 503, headers })
         if (!retriableStatuses.has(payment.status)) return Response.json({ error: "Deze betaling kan niet opnieuw worden gestart." }, { status: 409, headers })
-        const checkoutUrl = await startMolliePayment({ db, order: checkout.order, payment, token: body.token, origin: checkoutOrigin(request), supabaseUrl, mollieKey })
+        const checkoutUrl = await startMolliePayment({
+          db,
+          order: checkout.order,
+          payment,
+          token: body.token,
+          origin: checkoutOrigin(request),
+          supabaseUrl,
+          mollieKey,
+          method: String(payment.metadata?.selected_method || ""),
+        })
         return Response.json({ success: true, checkout_url: checkoutUrl }, { headers: { ...headers, "Content-Type": "application/json" } })
       }
       return Response.json({
@@ -169,16 +210,35 @@ Deno.serve(async (request) => {
         p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
       })
       if (quoteError) return Response.json({ error: quoteError.message }, { status: 400, headers })
-      return Response.json({ success: true, ...quote }, { headers: { ...headers, "Content-Type": "application/json" } })
+      let paymentMethods: Array<{ id: string, description: string }> = []
+      if (commerce.mollie_enabled && mollieKey) {
+        try {
+          paymentMethods = await listPaymentMethods(mollieKey, Number(quote.total_cents || 0))
+        } catch {
+          // Mollie's hosted checkout remains the fallback when the method list is unavailable.
+        }
+      }
+      return Response.json({ success: true, ...quote, payment_methods: paymentMethods }, { headers: { ...headers, "Content-Type": "application/json" } })
     }
 
     const customer = body.customer || {}
     const email = String(customer.email || "").trim().toLowerCase()
     if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Vul een geldig e-mailadres in." }, { status: 400, headers })
 
-    const { data: commerceSetting } = await db.from("settings").select("value").eq("key", "commerce").maybeSingle()
-    const commerce = commerceSetting?.value || {}
     if (commerce.mollie_enabled && !mollieKey) return Response.json({ error: "Online betalen is tijdelijk niet beschikbaar. Probeer het later opnieuw." }, { status: 503, headers })
+
+    const selectedMethod = String(body.payment_method || "").trim().toLowerCase()
+    if (commerce.mollie_enabled && selectedMethod) {
+      const { data: methodQuote, error: methodQuoteError } = await db.rpc("quote_checkout_order", {
+        p_items: normalizedItems,
+        p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
+      })
+      if (methodQuoteError) return Response.json({ error: methodQuoteError.message }, { status: 400, headers })
+      const availableMethods = await listPaymentMethods(mollieKey, Number(methodQuote.total_cents || 0))
+      if (!availableMethods.some((method) => method.id === selectedMethod)) {
+        return Response.json({ error: "Kies een beschikbare betaalmethode." }, { status: 400, headers })
+      }
+    }
 
     const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown"
     const userAgent = request.headers.get("user-agent") || "unknown"
@@ -213,6 +273,7 @@ Deno.serve(async (request) => {
           origin: checkoutOrigin(request),
           supabaseUrl,
           mollieKey,
+          method: selectedMethod,
         })
       } catch (error) {
         await db.from("payments").update({ status: "failed" }).eq("id", payment.id)
