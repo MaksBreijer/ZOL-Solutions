@@ -5,9 +5,9 @@ type Json = Record<string, any>
 
 const POSTNL_BUCKET = "postnl-labels"
 const allowedOrigins = new Set(["https://zol-solutions.pages.dev", "https://zolsolutions.nl", "https://www.zolsolutions.nl", "http://localhost:5173", "http://127.0.0.1:5173"])
-const POSTNL_ENDPOINTS = {
-  sandbox: "https://api-sandbox.postnl.nl/shipment/delivery/v4/labelconfirm",
-  production: "https://api.postnl.nl/shipment/delivery/v4/labelconfirm",
+const POSTNL_BASE_URLS = {
+  sandbox: "https://api-sandbox.postnl.nl",
+  production: "https://api.postnl.nl",
 } as const
 
 function corsHeaders(request: Request) {
@@ -60,14 +60,46 @@ function missingConfig(config: Json) {
 
 function postnlMessages(result: Json) {
   const values = [result.detail, result.title, result.message]
-  if (Array.isArray(result.errors)) {
-    for (const error of result.errors.slice(0, 5)) values.push(error?.description, error?.message, error?.title)
+  const errors = [...(Array.isArray(result.errors) ? result.errors : []), ...(Array.isArray(result.Errors) ? result.Errors : [])]
+  for (const shipment of Array.isArray(result.ResponseShipments) ? result.ResponseShipments : []) {
+    if (Array.isArray(shipment?.Errors)) errors.push(...shipment.Errors)
+  }
+  for (const error of errors.slice(0, 5)) {
+    values.push(error?.description, error?.Description, error?.message, error?.Message, error?.title)
   }
   return [...new Set(values.map((value) => clean(value, 300)).filter(Boolean))].slice(0, 5)
 }
 
-function todayInAmsterdam() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Amsterdam", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
+function postnlWarnings(result: Json) {
+  const warnings = [...(Array.isArray(result.warnings) ? result.warnings : []), ...(Array.isArray(result.Warnings) ? result.Warnings : [])]
+  for (const shipment of Array.isArray(result.ResponseShipments) ? result.ResponseShipments : []) {
+    if (Array.isArray(shipment?.Warnings)) warnings.push(...shipment.Warnings)
+  }
+  return [...new Set(warnings.map((warning) => clean(warning?.Description || warning?.description || warning?.Message || warning?.message, 300)).filter(Boolean))].slice(0, 10)
+}
+
+function postnlTimestamp() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Amsterdam", day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date()).reduce((result, part) => ({ ...result, [part.type]: part.value }), {} as Record<string, string>)
+  return `${parts.day}-${parts.month}-${parts.year} ${parts.hour}:${parts.minute}:${parts.second}`
+}
+
+async function generateBarcode(environment: "sandbox" | "production", apiKey: string, config: Json) {
+  const query = new URLSearchParams({
+    CustomerCode: clean(config.customer_code, 4).toUpperCase(),
+    CustomerNumber: clean(config.customer_number, 10),
+    Type: "3S",
+  })
+  const serie = clean(config.barcode_series, 30)
+  if (serie) query.set("Serie", serie)
+  const response = await fetch(`${POSTNL_BASE_URLS[environment]}/shipment/v1_1/barcode?${query}`, {
+    headers: { "Accept": "application/json", "apikey": apiKey },
+  })
+  const result = await response.json().catch(() => ({}))
+  const barcode = clean(result.Barcode || result.barcode, 120)
+  return { response, result, barcode }
 }
 
 function decodeBase64(value: string) {
@@ -116,21 +148,57 @@ Deno.serve(async (request) => {
       const requestedEnvironment: "sandbox" | "production" = body.environment === "production" ? "production" : "sandbox"
       const apiKey = postnlKey(requestedEnvironment)
       if (!apiKey) return Response.json({ error: `De ${requestedEnvironment === "production" ? "productie" : "sandbox"}sleutel is nog niet ingesteld.` }, { status: 503, headers })
-      const response = await fetch(POSTNL_ENDPOINTS[requestedEnvironment], {
-        method: "POST",
-        headers: { "Accept": "application/json", "Content-Type": "application/json", "apikey": apiKey },
-        body: "{}",
+      if (missing.length) return Response.json({ error: `Vul eerst deze PostNL-instellingen in: ${missing.join(", ")}.` }, { status: 409, headers })
+      const { response, result, barcode } = await generateBarcode(requestedEnvironment, apiKey, config)
+      const keyAccepted = response.ok && Boolean(barcode)
+      if (!keyAccepted) {
+        const messages = postnlMessages(result)
+        return Response.json({
+          success: false, environment: requestedEnvironment, http_status: response.status, key_accepted: false,
+          messages, error: response.status === 401 ? "PostNL heeft de API-sleutel geweigerd." : messages[0] || "PostNL kon met deze gegevens geen sandboxbarcode maken.",
+        }, { status: 502, headers: { ...headers, "Content-Type": "application/json" } })
+      }
+      if (requestedEnvironment === "production") {
+        return Response.json({ success: true, environment: requestedEnvironment, key_accepted: true, barcode_created: true, label_created: false }, { headers: { ...headers, "Content-Type": "application/json" } })
+      }
+      const productCode = clean(config.product_code || "3085", 4)
+      const weight = Math.max(1, Math.min(23000, Number.parseInt(clean(config.default_weight_grams, 8), 10) || 500))
+      const sandboxPayload = {
+        Customer: {
+          Address: {
+            AddressType: "02", City: clean(config.sender_city, 35), CompanyName: clean(config.sender_company || "ZOL Solutions", 35), Countrycode: "NL",
+            HouseNr: clean(config.sender_house_number, 10), ...(clean(config.sender_house_number_addition, 10) ? { HouseNrExt: clean(config.sender_house_number_addition, 10) } : {}),
+            Street: clean(config.sender_street, 95), Zipcode: clean(config.sender_postal_code, 17).replaceAll(" ", "").toUpperCase(),
+          },
+          CollectionLocation: clean(config.collection_location, 10), ContactPerson: "ZOL Solutions", CustomerCode: clean(config.customer_code, 4).toUpperCase(),
+          CustomerNumber: clean(config.customer_number, 10), Email: clean(config.sender_email || "info@zolsolutions.nl", 50), Name: "ZOL Solutions",
+        },
+        Message: { MessageID: "1", MessageTimeStamp: postnlTimestamp(), Printertype: "GraphicFile|PDF" },
+        Shipments: [{
+          Addresses: [{ AddressType: "01", City: clean(config.sender_city, 35), Countrycode: "NL", FirstName: "ZOL", HouseNr: clean(config.sender_house_number, 10), Name: "Sandboxtest", Street: clean(config.sender_street, 95), Zipcode: clean(config.sender_postal_code, 17).replaceAll(" ", "").toUpperCase() }],
+          Barcode: barcode, Contacts: [{ ContactType: "01", Email: clean(config.sender_email || "info@zolsolutions.nl", 50) }],
+          CustomerOrderNumber: "ZOL-SANDBOX", Dimension: { Weight: weight }, ProductCodeDelivery: productCode, Reference: "ZOL-SANDBOX-TEST",
+        }],
+      }
+      const labelResponse = await fetch(`${POSTNL_BASE_URLS.sandbox}/shipment/v2_2/label?confirm=false`, {
+        method: "POST", headers: { "Accept": "application/json", "Content-Type": "application/json", "apikey": apiKey }, body: JSON.stringify(sandboxPayload),
       })
-      const result = await response.json().catch(() => ({}))
-      const keyAccepted = response.status === 400
+      const labelResult = await labelResponse.json().catch(() => ({}))
+      const testShipment = labelResult.ResponseShipments?.[0] || {}
+      const labelCreated = labelResponse.ok && Boolean(testShipment.Barcode && testShipment.Labels?.[0]?.Content)
+      if (!labelCreated) {
+        const messages = postnlMessages(labelResult)
+        return Response.json({ success: false, environment: "sandbox", key_accepted: true, barcode_created: true, label_created: false, messages, error: messages[0] || `De sandboxbarcode lukte, maar het testlabel niet (${labelResponse.status}).` }, { status: 502, headers: { ...headers, "Content-Type": "application/json" } })
+      }
       return Response.json({
-        success: keyAccepted,
+        success: true,
         environment: requestedEnvironment,
-        http_status: response.status,
-        key_accepted: keyAccepted,
-        messages: postnlMessages(result),
-        error: keyAccepted ? undefined : response.status === 401 ? "PostNL heeft de API-sleutel geweigerd." : "Deze sleutel heeft nog geen toegang tot Shipment API v4.",
-      }, { status: keyAccepted ? 200 : 502, headers: { ...headers, "Content-Type": "application/json" } })
+        http_status: labelResponse.status,
+        key_accepted: true,
+        barcode_created: true,
+        label_created: true,
+        warnings: postnlWarnings(labelResult),
+      }, { headers: { ...headers, "Content-Type": "application/json" } })
     }
 
     if (body.action !== "create" && body.action !== "label_url") return Response.json({ error: "Onbekende PostNL-actie." }, { status: 400, headers })
@@ -155,45 +223,48 @@ Deno.serve(async (request) => {
     if (!apiKey) return Response.json({ error: `De PostNL-${environment === "production" ? "productie" : "sandbox"}sleutel is nog niet veilig ingesteld.` }, { status: 503, headers })
 
     const address: Json = order.shipping_address || {}
+    if (clean(address.country || "NL", 2).toUpperCase() !== "NL") {
+      return Response.json({ error: "Deze koppeling is nu veilig ingesteld voor Nederlandse zendingen. Internationale zendingen vereisen aanvullende douane- en productgegevens." }, { status: 409, headers })
+    }
     const recipientStreet = splitStreet(address.street)
     const recipientName = splitName(order.customer_name)
-    const senderName = splitName(config.sender_company || "ZOL Solutions")
     const mobile = clean(order.customers?.phone, 17)
+    const barcodeResult = await generateBarcode(environment, apiKey, config)
+    if (!barcodeResult.response.ok || !barcodeResult.barcode) {
+      const messages = postnlMessages(barcodeResult.result)
+      return Response.json({ error: messages[0] || `PostNL kon geen barcode maken (${barcodeResult.response.status}).`, messages }, { status: 502, headers })
+    }
+    const barcode = barcodeResult.barcode
+    const weight = Math.max(1, Math.min(23000, Number.parseInt(clean(config.default_weight_grams, 8), 10) || 500))
+    const productCode = clean(config.product_code || (config.shipment_type === "letterbox" ? "2928" : "3085"), 4)
     const payload: Json = {
-      receiver: {
-        address: {
-          city: clean(address.city, 35), countryIso: clean(address.country || "NL", 2).toUpperCase(),
-          postalCode: clean(address.postal_code, 17).replaceAll(" ", "").toUpperCase(),
-          street: recipientStreet.street.slice(0, 95), houseNumber: recipientStreet.houseNumber,
-          ...(recipientStreet.houseNumberAddition ? { houseNumberAddition: recipientStreet.houseNumberAddition } : {}),
+      Customer: {
+        Address: {
+          AddressType: "02", City: clean(config.sender_city, 35), CompanyName: clean(config.sender_company || "ZOL Solutions", 35),
+          Countrycode: clean(config.sender_country || "NL", 2).toUpperCase(), HouseNr: clean(config.sender_house_number, 10),
+          ...(clean(config.sender_house_number_addition, 10) ? { HouseNrExt: clean(config.sender_house_number_addition, 10) } : {}),
+          Street: clean(config.sender_street, 95), Zipcode: clean(config.sender_postal_code, 17).replaceAll(" ", "").toUpperCase(),
         },
-        type: "consumer",
-        contact: {
-          email: clean(order.customer_email, 50), firstName: recipientName.firstName.slice(0, 35), lastName: recipientName.lastName.slice(0, 35),
-          ...(mobile.length >= 7 ? { mobileNumber: mobile } : {}),
-        },
+        CollectionLocation: clean(config.collection_location, 10), ContactPerson: clean(config.sender_company || "ZOL Solutions", 35),
+        CustomerCode: clean(config.customer_code, 4).toUpperCase(), CustomerNumber: clean(config.customer_number, 10),
+        Email: clean(config.sender_email || "info@zolsolutions.nl", 50), Name: clean(config.sender_company || "ZOL Solutions", 35),
       },
-      sender: {
-        customerNumber: clean(config.customer_number, 10), customerCode: clean(config.customer_code, 4).toUpperCase(),
-        address: {
-          city: clean(config.sender_city, 35), countryIso: clean(config.sender_country || "NL", 2).toUpperCase(),
-          postalCode: clean(config.sender_postal_code, 17).replaceAll(" ", "").toUpperCase(),
-          street: clean(config.sender_street, 95), houseNumber: clean(config.sender_house_number, 10),
-          ...(clean(config.sender_house_number_addition, 10) ? { houseNumberAddition: clean(config.sender_house_number_addition, 10) } : {}),
-          companyName: clean(config.sender_company || "ZOL Solutions", 35),
-        },
-        contact: {
-          email: clean(config.sender_email || "info@zolsolutions.nl", 50), firstName: senderName.firstName.slice(0, 35), lastName: senderName.lastName.slice(0, 35),
-          ...(clean(config.sender_phone, 17).length >= 7 ? { mobileNumber: clean(config.sender_phone, 17) } : {}),
-        },
-      },
-      items: [{ customerReferences: { shipmentReference: `ZOL-${order.order_number}` } }],
-      shipmentType: ["parcel", "letterbox"].includes(config.shipment_type) ? config.shipment_type : "parcel",
-      handoverDate: clean(body.handover_date, 10) || todayInAmsterdam(),
-      labelSettings: { outputType: "pdf", pageOrientation: "portrait", resolution: "200" },
+      Message: { MessageID: clean(order.order_number, 10), MessageTimeStamp: postnlTimestamp(), Printertype: "GraphicFile|PDF" },
+      Shipments: [{
+        Addresses: [{
+          AddressType: "01", City: clean(address.city, 35), Countrycode: "NL", FirstName: recipientName.firstName.slice(0, 35),
+          HouseNr: recipientStreet.houseNumber, ...(recipientStreet.houseNumberAddition ? { HouseNrExt: recipientStreet.houseNumberAddition } : {}),
+          Name: recipientName.lastName.slice(0, 35), Street: recipientStreet.street.slice(0, 95),
+          Zipcode: clean(address.postal_code, 17).replaceAll(" ", "").toUpperCase(),
+        }],
+        Barcode: barcode,
+        Contacts: [{ ContactType: "01", Email: clean(order.customer_email, 50), ...(mobile.length >= 7 ? { SMSNr: mobile, TelNr: mobile } : {}) }],
+        CustomerOrderNumber: clean(order.order_number, 35), Dimension: { Weight: weight }, ProductCodeDelivery: productCode,
+        Reference: `ZOL-${clean(order.order_number, 30)}`,
+      }],
     }
 
-    const response = await fetch(POSTNL_ENDPOINTS[environment], {
+    const response = await fetch(`${POSTNL_BASE_URLS[environment]}/shipment/v2_2/label?confirm=true`, {
       method: "POST",
       headers: { "Accept": "application/json", "Content-Type": "application/json", "apikey": apiKey },
       body: JSON.stringify(payload),
@@ -203,33 +274,33 @@ Deno.serve(async (request) => {
       const messages = postnlMessages(result)
       return Response.json({ error: messages[0] || `PostNL heeft de zending geweigerd (${response.status}).`, messages, trace_id: clean(result.traceId, 120) }, { status: 502, headers })
     }
-    const item = result.items?.[0] || {}
-    const label = item.labels?.find((candidate: Json) => candidate.outputType === "pdf") || item.labels?.[0]
-    const barcode = clean(item.barcode, 120)
-    if (!barcode || !label?.label) return Response.json({ error: "PostNL gaf geen bruikbaar label of barcode terug.", trace_id: clean(result.traceId, 120) }, { status: 502, headers })
+    const item = result.ResponseShipments?.[0] || {}
+    const label = item.Labels?.find((candidate: Json) => clean(candidate.OutputType, 10).toUpperCase() === "PDF") || item.Labels?.[0]
+    const responseBarcode = clean(item.Barcode || barcode, 120)
+    if (!responseBarcode || !label?.Content) return Response.json({ error: "PostNL gaf geen bruikbaar label of barcode terug." }, { status: 502, headers })
 
-    const labelPath = `${order.id}/${barcode.replace(/[^A-Za-z0-9_-]/g, "")}.pdf`
-    const { error: uploadError } = await db.storage.from(POSTNL_BUCKET).upload(labelPath, decodeBase64(label.label), { contentType: "application/pdf", upsert: false })
+    const labelPath = `${order.id}/${responseBarcode.replace(/[^A-Za-z0-9_-]/g, "")}.pdf`
+    const { error: uploadError } = await db.storage.from(POSTNL_BUCKET).upload(labelPath, decodeBase64(label.Content), { contentType: "application/pdf", upsert: false })
     if (uploadError) throw uploadError
     const createdAt = new Date().toISOString()
     const postnl = {
-      environment, barcode, label_path: labelPath, output_type: "pdf", trace_id: clean(result.traceId, 120),
-      shipment_reference: clean(item.shipmentReference, 160) || `ZOL-${order.order_number}`,
-      warnings: Array.isArray(result.warnings) ? result.warnings.slice(0, 10).map((warning: Json) => clean(warning.description, 300)).filter(Boolean) : [],
+      environment, barcode: responseBarcode, label_path: labelPath, output_type: "pdf", trace_id: "",
+      shipment_reference: `ZOL-${order.order_number}`, product_code: clean(item.ProductCodeDelivery || productCode, 4), weight_grams: weight,
+      warnings: postnlWarnings(result),
       created_at: createdAt, created_by: profile.id,
     }
     const postal = clean(address.postal_code, 17).replaceAll(" ", "").toUpperCase()
-    const trackingUrl = `https://jouw.postnl.nl/track-and-trace/${encodeURIComponent(barcode)}-NL-${encodeURIComponent(postal)}`
+    const trackingUrl = `https://jouw.postnl.nl/track-and-trace/${encodeURIComponent(responseBarcode)}-NL-${encodeURIComponent(postal)}`
     const { error: updateError } = await db.from("orders").update({
-      postnl, tracking_code: barcode, tracking_carrier: "PostNL", tracking_url: trackingUrl,
+      postnl, tracking_code: responseBarcode, tracking_carrier: "PostNL", tracking_url: trackingUrl,
       fulfillment_status: order.fulfillment_status === "unfulfilled" ? "processing" : order.fulfillment_status,
     }).eq("id", order.id)
     if (updateError) throw updateError
     await db.from("activity_log").insert({
       actor_id: profile.id, actor_email: profile.email, action: `PostNL-label gemaakt (${environment})`, entity_type: "order", entity_id: order.id,
-      details: { order_number: order.order_number, barcode, environment, trace_id: postnl.trace_id, warnings: postnl.warnings },
+      details: { order_number: order.order_number, barcode: responseBarcode, environment, product_code: postnl.product_code, warnings: postnl.warnings },
     })
-    return Response.json({ success: true, barcode, tracking_url: trackingUrl, label_url: await signedLabelUrl(db, labelPath), environment, warnings: postnl.warnings }, { headers: { ...headers, "Content-Type": "application/json" } })
+    return Response.json({ success: true, barcode: responseBarcode, tracking_url: trackingUrl, label_url: await signedLabelUrl(db, labelPath), environment, warnings: postnl.warnings }, { headers: { ...headers, "Content-Type": "application/json" } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "De PostNL-zending kon niet worden verwerkt."
     return Response.json({ error: message }, { status: /ingelogd|sessie|toegang/i.test(message) ? 401 : 500, headers })
