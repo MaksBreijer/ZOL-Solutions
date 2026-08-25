@@ -616,7 +616,7 @@ set title = excluded.title,
 
 insert into public.settings (key, category, label, value, is_public) values
   ('company_profile', 'company', 'Bedrijfsgegevens', '{"name":"ZOL Solutions","email":"info@zolsolutions.nl","phone":"","kvk":"","vat_number":"","address":""}'::jsonb, false),
-  ('commerce', 'checkout', 'Webshopinstellingen', '{"shipping_cents":0,"free_shipping_threshold_cents":0,"currency":"EUR","tax_rate":21,"mollie_enabled":false}'::jsonb, true),
+  ('commerce', 'checkout', 'Webshopinstellingen', '{"shipping_cents":0,"free_shipping_threshold_cents":0,"currency":"EUR","tax_rate":21,"mollie_enabled":false,"abandoned_checkout_minutes":10}'::jsonb, true),
   ('theme', 'website', 'Huisstijl', '{"primary":"#33669B","accent":"#F28C57","ink":"#10233B","background":"#F7F5F0"}'::jsonb, true),
   ('seo_defaults', 'website', 'Standaard SEO', '{"title":"ZOL Solutions","description":"Zachter landen. Beter sporten."}'::jsonb, true)
   ,('postnl_config', 'shipping', 'PostNL-koppeling', '{"enabled":false,"environment":"sandbox","production_enabled":false,"customer_number":"","customer_code":"","collection_location":"","non_eu_customer_code":"","barcode_series":"00000000-99999999","non_eu_barcode_series":"0000-9999","product_code":"3085","default_weight_grams":"500","shipment_type":"parcel","sender_company":"ZOL Solutions","sender_street":"Burgemeester Hogguerstraat","sender_house_number":"1111","sender_house_number_addition":"","sender_postal_code":"1064 EJ","sender_city":"Amsterdam","sender_country":"NL","sender_email":"info@zolsolutions.nl","sender_phone":"","label_output":"pdf"}'::jsonb, false)

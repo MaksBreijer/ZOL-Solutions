@@ -224,7 +224,7 @@ function globalSearchItems(query) {
   Object.entries(routeMeta).forEach(([route, [title, subtitle]]) => {
     if (includes(title, subtitle)) items.push({ route, label: title, meta: 'Pagina', icon: '↗' })
   })
-  state.orders.forEach((order) => {
+  visibleOrders().forEach((order) => {
     if (includes(order.order_number, order.customer_name, order.customer_email)) items.push({ route: 'orders', label: `#${order.order_number} · ${order.customer_name || order.customer_email}`, meta: 'Bestelling', icon: 'O', id: order.id, action: 'open-order' })
   })
   state.customers.forEach((customer) => {
@@ -361,7 +361,7 @@ async function fetchAllData() {
     state.emailTemplates,
   ] = requests.map((request) => request.data || [])
 
-  const openOrders = state.orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
+  const openOrders = visibleOrders().filter((order) => !['completed', 'cancelled'].includes(order.status)).length
   document.querySelector('#open-order-count').textContent = openOrders || ''
   const newMessages = state.contactMessages.filter((message) => ['new', 'email_failed'].includes(message.status)).length
   document.querySelector('#new-message-count').textContent = newMessages || ''
@@ -369,14 +369,15 @@ async function fetchAllData() {
 
 function renderDashboard() {
   const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
+  const orders = visibleOrders()
   const now = new Date()
   const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const startWeek = new Date(startDay); startWeek.setDate(startDay.getDate() - 6)
   const startMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const paid = state.orders.filter((order) => order.payment_status === 'paid')
+  const paid = orders.filter((order) => order.payment_status === 'paid')
   const revenueSince = (date) => paid.filter((order) => new Date(order.created_at) >= date).reduce((sum, order) => sum + order.total_cents, 0)
   const totalRevenue = paid.reduce((sum, order) => sum + order.total_cents, 0)
-  const openOrders = state.orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
+  const openOrders = orders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length
   const newCustomers = state.customers.filter((customer) => new Date(customer.created_at) >= startMonth).length
   const sessions = new Set(state.analytics.filter((event) => event.event_name === 'page_view').map((event) => event.session_id)).size
   const conversions = state.analytics.filter((event) => event.event_name === 'order_created').length
@@ -392,7 +393,7 @@ function renderDashboard() {
     ${pageHeader('dashboard', `<button class="button" data-action="refresh">Vernieuwen</button>${canManageOrders ? '<button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
     <section class="metric-grid" aria-label="Kerncijfers">
       <article class="metric-card"><header><span>Omzet deze maand</span><span class="metric-icon"><i data-lucide="circle-euro"></i></span></header><strong>${formatMoney(revenueSince(startMonth))}</strong><footer><span class="trend-up">${formatMoney(revenueSince(startDay))} vandaag</span><span>Maand</span></footer></article>
-      <article class="metric-card"><header><span>Open bestellingen</span><span class="metric-icon"><i data-lucide="shopping-bag"></i></span></header><strong>${openOrders}</strong><footer><span>${state.orders.filter((order) => order.fulfillment_status === 'unfulfilled').length} nog te verzenden</span><span>Actueel</span></footer></article>
+      <article class="metric-card"><header><span>Open bestellingen</span><span class="metric-icon"><i data-lucide="shopping-bag"></i></span></header><strong>${openOrders}</strong><footer><span>${orders.filter((order) => order.fulfillment_status === 'unfulfilled').length} nog te verzenden</span><span>Actueel</span></footer></article>
       <article class="metric-card"><header><span>Conversie</span><span class="metric-icon"><i data-lucide="trending-up"></i></span></header><strong>${conversionRate.toFixed(1)}%</strong><footer><span>${sessions} sessies gemeten</span><span>30 dagen</span></footer></article>
       <article class="metric-card"><header><span>Nieuwe klanten</span><span class="metric-icon"><i data-lucide="user-plus"></i></span></header><strong>${newCustomers}</strong><footer><span>${state.customers.length} klanten totaal</span><span>Maand</span></footer></article>
     </section>
@@ -401,7 +402,7 @@ function renderDashboard() {
         <section class="panel"><header class="panel-header"><div><h2>Omzet afgelopen 7 dagen</h2><p>Alle betaalde bestellingen</p></div><strong>${formatMoney(revenueSince(startWeek))}</strong></header>
           <div class="chart-wrap"><div class="chart">${lastSevenDays.map((day) => `<div class="chart-column" title="${formatMoney(day.value)}"><i style="height:${Math.max(3, (day.value / maxRevenue) * 170)}px"></i><small>${day.label}</small></div>`).join('')}</div></div>
         </section>
-        <section class="panel"><header class="panel-header"><div><h2>Recente bestellingen</h2><p>De laatste vijf orders</p></div><a href="#orders">Alles bekijken →</a></header>${ordersTable(state.orders.slice(0, 5), false)}</section>
+        <section class="panel"><header class="panel-header"><div><h2>Recente bestellingen</h2><p>De laatste vijf orders</p></div><a href="#orders">Alles bekijken →</a></header>${ordersTable(orders.slice(0, 5), false)}</section>
       </div>
       <aside class="dashboard-side">
         <section class="panel"><header class="panel-header"><div><h2>Recente activiteit</h2><p>Wijzigingen in de admin</p></div><a href="#activity">Logboek →</a></header>${activityList(state.activity.slice(0, 7))}</section>
@@ -423,7 +424,7 @@ function ordersTable(orders, showAll = true) {
 function renderOrders() {
   const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
   elements.content.innerHTML = `<div class="page-container">${pageHeader('orders', `<button class="button" data-action="export-orders">Exporteren</button>${canManageOrders ? '<button class="button" data-action="import-orders">CSV importeren</button><button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
-    <section class="panel"><div class="filters"><input type="search" data-filter="orders" placeholder="Zoek op ordernummer, klant of e-mail"><select data-filter-status="orders"><option value="">Alle statussen</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select><select data-filter-payment="orders"><option value="">Elke betaling</option><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="refunded">Terugbetaald</option></select></div><div id="orders-table">${ordersTable(state.orders)}</div></section>
+    <section class="panel"><div class="filters"><input type="search" data-filter="orders" placeholder="Zoek op ordernummer, klant of e-mail"><select data-filter-status="orders"><option value="">Alle statussen</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select><select data-filter-payment="orders"><option value="">Elke betaling</option><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="refunded">Terugbetaald</option></select></div><p class="form-hint">Onbetaalde webshop-checkouts verdwijnen na ${escapeHtml(settingsValue('commerce').abandoned_checkout_minutes || 10)} minuten automatisch uit dit overzicht. Zodra een betaling alsnog slaagt, verschijnt de bestelling weer.</p><div id="orders-table">${ordersTable(visibleOrders())}</div></section>
   </div>`
 }
 
@@ -519,7 +520,7 @@ function filterOrders() {
   const query = document.querySelector('[data-filter="orders"]')?.value.toLowerCase() || ''
   const orderStatus = document.querySelector('[data-filter-status="orders"]')?.value || ''
   const paymentStatus = document.querySelector('[data-filter-payment="orders"]')?.value || ''
-  const filtered = state.orders.filter((order) =>
+  const filtered = visibleOrders().filter((order) =>
     (!query || [order.order_number, order.external_reference, order.customer_name, order.customer_email].some((value) => String(value || '').toLowerCase().includes(query))) &&
     (!orderStatus || order.status === orderStatus) && (!paymentStatus || order.payment_status === paymentStatus))
   document.querySelector('#orders-table').innerHTML = ordersTable(filtered)
@@ -849,7 +850,7 @@ async function openContactMessage(message) {
 }
 
 function customerForm(customer = {}) {
-  const orders = state.orders.filter((order) => order.customer_id === customer.id)
+  const orders = visibleOrders().filter((order) => order.customer_id === customer.id)
   const emailHistory = state.emailMessages.filter((email) => email.customer_id === customer.id).slice(0, 5)
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
   const canManageCustomers = ['owner', 'admin'].includes(state.profile?.role)
@@ -884,7 +885,7 @@ function customerForm(customer = {}) {
 async function deleteCustomer(customerId) {
   const customer = state.customers.find((item) => item.id === customerId)
   if (!customer || !['owner', 'admin'].includes(state.profile?.role)) return
-  const orderCount = state.orders.filter((order) => order.customer_id === customer.id).length
+  const orderCount = visibleOrders().filter((order) => order.customer_id === customer.id).length
   const warning = orderCount ? ` De ${orderCount} gekoppelde bestelling${orderCount === 1 ? '' : 'en'} blijven bewaard.` : ''
   if (!window.confirm(`Weet je zeker dat je ${fullName(customer)} wilt verwijderen?${warning}`)) return
   const { error } = await supabase.from('customers').delete().eq('id', customer.id)
@@ -1506,11 +1507,22 @@ async function removeAdmin(profileId, email, returnTo = 'team') {
 
 function settingsValue(key) { return state.settings.find((setting) => setting.key === key)?.value || {} }
 
+function visibleOrders() {
+  const configuredMinutes = Number.parseInt(String(settingsValue('commerce').abandoned_checkout_minutes || 10), 10)
+  const timeoutMinutes = Math.min(1440, Math.max(1, Number.isFinite(configuredMinutes) ? configuredMinutes : 10))
+  const cutoff = Date.now() - timeoutMinutes * 60_000
+  return state.orders.filter((order) => !(
+    order.source === 'zol-webshop' &&
+    !['paid', 'partially_refunded', 'refunded'].includes(order.payment_status) &&
+    new Date(order.created_at).getTime() <= cutoff
+  ))
+}
+
 function renderSettings(category = 'company') {
   const company = settingsValue('company_profile'), commerce = settingsValue('commerce'), theme = settingsValue('theme'), seo = settingsValue('seo_defaults'), email = settingsValue('email_config'), postnl = settingsValue('postnl_config')
   const panels = {
     company: `<h2>Bedrijfsgegevens</h2><p>Gegevens die op facturen en in contactinformatie worden gebruikt.</p><form id="settings-form" data-key="company_profile" data-category="company"><div class="form-grid"><label class="field">Bedrijfsnaam<input name="name" value="${escapeHtml(company.name)}"></label><label class="field">E-mailadres<input name="email" type="email" value="${escapeHtml(company.email)}"></label><label class="field">Telefoon<input name="phone" value="${escapeHtml(company.phone)}"></label><label class="field">KvK-nummer<input name="kvk" value="${escapeHtml(company.kvk)}"></label><label class="field">BTW-nummer<input name="vat_number" value="${escapeHtml(company.vat_number)}"></label><label class="field">Adres<input name="address" value="${escapeHtml(company.address)}"></label></div>${settingsActions()}</form>`,
-    checkout: `<h2>Checkout & betalingen</h2><p>Verzending, belasting en de voorbereiding op Mollie.</p><form id="settings-form" data-key="commerce" data-category="checkout"><div class="form-grid"><label class="field">Verzendkosten (€)<input name="shipping_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.shipping_cents || 0) / 100).toFixed(2)}"></label><label class="field">Gratis verzending vanaf (€)<input name="free_shipping_threshold_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.free_shipping_threshold_cents || 0) / 100).toFixed(2)}"></label><label class="field">BTW-percentage<input name="tax_rate" type="number" min="0" step="0.01" value="${commerce.tax_rate ?? 21}"></label><label class="field">Valuta<select name="currency"><option value="EUR" ${commerce.currency === 'EUR' ? 'selected' : ''}>EUR — euro</option></select></label><label class="checkbox-field field--full"><input name="mollie_enabled" type="checkbox" ${commerce.mollie_enabled ? 'checked' : ''}> Mollie activeren zodra de API-sleutel veilig is ingesteld</label></div>${settingsActions()}</form>`,
+    checkout: `<h2>Checkout & betalingen</h2><p>Verzending, belasting en de voorbereiding op Mollie.</p><form id="settings-form" data-key="commerce" data-category="checkout"><div class="form-grid"><label class="field">Verzendkosten (€)<input name="shipping_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.shipping_cents || 0) / 100).toFixed(2)}"></label><label class="field">Gratis verzending vanaf (€)<input name="free_shipping_threshold_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.free_shipping_threshold_cents || 0) / 100).toFixed(2)}"></label><label class="field">BTW-percentage<input name="tax_rate" type="number" min="0" step="0.01" value="${commerce.tax_rate ?? 21}"></label><label class="field">Valuta<select name="currency"><option value="EUR" ${commerce.currency === 'EUR' ? 'selected' : ''}>EUR — euro</option></select></label><label class="field">Onbetaalde checkout verbergen na (minuten)<input name="abandoned_checkout_minutes" type="number" min="1" max="1440" step="1" value="${Number(commerce.abandoned_checkout_minutes || 10)}"><small>Geldt alleen voor onbetaalde webshop-checkouts; betaalde en handmatige orders blijven zichtbaar.</small></label><label class="checkbox-field field--full"><input name="mollie_enabled" type="checkbox" ${commerce.mollie_enabled ? 'checked' : ''}> Mollie activeren zodra de API-sleutel veilig is ingesteld</label></div>${settingsActions()}</form>`,
     website: `<h2>Huisstijl & SEO</h2><p>Pas de basiskleuren en standaard zoekmachinegegevens aan.</p><form id="settings-form" data-key="theme" data-category="website"><div class="form-grid"><label class="field">ZOL-blauw<div class="color-row"><input name="primary" type="color" value="${escapeHtml(theme.primary || '#33669B')}"><input value="${escapeHtml(theme.primary || '#33669B')}" disabled></div></label><label class="field">Accentkleur<div class="color-row"><input name="accent" type="color" value="${escapeHtml(theme.accent || '#F28C57')}"><input value="${escapeHtml(theme.accent || '#F28C57')}" disabled></div></label><label class="field">Tekstkleur<div class="color-row"><input name="ink" type="color" value="${escapeHtml(theme.ink || '#10233B')}"><input value="${escapeHtml(theme.ink || '#10233B')}" disabled></div></label><label class="field">Achtergrond<div class="color-row"><input name="background" type="color" value="${escapeHtml(theme.background || '#F7F5F0')}"><input value="${escapeHtml(theme.background || '#F7F5F0')}" disabled></div></label></div>${settingsActions()}</form><form id="seo-settings-form" style="margin-top:25px"><h2>Standaard SEO</h2><div class="form-grid"><label class="field">Websitetitel<input name="title" value="${escapeHtml(seo.title)}"></label><label class="field">Beschrijving<input name="description" value="${escapeHtml(seo.description)}"></label></div>${settingsActions()}</form>`,
     email: `<h2>E-mail</h2><p>Afzender, antwoordadres en interne meldingen. De geheime API-sleutel wordt nooit in de browser opgeslagen.</p><form id="settings-form" data-key="email_config" data-category="email"><div class="email-connection ${email.enabled ? 'is-connected' : ''}"><i>${email.enabled ? '✓' : '!'}</i><div><strong>${email.enabled ? 'E-mailverzending actief' : 'Wacht op domein en API-sleutel'}</strong><small>${email.enabled ? 'Order-, contact-, klant- en toegestane productmails zijn ingeschakeld.' : 'De volledige mailflow staat klaar, maar verstuurt nog niets.'}</small></div></div><div class="form-grid"><label class="field">Afzendernaam<input name="from_name" value="${escapeHtml(email.from_name || 'ZOL Solutions')}"></label><label class="field">Afzenderadres<input name="from_email" type="email" value="${escapeHtml(email.from_email || 'info@zolsolutions.nl')}"></label><label class="field">Antwoordadres<input name="reply_to" type="email" value="${escapeHtml(email.reply_to || 'info@zolsolutions.nl')}"></label><label class="field">Interne meldingen naar<input name="admin_email" type="email" value="${escapeHtml(email.admin_email || 'info@zolsolutions.nl')}"></label><label class="field field--full">Website-URL<input name="website_url" type="url" value="${escapeHtml(email.website_url || 'https://zolsolutions.nl')}"></label><input name="provider" type="hidden" value="resend"><label class="checkbox-field field--full"><input name="enabled" type="checkbox" ${email.enabled ? 'checked' : ''}> Verzending activeren <small>(pas na domeinverificatie en server-side API-sleutel)</small></label><label class="checkbox-field field--full"><input name="marketing_enabled" type="checkbox" ${email.marketing_enabled !== false ? 'checked' : ''}> Driewekelijkse productmail versturen, uitsluitend na toestemming</label><label class="field">Minimale tussenperiode in dagen<input name="marketing_interval_days" type="number" min="21" max="90" step="1" value="${Number(email.marketing_interval_days || 21)}"><small>Minimaal 21 dagen om de frequentie rustig te houden.</small></label></div><div class="form-actions"><button class="button" type="button" data-action="test-email" ${email.enabled ? '' : 'disabled'}>Testmail naar info sturen</button><button class="button button--primary" type="submit">E-mailinstellingen opslaan</button></div></form>`,
     postnl: `<h2>PostNL</h2><p>Maak vanuit een bestelling een label en trackingcode. API-sleutels blijven uitsluitend als beveiligde servergeheimen opgeslagen.</p><form id="settings-form" data-key="postnl_config" data-category="shipping"><div class="email-connection ${postnl.enabled ? 'is-connected' : ''}"><i>${postnl.enabled ? '✓' : '!'}</i><div><strong>${postnl.enabled ? `Koppeling actief in ${postnl.environment === 'production' ? 'productie' : 'sandbox'}` : 'Koppeling nog niet actief'}</strong><small>Gebruik eerst ‘Sandboxsleutel testen’. Productie blijft apart beveiligd.</small></div></div><div class="form-grid"><label class="field">Omgeving<select name="environment"><option value="sandbox" ${postnl.environment !== 'production' ? 'selected' : ''}>Sandbox — veilig testen</option><option value="production" ${postnl.environment === 'production' ? 'selected' : ''}>Productie — echte zendingen</option></select></label><label class="field">Pakkettype<select name="shipment_type"><option value="parcel" ${postnl.shipment_type !== 'letterbox' ? 'selected' : ''}>Pakket</option><option value="letterbox" ${postnl.shipment_type === 'letterbox' ? 'selected' : ''}>Brievenbuspakje</option></select></label><label class="field">PostNL-klantnummer<input name="customer_number" maxlength="10" value="${escapeHtml(postnl.customer_number)}" required></label><label class="field">PostNL-klantcode<input name="customer_code" maxlength="4" value="${escapeHtml(postnl.customer_code)}" required></label><label class="field">Collectielocatie (BLS)<input name="collection_location" maxlength="10" value="${escapeHtml(postnl.collection_location)}"></label><label class="field">Niet-EU-klantcode<input name="non_eu_customer_code" maxlength="10" value="${escapeHtml(postnl.non_eu_customer_code)}"></label><label class="field">Barcode-serie NL<input name="barcode_series" maxlength="30" value="${escapeHtml(postnl.barcode_series || '00000000-99999999')}" required></label><label class="field">Barcode-serie niet-EU<input name="non_eu_barcode_series" maxlength="30" value="${escapeHtml(postnl.non_eu_barcode_series || '0000-9999')}"></label><label class="field">PostNL-productcode<input name="product_code" inputmode="numeric" maxlength="4" value="${escapeHtml(postnl.product_code || (postnl.shipment_type === 'letterbox' ? '2928' : '3085'))}" required><small>3085 = standaard pakket; 2928 = brievenbuspakje+.</small></label><label class="field">Standaardgewicht (gram)<input name="default_weight_grams" type="number" min="1" max="23000" step="1" value="${escapeHtml(postnl.default_weight_grams || '500')}" required><small>Controleer dit gewicht voordat productie wordt geactiveerd.</small></label><label class="field">Bedrijfsnaam afzender<input name="sender_company" maxlength="35" value="${escapeHtml(postnl.sender_company || 'ZOL Solutions')}" required></label><label class="field">Straat<input name="sender_street" maxlength="95" value="${escapeHtml(postnl.sender_street || 'Burgemeester Hogguerstraat')}" required></label><label class="field">Huisnummer<input name="sender_house_number" maxlength="10" value="${escapeHtml(postnl.sender_house_number || '1111')}" required></label><label class="field">Toevoeging<input name="sender_house_number_addition" maxlength="10" value="${escapeHtml(postnl.sender_house_number_addition)}"></label><label class="field">Postcode<input name="sender_postal_code" maxlength="17" value="${escapeHtml(postnl.sender_postal_code || '1064 EJ')}" required></label><label class="field">Plaats<input name="sender_city" maxlength="35" value="${escapeHtml(postnl.sender_city || 'Amsterdam')}" required></label><label class="field">Land<select name="sender_country"><option value="NL">Nederland</option></select></label><label class="field">E-mail afzender<input name="sender_email" type="email" maxlength="50" value="${escapeHtml(postnl.sender_email || 'info@zolsolutions.nl')}"></label><label class="field">Telefoon afzender<input name="sender_phone" maxlength="17" value="${escapeHtml(postnl.sender_phone)}"></label><input name="label_output" type="hidden" value="pdf"><label class="checkbox-field field--full"><input name="enabled" type="checkbox" ${postnl.enabled ? 'checked' : ''}> PostNL-labels activeren</label><label class="checkbox-field field--full"><input name="production_enabled" type="checkbox" ${postnl.production_enabled ? 'checked' : ''}> Echte productiezendingen expliciet toestaan</label></div><div class="form-actions"><button class="button" type="button" data-action="test-postnl" data-environment="sandbox">Sandboxsleutel testen</button><button class="button button--primary" type="submit">PostNL-instellingen opslaan</button></div></form>`,
@@ -1572,12 +1584,13 @@ async function refreshCurrentRoute(option) {
 }
 
 async function exportOrders() {
-  if (!state.orders.length) { toast('Geen bestellingen om te exporteren'); return }
-  const rows = [['Bestelling', 'Extern nummer', 'Datum', 'Klant', 'E-mail', 'Totaal', 'Betaling', 'Verzending', 'Status'], ...state.orders.map((order) => [order.order_number, order.external_reference || '', order.created_at, order.customer_name, order.customer_email, (order.total_cents / 100).toFixed(2), order.payment_status, order.fulfillment_status, order.status])]
+  const orders = visibleOrders()
+  if (!orders.length) { toast('Geen bestellingen om te exporteren'); return }
+  const rows = [['Bestelling', 'Extern nummer', 'Datum', 'Klant', 'E-mail', 'Totaal', 'Betaling', 'Verzending', 'Status'], ...orders.map((order) => [order.order_number, order.external_reference || '', order.created_at, order.customer_name, order.customer_email, (order.total_cents / 100).toFixed(2), order.payment_status, order.fulfillment_status, order.status])]
   const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n')
   const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a'); link.href = url; link.download = `zol-bestellingen-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
-  await recordActivity('Bestellingen geëxporteerd', 'order', '', { count: state.orders.length }); toast('Export aangemaakt')
+  await recordActivity('Bestellingen geëxporteerd', 'order', '', { count: orders.length }); toast('Export aangemaakt')
 }
 
 function downloadOrderImportTemplate() {
