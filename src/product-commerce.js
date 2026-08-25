@@ -20,6 +20,16 @@ async function initializeProductCommerce() {
   const stockStatus = purchase.querySelector('[data-stock-status]')
   const paymentSupport = purchase.querySelector('[data-payment-support]')
   let product = null
+  let productLoadPromise = null
+  let loadAttempts = 0
+
+  const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds))
+
+  function showProductStatus(message, state = '') {
+    if (!stockStatus) return
+    stockStatus.textContent = message
+    stockStatus.className = `stock-status${state ? ` is-${state}` : ''}`
+  }
 
   function renderPaymentSupport(methods = []) {
     if (!paymentSupport) return
@@ -128,26 +138,58 @@ async function initializeProductCommerce() {
     return selected || variants[0] || null
   }
 
-  const { data, error } = await supabase.from('products').select('*, product_variants(*)').eq('slug', 'zol-inlegzolen').eq('active', true).single()
-  if (!error && data) {
-    product = data
-    if (price) price.innerHTML = `${formatMoney(product.price_cents)} <span>incl. btw</span>`
-    if (product.description) {
-      const summary = purchase.querySelector('.product-summary')
-      if (summary) summary.textContent = product.description
-    }
-    const selected = renderVariantSelector()
-    void loadPaymentSupport(selected)
+  async function fetchProduct() {
+    const request = supabase.from('products').select('*, product_variants(*)').eq('slug', 'zol-inlegzolen').eq('active', true).single()
+    const timeout = new Promise((resolve) => {
+      window.setTimeout(() => resolve({ data: null, error: new Error('Voorraad laden duurde te lang.') }), 6500)
+    })
+    return Promise.race([request, timeout])
+  }
 
-    const inventoryChannel = supabase.channel(`product-inventory-${product.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'product_variants', filter: `product_id=eq.${product.id}` }, ({ new: updatedVariant }) => {
-        const selectedId = selector.querySelector('input[name="size"]:checked')?.value || ''
-        product.product_variants = (product.product_variants || []).map((variant) => variant.id === updatedVariant.id ? { ...variant, ...updatedVariant } : variant)
-        const selectedAfterUpdate = renderVariantSelector(selectedId)
-        if (selectedAfterUpdate?.id !== selectedId) void loadPaymentSupport(selectedAfterUpdate)
-      })
-      .subscribe()
-    window.addEventListener('pagehide', () => { void supabase.removeChannel(inventoryChannel) }, { once: true })
+  async function loadProduct() {
+    if (product) return product
+    if (productLoadPromise) return productLoadPromise
+
+    productLoadPromise = (async () => {
+      showProductStatus(loadAttempts ? 'Voorraad opnieuw laden…' : 'Voorraad wordt gecontroleerd…')
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        loadAttempts += 1
+        try {
+          const { data, error } = await fetchProduct()
+          if (error || !data) throw error || new Error('Product niet gevonden.')
+
+          product = data
+          if (price) price.innerHTML = `${formatMoney(product.price_cents)} <span>incl. btw</span>`
+          if (product.description) {
+            const summary = purchase.querySelector('.product-summary')
+            if (summary) summary.textContent = product.description
+          }
+          const selected = renderVariantSelector()
+          void loadPaymentSupport(selected)
+
+          const inventoryChannel = supabase.channel(`product-inventory-${product.id}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'product_variants', filter: `product_id=eq.${product.id}` }, ({ new: updatedVariant }) => {
+              const selectedId = selector.querySelector('input[name="size"]:checked')?.value || ''
+              product.product_variants = (product.product_variants || []).map((variant) => variant.id === updatedVariant.id ? { ...variant, ...updatedVariant } : variant)
+              const selectedAfterUpdate = renderVariantSelector(selectedId)
+              if (selectedAfterUpdate?.id !== selectedId) void loadPaymentSupport(selectedAfterUpdate)
+            })
+            .subscribe()
+          window.addEventListener('pagehide', () => { void supabase.removeChannel(inventoryChannel) }, { once: true })
+          return product
+        } catch (error) {
+          trackEvent('product_load_error', { attempt, message: String(error?.message || error).slice(0, 160) })
+          if (attempt < 3) await wait(attempt * 350)
+        }
+      }
+
+      showProductStatus('De voorraad kon niet worden geladen. Tik op een bestelknop om het opnieuw te proberen.', 'unavailable')
+      return null
+    })()
+
+    const result = await productLoadPromise
+    productLoadPromise = null
+    return result
   }
 
   function selectedItem() {
@@ -167,12 +209,24 @@ async function initializeProductCommerce() {
     }
   }
 
-  function add(direct = false) {
+  async function add(direct = false) {
+    if (!product) {
+      showProductStatus('Een moment, de voorraad wordt geladen…')
+      const loadedProduct = await loadProduct()
+      if (!loadedProduct) {
+        trackEvent('product_add_blocked', { reason: 'product_load_failed', direct })
+        return
+      }
+    }
     const item = selectedItem()
-    if (!item) return
+    if (!item) {
+      showProductStatus('Kies een beschikbare maat om verder te gaan.', 'unavailable')
+      trackEvent('product_add_blocked', { reason: 'no_available_variant', direct })
+      return
+    }
     addToCart(item)
     trackEvent('add_to_cart', { product_id: item.product_id, variant_id: item.variant_id, quantity: item.quantity })
-    if (direct) window.location.href = '/checkout/'
+    if (direct) window.location.assign('/checkout/')
     else {
       addButton.textContent = 'Toegevoegd ✓'
       window.setTimeout(() => { addButton.textContent = 'In winkelwagen' }, 1600)
@@ -190,8 +244,9 @@ async function initializeProductCommerce() {
   })
   selectBundle(bundleInputs.find((input) => input.checked))
   renderBundlePrices()
-  addButton?.addEventListener('click', () => add(false))
-  buyButton?.addEventListener('click', () => add(true))
+  addButton?.addEventListener('click', () => { void add(false) })
+  buyButton?.addEventListener('click', () => { void add(true) })
+  await loadProduct()
 }
 
 void initializeProductCommerce()

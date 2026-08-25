@@ -1,5 +1,9 @@
 import { supabase } from './supabase-client.js'
 
+if (window.location.hostname === 'zol-solutions.pages.dev') {
+  window.location.replace(`https://zolsolutions.nl${window.location.pathname}${window.location.search}${window.location.hash}`)
+}
+
 const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const pageName = normalizedPath === '/'
   ? 'home'
