@@ -1,5 +1,6 @@
 import './styles.css'
 import './unsubscribe.css'
+import './cookie-consent.js'
 import { supabase } from './supabase-client.js'
 
 const button = document.querySelector('#unsubscribe-button')

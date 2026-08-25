@@ -1,4 +1,5 @@
 import { supabase } from './supabase-client.js'
+import { hasAnalyticsConsent } from './cookie-consent.js'
 
 if (window.location.hostname === 'zol-solutions.pages.dev') {
   window.location.replace(`https://zolsolutions.nl${window.location.pathname}${window.location.search}${window.location.hash}`)
@@ -29,6 +30,7 @@ export function getSessionId() {
 }
 
 export async function trackEvent(eventName, metadata = {}) {
+  if (!hasAnalyticsConsent()) return
   try {
     const search = new URLSearchParams(window.location.search)
     const attribution = Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
@@ -131,9 +133,19 @@ async function loadCms() {
 }
 
 loadCms().catch(() => {})
-trackEvent('page_view', { page: pageName })
 
-if (pageName === 'product') trackEvent('product_view', { slug: 'zol-inlegzolen' })
+let initialViewsTracked = false
+function trackInitialViews() {
+  if (!hasAnalyticsConsent() || initialViewsTracked) return
+  initialViewsTracked = true
+  trackEvent('page_view', { page: pageName })
+  if (pageName === 'product') trackEvent('product_view', { slug: 'zol-inlegzolen' })
+}
+
+trackInitialViews()
+window.addEventListener('zol:cookie-consent', ({ detail }) => {
+  if (detail?.choice === 'accepted') trackInitialViews()
+})
 
 document.addEventListener('click', (event) => {
   const target = event.target.closest('a, button')
