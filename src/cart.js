@@ -1,12 +1,33 @@
 const CART_KEY = 'zol_cart_v1'
+let memoryCart = []
+
+function parseCart(raw) {
+  try {
+    const value = JSON.parse(raw)
+    return Array.isArray(value) ? value : null
+  } catch { return null }
+}
 
 export function getCart() {
-  try { return JSON.parse(localStorage.getItem(CART_KEY)) || [] } catch { return [] }
+  for (const storageName of ['localStorage', 'sessionStorage']) {
+    try {
+      const storage = window[storageName]
+      const stored = parseCart(storage.getItem(CART_KEY))
+      if (stored) return stored
+    } catch { /* Safari private mode or blocked storage: try the next option. */ }
+  }
+  return memoryCart
 }
 
 export function saveCart(items) {
-  localStorage.setItem(CART_KEY, JSON.stringify(items))
+  memoryCart = items
+  const serialized = JSON.stringify(items)
+  let saved = false
+  for (const storageName of ['localStorage', 'sessionStorage']) {
+    try { window[storageName].setItem(CART_KEY, serialized); saved = true; break } catch { /* Try the next storage option. */ }
+  }
   window.dispatchEvent(new CustomEvent('zol:cart', { detail: items }))
+  if (!saved) document.documentElement.dataset.cartStorage = 'memory'
   return items
 }
 
@@ -32,4 +53,3 @@ export function bindCartCounters() {
   const update = () => document.querySelectorAll('[data-cart-count]').forEach((counter) => { counter.textContent = cartCount(); counter.hidden = cartCount() === 0 })
   update(); window.addEventListener('zol:cart', update); window.addEventListener('storage', update)
 }
-

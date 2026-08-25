@@ -3,16 +3,25 @@ import { supabase } from './supabase-client.js'
 const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const pageName = normalizedPath === '/'
   ? 'home'
-  : normalizedPath.slice(1).replaceAll('/', '.')
+  : normalizedPath.slice(1).split('/').join('.')
 
-function getSessionId() {
+export function browserSafeId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+export function getSessionId() {
   const key = 'zol_session_id'
-  let sessionId = sessionStorage.getItem(key)
-  if (!sessionId) {
-    sessionId = crypto.randomUUID()
+  try {
+    const sessionId = sessionStorage.getItem(key) || browserSafeId()
     sessionStorage.setItem(key, sessionId)
-  }
-  return sessionId
+    return sessionId
+  } catch { return browserSafeId() }
 }
 
 export async function trackEvent(eventName, metadata = {}) {

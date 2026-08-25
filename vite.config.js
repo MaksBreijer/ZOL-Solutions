@@ -63,6 +63,7 @@ function seoPlugin() {
 export default defineConfig({
   plugins: [seoPlugin()],
   build: {
+    target: 'safari13',
     rollupOptions: {
       input: {
         home: resolve(import.meta.dirname, 'index.html'),

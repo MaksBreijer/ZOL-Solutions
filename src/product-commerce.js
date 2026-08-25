@@ -6,7 +6,8 @@ bindCartCounters()
 
 const purchase = document.querySelector('.product-purchase')
 
-if (purchase) {
+async function initializeProductCommerce() {
+  if (!purchase) return
   const selector = purchase.querySelector('.size-selector')
   const price = purchase.querySelector('.product-price')
   const addButton = purchase.querySelector('#add-to-cart')
@@ -192,3 +193,5 @@ if (purchase) {
   addButton?.addEventListener('click', () => add(false))
   buyButton?.addEventListener('click', () => add(true))
 }
+
+void initializeProductCommerce()

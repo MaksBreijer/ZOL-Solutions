@@ -16,7 +16,7 @@
       <section class="checkout-flow">
         <div class="checkout-heading"><p>Bestelling afronden</p><h1>Jouw <em>ZOL'tjes.</em></h1></div>
         <div id="checkout-cart"></div>
-        <form class="checkout-form" id="checkout-form">
+        <form class="checkout-form" id="checkout-form" novalidate>
           <header><span>02</span><div><h2>Contact & bezorging</h2><p>Vul de gegevens in voor de bestelling.</p></div></header>
           <div class="checkout-fields">
             <label>Voornaam<input name="first_name" autocomplete="given-name" required></label><label>Achternaam<input name="last_name" autocomplete="family-name" required></label>
@@ -31,7 +31,7 @@
               <div class="payment-method-loading"><span></span><span></span><span></span></div>
             </div>
           </fieldset>
-          <label class="checkout-consent"><input type="checkbox" required><span>Ik ga akkoord met de <a href="/algemene-voorwaarden/">algemene voorwaarden</a> en het <a href="/privacy/">privacybeleid</a> van ZOL Solutions.</span></label>
+          <label class="checkout-consent"><input name="terms_accepted" type="checkbox" required><span>Ik ga akkoord met de <a href="/algemene-voorwaarden/">algemene voorwaarden</a> en het <a href="/privacy/">privacybeleid</a> van ZOL Solutions.</span></label>
           <button class="checkout-submit" type="submit">Veilig betalen <span>→</span></button>
           <p class="checkout-form-status" id="checkout-status" aria-live="polite"></p>
         </form>

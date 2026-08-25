@@ -1,7 +1,7 @@
 import './checkout.css'
 import { clearCart, getCart, updateCartItem } from './cart.js'
 import { formatMoney, supabase } from './supabase-client.js'
-import { trackEvent } from './site-runtime.js'
+import { getSessionId, trackEvent } from './site-runtime.js'
 
 const cartElement = document.querySelector('#checkout-cart')
 const summaryElement = document.querySelector('#checkout-summary')
@@ -12,8 +12,7 @@ const discountButton = document.querySelector('#apply-discount')
 const discountStatus = document.querySelector('#discount-status')
 const paymentMethodsElement = document.querySelector('#payment-methods')
 const paymentMethodOptions = document.querySelector('#payment-method-options')
-const { data: commerceSetting } = await supabase.from('settings').select('value').eq('key', 'commerce').eq('is_public', true).maybeSingle()
-const commerce = commerceSetting?.value || { shipping_cents: 0, free_shipping_threshold_cents: 0, tax_rate: 21 }
+let commerce = { shipping_cents: 0, free_shipping_threshold_cents: 0, tax_rate: 21, mollie_enabled: true }
 const returnParams = new URLSearchParams(window.location.search)
 const returnOrderId = returnParams.get('ref')
 const returnToken = returnParams.get('token')
@@ -22,6 +21,7 @@ let currentQuote = null
 let quotedCart = ''
 let quotedCode = null
 let quoteRequest = 0
+let submitInFlight = false
 
 const paymentMethodPresentation = {
   ideal: { label: 'iDEAL', detail: 'Betaal direct via je eigen bank', mark: 'iDEAL' },
@@ -112,6 +112,7 @@ function renderPaymentMethods(methods = []) {
     input.value = method.id
     input.required = true
     input.checked = index === 0
+    option.classList.toggle('is-selected', input.checked)
     const radio = document.createElement('span')
     radio.className = 'payment-method-radio'
     radio.setAttribute('aria-hidden', 'true')
@@ -129,7 +130,10 @@ function renderPaymentMethods(methods = []) {
 }
 
 paymentMethodOptions.addEventListener('change', (event) => {
-  if (event.target.matches('input[name="payment_method"]')) trackEvent('payment_method_selected', { method: event.target.value })
+  if (event.target.matches('input[name="payment_method"]')) {
+    paymentMethodOptions.querySelectorAll('.payment-method-card').forEach((option) => option.classList.toggle('is-selected', option.contains(event.target)))
+    trackEvent('payment_method_selected', { method: event.target.value })
+  }
 })
 
 async function functionErrorMessage(error, data, fallback) {
@@ -271,39 +275,80 @@ discountInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') { event.preventDefault(); void requestQuote() }
 })
 
+function checkoutValidationMessage(invalid) {
+  if (invalid?.name === 'terms_accepted') return 'Vink eerst aan dat je akkoord gaat met de voorwaarden en het privacybeleid.'
+  if (invalid?.type === 'email') return 'Vul een geldig e-mailadres in.'
+  return 'Controleer de gemarkeerde velden en vul alle verplichte gegevens in.'
+}
+
+function validateCheckoutForm(status) {
+  form.querySelectorAll('[aria-invalid="true"]').forEach((field) => field.removeAttribute('aria-invalid'))
+  const invalid = [...form.elements].find((field) => field.willValidate && !field.validity.valid)
+  if (!invalid) return true
+  invalid.setAttribute('aria-invalid', 'true')
+  status.textContent = checkoutValidationMessage(invalid)
+  status.classList.add('is-error')
+  invalid.focus()
+  invalid.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  trackEvent('checkout_error', { stage: 'validation', field: invalid.name || invalid.type })
+  return false
+}
+
+form.addEventListener('input', (event) => {
+  if (event.target.matches('[aria-invalid="true"]') && event.target.validity.valid) event.target.removeAttribute('aria-invalid')
+})
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault()
+  if (submitInFlight) return
   const cart = getCart()
   if (!cart.length) return
   const button = form.querySelector('[type="submit"]')
   const status = document.querySelector('#checkout-status')
-  button.disabled = true; button.innerHTML = 'Bestelling verwerken…'; status.textContent = ''; status.classList.remove('is-error')
-  const customer = Object.fromEntries(new FormData(form))
-  const discountCode = String(customer.discount_code || '').trim().toUpperCase()
-  delete customer.discount_code
-  const quoteIsCurrent = currentQuote && quotedCart === cartSignature(cart) && quotedCode === discountCode
-  if (!quoteIsCurrent && !await requestQuote({ code: discountCode, announce: false })) {
-    status.textContent = discountCode ? 'Controleer eerst de kortingscode hierboven.' : 'De actuele prijs kon niet worden gecontroleerd. Probeer het opnieuw.'
-    status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Veilig betalen <span>→</span>'; return
+  status.textContent = ''; status.classList.remove('is-error')
+  if (!validateCheckoutForm(status)) return
+  submitInFlight = true
+  button.disabled = true; button.innerHTML = 'Bestelling verwerken…'
+  try {
+    const customer = Object.fromEntries(new FormData(form))
+    const discountCode = String(customer.discount_code || '').trim().toUpperCase()
+    delete customer.discount_code
+    delete customer.terms_accepted
+    const quoteIsCurrent = currentQuote && quotedCart === cartSignature(cart) && quotedCode === discountCode
+    if (!quoteIsCurrent && !await requestQuote({ code: discountCode, announce: false })) throw new Error(discountCode ? 'Controleer eerst de kortingscode hierboven.' : 'De actuele prijs kon niet worden gecontroleerd. Probeer het opnieuw.')
+    const sessionId = getSessionId()
+    const paymentMethod = String(customer.payment_method || '')
+    delete customer.payment_method
+    trackEvent('checkout_submit', { payment_method: paymentMethod })
+    const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
+    if (error || data?.error) throw new Error(await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'))
+    if (data.checkout_url) { window.location.assign(data.checkout_url); return }
+    clearCart()
+    document.querySelector('.checkout-flow').innerHTML = `<section class="cart-block"><div class="checkout-success"><span>✓</span><h2>Bestelling #${data.order_number} is ontvangen</h2><p>Je bestelling staat veilig in ZOL Admin. Online betalen wordt geactiveerd zodra Mollie is gekoppeld; ZOL neemt tot die tijd persoonlijk contact met je op over de betaling.</p><a href="/">Terug naar ZOL Solutions</a></div></section>`
+    summaryElement.innerHTML = `<h2>Ontvangen</h2>${data.discount_cents ? `<div class="summary-line"><span>Korting ${data.discount_code ? `(${data.discount_code})` : ''}</span><strong>− ${formatMoney(data.discount_cents)}</strong></div>` : ''}<div class="summary-line total"><span>Totaal</span><strong>${formatMoney(data.total_cents)}</strong></div><p class="summary-note">Bewaar bestelnummer #${data.order_number} voor vragen over je bestelling.</p>`
+  } catch (checkoutError) {
+    trackEvent('checkout_error', { stage: 'create_checkout', message: checkoutError instanceof Error ? checkoutError.message.slice(0, 160) : 'Onbekende fout' })
+    status.textContent = checkoutError instanceof Error ? checkoutError.message : 'Afrekenen is niet gelukt. Probeer het opnieuw.'
+    status.classList.add('is-error')
+    button.disabled = false
+    button.innerHTML = 'Veilig betalen <span>→</span>'
+    submitInFlight = false
   }
-  const sessionId = sessionStorage.getItem('zol_session_id') || crypto.randomUUID()
-  const paymentMethod = String(customer.payment_method || '')
-  delete customer.payment_method
-  const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
-  if (error || data?.error) {
-    trackEvent('checkout_error', { stage: 'create_checkout' })
-    status.textContent = await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'); status.classList.add('is-error'); button.disabled = false; button.innerHTML = 'Veilig betalen <span>→</span>'; return
-  }
-  if (data.checkout_url) { window.location.href = data.checkout_url; return }
-  clearCart()
-  document.querySelector('.checkout-flow').innerHTML = `<section class="cart-block"><div class="checkout-success"><span>✓</span><h2>Bestelling #${data.order_number} is ontvangen</h2><p>Je bestelling staat veilig in ZOL Admin. Online betalen wordt geactiveerd zodra Mollie is gekoppeld; ZOL neemt tot die tijd persoonlijk contact met je op over de betaling.</p><a href="/">Terug naar ZOL Solutions</a></div></section>`
-  summaryElement.innerHTML = `<h2>Ontvangen</h2>${data.discount_cents ? `<div class="summary-line"><span>Korting ${data.discount_code ? `(${data.discount_code})` : ''}</span><strong>− ${formatMoney(data.discount_cents)}</strong></div>` : ''}<div class="summary-line total"><span>Totaal</span><strong>${formatMoney(data.total_cents)}</strong></div><p class="summary-note">Bewaar bestelnummer #${data.order_number} voor vragen over je bestelling.</p>`
 })
 
 window.addEventListener('zol:cart', () => { render(); if (getCart().length) void requestQuote({ code: discountCode(), announce: false }) })
-if (returnOrderId && returnToken) renderPaymentReturn()
-else {
-  if (linkedDiscountCode) discountInput.value = linkedDiscountCode
-  render()
-  if (getCart().length) void requestQuote({ code: linkedDiscountCode, announce: Boolean(linkedDiscountCode) })
+
+async function initializeCheckout() {
+  try {
+    const { data: commerceSetting } = await supabase.from('settings').select('value').eq('key', 'commerce').eq('is_public', true).maybeSingle()
+    commerce = commerceSetting?.value || commerce
+  } catch { /* De server controleert prijzen opnieuw; standaardwaarden houden de checkout bruikbaar. */ }
+  if (returnOrderId && returnToken) await renderPaymentReturn()
+  else {
+    if (linkedDiscountCode) discountInput.value = linkedDiscountCode
+    render()
+    if (getCart().length) await requestQuote({ code: linkedDiscountCode, announce: Boolean(linkedDiscountCode) })
+  }
 }
+
+void initializeCheckout()
