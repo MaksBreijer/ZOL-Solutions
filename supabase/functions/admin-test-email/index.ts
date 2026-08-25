@@ -17,7 +17,7 @@ async function requireAdmin(request: Request, db = adminClient()) {
 }
 
 function emailShell(text: string, websiteUrl: string) {
-  return `<!doctype html><html lang="nl"><body style="margin:0;background:#f3f5f7;color:#10233b;font-family:Arial,Helvetica,sans-serif"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 12px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;border-radius:22px;background:#fff;overflow:hidden"><tr><td style="padding:34px 38px;background:#102b4a;color:#fff"><p style="margin:0 0 8px;color:#9fc4e8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">Technische test</p><h1 style="margin:0;font-size:34px;line-height:1.08">De ZOL-mailkoppeling werkt.</h1></td></tr><tr><td style="padding:34px 38px"><p style="margin:0;color:#445b70;font-size:15px;line-height:1.72">${escapeHtml(text)}</p></td></tr><tr><td style="padding:22px 38px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px">ZOL Solutions · <a href="${escapeHtml(websiteUrl)}" style="color:#33669b">zolsolutions.nl</a></td></tr></table></td></tr></table></body></html>`
+  return `<!doctype html><html lang="nl"><body style="margin:0;background:#f3f5f7;color:#10233b;font-family:Arial,Helvetica,sans-serif"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 12px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;border-radius:22px;background:#fff;overflow:hidden"><tr><td style="padding:34px 38px;background:#102b4a;color:#fff"><p style="margin:0 0 8px;color:#9fc4e8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">Test aankoopbevestiging</p><h1 style="margin:0;font-size:34px;line-height:1.08">Je aankoop is gelukt.</h1></td></tr><tr><td style="padding:34px 38px"><p style="margin:0;color:#445b70;font-size:15px;line-height:1.72">${escapeHtml(text)}</p></td></tr><tr><td style="padding:22px 38px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px">ZOL Solutions · <a href="${escapeHtml(websiteUrl)}" style="color:#33669b">zolsolutions.nl</a></td></tr></table></td></tr></table></body></html>`
 }
 
 Deno.serve(async (request) => {
@@ -35,9 +35,9 @@ Deno.serve(async (request) => {
     if (!config.enabled || !apiKey) return Response.json({ error: "E-mailverzending is nog niet geactiveerd." }, { status: 503, headers })
     const recipient = String(config.admin_email || "info@zolsolutions.nl").trim().toLowerCase()
     if (recipient !== "info@zolsolutions.nl") return Response.json({ error: "De testmail mag alleen naar info@zolsolutions.nl worden gestuurd." }, { status: 409, headers })
-    const subject = "[TEST] ZOL e-mailkoppeling werkt"
+    const subject = "[TEST] Je aankoop bij ZOL Solutions is gelukt"
     const sentAt = new Intl.DateTimeFormat("nl-NL", { dateStyle: "full", timeStyle: "short", timeZone: "Europe/Amsterdam" }).format(new Date())
-    const text = `Dit is een veilige testmail vanuit ZOL Admin. De e-mailkoppeling werkt. Test uitgevoerd op ${sentAt}.`
+    const text = `Dit is een veilige test van de aankoopbevestiging vanuit ZOL Admin. Er is geen echte bestelling geplaatst en er is niets afgeschreven. De e-mailkoppeling werkt. Test uitgevoerd op ${sentAt}.`
     const websiteUrl = String(config.website_url || "https://zolsolutions.nl")
     const html = emailShell(text, websiteUrl)
     const dedupe = `admin-test-${crypto.randomUUID()}`
