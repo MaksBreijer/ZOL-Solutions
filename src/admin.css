@@ -388,6 +388,11 @@ svg { display: block; }
 .email-connection i { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #f4c978; color: #5c450e; font-style: normal; font-weight: 800; }
 .email-connection.is-connected { border-color: #c8e3d4; background: #f0f8f3; }
 .email-connection.is-connected i { background: #47a574; color: #fff; }
+.postnl-shipment { margin: 12px 14px 0; padding: 12px 13px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #c8e3d4; border-radius: 9px; background: #f0f8f3; }
+.postnl-shipment span, .postnl-shipment strong, .postnl-shipment small { display: block; }
+.postnl-shipment span { color: #327451; font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.postnl-shipment strong { margin-top: 3px; color: #244c38; font-size: 10px; }
+.postnl-shipment small { max-width: 560px; margin-top: 3px; color: #62766b; font-size: 8px; line-height: 1.45; }
 .email-flow-summary { margin-bottom: 16px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .65fr); gap: 14px; }
 .email-flow-summary .email-connection { margin: 0; }
 .email-flow-summary > p { margin: 0; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; border: 1px solid #d8e2eb; border-radius: 10px; background: #fff; }
