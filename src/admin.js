@@ -1,4 +1,5 @@
 import './admin.css'
+import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
@@ -757,7 +758,7 @@ function customersTable(customers) {
 }
 
 function renderCustomers() {
-  const actions = ['owner', 'admin'].includes(state.profile?.role) ? '<button class="button button--primary" data-action="new-customer">Klant toevoegen</button>' : ''
+  const actions = ['owner', 'admin'].includes(state.profile?.role) ? '<button class="button" data-action="import-customers">Klanten importeren</button><button class="button button--primary" data-action="new-customer">Klant toevoegen</button>' : ''
   elements.content.innerHTML = `<div class="page-container">${pageHeader('customers', actions)}<section class="customer-database-note"><span>✓</span><div><strong>Rechtstreeks opgeslagen in de ZOL-klantendatabase</strong><p>Klanten uit de webshop, handmatige bestellingen en contactaanvragen komen samen in één dossier. De aantallen en bestelhistorie worden uit de echte gegevens berekend.</p></div></section><section class="panel"><div class="filters"><input type="search" data-filter="customers" placeholder="Zoek op naam, e-mail of telefoon"><select data-filter-marketing="customers"><option value="">Alle klanten</option><option value="yes">Marketing toegestaan</option><option value="no">Geen marketing</option></select></div><div id="customers-table">${customersTable(state.customers)}</div></section></div>`
 }
 
@@ -893,6 +894,94 @@ async function deleteCustomer(customerId) {
   await recordActivity('Klant verwijderd', 'customer', customer.id, { email: customer.email, preserved_orders: orderCount })
   toast('Klant verwijderd', orderCount ? 'De bestelgeschiedenis is behouden.' : '')
   closeDialog(); await refreshCurrentRoute()
+}
+
+function downloadCustomerImportTemplate() {
+  const url = URL.createObjectURL(new Blob([customerImportTemplateCsv()], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'zol-klanten-import-voorbeeld.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function mergeImportedCustomer(imported, existing, now) {
+  const currentAddress = existing?.address || {}
+  const importedAddress = imported.address || {}
+  const address = { ...currentAddress }
+  Object.entries(importedAddress).forEach(([key, value]) => { if (value) address[key] = value })
+  const previouslySubscribed = Boolean(existing?.marketing_opt_in)
+  const hasUnsubscribed = Boolean(existing?.marketing_unsubscribed_at)
+  const marketingOptIn = previouslySubscribed || Boolean(imported.marketing_opt_in && !hasUnsubscribed)
+  return {
+    email: imported.email,
+    first_name: imported.first_name || existing?.first_name || '',
+    last_name: imported.last_name || existing?.last_name || '',
+    phone: imported.phone || existing?.phone || '',
+    address,
+    notes: imported.notes || existing?.notes || '',
+    marketing_opt_in: marketingOptIn,
+    marketing_opt_in_at: marketingOptIn ? existing?.marketing_opt_in_at || now : null,
+    marketing_opt_in_source: marketingOptIn ? previouslySubscribed ? existing?.marketing_opt_in_source || 'bestaande klant' : 'CSV-import (expliciete toestemming)' : existing?.marketing_opt_in_source || '',
+    marketing_unsubscribed_at: marketingOptIn ? null : existing?.marketing_unsubscribed_at || null,
+    marketing_next_send_at: marketingOptIn ? existing?.marketing_next_send_at || new Date(Date.parse(now) + 21 * 86_400_000).toISOString() : null,
+  }
+}
+
+function importCustomersForm() {
+  openDialog('Klanten importeren', 'CSV- of TSV-import', `<form id="customer-import-form">
+    <section class="csv-import-intro"><strong>Importeer vanuit Excel, Numbers, Google Sheets of Shopify</strong><p>Sla een werkblad op als <strong>CSV UTF-8</strong> of TSV en kies het bestand hieronder. Bestaande klanten worden op e-mailadres herkend; ingevulde gegevens worden aangevuld zonder bestelbedragen te wijzigen.</p></section>
+    <label class="csv-file-field"><span>Klantenbestand kiezen</span><input id="customer-import-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" required><small>Maximaal 10 MB. Komma, puntkomma en tab worden automatisch herkend.</small></label>
+    <section class="csv-import-preview" id="customer-import-preview" aria-live="polite"><span>Nog geen bestand gekozen</span><p>Na het kiezen zie je eerst een controle. Er wordt dan nog niets opgeslagen.</p></section>
+    <p class="form-hint">Marketingtoestemming wordt alleen toegevoegd bij een expliciete waarde zoals “ja”. Gebruik dit uitsluitend als de klant aantoonbaar toestemming heeft gegeven.</p>
+    <div class="form-actions"><button class="button" type="button" data-action="download-customer-template"><i data-lucide="download"></i> Voorbeeld downloaden</button><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit" disabled>Gecontroleerde klanten importeren</button></div>
+  </form>`)
+  elements.dialog.classList.add('admin-dialog--wide')
+  refreshIcons()
+  const form = document.querySelector('#customer-import-form')
+  const fileInput = form.querySelector('#customer-import-file')
+  const preview = form.querySelector('#customer-import-preview')
+  const submit = form.querySelector('[type="submit"]')
+  let parsed = null
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0]
+    parsed = null
+    submit.disabled = true
+    if (!file) { preview.innerHTML = '<span>Nog geen bestand gekozen</span><p>Kies een CSV- of TSV-bestand om het te controleren.</p>'; return }
+    if (file.size > 10 * 1024 * 1024) { preview.innerHTML = '<span class="is-error">Bestand is te groot</span><p>Gebruik een bestand van maximaal 10 MB.</p>'; return }
+    try {
+      parsed = parseCustomerCsv(await file.text())
+      const existingEmails = new Set(state.customers.map((customer) => String(customer.email || '').trim().toLowerCase()))
+      const existingCount = parsed.customers.filter((customer) => existingEmails.has(customer.email)).length
+      const newCount = parsed.customers.length - existingCount
+      const issuePreview = parsed.issues.slice(0, 6).map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')
+      const moreIssues = parsed.issues.length > 6 ? `<li>En nog ${parsed.issues.length - 6} andere regels.</li>` : ''
+      preview.innerHTML = `<header><div><span>${escapeHtml(file.name)}</span><small>${parsed.delimiter === '\t' ? 'Tab' : parsed.delimiter === ';' ? 'Puntkomma' : 'Komma'} als scheidingsteken</small></div><strong>${parsed.customers.length} klanten</strong></header><div class="csv-import-stats"><span>${parsed.lineCount} gegevensregels</span><span>${newCount} nieuw</span><span>${existingCount} bestaand</span><span>${parsed.duplicateCount} dubbele e-mails samengevoegd</span><span>${parsed.issues.length} fouten</span></div>${parsed.issues.length ? `<div class="csv-import-errors"><strong>Los deze regels eerst op:</strong><ul>${issuePreview}${moreIssues}</ul></div>` : '<p class="csv-import-ready">✓ Bestand is gecontroleerd en klaar voor import.</p>'}`
+      submit.disabled = !parsed.customers.length || parsed.issues.length > 0
+    } catch (error) {
+      preview.innerHTML = `<span class="is-error">Bestand kon niet worden gelezen</span><p>${escapeHtml(error.message)}</p>`
+    }
+  })
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    if (!parsed?.customers.length || parsed.issues.length) return
+    setBusy(submit, true, 'Importeren')
+    const existingByEmail = new Map(state.customers.map((customer) => [String(customer.email || '').trim().toLowerCase(), customer]))
+    const now = new Date().toISOString()
+    const records = parsed.customers.map((customer) => mergeImportedCustomer(customer, existingByEmail.get(customer.email), now))
+    const updated = records.filter((customer) => existingByEmail.has(customer.email)).length
+    const added = records.length - updated
+    for (let offset = 0; offset < records.length; offset += 200) {
+      const { error } = await supabase.from('customers').upsert(records.slice(offset, offset + 200), { onConflict: 'email' })
+      if (error) { toast('Klanten importeren mislukt', error.message, true); setBusy(submit, false, 'Gecontroleerde klanten importeren'); return }
+    }
+    await recordActivity('Klanten via CSV geïmporteerd', 'customer', '', { added, updated, duplicates_merged: parsed.duplicateCount, filename: fileInput.files?.[0]?.name || '' })
+    closeDialog()
+    await refreshCurrentRoute()
+    toast('Klantenimport voltooid', `${added} klanten toegevoegd · ${updated} bestaande klanten bijgewerkt${parsed.duplicateCount ? ` · ${parsed.duplicateCount} dubbele regels samengevoegd` : ''}.`)
+  })
 }
 
 function customerEmailForm(customer) {
@@ -1687,6 +1776,8 @@ async function handleContentClick(event) {
   if (action === 'export-orders') await exportOrders()
   if (action === 'import-orders') importOrdersForm()
   if (action === 'download-order-template') downloadOrderImportTemplate()
+  if (action === 'import-customers') importCustomersForm()
+  if (action === 'download-customer-template') downloadCustomerImportTemplate()
   if (action === 'export-analytics') await exportAnalytics()
   if (action === 'analytics-range') { analyticsDays = Number(target.dataset.days) || 30; renderAnalytics() }
   if (action === 'toggle-analytics-compare') { analyticsCompare = !analyticsCompare; renderAnalytics() }
