@@ -48,6 +48,7 @@
 .comparison-card ul { margin:30px 0 0; padding:0; list-style:none; }
 .comparison-card li { padding:12px 0 12px 27px; position:relative; border-top:1px solid rgba(255,255,255,.13); color:rgba(255,255,255,.8); }
 .comparison-card li::before { content:"✓"; position:absolute; left:0; color:#8dd2ff; font-weight:800; }
+.comparison-card li.is-tradeoff::before { content:"×"; color:var(--orange-light); font-size:1.18em; line-height:1; }
 .comparison-card .button { margin-top:28px; }
 .comparison-disclaimer { max-width:900px; margin:28px 0 0; color:rgba(255,255,255,.55); font-size:12px; line-height:1.65; }
 
