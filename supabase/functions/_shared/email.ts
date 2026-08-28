@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.112.3"
 export const allowedOrigins = new Set([
   "https://zol-solutions.pages.dev",
   "https://codex-zol-premium-launch.zol-solutions.pages.dev",
+  "https://codex-pilot-measurements.zol-solutions.pages.dev",
   "https://zolsolutions.nl",
   "https://www.zolsolutions.nl",
   "http://localhost:5173",
