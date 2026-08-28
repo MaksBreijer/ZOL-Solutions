@@ -1,0 +1,152 @@
+:root {
+  color-scheme: light;
+  font-family: "DM Sans", sans-serif;
+  color: #10233b;
+  background: #f4f2ed;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(117, 166, 205, .2), transparent 32rem),
+    radial-gradient(circle at 92% 88%, rgba(242, 140, 87, .16), transparent 28rem),
+    #f4f2ed;
+}
+
+button, textarea { font: inherit; }
+
+.measurement-page {
+  width: min(100% - 32px, 680px);
+  margin: 0 auto;
+  padding: 38px 0 28px;
+}
+
+.measurement-brand {
+  display: block;
+  width: fit-content;
+  margin: 0 auto 28px;
+}
+
+.measurement-brand img { display: block; width: 116px; height: auto; }
+
+.measurement-card {
+  overflow: hidden;
+  min-height: 530px;
+  border: 1px solid rgba(16, 35, 59, .08);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 30px 80px rgba(16, 35, 59, .12);
+}
+
+.measurement-progress { height: 7px; background: #e8edf1; }
+.measurement-progress span { display: block; width: 0; height: 100%; border-radius: 0 99px 99px 0; background: #f28c57; transition: width .28s ease; }
+
+#measurement-content { padding: clamp(30px, 7vw, 58px); }
+
+.measurement-loading, .measurement-error, .measurement-finished {
+  display: grid;
+  min-height: 380px;
+  place-content: center;
+  text-align: center;
+}
+
+.measurement-loading span {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 18px;
+  border: 3px solid #dbe5ed;
+  border-top-color: #33669b;
+  border-radius: 50%;
+  animation: measurement-spin .8s linear infinite;
+}
+
+@keyframes measurement-spin { to { transform: rotate(360deg); } }
+
+.measurement-kicker {
+  margin: 0 0 14px;
+  color: #33669b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.measurement-step h1, .measurement-finished h1, .measurement-error h1 {
+  margin: 0;
+  font-family: Manrope, sans-serif;
+  font-size: clamp(30px, 6vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -.04em;
+}
+
+.measurement-intro {
+  margin: 17px 0 30px;
+  color: #607286;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.measurement-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.measurement-options--scale { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+.measurement-option {
+  min-height: 58px;
+  padding: 13px 12px;
+  border: 2px solid #dfe6ec;
+  border-radius: 14px;
+  background: #fff;
+  color: #17324f;
+  cursor: pointer;
+  font-weight: 700;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
+}
+
+.measurement-option:hover, .measurement-option:focus-visible { border-color: #33669b; background: #f1f7fb; outline: none; transform: translateY(-1px); }
+.measurement-option.is-selected { border-color: #33669b; background: #33669b; color: #fff; }
+.measurement-scale-labels { display: flex; justify-content: space-between; margin-top: 10px; color: #738496; font-size: 12px; }
+
+.measurement-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 16px;
+  resize: vertical;
+  border: 2px solid #dfe6ec;
+  border-radius: 14px;
+  color: #10233b;
+}
+.measurement-textarea:focus { border-color: #33669b; outline: none; }
+
+.measurement-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 30px; }
+.measurement-button {
+  min-height: 50px;
+  padding: 13px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: #e9eef2;
+  color: #17324f;
+  cursor: pointer;
+  font-weight: 800;
+}
+.measurement-button--primary { margin-left: auto; background: #33669b; color: #fff; }
+.measurement-button:disabled { cursor: not-allowed; opacity: .5; }
+.measurement-saved { min-height: 20px; margin: 15px 0 -10px; color: #39745d; font-size: 13px; text-align: center; }
+
+.measurement-finished-icon { display: grid; width: 68px; height: 68px; margin: 0 auto 24px; place-content: center; border-radius: 50%; background: #e4f3ea; color: #28704f; font-size: 34px; }
+.measurement-finished p, .measurement-error p { max-width: 440px; margin: 18px auto 0; color: #607286; line-height: 1.7; }
+.measurement-error a { color: #33669b; }
+.measurement-support { margin: 20px 10px 0; color: #6e7d8c; font-size: 13px; line-height: 1.6; text-align: center; }
+.measurement-support a { color: inherit; }
+
+@media (max-width: 580px) {
+  .measurement-page { width: min(100% - 20px, 680px); padding-top: 22px; }
+  .measurement-brand { margin-bottom: 18px; }
+  .measurement-card { min-height: calc(100vh - 150px); border-radius: 22px; }
+  #measurement-content { padding: 32px 22px; }
+  .measurement-options--scale { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .measurement-option { min-height: 54px; }
+}

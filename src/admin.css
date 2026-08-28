@@ -21,6 +21,58 @@
   font-synthesis: none;
 }
 
+/* Pilotmetingen */
+.pilot-control-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.pilot-settings, .pilot-enroll { display: grid; align-content: start; gap: 17px; padding: 24px; }
+.pilot-settings h2, .pilot-enroll h2, .pilot-participant h2 { margin: 0; }
+.pilot-enroll > p:not(.eyebrow) { margin: -8px 0 2px; color: var(--muted, #697b8d); line-height: 1.6; }
+.pilot-enroll .eyebrow, .pilot-participant .eyebrow { margin: 0 0 5px; }
+.pilot-consent { padding: 14px; border-radius: 12px; background: #f4f7f9; line-height: 1.45; }
+
+.pilot-status-line { display: flex; align-items: center; gap: 12px; padding: 15px; border-radius: 13px; background: #f4f7f9; }
+.pilot-status-line div { display: grid; gap: 3px; }
+.pilot-status-line small { color: var(--muted, #697b8d); }
+.pilot-status-light { width: 13px; height: 13px; flex: 0 0 13px; border-radius: 50%; background: #aab4bd; box-shadow: 0 0 0 5px rgba(170, 180, 189, .15); }
+.pilot-status-light.is-test { background: #e89346; box-shadow: 0 0 0 5px rgba(232, 147, 70, .15); }
+.pilot-status-light.is-live { background: #3d9369; box-shadow: 0 0 0 5px rgba(61, 147, 105, .15); }
+
+.pilot-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.pilot-summary div { display: grid; gap: 3px; padding: 18px 20px; border: 1px solid var(--border, #e3e8ec); border-radius: 14px; background: #fff; }
+.pilot-summary strong { color: #17324f; font-size: 21px; }
+.pilot-summary span { color: var(--muted, #697b8d); font-size: 12px; }
+.pilot-setup-warning { margin-bottom: 18px; padding: 18px 22px; border-color: #efc48d; background: #fff8ee; }
+.pilot-setup-warning p { margin: 5px 0 0; color: #765c3d; }
+
+.pilot-participants { display: grid; gap: 18px; }
+.pilot-participant { padding: 24px; }
+.pilot-participant > header { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.pilot-participant > header p:not(.eyebrow) { margin: 5px 0 0; color: var(--muted, #697b8d); }
+.pilot-timeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pilot-moment { display: grid; align-content: space-between; min-height: 185px; gap: 13px; padding: 16px; border: 1px solid var(--border, #e3e8ec); border-radius: 14px; background: #fafbfc; }
+.pilot-moment.is-complete { border-color: #b9dfca; background: #f2faf5; }
+.pilot-moment > div { display: grid; gap: 5px; }
+.pilot-moment > div > span { color: #33669b; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pilot-moment > div > small { min-height: 34px; color: var(--muted, #697b8d); font-size: 11px; line-height: 1.45; }
+.pilot-moment .status-pill { width: fit-content; }
+.pilot-moment .button { width: 100%; padding-inline: 9px; }
+
+@media (max-width: 1000px) {
+  .pilot-control-grid { grid-template-columns: 1fr; }
+  .pilot-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .pilot-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pilot-timeline { grid-template-columns: 1fr; }
+  .pilot-moment { min-height: 0; }
+}
+
 * { box-sizing: border-box; }
 html { min-width: 320px; background: var(--admin-bg); }
 body { margin: 0; min-height: 100vh; background: var(--admin-bg); -webkit-font-smoothing: antialiased; }
