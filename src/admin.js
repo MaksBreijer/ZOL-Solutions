@@ -1,6 +1,7 @@
 import './admin.css'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
+import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
 import { participantOverview, pilotExcelCsv, pilotSummary, timepointSummary } from './pilot-report.js'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
@@ -74,7 +75,7 @@ const routeMeta = {
   discounts: ['Kortingen', 'Maak kortingscodes en automatische acties voor de ZOL-webshop.'],
   content: ['Website CMS', 'Bewerk teksten, knoppen, beelden, video en SEO zonder code.'],
   media: ['Mediabibliotheek', 'Eén centrale plek voor afbeeldingen, video en iconen.'],
-  payments: ['Betalingen', 'Betaalstatussen en terugbetalingen, klaar voor Mollie.'],
+  payments: ['Financiën', 'Omzet, btw, betalingen, refunds en boekhoudcontrole in één overzicht.'],
   analytics: ['Analytics', 'Verkeer, omzet, winkelgedrag en conversie in één rapport.'],
   live: ['Live View', 'Bekijk live bezoekers, winkelgedrag en bestellingen.'],
   activity: ['Activiteiten', 'Recente wijzigingen door beheerders.'],
@@ -346,7 +347,7 @@ async function fetchAllData() {
     fetchAllRows('customers'),
     supabase.from('contact_messages').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('products').select('*, product_variants(*)').order('updated_at', { ascending: false }),
-    supabase.from('payments').select('*, orders(order_number, customer_name)').order('created_at', { ascending: false }).limit(500),
+    fetchAllRows('payments', '*, orders(order_number, customer_name)'),
     supabase.from('media').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('site_content').select('*').order('page').order('sort_order'),
     supabase.from('settings').select('*').order('category').order('key'),
@@ -1498,9 +1499,71 @@ async function deleteMedia(mediaId) {
   toast('Media verwijderd'); await refreshCurrentRoute()
 }
 
+let financeMonth = financeMonthKey()
+
+const financeStatusLabel = (status) => ({
+  matched: 'Klopt',
+  open: 'Openstaand',
+  failed: 'Mislukt',
+  cancelled: 'Geannuleerd',
+  missing_payment: 'Betaling ontbreekt',
+  amount_mismatch: 'Bedrag wijkt af',
+  status_mismatch: 'Status wijkt af',
+  missing_provider_id: 'Mollie-ID ontbreekt',
+}[status] || status)
+
+const financeStatusPill = (status) => {
+  const className = status === 'matched' ? 'is-green' : ['open', 'failed'].includes(status) ? 'is-orange' : status === 'cancelled' ? '' : 'is-red'
+  return `<span class="status-pill ${className}">${escapeHtml(financeStatusLabel(status))}</span>`
+}
+
 function renderPayments() {
-  const rows = state.payments.map((payment) => `<tr data-action="open-payment" data-id="${payment.id}"><td><strong>${escapeHtml(payment.provider_payment_id || 'Nog niet gekoppeld')}</strong></td><td>#${payment.orders?.order_number || '—'}</td><td>${escapeHtml(payment.orders?.customer_name || '—')}</td><td>${formatMoney(payment.amount_cents, payment.currency)}</td><td>${statusPill(payment.status)}</td><td>${escapeHtml(payment.method || '—')}</td><td>${formatDate(payment.created_at)}</td></tr>`).join('')
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('payments', '<button class="button" data-route-jump="settings">Betaalmethoden beheren</button>')}<section class="metric-grid"><article class="metric-card"><header><span>Ontvangen</span><i>€</i></header><strong>${formatMoney(state.payments.filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount_cents, 0))}</strong><footer><span>Mollie-ready</span><span>Totaal</span></footer></article><article class="metric-card"><header><span>Openstaand</span><i>◷</i></header><strong>${formatMoney(state.payments.filter((p) => ['open', 'pending'].includes(p.status)).reduce((sum, p) => sum + p.amount_cents, 0))}</strong><footer><span>${state.payments.filter((p) => ['open', 'pending'].includes(p.status)).length} betalingen</span><span>Actueel</span></footer></article><article class="metric-card"><header><span>Terugbetaald</span><i>↩</i></header><strong>${formatMoney(state.payments.reduce((sum, p) => sum + p.refunded_cents, 0))}</strong><footer><span>Geregistreerde refunds</span><span>Totaal</span></footer></article><article class="metric-card"><header><span>Betaalpercentage</span><i>%</i></header><strong>${state.payments.length ? ((state.payments.filter((p) => p.status === 'paid').length / state.payments.length) * 100).toFixed(1) : '0.0'}%</strong><footer><span>Succesvolle betalingen</span><span>Totaal</span></footer></article></section><section class="panel">${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Betaling</th><th>Order</th><th>Klant</th><th>Bedrag</th><th>Status</th><th>Methode</th><th>Datum</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen betalingen', 'Betalingen verschijnen hier zodra de checkout actief wordt.', '€')}</section></div>`
+  const months = financeMonthOptions(state.orders)
+  if (financeMonth !== 'all' && !months.includes(financeMonth)) financeMonth = months[0]
+  const reportRows = financeRows(state.orders, state.payments, financeMonth)
+  const summary = financeSummary(reportRows)
+  const periodLabel = financeMonthLabel(financeMonth)
+  const monthOptions = months.map((month) => `<option value="${month}" ${month === financeMonth ? 'selected' : ''}>${escapeHtml(financeMonthLabel(month))}</option>`).join('')
+  const rows = reportRows.map((row) => `<tr data-action="open-order" data-id="${row.order.id}">
+    <td><strong>#${row.order.order_number}</strong><small class="table-subline">${escapeHtml(row.order.source === 'webshop' ? 'Webshop' : row.order.source || 'Onbekend')}</small></td>
+    <td>${formatDate(row.order.created_at)}</td>
+    <td>${escapeHtml(row.order.customer_name || row.order.customer_email)}</td>
+    <td><strong>${formatMoney(row.order.total_cents, row.order.currency)}</strong></td>
+    <td>${formatMoney(row.receivedCents, row.order.currency)}</td>
+    <td>${row.refundedCents ? `− ${formatMoney(row.refundedCents, row.order.currency)}` : '—'}</td>
+    <td class="finance-difference ${row.differenceCents ? 'is-different' : ''}">${row.differenceCents ? `${row.differenceCents > 0 ? '+' : '−'} ${formatMoney(Math.abs(row.differenceCents), row.order.currency)}` : '€ 0,00'}</td>
+    <td>${financeStatusPill(row.status)}</td>
+  </tr>`).join('')
+
+  elements.content.innerHTML = `<div class="page-container">
+    ${pageHeader('payments', `<button class="button" data-route-jump="settings">Betaalmethoden beheren</button><button class="button button--primary" data-action="export-finance" ${reportRows.length ? '' : 'disabled'}><i data-lucide="download"></i> Boekhoudingsexport (CSV)</button>`)}
+    <section class="panel finance-toolbar">
+      <label>Periode op besteldatum<select data-finance-month><option value="all" ${financeMonth === 'all' ? 'selected' : ''}>Alle periodes</option>${monthOptions}</select></label>
+      <div><strong>Alleen-lezen financieel overzicht</strong><span>Gebaseerd op ZOL-bestellingen en geregistreerde betalingen. Er wordt niets aangepast.</span></div>
+    </section>
+    <section class="metric-grid" aria-label="Financiële kerncijfers">
+      <article class="metric-card"><header><span>Omzet incl. btw</span><span class="metric-icon"><i data-lucide="circle-euro"></i></span></header><strong>${formatMoney(summary.revenueIncludingTaxCents)}</strong><footer><span>Na geregistreerde refunds</span><span>${escapeHtml(periodLabel)}</span></footer></article>
+      <article class="metric-card"><header><span>Omzet excl. btw</span><span class="metric-icon"><i data-lucide="file-text"></i></span></header><strong>${formatMoney(summary.revenueExcludingTaxCents)}</strong><footer><span>${formatMoney(summary.taxCents)} btw</span><span>${summary.orderCount} orders</span></footer></article>
+      <article class="metric-card"><header><span>Ontvangen</span><span class="metric-icon"><i data-lucide="credit-card"></i></span></header><strong>${formatMoney(summary.receivedCents)}</strong><footer><span>Netto kas ${formatMoney(summary.netCashCents)}</span><span>${escapeHtml(periodLabel)}</span></footer></article>
+      <article class="metric-card"><header><span>Terugbetaald</span><span class="metric-icon"><i data-lucide="rotate-ccw"></i></span></header><strong>${formatMoney(summary.refundedCents)}</strong><footer><span>${summary.openCount} openstaand</span><span>${summary.anomalyCount} afwijkingen</span></footer></article>
+    </section>
+    <section class="finance-grid">
+      <article class="panel finance-summary-card"><header class="panel-header"><div><h2>Boekhoudoverzicht</h2><p>${escapeHtml(periodLabel)}</p></div></header><dl>
+        <div><dt>Ontvangen betalingen</dt><dd>${formatMoney(summary.receivedCents)}</dd></div>
+        <div><dt>Terugbetalingen</dt><dd>− ${formatMoney(summary.refundedCents)}</dd></div>
+        <div><dt>Netto geldstroom</dt><dd>${formatMoney(summary.netCashCents)}</dd></div>
+        <div><dt>BTW in netto omzet</dt><dd>${formatMoney(summary.taxCents)}</dd></div>
+      </dl></article>
+      <article class="panel finance-summary-card"><header class="panel-header"><div><h2>Ordercontrole</h2><p>ZOL-order versus betaalregistratie</p></div></header><dl>
+        <div><dt>Bedrag en status kloppen</dt><dd class="is-good">${summary.matchedCount}</dd></div>
+        <div><dt>Nog openstaand</dt><dd>${summary.openCount}</dd></div>
+        <div><dt>Handmatig controleren</dt><dd class="${summary.anomalyCount ? 'is-alert' : 'is-good'}">${summary.anomalyCount}</dd></div>
+        <div><dt>Totaal in periode</dt><dd>${summary.orderCount}</dd></div>
+      </dl></article>
+    </section>
+    <section class="panel finance-table-panel"><header class="panel-header"><div><h2>Controle per bestelling</h2><p>Afwijkingen staan bovenaan. Klik op een regel om de bestelling te bekijken.</p></div><span>${summary.anomalyCount ? `${summary.anomalyCount} te controleren` : 'Alles gecontroleerd'}</span></header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Bestelling</th><th>Datum</th><th>Klant</th><th>Ordertotaal</th><th>Ontvangen</th><th>Refund</th><th>Verschil</th><th>Controle</th></tr></thead><tbody>${rows}</tbody></table></div><footer class="table-footer"><span>${reportRows.length} bestellingen in ${escapeHtml(periodLabel)}</span><span>CSV opent direct in Excel</span></footer>` : emptyState('Geen bestellingen in deze periode', 'Kies een andere maand of alle periodes.', '€')}</section>
+    <p class="finance-export-note">De export is een algemene boekhoud-CSV voor Excel of je boekhouder. Dit is geen rechtstreekse DigiBoox-synchronisatie.</p>
+  </div>`
 }
 
 function paymentForm(payment) {
@@ -1873,6 +1936,19 @@ async function exportOrders() {
   await recordActivity('Bestellingen geëxporteerd', 'order', '', { count: orders.length }); toast('Export aangemaakt')
 }
 
+function exportFinance() {
+  const rows = financeRows(state.orders, state.payments, financeMonth)
+  if (!rows.length) { toast('Geen financiële regels om te exporteren'); return }
+  const csv = financeExcelCsv(rows)
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `zol-boekhouding-${financeMonth === 'all' ? 'alle-periodes' : financeMonth}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+  toast('Boekhoudingsexport aangemaakt', `${rows.length} regels voor ${financeMonthLabel(financeMonth)}.`)
+}
+
 function downloadOrderImportTemplate() {
   const url = URL.createObjectURL(new Blob([orderImportTemplateCsv()], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a')
@@ -1965,6 +2041,7 @@ async function handleContentClick(event) {
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
+  if (action === 'export-finance') exportFinance()
   if (action === 'import-orders') importOrdersForm()
   if (action === 'download-order-template') downloadOrderImportTemplate()
   if (action === 'import-customers') importCustomersForm()
@@ -2044,6 +2121,7 @@ function handleFilters(event) {
   if (event.target.matches('[data-filter="content"], [data-filter-page="content"], [data-filter-type="content"]')) filterContent()
   if (event.target.matches('[data-filter="media"], [data-filter-kind="media"]')) filterMedia()
   if (event.target.matches('[data-filter="discounts"], [data-filter-status="discounts"]')) filterDiscounts()
+  if (event.target.matches('[data-finance-month]')) { financeMonth = event.target.value; renderPayments() }
 }
 
 async function showAdmin(session) {
