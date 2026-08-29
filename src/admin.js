@@ -1,6 +1,7 @@
 import './admin.css'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
+import { participantOverview, pilotExcelCsv, pilotSummary, timepointSummary } from './pilot-report.js'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
   Archive, ArrowLeft, BadgePercent, Bell, CalendarDays, ChartNoAxesCombined,
@@ -54,6 +55,9 @@ const state = {
   emailTemplates: [],
   pilotEnrollments: [],
   pilotReady: true,
+  pilotReport: null,
+  pilotReportLoading: false,
+  pilotReportError: '',
   discounts: [],
   orderNotes: [],
   search: '',
@@ -326,7 +330,7 @@ async function fetchAllRows(table, select = '*', orderColumn = 'created_at') {
 async function fetchPilotEnrollments() {
   const result = await supabase
     .from('pilot_enrollments')
-    .select('*, customers(id,email,first_name,last_name), pilot_invites(*, pilot_responses(id,question_key))')
+    .select('*, customers(id,email,first_name,last_name), pilot_invites(*)')
     .order('enrolled_at', { ascending: false })
   if (result.error && ['42P01', 'PGRST205'].includes(result.error.code)) {
     state.pilotReady = false
@@ -840,17 +844,94 @@ function pilotInvite(enrollment, key) {
   return (enrollment.pilot_invites || []).find((invite) => invite.timepoint === key)
 }
 
+function pilotReportParticipant(enrollmentId) {
+  return state.pilotReport?.participants?.find((participant) => participant.enrollment_id === enrollmentId)
+}
+
+function pilotScore(value) {
+  return value === null || value === undefined || value === '' ? '—' : escapeHtml(value)
+}
+
+function pilotAverage(value) {
+  return value === null || value === undefined ? '—' : Number(value).toFixed(1)
+}
+
+function renderPilotResults() {
+  if (state.pilotReportLoading) return `<section class="panel pilot-results-state"><span class="spinner"></span><div><strong>Resultaten worden opgehaald</strong><p>Alleen bevoegde beheerders kunnen de antwoorden bekijken.</p></div></section>`
+  if (state.pilotReportError) return `<section class="panel pilot-results-state is-error"><span>!</span><div><strong>Resultaten konden niet worden geladen</strong><p>${escapeHtml(state.pilotReportError)}</p><button class="button" type="button" data-action="refresh-pilot-results">Opnieuw proberen</button></div></section>`
+  if (!state.pilotReport?.participants?.length) return `<section class="panel pilot-results-state"><span>◇</span><div><strong>Nog geen pilotresultaten</strong><p>Zodra een testdeelnemer een antwoord aanklikt, verschijnt het hier.</p></div></section>`
+
+  const timepoints = timepointSummary(state.pilotReport)
+  const overview = participantOverview(state.pilotReport)
+  const answerRows = state.pilotReport.participants.flatMap((participant) =>
+    (participant.measurements || []).flatMap((measurement) =>
+      (measurement.answers || []).filter((answer) => answer.value !== null && answer.value !== '').map((answer) => `
+        <tr><td><strong>${escapeHtml(participant.participant_code)}</strong><small>${escapeHtml(participant.name)}</small></td><td>${escapeHtml(measurement.label)}</td><td>${escapeHtml(answer.label)}</td><td><strong>${escapeHtml(answer.display_value)}</strong></td><td>${answer.submitted_at ? formatDate(answer.submitted_at, { hour: '2-digit', minute: '2-digit' }) : '—'}</td></tr>`),
+    ),
+  ).join('')
+
+  const timepointRows = timepoints.map((item) => `<tr><td><strong>${escapeHtml(item.label)}</strong></td><td>${item.sent}</td><td>${item.started}</td><td>${item.completed}</td><td>${pilotAverage(item.averagePain)}</td><td>${pilotAverage(item.averageComfort)}</td><td>${pilotAverage(item.averageRecommend)}</td></tr>`).join('')
+  const overviewRows = overview.map((item) => `<tr><td><strong>${escapeHtml(item.code)}</strong><small>${escapeHtml(item.name)} · ${escapeHtml(item.email)}</small></td><td>${pilotScore(item.baselinePain)}</td><td>${pilotScore(item.week1Comfort)}</td><td>${pilotScore(item.week1Pain)}</td><td>${pilotScore(item.week4Change)}</td><td>${pilotScore(item.week4Pain)}</td><td>${pilotScore(item.week12Outcome)}</td><td>${pilotScore(item.week12Pain)}</td><td><strong>${item.completed}/4</strong></td></tr>`).join('')
+
+  return `<section class="panel pilot-results-panel">
+    <header class="panel-header"><div><h2>Pilotresultaten</h2><p>Scores, voortgang en alle ingevulde antwoorden. De Excel-export gebruikt alleen deelnemercodes.</p></div><span class="pilot-private-badge">Alleen beheer</span></header>
+    <div class="pilot-results-section"><h3>Voortgang per meetmoment</h3><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Meetmoment</th><th>Verstuurd</th><th>Gestart</th><th>Afgerond</th><th>Gem. pijn</th><th>Gem. comfort</th><th>Gem. aanbeveling</th></tr></thead><tbody>${timepointRows}</tbody></table></div></div>
+    <div class="pilot-results-section"><h3>Ontwikkeling per deelnemer</h3><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Deelnemer</th><th>Start pijn</th><th>Week 1 comfort</th><th>Week 1 pijn</th><th>Week 4 verandering</th><th>Week 4 pijn</th><th>Week 12 resultaat</th><th>Week 12 pijn</th><th>Afgerond</th></tr></thead><tbody>${overviewRows}</tbody></table></div></div>
+    <details class="pilot-answer-details" ${answerRows ? '' : 'hidden'}><summary>Alle ingevulde antwoorden bekijken</summary><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Deelnemer</th><th>Meetmoment</th><th>Vraag</th><th>Antwoord</th><th>Ingevuld</th></tr></thead><tbody>${answerRows}</tbody></table></div></details>
+  </section>`
+}
+
+async function loadPilotReport(force = false) {
+  if (!state.pilotReady || state.pilotReportLoading || (state.pilotReport && !force)) return
+  state.pilotReportLoading = true
+  state.pilotReportError = ''
+  renderPilot()
+  const { data, error } = await supabase.functions.invoke('pilot-measurement', { body: { action: 'report' } })
+  if (error || data?.error) {
+    state.pilotReport = null
+    state.pilotReportError = await edgeFunctionMessage(error, data, 'De pilotresultaten konden niet worden opgehaald.')
+  } else {
+    state.pilotReport = data
+  }
+  state.pilotReportLoading = false
+  renderPilot()
+  refreshIcons()
+}
+
+async function exportPilotResults(target) {
+  setBusy(target, true, 'Excel-export maken')
+  const { data, error } = await supabase.functions.invoke('pilot-measurement', { body: { action: 'report', record_export: true } })
+  if (error || data?.error) {
+    toast('Excel-export mislukt', await edgeFunctionMessage(error, data, 'De pilotdata kon niet worden geëxporteerd.'), true)
+    setBusy(target, false, 'Excel-export downloaden')
+    return
+  }
+  const csv = pilotExcelCsv(data)
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `zol-pilotresultaten-anoniem-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+  state.pilotReport = data
+  setBusy(target, false, 'Excel-export downloaden')
+  toast('Excel-export aangemaakt', 'Namen en e-mailadressen zijn niet opgenomen; iedere deelnemer heeft een code.')
+}
+
 function renderPilot() {
   const config = settingsValue('pilot_measurements')
   const allowedEmails = Array.isArray(config.allowed_emails) ? config.allowed_emails : ['thijn@zolsolutions.nl', 'maks@zolsolutions.nl']
   const testMode = config.test_mode !== false
   const eligibleCustomers = state.customers.filter((customer) => !testMode || allowedEmails.includes(String(customer.email).toLowerCase()))
-  const completedInvites = state.pilotEnrollments.flatMap((item) => item.pilot_invites || []).filter((invite) => invite.status === 'completed').length
+  const fallbackCompleted = state.pilotEnrollments.flatMap((item) => item.pilot_invites || []).filter((invite) => invite.status === 'completed').length
+  const summary = state.pilotReport ? pilotSummary(state.pilotReport) : { participants: state.pilotEnrollments.length, completed: fallbackCompleted, answered: 0, responseRate: 0 }
   const participantCards = state.pilotEnrollments.map((enrollment) => {
     const customer = pilotCustomer(enrollment) || {}
+    const reportParticipant = pilotReportParticipant(enrollment.id)
     const moments = pilotTimepoints.map(([key, label, timing]) => {
       const invite = pilotInvite(enrollment, key)
-      const count = invite?.pilot_responses?.length || 0
+      const reportMeasurement = reportParticipant?.measurements?.find((item) => item.timepoint === key)
+      const count = reportMeasurement?.answer_count || 0
       const canSend = invite && invite.status !== 'completed' && enrollment.status === 'active' && settingsValue('email_config').enabled && config.enabled
       return `<article class="pilot-moment ${invite?.status === 'completed' ? 'is-complete' : ''}"><div><span>${escapeHtml(timing)}</span><strong>${escapeHtml(label)}</strong><small>${invite?.sent_at ? `Laatste mail ${formatDate(invite.sent_at, { hour: '2-digit', minute: '2-digit' })}` : 'Nog niet verstuurd'}${count ? ` · ${count} antwoorden` : ''}</small></div>${invite ? statusPill(invite.status) : ''}<button class="button" type="button" data-action="send-pilot-invite" data-id="${escapeHtml(invite?.id || '')}" ${canSend ? '' : 'disabled'}>${invite?.send_count ? 'Opnieuw sturen' : 'Meetmail sturen'}</button></article>`
     }).join('')
@@ -858,7 +939,8 @@ function renderPilot() {
   }).join('')
 
   const setupNotice = state.pilotReady ? '' : `<section class="panel pilot-setup-warning"><strong>De pilotcode staat klaar, maar de database-uitbreiding is nog niet geïnstalleerd.</strong><p>Hierdoor kunnen deelnemers en antwoorden lokaal nog niet worden opgeslagen. Dit raakt de bestaande webshop niet.</p></section>`
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', '<a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Formulier bekijken →</a>')}
+  const canExport = Boolean(state.pilotReport?.participants?.length) && !state.pilotReportLoading
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export downloaden</button><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Formulier bekijken →</a>`)}
     ${setupNotice}
     <section class="pilot-control-grid">
       <form class="panel pilot-settings" id="pilot-settings-form">
@@ -877,7 +959,8 @@ function renderPilot() {
         <button class="button button--primary" type="submit" ${state.pilotReady ? '' : 'disabled'}>Deelnemer toevoegen</button>
       </form>
     </section>
-    <section class="pilot-summary"><div><strong>${state.pilotEnrollments.length}</strong><span>deelnemers</span></div><div><strong>${completedInvites}</strong><span>metingen afgerond</span></div><div><strong>4</strong><span>mails per deelnemer</span></div><div><strong>Handmatig</strong><span>verzenden in pilot</span></div></section>
+    <section class="pilot-summary"><div><strong>${summary.participants}</strong><span>deelnemers</span></div><div><strong>${summary.completed}</strong><span>metingen afgerond</span></div><div><strong>${summary.answered}</strong><span>vragen beantwoord</span></div><div><strong>${summary.responseRate}%</strong><span>afgerond van verstuurd</span></div></section>
+    ${renderPilotResults()}
     <div class="pilot-participants">${participantCards || emptyState('Nog geen pilotdeelnemers', 'Voeg eerst Thijn of Maks toe. Daarna kun je ieder meetmoment apart als testmail versturen.', '✦')}</div>
   </div>`
 
@@ -908,6 +991,8 @@ function renderPilot() {
     toast('Vier meetmomenten klaargezet', 'Er is nog geen mail verstuurd.')
     await refreshCurrentRoute()
   })
+
+  if (state.pilotReady && !state.pilotReport && !state.pilotReportLoading && !state.pilotReportError) queueMicrotask(() => loadPilotReport())
 }
 
 function emailTemplateForm(template) {
@@ -1772,7 +1857,10 @@ function renderRoute(route = currentRoute(), option) {
 }
 
 async function refreshCurrentRoute(option) {
-  try { await fetchAllData(); renderRoute(currentRoute(), option) } catch (error) { toast('Vernieuwen mislukt', error.message, true) }
+  try {
+    if (currentRoute() === 'pilot') { state.pilotReport = null; state.pilotReportError = '' }
+    await fetchAllData(); renderRoute(currentRoute(), option)
+  } catch (error) { toast('Vernieuwen mislukt', error.message, true) }
 }
 
 async function exportOrders() {
@@ -1905,6 +1993,8 @@ async function handleContentClick(event) {
     else toast('Testmail verstuurd', 'Controleer info@zolsolutions.nl.')
     setBusy(target, false, 'Testmail naar info sturen')
   }
+  if (action === 'export-pilot-results') await exportPilotResults(target)
+  if (action === 'refresh-pilot-results') await loadPilotReport(true)
   if (action === 'mark-delivered') await markOrderDelivered(state.orders.find((item) => item.id === id))
   if (action === 'toggle-archive') await toggleOrderArchive(state.orders.find((item) => item.id === id))
   if (action === 'refund-order') refundOrderForm(state.orders.find((item) => item.id === id))

@@ -49,6 +49,27 @@
 .pilot-setup-warning { margin-bottom: 18px; padding: 18px 22px; border-color: #efc48d; background: #fff8ee; }
 .pilot-setup-warning p { margin: 5px 0 0; color: #765c3d; }
 
+.pilot-results-panel, .pilot-results-state { margin-bottom: 18px; }
+.pilot-results-panel .panel-header { align-items: flex-start; }
+.pilot-private-badge { padding: 5px 9px; border-radius: 999px; background: #eaf3f9; color: #0d5889; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.pilot-results-section { padding: 18px 18px 4px; }
+.pilot-results-section + .pilot-results-section { padding-top: 22px; border-top: 1px solid #edf0f2; }
+.pilot-results-section h3 { margin: 0 0 12px; color: #253745; font-size: 12px; }
+.pilot-results-table { min-width: 760px; }
+.pilot-results-table td strong, .pilot-results-table td small { display: block; }
+.pilot-results-table td small { margin-top: 3px; color: var(--admin-muted); font-size: 8px; }
+.pilot-results-table th:not(:first-child), .pilot-results-table td:not(:first-child) { text-align: center; }
+.pilot-answer-details { margin: 18px; border: 1px solid #dfe5e9; border-radius: 10px; background: #fafbfc; }
+.pilot-answer-details summary { padding: 13px 15px; color: var(--admin-blue-dark); font-size: 10px; font-weight: 800; cursor: pointer; }
+.pilot-answer-details[open] summary { border-bottom: 1px solid #e5e9ec; }
+.pilot-answer-details .table-scroll { background: #fff; }
+.pilot-results-state { min-height: 92px; padding: 20px 22px; display: flex; align-items: center; gap: 15px; }
+.pilot-results-state > span:not(.spinner) { width: 34px; height: 34px; flex: 0 0 34px; display: grid; place-items: center; border-radius: 50%; background: #eaf3f9; color: var(--admin-blue); font-weight: 800; }
+.pilot-results-state.is-error > span { background: #fff0e9; color: var(--admin-red); }
+.pilot-results-state strong { color: #253745; font-size: 11px; }
+.pilot-results-state p { margin: 5px 0 0; color: var(--admin-muted); font-size: 9px; line-height: 1.5; }
+.pilot-results-state .button { margin-top: 10px; }
+
 .pilot-participants { display: grid; gap: 18px; }
 .pilot-participant { padding: 24px; }
 .pilot-participant > header { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
@@ -71,6 +92,8 @@
   .pilot-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pilot-timeline { grid-template-columns: 1fr; }
   .pilot-moment { min-height: 0; }
+  .pilot-results-panel .panel-header { display: grid; }
+  .pilot-private-badge { width: fit-content; }
 }
 
 * { box-sizing: border-box; }

@@ -166,6 +166,82 @@ async function completeMeasurement(db: ReturnType<typeof adminClient>, token: st
   return { success: true }
 }
 
+function displayAnswer(question: Question, value: unknown) {
+  if (value === null || value === undefined || value === "") return ""
+  if (question.type === "choice") return question.options?.find((option) => option.value === String(value))?.label || String(value)
+  return String(value)
+}
+
+async function loadAdminReport(
+  db: ReturnType<typeof adminClient>,
+  admin: { id: string; email: string; role: string },
+  recordExport = false,
+) {
+  if (!["owner", "admin"].includes(admin.role)) throw new Error("Alleen een eigenaar of beheerder kan pilotresultaten bekijken.")
+  const { data, error } = await db
+    .from("pilot_enrollments")
+    .select("id,status,consent_confirmed_at,enrolled_at,completed_at,customers!inner(email,first_name,last_name),pilot_invites(id,timepoint,sequence,due_at,status,sent_at,started_at,completed_at,pilot_responses(question_key,answer,submitted_at))")
+    .order("enrolled_at", { ascending: true })
+  if (error) throw error
+
+  const participants = (data || []).map((enrollment, index) => {
+    const customer = Array.isArray(enrollment.customers) ? enrollment.customers[0] : enrollment.customers
+    const invites = Array.isArray(enrollment.pilot_invites) ? enrollment.pilot_invites : []
+    const measurements = timepoints.map((definition, sequence) => {
+      const invite = invites.find((item) => item.timepoint === definition.key)
+      const responses = Array.isArray(invite?.pilot_responses) ? invite.pilot_responses : []
+      const answers = definition.questions.map((question) => {
+        const response = responses.find((item) => item.question_key === question.key)
+        return {
+          key: question.key,
+          label: question.label,
+          type: question.type,
+          value: response?.answer ?? null,
+          display_value: displayAnswer(question, response?.answer),
+          submitted_at: response?.submitted_at || null,
+        }
+      })
+      return {
+        id: invite?.id || null,
+        timepoint: definition.key,
+        label: definition.label,
+        sequence,
+        due_at: invite?.due_at || null,
+        status: invite?.status || "pending",
+        sent_at: invite?.sent_at || null,
+        started_at: invite?.started_at || null,
+        completed_at: invite?.completed_at || null,
+        answer_count: answers.filter((answer) => answer.value !== null && answer.value !== "").length,
+        answers,
+      }
+    })
+    return {
+      enrollment_id: enrollment.id,
+      participant_code: `P${String(index + 1).padStart(3, "0")}`,
+      name: [customer?.first_name, customer?.last_name].filter(Boolean).join(" ") || "Onbekend",
+      email: customer?.email || "",
+      status: enrollment.status,
+      enrolled_at: enrollment.enrolled_at,
+      consent_confirmed_at: enrollment.consent_confirmed_at,
+      completed_at: enrollment.completed_at,
+      measurements,
+    }
+  })
+
+  if (recordExport) {
+    await db.from("activity_log").insert({
+      actor_id: admin.id,
+      actor_email: admin.email,
+      action: "Pilotdata geëxporteerd",
+      entity_type: "pilot_report",
+      entity_id: "",
+      details: { participants: participants.length, anonymized: true },
+    })
+  }
+
+  return { generated_at: new Date().toISOString(), anonymized_export: true, participants }
+}
+
 async function enroll(db: ReturnType<typeof adminClient>, body: Record<string, unknown>, admin: { id: string; email: string; role: string }) {
   if (!['owner', 'admin'].includes(admin.role)) throw new Error("Alleen een eigenaar of beheerder kan deelnemers toevoegen.")
   const customerId = String(body.customer_id || "")
@@ -268,6 +344,7 @@ Deno.serve(async (request) => {
     const admin = await requireAdmin(request, db)
     if (action === "enroll") return asJson(headers, await enroll(db, body, admin))
     if (action === "send") return asJson(headers, await sendInvite(db, body, admin))
+    if (action === "report") return asJson(headers, await loadAdminReport(db, admin, body.record_export === true))
     return asJson(headers, { error: "Onbekende actie." }, 400)
   } catch (error) {
     const message = error instanceof Error ? error.message : "De pilotmeting kon niet worden verwerkt."
