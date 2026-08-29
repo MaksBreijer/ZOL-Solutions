@@ -77,6 +77,7 @@ declare
   v_total integer := 0;
   v_commerce jsonb := '{}'::jsonb;
   v_threshold integer := 0;
+  v_shipping_tax_rate numeric := 21.00;
   v_code text := upper(trim(coalesce(p_discount_code, '')));
 begin
   if v_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
@@ -87,6 +88,10 @@ begin
   end if;
 
   select value into v_commerce from public.settings where key = 'commerce';
+  v_shipping_tax_rate := greatest(
+    0,
+    coalesce(nullif(v_commerce ->> 'tax_rate', '')::numeric, 21.00)
+  );
 
   for v_item in select value from jsonb_array_elements(p_items)
   loop
@@ -150,6 +155,9 @@ begin
     end if;
     v_discount_cents := v_discount_cents + v_product_discount_cents;
     if v_product_discount_cents > 0 and v_subtotal > 0 then v_tax := round(v_tax * ((v_subtotal - v_product_discount_cents)::numeric / v_subtotal)); end if;
+  end if;
+  if v_shipping > 0 and not (v_has_discount and v_discount.discount_type = 'free_shipping') then
+    v_tax := v_tax + round(v_shipping - (v_shipping / (1 + v_shipping_tax_rate / 100.0)));
   end if;
   v_total := greatest(0, v_subtotal + v_shipping - v_discount_cents);
   v_customer_name := trim(concat_ws(' ', p_customer ->> 'first_name', p_customer ->> 'last_name'));
