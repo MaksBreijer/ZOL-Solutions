@@ -71,7 +71,7 @@ const routeMeta = {
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
   messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
   emails: ['E-mails', 'Bewerk automatische bestel-, bedank- en productmails in de ZOL-huisstijl.'],
-  pilot: ['Pilotmetingen', 'Vier korte meetmails met klikbare antwoorden, veilig achter een interne testschakelaar.'],
+  pilot: ['Pijnvragenlijsten', 'Volg hoe het met de hielpijn, het sporten en het gebruik van de ZOL’tjes gaat.'],
   products: ['Producten', 'Prijzen, maten, voorraad en productmedia.'],
   discounts: ['Kortingen', 'Maak kortingscodes en automatische acties voor de ZOL-webshop.'],
   content: ['Website CMS', 'Bewerk teksten, knoppen, beelden, video en SEO zonder code.'],
@@ -875,9 +875,9 @@ function pilotAverage(value) {
 }
 
 function renderPilotResults() {
-  if (state.pilotReportLoading) return `<section class="panel pilot-results-state"><span class="spinner"></span><div><strong>Resultaten worden opgehaald</strong><p>Alleen bevoegde beheerders kunnen de antwoorden bekijken.</p></div></section>`
-  if (state.pilotReportError) return `<section class="panel pilot-results-state is-error"><span>!</span><div><strong>Resultaten konden niet worden geladen</strong><p>${escapeHtml(state.pilotReportError)}</p><button class="button" type="button" data-action="refresh-pilot-results">Opnieuw proberen</button></div></section>`
-  if (!state.pilotReport?.participants?.length) return `<section class="panel pilot-results-state"><span>◇</span><div><strong>Nog geen pilotresultaten</strong><p>Zodra een testdeelnemer een antwoord aanklikt, verschijnt het hier.</p></div></section>`
+  if (state.pilotReportLoading) return `<section class="panel pilot-results-state"><span class="spinner"></span><div><strong>Antwoorden worden opgehaald</strong><p>Alleen bevoegde beheerders kunnen de gezondheidsgegevens bekijken.</p></div></section>`
+  if (state.pilotReportError) return `<section class="panel pilot-results-state is-error"><span>!</span><div><strong>Antwoorden konden niet worden geladen</strong><p>${escapeHtml(state.pilotReportError)}</p><button class="button" type="button" data-action="refresh-pilot-results">Opnieuw proberen</button></div></section>`
+  if (!state.pilotReport?.participants?.length) return `<section class="panel pilot-results-state"><span>◇</span><div><strong>Nog geen antwoorden</strong><p>Zodra een deelnemer een pijnvragenlijst invult, verschijnt het resultaat hier.</p></div></section>`
 
   const timepoints = timepointSummary(state.pilotReport)
   const overview = participantOverview(state.pilotReport)
@@ -892,7 +892,7 @@ function renderPilotResults() {
   const overviewRows = overview.map((item) => `<tr><td><strong>${escapeHtml(item.code)}</strong><small>${escapeHtml(item.name)} · ${escapeHtml(item.email)}</small></td><td>${pilotScore(item.baselinePain)}</td><td>${pilotScore(item.week1Comfort)}</td><td>${pilotScore(item.week1Pain)}</td><td>${pilotScore(item.week4Change)}</td><td>${pilotScore(item.week4Pain)}</td><td>${pilotScore(item.week12Outcome)}</td><td>${pilotScore(item.week12Pain)}</td><td><strong>${item.completed}/4</strong></td></tr>`).join('')
 
   return `<section class="panel pilot-results-panel">
-    <header class="panel-header"><div><h2>Pilotresultaten</h2><p>Scores, voortgang en alle ingevulde antwoorden. De Excel-export gebruikt alleen deelnemercodes.</p></div><span class="pilot-private-badge">Alleen beheer</span></header>
+    <header class="panel-header"><div><h2>Hoe gaat het met onze klanten?</h2><p>Hielpijn, comfort, sportdeelname en gebruik van de ZOL’tjes. De Excel-export gebruikt alleen deelnemercodes.</p></div><span class="pilot-private-badge">Gezondheidsgegevens</span></header>
     <div class="pilot-results-section"><h3>Voortgang per meetmoment</h3><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Meetmoment</th><th>Verstuurd</th><th>Gestart</th><th>Afgerond</th><th>Gem. pijn</th><th>Gem. comfort</th></tr></thead><tbody>${timepointRows}</tbody></table></div></div>
     <div class="pilot-results-section"><h3>Ontwikkeling per deelnemer</h3><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Deelnemer</th><th>0-meting pijn</th><th>Week 1 comfort</th><th>Week 1 pijn</th><th>Week 4 verandering</th><th>Week 4 pijn</th><th>Week 12 resultaat</th><th>Week 12 pijn</th><th>Afgerond</th></tr></thead><tbody>${overviewRows}</tbody></table></div></div>
     <details class="pilot-answer-details" ${answerRows ? '' : 'hidden'}><summary>Alle ingevulde antwoorden bekijken</summary><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Deelnemer</th><th>Meetmoment</th><th>Vraag</th><th>Antwoord</th><th>Ingevuld</th></tr></thead><tbody>${answerRows}</tbody></table></div></details>
@@ -907,7 +907,7 @@ async function loadPilotReport(force = false) {
   const { data, error } = await supabase.functions.invoke('pilot-measurement', { body: { action: 'report' } })
   if (error || data?.error) {
     state.pilotReport = null
-    state.pilotReportError = await edgeFunctionMessage(error, data, 'De pilotresultaten konden niet worden opgehaald.')
+    state.pilotReportError = await edgeFunctionMessage(error, data, 'De antwoorden konden niet worden opgehaald.')
   } else {
     state.pilotReport = data
   }
@@ -920,7 +920,7 @@ async function exportPilotResults(target) {
   setBusy(target, true, 'Excel-export maken')
   const { data, error } = await supabase.functions.invoke('pilot-measurement', { body: { action: 'report', record_export: true } })
   if (error || data?.error) {
-    toast('Excel-export mislukt', await edgeFunctionMessage(error, data, 'De pilotdata kon niet worden geëxporteerd.'), true)
+    toast('Excel-export mislukt', await edgeFunctionMessage(error, data, 'De antwoorden konden niet worden geëxporteerd.'), true)
     setBusy(target, false, 'Excel-export downloaden')
     return
   }
@@ -928,12 +928,36 @@ async function exportPilotResults(target) {
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a')
   link.href = url
-  link.download = `zol-pilotresultaten-anoniem-${new Date().toISOString().slice(0, 10)}.csv`
+  link.download = `zol-pijnvragenlijsten-anoniem-${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
   URL.revokeObjectURL(url)
   state.pilotReport = data
   setBusy(target, false, 'Excel-export downloaden')
   toast('Excel-export aangemaakt', 'Namen en e-mailadressen zijn niet opgenomen; iedere deelnemer heeft een code.')
+}
+
+async function inviteOrderCustomers(target) {
+  setBusy(target, true, 'Bestellers controleren')
+  const previewResult = await supabase.functions.invoke('pilot-measurement', { body: { action: 'invite_order_customers', dry_run: true } })
+  if (previewResult.error || previewResult.data?.error) {
+    toast('Bestellers controleren mislukt', await edgeFunctionMessage(previewResult.error, previewResult.data, 'De doelgroep kon niet worden gecontroleerd.'), true)
+    setBusy(target, false, 'Bestellers uitnodigen')
+    return
+  }
+  const count = Number(previewResult.data?.ready || 0)
+  if (!count) {
+    toast('Niemand wacht op een uitnodiging', `${previewResult.data?.already_invited || 0} klanten zijn al uitgenodigd en ${previewResult.data?.already_enrolled || 0} klanten doen al mee.`)
+    setBusy(target, false, 'Bestellers uitnodigen')
+    return
+  }
+  setBusy(target, false, 'Bestellers uitnodigen')
+  if (!window.confirm(`${count} besteller${count === 1 ? '' : 's'} ontvangt nu een echte uitnodiging voor de pijnvragenlijsten. Pas na expliciete toestemming start de 0-meting. Wil je doorgaan?`)) return
+  setBusy(target, true, 'Uitnodigingen versturen')
+  const result = await supabase.functions.invoke('pilot-measurement', { body: { action: 'invite_order_customers' } })
+  if (result.error || result.data?.error) toast('Uitnodigen mislukt', await edgeFunctionMessage(result.error, result.data, 'De uitnodigingen konden niet worden verstuurd.'), true)
+  else toast('Uitnodigingen verwerkt', `${result.data?.sent || 0} verstuurd${result.data?.failed ? ` · ${result.data.failed} mislukt` : ''}.`)
+  setBusy(target, false, 'Bestellers uitnodigen')
+  await refreshCurrentRoute()
 }
 
 function renderPilot() {
@@ -951,35 +975,35 @@ function renderPilot() {
       const reportMeasurement = reportParticipant?.measurements?.find((item) => item.timepoint === key)
       const count = reportMeasurement?.answer_count || 0
       const canSend = invite && invite.status !== 'completed' && enrollment.status === 'active' && settingsValue('email_config').enabled && config.enabled
-      return `<article class="pilot-moment ${invite?.status === 'completed' ? 'is-complete' : ''}"><div><span>${escapeHtml(timing)}</span><strong>${escapeHtml(label)}</strong><small>${invite?.sent_at ? `Laatste mail ${formatDate(invite.sent_at, { hour: '2-digit', minute: '2-digit' })}` : 'Nog niet verstuurd'}${count ? ` · ${count} antwoorden` : ''}</small></div>${invite ? statusPill(invite.status) : ''}<button class="button" type="button" data-action="send-pilot-invite" data-id="${escapeHtml(invite?.id || '')}" ${canSend ? '' : 'disabled'}>${invite?.send_count ? 'Opnieuw sturen' : 'Meetmail sturen'}</button></article>`
+      return `<article class="pilot-moment ${invite?.status === 'completed' ? 'is-complete' : ''}"><div><span>${escapeHtml(timing)}</span><strong>${escapeHtml(label)}</strong><small>${invite?.sent_at ? `Laatste mail ${formatDate(invite.sent_at, { hour: '2-digit', minute: '2-digit' })}` : 'Nog niet verstuurd'}${count ? ` · ${count} antwoorden` : ''}</small></div>${invite ? statusPill(invite.status) : ''}<button class="button" type="button" data-action="send-pilot-invite" data-id="${escapeHtml(invite?.id || '')}" ${canSend ? '' : 'disabled'}>${invite?.send_count ? 'Opnieuw sturen' : 'Vragenlijst sturen'}</button></article>`
     }).join('')
     return `<section class="panel pilot-participant"><header><div><p class="eyebrow">Deelnemer</p><h2>${escapeHtml(fullName(customer))}</h2><p>${escapeHtml(customer.email || '')}</p></div>${statusPill(enrollment.status)}</header><div class="pilot-timeline">${moments}</div></section>`
   }).join('')
 
-  const setupNotice = state.pilotReady ? '' : `<section class="panel pilot-setup-warning"><strong>De pilotcode staat klaar, maar de database-uitbreiding is nog niet geïnstalleerd.</strong><p>Hierdoor kunnen deelnemers en antwoorden lokaal nog niet worden opgeslagen. Dit raakt de bestaande webshop niet.</p></section>`
+  const setupNotice = state.pilotReady ? '' : `<section class="panel pilot-setup-warning"><strong>De vragenlijsten staan klaar, maar de database-uitbreiding is nog niet geïnstalleerd.</strong><p>Hierdoor kunnen deelnemers en antwoorden nog niet worden opgeslagen. Dit raakt de bestaande webshop niet.</p></section>`
   const canExport = Boolean(state.pilotReport?.participants?.length) && !state.pilotReportLoading
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export downloaden</button><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Formulier bekijken →</a>`)}
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="invite-order-customers" ${config.enabled ? '' : 'disabled'}><i data-lucide="send"></i> Bestellers uitnodigen</button><button class="button" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export</button><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Vragenlijst bekijken →</a>`)}
     ${setupNotice}
     <section class="pilot-control-grid">
       <form class="panel pilot-settings" id="pilot-settings-form">
-        <div class="pilot-status-line"><span class="pilot-status-light ${config.enabled && testMode ? 'is-test' : config.enabled ? 'is-live' : ''}"></span><div><strong>${!config.enabled ? 'Pilot staat uit' : testMode ? 'Interne teststand actief' : 'Pilot actief voor geselecteerde klanten'}</strong><small>Automatisch versturen staat ${config.automatic_sending ? 'aan' : 'uit'}.</small></div></div>
-        <h2>Veilige schakelaars</h2>
+        <div class="pilot-status-line"><span class="pilot-status-light ${config.enabled && testMode ? 'is-test' : config.enabled ? 'is-live' : ''}"></span><div><strong>${!config.enabled ? 'Pijnvragenlijsten staan uit' : testMode ? 'Interne teststand actief' : 'Pijnvragenlijsten zijn live'}</strong><small>Automatisch uitnodigen en versturen staat ${config.automatic_sending ? 'aan' : 'uit'}.</small></div></div>
+        <h2>Instellingen</h2>
         <label class="checkbox-field"><input name="test_mode" type="checkbox" ${testMode ? 'checked' : ''}> Alleen adressen uit de interne testlijst</label>
-        <label class="checkbox-field"><input name="enabled" type="checkbox" ${config.enabled ? 'checked' : ''}> Pilot handmatig activeren</label>
-        <label class="checkbox-field"><input name="automatic_sending" type="checkbox" ${config.automatic_sending ? 'checked' : ''} disabled> Automatisch verzenden <small>(bewust nog vergrendeld)</small></label>
-        <label class="field">Interne testadressen<textarea name="allowed_emails" rows="3">${escapeHtml(allowedEmails.join('\n'))}</textarea><small>Eén e-mailadres per regel. Buiten deze lijst blokkeert de server iedere testmail.</small></label>
-        <button class="button button--primary" type="submit">Pilotschakelaars opslaan</button>
+        <label class="checkbox-field"><input name="enabled" type="checkbox" ${config.enabled ? 'checked' : ''}> Pijnvragenlijsten activeren</label>
+        <label class="checkbox-field"><input name="automatic_sending" type="checkbox" ${config.automatic_sending ? 'checked' : ''}> Nieuwe betaalde bestellers automatisch uitnodigen en geplande vragenlijsten versturen</label>
+        <label class="field">Interne testadressen<textarea name="allowed_emails" rows="3">${escapeHtml(allowedEmails.join('\n'))}</textarea><small>Eén e-mailadres per regel. In de teststand blokkeert de server alle andere adressen.</small></label>
+        <button class="button button--primary" type="submit">Instellingen opslaan</button>
       </form>
       <form class="panel pilot-enroll" id="pilot-enroll-form">
-        <p class="eyebrow">Nieuwe deelnemer</p><h2>Vier meetmomenten klaarzetten</h2><p>In de teststand verschijnen alleen Thijn, Maks en eventuele andere adressen op de testlijst.</p>
+        <p class="eyebrow">Handmatig toevoegen</p><h2>Vier vragenlijsten klaarzetten</h2><p>Gebruik dit alleen wanneer de ouder of verzorger de toestemming al rechtstreeks aan ZOL heeft gegeven.</p>
         <label class="field">Klant<select name="customer_id" required><option value="">Kies een klant…</option>${eligibleCustomers.map((customer) => `<option value="${customer.id}">${escapeHtml(fullName(customer))} · ${escapeHtml(customer.email)}</option>`).join('')}</select></label>
         <label class="checkbox-field pilot-consent"><input name="consent_confirmed" type="checkbox" required> Ouder/verzorger heeft toestemming gegeven voor het verzamelen van deze korte gezondheids- en gebruiksgegevens.</label>
-        <button class="button button--primary" type="submit" ${state.pilotReady ? '' : 'disabled'}>Deelnemer toevoegen</button>
+        <button class="button button--primary" type="submit" ${state.pilotReady ? '' : 'disabled'}>Klant toevoegen</button>
       </form>
     </section>
-    <section class="pilot-summary"><div><strong>${summary.participants}</strong><span>deelnemers</span></div><div><strong>${summary.completed}</strong><span>metingen afgerond</span></div><div><strong>${summary.answered}</strong><span>vragen beantwoord</span></div><div><strong>${summary.responseRate}%</strong><span>afgerond van verstuurd</span></div></section>
+    <section class="pilot-summary"><div><strong>${summary.participants}</strong><span>deelnemers</span></div><div><strong>${summary.completed}</strong><span>vragenlijsten afgerond</span></div><div><strong>${summary.answered}</strong><span>vragen beantwoord</span></div><div><strong>${summary.responseRate}%</strong><span>afgerond van verstuurd</span></div></section>
     ${renderPilotResults()}
-    <div class="pilot-participants">${participantCards || emptyState('Nog geen pilotdeelnemers', 'Voeg eerst Thijn of Maks toe. Daarna kun je ieder meetmoment apart als testmail versturen.', '✦')}</div>
+    <div class="pilot-participants">${participantCards || emptyState('Nog geen deelnemers', 'Nodig bestellers uit of voeg een klant met vastgelegde toestemming handmatig toe.', '✦')}</div>
   </div>`
 
   document.querySelector('#pilot-settings-form')?.addEventListener('submit', async (event) => {
@@ -988,14 +1012,14 @@ function renderPilot() {
     const next = {
       enabled: form.elements.enabled.checked,
       test_mode: form.elements.test_mode.checked,
-      automatic_sending: false,
+      automatic_sending: form.elements.automatic_sending.checked,
       allowed_emails: form.elements.allowed_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
     }
     if (!next.test_mode && !window.confirm('Hiermee verdwijnt de blokkade op testadressen. Wil je deze instelling echt opslaan?')) return
-    const { error } = await supabase.from('settings').upsert({ key: 'pilot_measurements', category: 'pilot', label: 'Pilotmetingen', value: next, is_public: false })
-    if (error) { toast('Pilotschakelaars opslaan mislukt', error.message, true); return }
-    await recordActivity('Pilotschakelaars bijgewerkt', 'settings', 'pilot_measurements', { enabled: next.enabled, test_mode: next.test_mode, automatic_sending: false })
-    toast('Pilotschakelaars opgeslagen', next.test_mode ? 'Alleen interne testadressen zijn toegestaan.' : 'De testblokkade is uitgeschakeld.')
+    const { error } = await supabase.from('settings').upsert({ key: 'pilot_measurements', category: 'pilot', label: 'Pijnvragenlijsten', value: next, is_public: false })
+    if (error) { toast('Instellingen opslaan mislukt', error.message, true); return }
+    await recordActivity('Instellingen pijnvragenlijsten bijgewerkt', 'settings', 'pilot_measurements', { enabled: next.enabled, test_mode: next.test_mode, automatic_sending: next.automatic_sending })
+    toast('Instellingen opgeslagen', next.test_mode ? 'Alleen interne testadressen zijn toegestaan.' : next.automatic_sending ? 'Nieuwe bestellers worden automatisch uitgenodigd; vervolgvragen worden op tijd verstuurd.' : 'De vragenlijsten zijn live, maar verzending blijft handmatig.')
     await refreshCurrentRoute()
   })
 
@@ -1006,7 +1030,7 @@ function renderPilot() {
     setBusy(button, true, 'Deelnemer toevoegen')
     const { data, error } = await supabase.functions.invoke('pilot-measurement', { body: { action: 'enroll', customer_id: form.elements.customer_id.value, consent_confirmed: form.elements.consent_confirmed.checked, consent_source: 'handmatig bevestigd in ZOL Admin' } })
     if (error || data?.error) { toast('Deelnemer toevoegen mislukt', await edgeFunctionMessage(error, data, 'De deelnemer kon niet worden toegevoegd.'), true); setBusy(button, false, 'Deelnemer toevoegen'); return }
-    toast('Vier meetmomenten klaargezet', 'Er is nog geen mail verstuurd.')
+    toast('Vier vragenlijsten klaargezet', 'Er is nog geen mail verstuurd.')
     await refreshCurrentRoute()
   })
 
@@ -2090,6 +2114,7 @@ async function handleContentClick(event) {
   }
   if (action === 'export-pilot-results') await exportPilotResults(target)
   if (action === 'refresh-pilot-results') await loadPilotReport(true)
+  if (action === 'invite-order-customers') await inviteOrderCustomers(target)
   if (action === 'mark-delivered') await markOrderDelivered(state.orders.find((item) => item.id === id))
   if (action === 'toggle-archive') await toggleOrderArchive(state.orders.find((item) => item.id === id))
   if (action === 'refund-order') refundOrderForm(state.orders.find((item) => item.id === id))
@@ -2106,12 +2131,12 @@ async function handleContentClick(event) {
   if (action === 'delete-customer') await deleteCustomer(id)
   if (action === 'email-customer') { const customer = state.customers.find((item) => item.id === id); closeDialog(); queueMicrotask(() => customerEmailForm(customer)) }
   if (action === 'send-pilot-invite') {
-    if (!id || !window.confirm('Deze ene meetmail nu versturen? Er worden geen andere meetmomenten automatisch verzonden.')) return
-    setBusy(target, true, 'Meetmail sturen')
+    if (!id || !window.confirm('Deze ene pijnvragenlijst nu versturen?')) return
+    setBusy(target, true, 'Vragenlijst sturen')
     const { data, error } = await supabase.functions.invoke('pilot-measurement', { body: { action: 'send', invite_id: id } })
-    if (error || data?.error) toast('Meetmail versturen mislukt', await edgeFunctionMessage(error, data, 'De meetmail kon niet worden verstuurd.'), true)
-    else { toast('Meetmail verstuurd', data?.warning ? 'De mail is bezorgd, maar vernieuw het overzicht om de status te controleren.' : 'De ontvanger kan direct op een antwoord in de mail klikken.'); await refreshCurrentRoute() }
-    setBusy(target, false, 'Meetmail sturen')
+    if (error || data?.error) toast('Vragenlijst versturen mislukt', await edgeFunctionMessage(error, data, 'De vragenlijst kon niet worden verstuurd.'), true)
+    else { toast('Vragenlijst verstuurd', data?.warning ? 'De mail is bezorgd, maar vernieuw het overzicht om de status te controleren.' : 'De ontvanger kan direct op een antwoord in de mail klikken.'); await refreshCurrentRoute() }
+    setBusy(target, false, 'Vragenlijst sturen')
   }
   if (action === 'open-product') productForm(state.products.find((item) => item.id === id))
   if (action === 'new-product') productForm()

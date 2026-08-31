@@ -5,7 +5,8 @@ const content = document.querySelector('#measurement-content')
 const progress = document.querySelector('#measurement-progress-bar')
 const params = new URLSearchParams(window.location.search)
 const preview = params.get('preview') || ''
-let token = params.get('token') || sessionStorage.getItem('zol-pilot-token') || ''
+const consentToken = params.get('toestemming') || ''
+let token = params.get('token') || sessionStorage.getItem('zol-pain-checkin-token') || ''
 const quickQuestion = params.get('q') || ''
 const quickAnswer = params.get('a') || ''
 let measurement = null
@@ -30,8 +31,54 @@ function showError(message) {
 
 async function invoke(body) {
   const { data, error } = await supabase.functions.invoke('pilot-measurement', { body })
-  if (error || data?.error) throw new Error(data?.error || 'De meting kon niet worden geladen.')
+  if (error || data?.error) throw new Error(data?.error || 'De vragenlijst kon niet worden geladen.')
   return data
+}
+
+function showConsentFinished(declined = false, warning = '') {
+  progress.style.width = declined ? '0' : '100%'
+  content.innerHTML = `<div class="measurement-finished"><span class="measurement-finished-icon">${declined ? '✓' : '♥'}</span><p class="measurement-kicker">${declined ? 'Voorkeur opgeslagen' : 'Bedankt voor je toestemming'}</p><h1>${declined ? 'Je ontvangt geen vragenlijsten.' : 'We horen graag hoe het gaat.'}</h1><p>${declined ? 'We hebben je keuze opgeslagen. Je kunt deze pagina nu sluiten.' : `De 0-meting is per e-mail naar je verstuurd. Daarin staan de eerste korte vragen over de hielpijn.${warning ? ` ${escapeHtml(warning)}` : ''}`}</p></div>`
+  history.replaceState({}, '', '/meting/')
+}
+
+function renderConsent(firstName) {
+  progress.style.width = '0'
+  content.innerHTML = `<div class="measurement-consent">
+    <p class="measurement-kicker">Hoe gaat het met de hielpijn?</p>
+    <h1>Hoi ${escapeHtml(firstName)}, mogen we blijven vragen hoe het gaat?</h1>
+    <p class="measurement-intro">We willen echt weten hoe kinderen de ZOL’tjes ervaren en of de hielpijn verandert. Daarom sturen we vier korte vragenlijsten: nu, na 1 week, na 4 weken en na 12 weken.</p>
+    <div class="measurement-consent-details">
+      <strong>Wat leggen we vast?</strong>
+      <ul><li>Hielpijn en hoe lang die al bestaat</li><li>Comfort, pasvorm en gebruik van de ZOL’tjes</li><li>Of je kind kan blijven sporten</li></ul>
+      <p>De antwoorden zijn gezondheidsgegevens van je kind. Alleen bevoegde beheerders van ZOL Solutions kunnen ze bekijken. Deelname is vrijwillig en staat los van je bestelling.</p>
+    </div>
+    <label class="measurement-consent-check"><input type="checkbox" id="parent-consent"> <span>Ik ben de ouder of verzorger en geef expliciet toestemming om deze antwoorden te gebruiken om te volgen hoe het met de hielpijn en het gebruik van de ZOL’tjes gaat.</span></label>
+    <p class="measurement-consent-error" id="consent-error"></p>
+    <div class="measurement-consent-actions"><button class="measurement-button" type="button" data-decline>Niet deelnemen</button><button class="measurement-button measurement-button--primary" type="button" data-confirm>Toestemming geven</button></div>
+  </div>`
+  const checkbox = document.querySelector('#parent-consent')
+  const confirm = content.querySelector('[data-confirm]')
+  const decline = content.querySelector('[data-decline]')
+  confirm.addEventListener('click', async () => {
+    if (!checkbox.checked) { document.querySelector('#consent-error').textContent = 'Vink eerst de toestemming aan.'; return }
+    confirm.disabled = true; decline.disabled = true; confirm.textContent = 'Toestemming opslaan…'
+    try {
+      const result = await invoke({ action: 'consent_confirm', token: consentToken, parent_confirmed: true })
+      showConsentFinished(false, result.warning || '')
+    } catch (error) { showError(error.message) }
+  })
+  decline.addEventListener('click', async () => {
+    confirm.disabled = true; decline.disabled = true; decline.textContent = 'Voorkeur opslaan…'
+    try { await invoke({ action: 'consent_decline', token: consentToken }); showConsentFinished(true) }
+    catch (error) { showError(error.message) }
+  })
+}
+
+async function bootConsent() {
+  try {
+    const consent = await invoke({ action: 'consent_load', token: consentToken })
+    renderConsent(consent.first_name || 'daar')
+  } catch (error) { showError(error.message) }
 }
 
 function optionMarkup(question, answer) {
@@ -85,11 +132,12 @@ async function saveAndAdvance(question, answer, button) {
 
 function showFinished() {
   progress.style.width = '100%'
-  sessionStorage.removeItem('zol-pilot-token')
-  content.innerHTML = `<div class="measurement-finished"><span class="measurement-finished-icon">✓</span><p class="measurement-kicker">Klaar</p><h1>Dank je wel.</h1><p>De antwoorden zijn veilig opgeslagen. De volgende korte meting komt vanzelf per e-mail.</p></div>`
+  sessionStorage.removeItem('zol-pain-checkin-token')
+  content.innerHTML = `<div class="measurement-finished"><span class="measurement-finished-icon">✓</span><p class="measurement-kicker">Klaar</p><h1>Dank je wel.</h1><p>De antwoorden zijn veilig opgeslagen. De volgende korte vragenlijst komt vanzelf per e-mail.</p></div>`
 }
 
 async function boot() {
+  if (consentToken) { await bootConsent(); return }
   if (preview && previewMeasurements[preview]) {
     measurement = JSON.parse(JSON.stringify(previewMeasurements[preview]))
     renderStep()
@@ -97,7 +145,7 @@ async function boot() {
   }
   if (!token) { showError('De persoonlijke meetlink ontbreekt of is verlopen.'); return }
   try {
-    sessionStorage.setItem('zol-pilot-token', token)
+    sessionStorage.setItem('zol-pain-checkin-token', token)
     measurement = await invoke({ action: 'load', token })
     if (!measurement.completed && quickQuestion && quickAnswer && measurement.questions.some((question) => question.key === quickQuestion)) {
       await invoke({ action: 'answer', token, question: quickQuestion, answer: quickAnswer })

@@ -74,7 +74,7 @@ async function findInvite(db: ReturnType<typeof adminClient>, token: string) {
   if (error || !invite) throw new Error("De meetlink is ongeldig of verlopen.")
   if (invite.token_expires_at && new Date(invite.token_expires_at) < new Date()) throw new Error("De meetlink is verlopen.")
   const { data: enrollment } = await db.from("pilot_enrollments").select("id,status").eq("id", invite.enrollment_id).maybeSingle()
-  if (!enrollment || enrollment.status !== "active") throw new Error("Deze pilotmeting is niet meer actief.")
+  if (!enrollment || enrollment.status !== "active") throw new Error("Deze pijnvragenlijst is niet meer actief.")
   const definition = timepoints.find((item) => item.key === invite.timepoint)
   if (!definition) throw new Error("Dit meetmoment bestaat niet.")
   return { invite, definition }
@@ -140,7 +140,7 @@ async function loadAdminReport(
   admin: { id: string; email: string; role: string },
   recordExport = false,
 ) {
-  if (!["owner", "admin"].includes(admin.role)) throw new Error("Alleen een eigenaar of beheerder kan pilotresultaten bekijken.")
+  if (!["owner", "admin"].includes(admin.role)) throw new Error("Alleen een eigenaar of beheerder kan de antwoorden bekijken.")
   const { data, error } = await db
     .from("pilot_enrollments")
     .select("id,status,consent_confirmed_at,enrolled_at,completed_at,customers!inner(email,first_name,last_name),pilot_invites(id,timepoint,sequence,due_at,status,sent_at,started_at,completed_at,pilot_responses(question_key,answer,submitted_at))")
@@ -195,7 +195,7 @@ async function loadAdminReport(
     await db.from("activity_log").insert({
       actor_id: admin.id,
       actor_email: admin.email,
-      action: "Pilotdata geëxporteerd",
+      action: "Antwoorden pijnvragenlijsten geëxporteerd",
       entity_type: "pilot_report",
       entity_id: "",
       details: { participants: participants.length, anonymized: true },
@@ -205,56 +205,87 @@ async function loadAdminReport(
   return { generated_at: new Date().toISOString(), anonymized_export: true, participants }
 }
 
-async function enroll(db: ReturnType<typeof adminClient>, body: Record<string, unknown>, admin: { id: string; email: string; role: string }) {
+type AdminActor = { id: string; email: string; role: string }
+type CustomerRow = { id: string; email: string; first_name?: string; last_name?: string }
+type PainConfig = { enabled?: boolean; test_mode?: boolean; automatic_sending?: boolean; allowed_emails?: string[] }
+
+async function getPainConfig(db: ReturnType<typeof adminClient>): Promise<PainConfig> {
+  const { data, error } = await db.from("settings").select("value").eq("key", "pilot_measurements").maybeSingle()
+  if (error) throw error
+  return data?.value || {}
+}
+
+function emailAllowed(config: PainConfig, email: string) {
+  const allowed = (config.allowed_emails || []).map((item) => String(item).trim().toLowerCase())
+  return config.test_mode === false || allowed.includes(email.trim().toLowerCase())
+}
+
+async function createEnrollment(
+  db: ReturnType<typeof adminClient>,
+  input: { customerId: string; orderId?: string | null; consentSource: string; actor?: AdminActor | null; confirmedAt?: string },
+) {
+  const { data: existing, error: existingError } = await db.from("pilot_enrollments").select("id").eq("customer_id", input.customerId).maybeSingle()
+  if (existingError) throw existingError
+  if (existing) return existing
+  const confirmedAt = input.confirmedAt || new Date().toISOString()
+  const { data: enrollment, error } = await db.from("pilot_enrollments").insert({
+    customer_id: input.customerId,
+    order_id: input.orderId && uuidPattern.test(input.orderId) ? input.orderId : null,
+    status: "active",
+    consent_confirmed_at: confirmedAt,
+    consent_source: input.consentSource.slice(0, 160),
+    enrolled_by: input.actor?.id || null,
+    enrolled_at: confirmedAt,
+  }).select("id").single()
+  if (error) throw error
+  const start = new Date(confirmedAt)
+  const invites = timepoints.map((definition, index) => ({
+    enrollment_id: enrollment.id,
+    timepoint: definition.key,
+    sequence: index,
+    due_at: new Date(start.getTime() + definition.delayDays * 86_400_000).toISOString(),
+    status: "pending",
+  }))
+  const { error: inviteError } = await db.from("pilot_invites").insert(invites)
+  if (inviteError) throw inviteError
+  await db.from("activity_log").insert({
+    actor_id: input.actor?.id || null,
+    actor_email: input.actor?.email || "vragenlijst@zolsolutions.nl",
+    action: "Klant gestart met pijnvragenlijsten",
+    entity_type: "pilot_enrollment",
+    entity_id: enrollment.id,
+    details: { customer_id: input.customerId, consent_source: input.consentSource },
+  })
+  return enrollment
+}
+
+async function enroll(db: ReturnType<typeof adminClient>, body: Record<string, unknown>, admin: AdminActor) {
   if (!['owner', 'admin'].includes(admin.role)) throw new Error("Alleen een eigenaar of beheerder kan deelnemers toevoegen.")
   const customerId = String(body.customer_id || "")
   if (!uuidPattern.test(customerId) || body.consent_confirmed !== true) throw new Error("Kies een klant en bevestig de toestemming van de ouder/verzorger.")
   const { data: customer, error: customerError } = await db.from("customers").select("id,email").eq("id", customerId).maybeSingle()
   if (customerError || !customer) throw new Error("Klant niet gevonden.")
-  const { data: setting } = await db.from("settings").select("value").eq("key", "pilot_measurements").maybeSingle()
-  const config = setting?.value || {}
-  const allowed = (config.allowed_emails || []).map((email: unknown) => String(email).trim().toLowerCase())
-  if (config.test_mode !== false && !allowed.includes(customer.email.toLowerCase())) throw new Error("In de teststand kun je alleen een adres uit de testlijst toevoegen.")
-  const now = new Date()
-  const { data: enrollment, error } = await db.from("pilot_enrollments").upsert({
-    customer_id: customer.id,
-    order_id: uuidPattern.test(String(body.order_id || "")) ? String(body.order_id) : null,
-    status: "active",
-    consent_confirmed_at: now.toISOString(),
-    consent_source: String(body.consent_source || "handmatig bevestigd in ZOL Admin").slice(0, 160),
-    enrolled_by: admin.id,
-    enrolled_at: now.toISOString(),
-    completed_at: null,
-    withdrawn_at: null,
-  }, { onConflict: "customer_id" }).select("id").single()
-  if (error) throw error
-  const invites = timepoints.map((definition, index) => ({
-    enrollment_id: enrollment.id,
-    timepoint: definition.key,
-    sequence: index,
-    due_at: new Date(now.getTime() + definition.delayDays * 86_400_000).toISOString(),
-    status: "pending",
-  }))
-  const { error: inviteError } = await db.from("pilot_invites").upsert(invites, { onConflict: "enrollment_id,timepoint", ignoreDuplicates: true })
-  if (inviteError) throw inviteError
-  await db.from("activity_log").insert({ actor_id: admin.id, actor_email: admin.email, action: "Klant aan meetpilot toegevoegd", entity_type: "pilot_enrollment", entity_id: enrollment.id, details: { customer_id: customer.id } })
+  const config = await getPainConfig(db)
+  if (!emailAllowed(config, customer.email)) throw new Error("In de teststand kun je alleen een adres uit de testlijst toevoegen.")
+  const enrollment = await createEnrollment(db, {
+    customerId: customer.id,
+    orderId: String(body.order_id || ""),
+    consentSource: String(body.consent_source || "handmatig bevestigd in ZOL Admin"),
+    actor: admin,
+  })
   return { success: true, enrollment_id: enrollment.id }
 }
 
-async function sendInvite(db: ReturnType<typeof adminClient>, body: Record<string, unknown>, admin: { id: string; email: string; role: string }) {
-  if (!['owner', 'admin'].includes(admin.role)) throw new Error("Alleen een eigenaar of beheerder kan meetmails versturen.")
-  const inviteId = String(body.invite_id || "")
+async function sendMeasurementInvite(db: ReturnType<typeof adminClient>, inviteId: string, actor: AdminActor | null = null) {
   if (!uuidPattern.test(inviteId)) throw new Error("Meetmoment ontbreekt.")
   const { data: invite, error } = await db.from("pilot_invites").select("id,enrollment_id,timepoint,status,send_count,pilot_enrollments!inner(customer_id,status,customers!inner(id,email,first_name,last_name))").eq("id", inviteId).maybeSingle()
   if (error || !invite) throw new Error("Meetmoment niet gevonden.")
   const enrollment = Array.isArray(invite.pilot_enrollments) ? invite.pilot_enrollments[0] : invite.pilot_enrollments
   const customer = Array.isArray(enrollment.customers) ? enrollment.customers[0] : enrollment.customers
   if (enrollment.status !== "active" || invite.status === "completed") throw new Error("Dit meetmoment kan niet meer worden verstuurd.")
-  const { data: setting } = await db.from("settings").select("value").eq("key", "pilot_measurements").maybeSingle()
-  const pilotConfig = setting?.value || {}
-  const allowed = (pilotConfig.allowed_emails || []).map((email: unknown) => String(email).trim().toLowerCase())
-  if (!pilotConfig.enabled) throw new Error("De pilot staat uit. Activeer hem eerst handmatig in ZOL Admin.")
-  if (pilotConfig.test_mode !== false && !allowed.includes(customer.email.toLowerCase())) throw new Error("Geblokkeerd door de interne testlijst.")
+  const config = await getPainConfig(db)
+  if (!config.enabled) throw new Error("De pijnvragenlijsten staan uit. Activeer ze eerst in ZOL Admin.")
+  if (!emailAllowed(config, customer.email)) throw new Error("Geblokkeerd door de interne testlijst.")
   const definition = timepoints.find((item) => item.key === invite.timepoint)
   if (!definition) throw new Error("Onbekend meetmoment.")
   const emailConfig = await getEmailConfig(db)
@@ -272,25 +303,192 @@ async function sendInvite(db: ReturnType<typeof adminClient>, body: Record<strin
   const bodyCopy = renderTemplate(template.body_template, variables)
   const content = `<p style="margin:0 0 18px;color:#263b50;font-size:15px;line-height:1.72">${escapeHtml(bodyCopy)}</p>${quickButtons(definition, websiteUrl, token)}<p style="margin:18px 0 0;color:#758697;font-size:12px;line-height:1.6">De persoonlijke link is alleen bedoeld voor deze meting. Antwoord gerust op deze e-mail als iets niet duidelijk is.</p>`
   const nextCount = Number(invite.send_count || 0) + 1
-  const log = await logEmail(db, { kind: "pilot_measurement", recipient_email: customer.email, subject, body_preview: bodyCopy.slice(0, 500), customer_id: customer.id, created_by: admin.id, dedupe_key: `pilot:${invite.id}:${nextCount}` })
+  const log = await logEmail(db, { kind: "pilot_measurement", recipient_email: customer.email, subject, body_preview: bodyCopy.slice(0, 500), customer_id: customer.id, created_by: actor?.id || null, dedupe_key: `pain-checkin:${invite.id}:${nextCount}` })
   try {
     const sent = await sendEmail({
       to: customer.email,
       subject,
       html: emailShell(content, { eyebrow: renderTemplate(template.eyebrow_template, variables), title: renderTemplate(template.title_template, variables), intro: renderTemplate(template.intro_template, variables), websiteUrl }),
-      text: `${renderTemplate(template.title_template, variables)}\n\n${bodyCopy}\n\nOpen de korte meting: ${variables.measurement_url}`,
+      text: `${renderTemplate(template.title_template, variables)}\n\n${bodyCopy}\n\nOpen de korte pijnvragenlijst: ${variables.measurement_url}`,
       config: emailConfig,
-      idempotencyKey: `pilot-${invite.id}-${nextCount}`,
+      idempotencyKey: `pain-checkin-${invite.id}-${nextCount}`,
     })
     await markEmail(db, log.id, { status: "sent", providerId: sent.id })
     const { error: inviteError } = await db.from("pilot_invites").update({ status: "sent", sent_at: new Date().toISOString(), send_count: nextCount, last_email_message_id: log.id }).eq("id", invite.id)
-    await db.from("activity_log").insert({ actor_id: admin.id, actor_email: admin.email, action: "Pilotmeetmail verstuurd", entity_type: "pilot_invite", entity_id: invite.id, details: { timepoint: definition.key, customer_id: customer.id } })
+    await db.from("activity_log").insert({ actor_id: actor?.id || null, actor_email: actor?.email || "vragenlijst@zolsolutions.nl", action: "Pijnvragenlijst verstuurd", entity_type: "pilot_invite", entity_id: invite.id, details: { timepoint: definition.key, customer_id: customer.id } })
     return { success: true, warning: inviteError?.message || "" }
   } catch (sendError) {
     const message = sendError instanceof Error ? sendError.message : "De meetmail kon niet worden verstuurd."
     await markEmail(db, log.id, { status: "failed", error: message })
     throw new Error(message)
   }
+}
+
+async function sendInvite(db: ReturnType<typeof adminClient>, body: Record<string, unknown>, admin: AdminActor) {
+  if (!['owner', 'admin'].includes(admin.role)) throw new Error("Alleen een eigenaar of beheerder kan vragenlijsten versturen.")
+  return sendMeasurementInvite(db, String(body.invite_id || ""), admin)
+}
+
+async function sendConsentInvite(db: ReturnType<typeof adminClient>, customer: CustomerRow, orderId: string | null, actor: AdminActor | null = null) {
+  const config = await getPainConfig(db)
+  if (!config.enabled) throw new Error("De pijnvragenlijsten staan uit.")
+  if (!emailAllowed(config, customer.email)) throw new Error("Geblokkeerd door de interne testlijst.")
+  const { data: existing, error: existingError } = await db.from("pilot_consent_invites").select("id,status,send_count").eq("customer_id", customer.id).maybeSingle()
+  if (existingError) throw existingError
+  if (existing && existing.status !== "pending") return { status: "already_invited" }
+  let row = existing
+  if (!row) {
+    const { data: inserted, error: insertError } = await db.from("pilot_consent_invites").insert({ customer_id: customer.id, order_id: orderId, status: "pending" }).select("id,status,send_count").single()
+    if (insertError) throw insertError
+    row = inserted
+  }
+  if (!row) throw new Error("De uitnodiging kon niet worden klaargezet.")
+  const token = newToken()
+  const tokenHashValue = await tokenHash(token)
+  const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString()
+  const emailConfig = await getEmailConfig(db)
+  const template = await getEmailTemplate("pain_checkin_invitation", db)
+  if (!template.enabled) throw new Error("Het uitnodigingssjabloon staat uit.")
+  const websiteUrl = String(emailConfig.website_url || "https://zolsolutions.nl").replace(/\/$/, "")
+  const variables = { customer_first_name: customer.first_name || "daar", consent_url: `${websiteUrl}/meting/?toestemming=${token}` }
+  const subject = renderTemplate(template.subject_template, variables).slice(0, 240)
+  const bodyCopy = renderTemplate(template.body_template, variables)
+  const content = `<p style="margin:0 0 18px;color:#263b50;font-size:15px;line-height:1.72">${escapeHtml(bodyCopy)}</p><p style="margin:20px 0 0;color:#758697;font-size:12px;line-height:1.6">Deelname is vrijwillig. Zonder expliciete toestemming worden geen antwoorden over de gezondheid van je kind opgeslagen.</p>`
+  const nextCount = Number(row.send_count || 0) + 1
+  const dedupeKey = `pain-consent:${row.id}:${nextCount}`
+  const log = await logEmail(db, { kind: "pain_checkin_invitation", recipient_email: customer.email, subject, body_preview: bodyCopy.slice(0, 500), customer_id: customer.id, order_id: orderId, created_by: actor?.id || null, dedupe_key: dedupeKey })
+  await db.from("pilot_consent_invites").update({ token_hash: tokenHashValue, token_expires_at: expiresAt }).eq("id", row.id)
+  try {
+    const sent = await sendEmail({
+      to: customer.email,
+      subject,
+      html: emailShell(content, {
+        eyebrow: renderTemplate(template.eyebrow_template, variables),
+        title: renderTemplate(template.title_template, variables),
+        intro: renderTemplate(template.intro_template, variables),
+        websiteUrl,
+        buttonLabel: renderTemplate(template.button_label_template, variables),
+        buttonUrl: renderTemplate(template.button_url_template, variables),
+      }),
+      text: `${renderTemplate(template.title_template, variables)}\n\n${bodyCopy}\n\nLees meer en geef toestemming: ${variables.consent_url}`,
+      config: emailConfig,
+      idempotencyKey: dedupeKey,
+    })
+    await markEmail(db, log.id, { status: "sent", providerId: sent.id })
+    await db.from("pilot_consent_invites").update({ status: "sent", sent_at: new Date().toISOString(), send_count: nextCount, last_email_message_id: log.id }).eq("id", row.id)
+    await db.from("activity_log").insert({ actor_id: actor?.id || null, actor_email: actor?.email || "vragenlijst@zolsolutions.nl", action: "Uitnodiging pijnvragenlijst verstuurd", entity_type: "pilot_consent_invite", entity_id: row.id, details: { customer_id: customer.id, order_id: orderId } })
+    return { status: "sent" }
+  } catch (sendError) {
+    const message = sendError instanceof Error ? sendError.message : "De uitnodiging kon niet worden verstuurd."
+    await markEmail(db, log.id, { status: "failed", error: message })
+    throw new Error(message)
+  }
+}
+
+async function eligibleOrderCustomers(db: ReturnType<typeof adminClient>, config: PainConfig) {
+  const { data, error } = await db.from("orders")
+    .select("id,customer_id,created_at,customers!inner(id,email,first_name,last_name)")
+    .in("payment_status", ["paid", "partially_refunded", "refunded"])
+    .order("created_at", { ascending: false })
+    .limit(5000)
+  if (error) throw error
+  const unique = new Map<string, { customer: CustomerRow; orderId: string }>()
+  for (const order of data || []) {
+    const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers
+    if (!customer?.id || !customer.email || unique.has(customer.id) || !emailAllowed(config, customer.email)) continue
+    unique.set(customer.id, { customer, orderId: order.id })
+  }
+  return [...unique.values()]
+}
+
+async function inviteOrderCustomers(db: ReturnType<typeof adminClient>, actor: AdminActor | null, dryRun = false, limit = 100) {
+  const config = await getPainConfig(db)
+  if (!config.enabled) throw new Error("De pijnvragenlijsten staan uit.")
+  const eligible = await eligibleOrderCustomers(db, config)
+  const ids = eligible.map((item) => item.customer.id)
+  if (!ids.length) return { eligible: 0, ready: 0, already_enrolled: 0, already_invited: 0, sent: 0, failed: 0 }
+  const [{ data: enrollments, error: enrollmentError }, { data: consentInvites, error: consentError }] = await Promise.all([
+    db.from("pilot_enrollments").select("customer_id").in("customer_id", ids),
+    db.from("pilot_consent_invites").select("customer_id,status").in("customer_id", ids),
+  ])
+  if (enrollmentError) throw enrollmentError
+  if (consentError) throw consentError
+  const enrolled = new Set((enrollments || []).map((item) => item.customer_id))
+  const invited = new Set((consentInvites || []).filter((item) => item.status !== "pending").map((item) => item.customer_id))
+  const ready = eligible.filter((item) => !enrolled.has(item.customer.id) && !invited.has(item.customer.id))
+  const summary = { eligible: eligible.length, ready: ready.length, already_enrolled: enrolled.size, already_invited: invited.size, sent: 0, failed: 0 }
+  if (dryRun) return summary
+  for (const item of ready.slice(0, limit)) {
+    try {
+      const result = await sendConsentInvite(db, item.customer, item.orderId, actor)
+      if (result.status === "sent") summary.sent += 1
+    } catch {
+      summary.failed += 1
+    }
+  }
+  return summary
+}
+
+async function findConsentInvite(db: ReturnType<typeof adminClient>, token: string) {
+  if (!/^[A-Za-z0-9_-]{40,64}$/.test(token)) throw new Error("De toestemmingslink is ongeldig of verlopen.")
+  const hash = await tokenHash(token)
+  const { data, error } = await db.from("pilot_consent_invites").select("id,customer_id,order_id,status,token_expires_at,customers!inner(id,email,first_name,last_name)").eq("token_hash", hash).maybeSingle()
+  if (error || !data || !["pending", "sent"].includes(data.status)) throw new Error("De toestemmingslink is ongeldig of verlopen.")
+  if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) {
+    await db.from("pilot_consent_invites").update({ status: "expired", token_hash: null }).eq("id", data.id)
+    throw new Error("De toestemmingslink is verlopen.")
+  }
+  const customer = Array.isArray(data.customers) ? data.customers[0] : data.customers
+  return { invite: data, customer: customer as CustomerRow }
+}
+
+async function loadConsent(db: ReturnType<typeof adminClient>, token: string) {
+  const { customer } = await findConsentInvite(db, token)
+  return { first_name: customer.first_name || "daar" }
+}
+
+async function declineConsent(db: ReturnType<typeof adminClient>, token: string) {
+  const { invite } = await findConsentInvite(db, token)
+  await db.from("pilot_consent_invites").update({ status: "declined", declined_at: new Date().toISOString(), token_hash: null, token_expires_at: null }).eq("id", invite.id)
+  return { success: true }
+}
+
+async function confirmConsent(db: ReturnType<typeof adminClient>, token: string, parentConfirmed: boolean) {
+  if (!parentConfirmed) throw new Error("Bevestig eerst dat je als ouder of verzorger toestemming geeft.")
+  const { invite } = await findConsentInvite(db, token)
+  const confirmedAt = new Date().toISOString()
+  const enrollment = await createEnrollment(db, {
+    customerId: invite.customer_id,
+    orderId: invite.order_id,
+    consentSource: "expliciet bevestigd via online pijnvragenlijst-uitnodiging",
+    actor: null,
+    confirmedAt,
+  })
+  await db.from("pilot_consent_invites").update({ status: "accepted", accepted_at: confirmedAt, token_hash: null, token_expires_at: null }).eq("id", invite.id)
+  const { data: baseline } = await db.from("pilot_invites").select("id").eq("enrollment_id", enrollment.id).eq("timepoint", "baseline").maybeSingle()
+  let warning = ""
+  if (baseline) {
+    try { await sendMeasurementInvite(db, baseline.id, null) }
+    catch (error) { warning = error instanceof Error ? error.message : "De eerste vragenlijst volgt zo snel mogelijk per e-mail." }
+  }
+  return { success: true, warning }
+}
+
+async function sendDue(db: ReturnType<typeof adminClient>, request: Request) {
+  const suppliedSecret = request.headers.get("x-zol-email-secret") || ""
+  const { data: verified, error: verificationError } = await db.rpc("verify_email_webhook_secret", { p_secret: suppliedSecret })
+  if (verificationError || !verified) throw new Error("Geen toegang tot de automatische verzending.")
+  const config = await getPainConfig(db)
+  if (!config.enabled || !config.automatic_sending) return { success: true, status: "disabled", invitations: {}, questionnaires: { processed: 0, sent: 0, failed: 0 } }
+  const invitations = await inviteOrderCustomers(db, null, false, 40)
+  const { data: due, error } = await db.from("pilot_invites").select("id").eq("status", "pending").lte("due_at", new Date().toISOString()).order("due_at", { ascending: true }).limit(50)
+  if (error) throw error
+  const questionnaires = { processed: (due || []).length, sent: 0, failed: 0 }
+  for (const invite of due || []) {
+    try { await sendMeasurementInvite(db, invite.id, null); questionnaires.sent += 1 }
+    catch { questionnaires.failed += 1 }
+  }
+  return { success: true, invitations, questionnaires }
 }
 
 Deno.serve(async (request) => {
@@ -304,13 +502,18 @@ Deno.serve(async (request) => {
     if (action === "load") return asJson(headers, await loadPublic(db, String(body.token || "")))
     if (action === "answer") return asJson(headers, await saveAnswer(db, String(body.token || ""), String(body.question || ""), body.answer))
     if (action === "complete") return asJson(headers, await completeMeasurement(db, String(body.token || "")))
+    if (action === "consent_load") return asJson(headers, await loadConsent(db, String(body.token || "")))
+    if (action === "consent_confirm") return asJson(headers, await confirmConsent(db, String(body.token || ""), body.parent_confirmed === true))
+    if (action === "consent_decline") return asJson(headers, await declineConsent(db, String(body.token || "")))
+    if (action === "send_due") return asJson(headers, await sendDue(db, request))
     const admin = await requireAdmin(request, db)
     if (action === "enroll") return asJson(headers, await enroll(db, body, admin))
     if (action === "send") return asJson(headers, await sendInvite(db, body, admin))
+    if (action === "invite_order_customers") return asJson(headers, await inviteOrderCustomers(db, admin, body.dry_run === true))
     if (action === "report") return asJson(headers, await loadAdminReport(db, admin, body.record_export === true))
     return asJson(headers, { error: "Onbekende actie." }, 400)
   } catch (error) {
-    const message = error instanceof Error ? error.message : "De pilotmeting kon niet worden verwerkt."
+    const message = error instanceof Error ? error.message : "De pijnvragenlijst kon niet worden verwerkt."
     const status = /ingelogd|sessie|toegang/i.test(message) ? 401 : /ongeldig|verplicht|toegestaan|ontbreekt|geblokkeerd|staat uit/i.test(message) ? 400 : 500
     return asJson(headers, { error: message }, status)
   }

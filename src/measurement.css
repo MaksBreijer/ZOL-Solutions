@@ -76,7 +76,7 @@ button, textarea { font: inherit; }
   text-transform: uppercase;
 }
 
-.measurement-step h1, .measurement-finished h1, .measurement-error h1 {
+.measurement-step h1, .measurement-finished h1, .measurement-error h1, .measurement-consent h1 {
   margin: 0;
   font-family: Manrope, sans-serif;
   font-size: clamp(30px, 6vw, 44px);
@@ -142,6 +142,16 @@ button, textarea { font: inherit; }
 .measurement-support { margin: 20px 10px 0; color: #6e7d8c; font-size: 13px; line-height: 1.6; text-align: center; }
 .measurement-support a { color: inherit; }
 
+.measurement-consent-details { margin: 0 0 24px; padding: 20px 22px; border-radius: 16px; background: #f2f6f9; color: #51677b; font-size: 14px; line-height: 1.65; }
+.measurement-consent-details strong { color: #17324f; }
+.measurement-consent-details ul { margin: 10px 0 14px; padding-left: 21px; }
+.measurement-consent-details li + li { margin-top: 5px; }
+.measurement-consent-details p { margin: 0; }
+.measurement-consent-check { display: flex; gap: 12px; padding: 17px; border: 2px solid #dfe6ec; border-radius: 14px; color: #304b63; font-size: 14px; line-height: 1.55; cursor: pointer; }
+.measurement-consent-check input { width: 19px; height: 19px; flex: 0 0 19px; margin-top: 2px; accent-color: #33669b; }
+.measurement-consent-error { min-height: 20px; margin: 9px 0 0; color: #a33d2c; font-size: 13px; }
+.measurement-consent-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+
 @media (max-width: 580px) {
   .measurement-page { width: min(100% - 20px, 680px); padding-top: 22px; }
   .measurement-brand { margin-bottom: 18px; }
@@ -149,4 +159,6 @@ button, textarea { font: inherit; }
   #measurement-content { padding: 32px 22px; }
   .measurement-options--scale { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .measurement-option { min-height: 54px; }
+  .measurement-consent-actions { display: grid; }
+  .measurement-consent-actions .measurement-button { width: 100%; margin: 0; }
 }
