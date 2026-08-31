@@ -27,6 +27,7 @@ const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidde
 const elements = {
   loading: document.querySelector('#admin-loading'),
   login: document.querySelector('#login-screen'),
+  mfa: document.querySelector('#mfa-screen'),
   app: document.querySelector('#admin-app'),
   content: document.querySelector('#admin-content'),
   sidebar: document.querySelector('#admin-sidebar'),
@@ -62,6 +63,9 @@ const state = {
   pilotReport: null,
   pilotReportLoading: false,
   pilotReportError: '',
+  mfaFactorId: '',
+  mfaMode: '',
+  mfaFactors: [],
   discounts: [],
   orderNotes: [],
   search: '',
@@ -1983,6 +1987,7 @@ function visibleOrders() {
 
 function renderSettings(category = 'company') {
   const company = settingsValue('company_profile'), commerce = settingsValue('commerce'), theme = settingsValue('theme'), seo = settingsValue('seo_defaults'), email = settingsValue('email_config'), postnl = settingsValue('postnl_config')
+  const verifiedMfaFactors = state.mfaFactors.filter((factor) => factor.status === 'verified')
   const panels = {
     company: `<h2>Bedrijfsgegevens</h2><p>Gegevens die op facturen en in contactinformatie worden gebruikt.</p><form id="settings-form" data-key="company_profile" data-category="company"><div class="form-grid"><label class="field">Bedrijfsnaam<input name="name" value="${escapeHtml(company.name)}"></label><label class="field">E-mailadres<input name="email" type="email" value="${escapeHtml(company.email)}"></label><label class="field">Telefoon<input name="phone" value="${escapeHtml(company.phone)}"></label><label class="field">KvK-nummer<input name="kvk" value="${escapeHtml(company.kvk)}"></label><label class="field">BTW-nummer<input name="vat_number" value="${escapeHtml(company.vat_number)}"></label><label class="field">Adres<input name="address" value="${escapeHtml(company.address)}"></label></div>${settingsActions()}</form>`,
     checkout: `<h2>Checkout & betalingen</h2><p>Verzending, belasting en de voorbereiding op Mollie.</p><form id="settings-form" data-key="commerce" data-category="checkout"><div class="form-grid"><label class="field">Verzendkosten (€)<input name="shipping_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.shipping_cents || 0) / 100).toFixed(2)}"></label><label class="field">Gratis verzending vanaf (€)<input name="free_shipping_threshold_cents" data-cents type="number" min="0" step="0.01" value="${((commerce.free_shipping_threshold_cents || 0) / 100).toFixed(2)}"></label><label class="field">BTW-percentage<input name="tax_rate" type="number" min="0" step="0.01" value="${commerce.tax_rate ?? 21}"></label><label class="field">Valuta<select name="currency"><option value="EUR" ${commerce.currency === 'EUR' ? 'selected' : ''}>EUR — euro</option></select></label><label class="field">Onbetaalde checkout verbergen na (minuten)<input name="abandoned_checkout_minutes" type="number" min="1" max="1440" step="1" value="${Number(commerce.abandoned_checkout_minutes || 10)}"><small>Geldt alleen voor onbetaalde webshop-checkouts; betaalde en handmatige orders blijven zichtbaar.</small></label><label class="checkbox-field field--full"><input name="mollie_enabled" type="checkbox" ${commerce.mollie_enabled ? 'checked' : ''}> Mollie activeren zodra de API-sleutel veilig is ingesteld</label></div>${settingsActions()}</form>`,
@@ -1990,9 +1995,9 @@ function renderSettings(category = 'company') {
     email: `<h2>E-mail</h2><p>Afzender, antwoordadres en interne meldingen. De geheime API-sleutel wordt nooit in de browser opgeslagen.</p><form id="settings-form" data-key="email_config" data-category="email"><div class="email-connection ${email.enabled ? 'is-connected' : ''}"><i>${email.enabled ? '✓' : '!'}</i><div><strong>${email.enabled ? 'E-mailverzending actief' : 'Wacht op domein en API-sleutel'}</strong><small>${email.enabled ? 'Order-, contact-, klant- en toegestane productmails zijn ingeschakeld.' : 'De volledige mailflow staat klaar, maar verstuurt nog niets.'}</small></div></div><div class="form-grid"><label class="field">Afzendernaam<input name="from_name" value="${escapeHtml(email.from_name || 'ZOL Solutions')}"></label><label class="field">Afzenderadres<input name="from_email" type="email" value="${escapeHtml(email.from_email || 'info@zolsolutions.nl')}"></label><label class="field">Antwoordadres<input name="reply_to" type="email" value="${escapeHtml(email.reply_to || 'info@zolsolutions.nl')}"></label><label class="field">Interne meldingen naar<input name="admin_email" type="email" value="${escapeHtml(email.admin_email || 'info@zolsolutions.nl')}"></label><label class="field field--full">Website-URL<input name="website_url" type="url" value="${escapeHtml(email.website_url || 'https://zolsolutions.nl')}"></label><input name="provider" type="hidden" value="resend"><label class="checkbox-field field--full"><input name="enabled" type="checkbox" ${email.enabled ? 'checked' : ''}> Verzending activeren <small>(pas na domeinverificatie en server-side API-sleutel)</small></label><label class="checkbox-field field--full"><input name="marketing_enabled" type="checkbox" ${email.marketing_enabled !== false ? 'checked' : ''}> Driewekelijkse productmail versturen, uitsluitend na toestemming</label><label class="field">Minimale tussenperiode in dagen<input name="marketing_interval_days" type="number" min="21" max="90" step="1" value="${Number(email.marketing_interval_days || 21)}"><small>Minimaal 21 dagen om de frequentie rustig te houden.</small></label></div><div class="form-actions"><button class="button" type="button" data-action="test-email" ${email.enabled ? '' : 'disabled'}>Testmail naar info sturen</button><button class="button button--primary" type="submit">E-mailinstellingen opslaan</button></div></form>`,
     postnl: `<h2>PostNL</h2><p>Maak vanuit een bestelling een label en trackingcode. API-sleutels blijven uitsluitend als beveiligde servergeheimen opgeslagen.</p><form id="settings-form" data-key="postnl_config" data-category="shipping"><div class="email-connection ${postnl.enabled ? 'is-connected' : ''}"><i>${postnl.enabled ? '✓' : '!'}</i><div><strong>${postnl.enabled ? `Koppeling actief in ${postnl.environment === 'production' ? 'productie' : 'sandbox'}` : 'Koppeling nog niet actief'}</strong><small>Gebruik eerst ‘Sandboxsleutel testen’. Productie blijft apart beveiligd.</small></div></div><div class="form-grid"><label class="field">Omgeving<select name="environment"><option value="sandbox" ${postnl.environment !== 'production' ? 'selected' : ''}>Sandbox — veilig testen</option><option value="production" ${postnl.environment === 'production' ? 'selected' : ''}>Productie — echte zendingen</option></select></label><label class="field">Pakkettype<select name="shipment_type"><option value="parcel" ${postnl.shipment_type !== 'letterbox' ? 'selected' : ''}>Pakket</option><option value="letterbox" ${postnl.shipment_type === 'letterbox' ? 'selected' : ''}>Brievenbuspakje</option></select></label><label class="field">PostNL-klantnummer<input name="customer_number" maxlength="10" value="${escapeHtml(postnl.customer_number)}" required></label><label class="field">PostNL-klantcode<input name="customer_code" maxlength="4" value="${escapeHtml(postnl.customer_code)}" required></label><label class="field">Collectielocatie (BLS)<input name="collection_location" maxlength="10" value="${escapeHtml(postnl.collection_location)}"></label><label class="field">Niet-EU-klantcode<input name="non_eu_customer_code" maxlength="10" value="${escapeHtml(postnl.non_eu_customer_code)}"></label><label class="field">Barcode-serie NL<input name="barcode_series" maxlength="30" value="${escapeHtml(postnl.barcode_series || '00000000-99999999')}" required></label><label class="field">Barcode-serie niet-EU<input name="non_eu_barcode_series" maxlength="30" value="${escapeHtml(postnl.non_eu_barcode_series || '0000-9999')}"></label><label class="field">PostNL-productcode<input name="product_code" inputmode="numeric" maxlength="4" value="${escapeHtml(postnl.product_code || (postnl.shipment_type === 'letterbox' ? '2928' : '3085'))}" required><small>3085 = standaard pakket; 2928 = brievenbuspakje+.</small></label><label class="field">Standaardgewicht (gram)<input name="default_weight_grams" type="number" min="1" max="23000" step="1" value="${escapeHtml(postnl.default_weight_grams || '500')}" required><small>Controleer dit gewicht voordat productie wordt geactiveerd.</small></label><label class="field">Bedrijfsnaam afzender<input name="sender_company" maxlength="35" value="${escapeHtml(postnl.sender_company || 'ZOL Solutions')}" required></label><label class="field">Straat<input name="sender_street" maxlength="95" value="${escapeHtml(postnl.sender_street || 'Burgemeester Hogguerstraat')}" required></label><label class="field">Huisnummer<input name="sender_house_number" maxlength="10" value="${escapeHtml(postnl.sender_house_number || '1111')}" required></label><label class="field">Toevoeging<input name="sender_house_number_addition" maxlength="10" value="${escapeHtml(postnl.sender_house_number_addition)}"></label><label class="field">Postcode<input name="sender_postal_code" maxlength="17" value="${escapeHtml(postnl.sender_postal_code || '1064 EJ')}" required></label><label class="field">Plaats<input name="sender_city" maxlength="35" value="${escapeHtml(postnl.sender_city || 'Amsterdam')}" required></label><label class="field">Land<select name="sender_country"><option value="NL">Nederland</option></select></label><label class="field">E-mail afzender<input name="sender_email" type="email" maxlength="50" value="${escapeHtml(postnl.sender_email || 'info@zolsolutions.nl')}"></label><label class="field">Telefoon afzender<input name="sender_phone" maxlength="17" value="${escapeHtml(postnl.sender_phone)}"></label><input name="label_output" type="hidden" value="pdf"><label class="checkbox-field field--full"><input name="enabled" type="checkbox" ${postnl.enabled ? 'checked' : ''}> PostNL-labels activeren</label><label class="checkbox-field field--full"><input name="production_enabled" type="checkbox" ${postnl.production_enabled ? 'checked' : ''}> Echte productiezendingen expliciet toestaan</label></div><div class="form-actions"><button class="button" type="button" data-action="test-postnl" data-environment="sandbox">Sandboxsleutel testen</button><button class="button button--primary" type="submit">PostNL-instellingen opslaan</button></div></form>`,
     team: `<h2>Beheerders</h2><p>Beheer wie toegang heeft tot ZOL Admin. Alleen de eigenaar kan accounts toevoegen of verwijderen.</p>${teamManagementMarkup('settings', true)}`,
-    security: `<h2>Account & beveiliging</h2><p>Wijzig je eigen wachtwoord. Na de wijziging worden alle andere actieve sessies afgemeld.</p><form id="password-form"><div class="form-grid"><label class="field field--full">Huidig wachtwoord<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Nieuw wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="12" required><small>Minimaal 12 tekens met hoofdletter, kleine letter, cijfer en speciaal teken.</small></label><label class="field">Herhaal nieuw wachtwoord<input name="password_confirm" type="password" autocomplete="new-password" minlength="12" required></label></div>${settingsActions('Wachtwoord wijzigen')}</form>`,
+    security: `<h2>Account & beveiliging</h2><p>De beheeromgeving vereist altijd je wachtwoord én een code uit je authenticator-app.</p><div class="mfa-status-card"><span>✓</span><div><strong>Tweestapsverificatie actief</strong><small>${verifiedMfaFactors.length} geverifieerde authenticator${verifiedMfaFactors.length === 1 ? '' : 's'} gekoppeld aan dit account.</small></div></div><form id="password-form"><h3>Wachtwoord wijzigen</h3><p>Na de wijziging worden alle andere actieve sessies afgemeld.</p><div class="form-grid"><label class="field field--full">Huidig wachtwoord<input name="current_password" type="password" autocomplete="current-password" required></label><label class="field">Nieuw wachtwoord<input name="password" type="password" autocomplete="new-password" minlength="12" required><small>Minimaal 12 tekens met hoofdletter, kleine letter, cijfer en speciaal teken.</small></label><label class="field">Herhaal nieuw wachtwoord<input name="password_confirm" type="password" autocomplete="new-password" minlength="12" required></label><label class="field field--full">Code uit authenticator-app<input name="mfa_code" type="text" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" required></label></div>${settingsActions('Wachtwoord wijzigen')}</form>`,
   }
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('settings')}<div class="settings-layout"><nav class="settings-nav panel"><button data-settings-tab="company" class="${category === 'company' ? 'is-active' : ''}">Bedrijf</button><button data-settings-tab="checkout" class="${category === 'checkout' ? 'is-active' : ''}">Checkout & btw</button><button data-settings-tab="postnl" class="${category === 'postnl' ? 'is-active' : ''}">PostNL</button><button data-settings-tab="website" class="${category === 'website' ? 'is-active' : ''}">Website & SEO</button><button data-settings-tab="email" class="${category === 'email' ? 'is-active' : ''}">E-mail</button><button data-settings-tab="team" class="${category === 'team' ? 'is-active' : ''}">Beheerders</button><button data-settings-tab="security" class="${category === 'security' ? 'is-active' : ''}">Wachtwoord</button></nav><section class="settings-panel panel">${panels[category] || panels.company}</section></div></div>`
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('settings')}<div class="settings-layout"><nav class="settings-nav panel"><button data-settings-tab="company" class="${category === 'company' ? 'is-active' : ''}">Bedrijf</button><button data-settings-tab="checkout" class="${category === 'checkout' ? 'is-active' : ''}">Checkout & btw</button><button data-settings-tab="postnl" class="${category === 'postnl' ? 'is-active' : ''}">PostNL</button><button data-settings-tab="website" class="${category === 'website' ? 'is-active' : ''}">Website & SEO</button><button data-settings-tab="email" class="${category === 'email' ? 'is-active' : ''}">E-mail</button><button data-settings-tab="team" class="${category === 'team' ? 'is-active' : ''}">Beheerders</button><button data-settings-tab="security" class="${category === 'security' ? 'is-active' : ''}">Beveiliging</button></nav><section class="settings-panel panel">${panels[category] || panels.company}</section></div></div>`
   bindSettingsForms(category)
 }
 
@@ -2021,6 +2026,14 @@ function bindSettingsForms(category) {
     const { data: reauthenticated, error: reauthenticationError } = await supabase.auth.signInWithPassword({ email, password: values.current_password })
     if (reauthenticationError) { toast('Huidig wachtwoord is niet juist', '', true); setBusy(button, false, 'Wachtwoord wijzigen'); return }
     state.session = reauthenticated.session
+    const { data: factorData, error: factorError } = await supabase.auth.mfa.listFactors()
+    const factor = factorData?.totp?.find((item) => item.status === 'verified')
+    if (factorError || !factor) { toast('Authenticator ontbreekt', 'Log opnieuw in om tweestapsverificatie in te stellen.', true); setBusy(button, false, 'Wachtwoord wijzigen'); return }
+    const challenge = await supabase.auth.mfa.challenge({ factorId: factor.id })
+    if (challenge.error) { toast('Beveiligingscontrole mislukt', challenge.error.message, true); setBusy(button, false, 'Wachtwoord wijzigen'); return }
+    const verification = await supabase.auth.mfa.verify({ factorId: factor.id, challengeId: challenge.data.id, code: String(values.mfa_code).trim() })
+    if (verification.error) { toast('Authenticatorcode is niet juist', 'Probeer de nieuwste zescijferige code.', true); setBusy(button, false, 'Wachtwoord wijzigen'); return }
+    state.session = (await supabase.auth.getSession()).data.session
     const { error } = await supabase.auth.updateUser({ password: values.password, currentPassword: values.current_password })
     if (error) { toast('Wachtwoord wijzigen mislukt', error.message, true); setBusy(button, false, 'Wachtwoord wijzigen'); return }
     await supabase.auth.signOut({ scope: 'others' })
@@ -2264,6 +2277,8 @@ function handleFilters(event) {
 
 async function showAdmin(session) {
   state.session = session
+  const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (assurance.error || assurance.data?.currentLevel !== 'aal2') { await showMfa(session); return }
   const { data: profile, error } = await supabase.from('admin_profiles').select('*').eq('id', session.user.id).single()
   if (error || !profile?.active) {
     await supabase.auth.signOut()
@@ -2271,29 +2286,103 @@ async function showAdmin(session) {
     return
   }
   state.profile = profile
+  const factors = await supabase.auth.mfa.listFactors()
+  state.mfaFactors = factors.data?.totp || []
   document.querySelector('#account-name').textContent = profile.full_name || profile.email.split('@')[0]
   document.querySelector('#account-role').textContent = prettyStatus(profile.role === 'owner' ? 'Eigenaar' : profile.role)
   document.querySelector('#account-initials').textContent = initials(profile.full_name || profile.email)
-  elements.loading.hidden = true; elements.login.hidden = true; elements.app.hidden = false
+  elements.loading.hidden = true; elements.login.hidden = true; elements.mfa.hidden = true; elements.app.hidden = false
   try { await fetchAllData(); renderRoute() } catch (fetchError) { toast('Admin laden mislukt', fetchError.message, true); elements.content.innerHTML = `<div class="page-container">${emptyState('Gegevens konden niet worden geladen', fetchError.message, '×')}</div>` }
 }
 
+async function showMfa(session) {
+  state.session = session
+  state.mfaFactorId = ''
+  state.mfaMode = ''
+  elements.loading.hidden = true; elements.login.hidden = true; elements.app.hidden = true; elements.mfa.hidden = false
+  const title = document.querySelector('#mfa-title')
+  const description = document.querySelector('#mfa-description')
+  const enrollment = document.querySelector('#mfa-enrollment')
+  const message = document.querySelector('#mfa-message')
+  const form = document.querySelector('#mfa-form')
+  message.textContent = 'Beveiliging controleren…'; message.classList.remove('is-error'); enrollment.hidden = true; form.reset()
+
+  const factors = await supabase.auth.mfa.listFactors()
+  if (factors.error) { message.textContent = factors.error.message; message.classList.add('is-error'); return }
+  const verified = factors.data?.totp?.find((factor) => factor.status === 'verified')
+  if (verified) {
+    state.mfaMode = 'challenge'; state.mfaFactorId = verified.id
+    title.innerHTML = 'Vul je code<br><em>in.</em>'
+    description.textContent = 'Open je authenticator-app en vul de actuele zescijferige code in.'
+    message.textContent = ''
+    form.elements.code.focus()
+    return
+  }
+
+  for (const factor of factors.data?.totp || []) {
+    if (factor.status !== 'verified') await supabase.auth.mfa.unenroll({ factorId: factor.id })
+  }
+  const enrolled = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'ZOL Admin' })
+  if (enrolled.error) { message.textContent = enrolled.error.message; message.classList.add('is-error'); return }
+  state.mfaMode = 'enroll'; state.mfaFactorId = enrolled.data.id
+  title.innerHTML = 'Authenticator<br><em>instellen.</em>'
+  description.textContent = 'Scan de QR-code met Google Authenticator, Microsoft Authenticator, 1Password of een vergelijkbare app.'
+  document.querySelector('#mfa-qr-code').src = enrolled.data.totp.qr_code
+  document.querySelector('#mfa-secret').textContent = enrolled.data.totp.secret
+  enrollment.hidden = false; message.textContent = ''
+  form.elements.code.focus()
+}
+
 function showLogin(message = '') {
-  elements.loading.hidden = true; elements.app.hidden = true; elements.login.hidden = false
+  elements.loading.hidden = true; elements.app.hidden = true; elements.mfa.hidden = true; elements.login.hidden = false
   const messageElement = document.querySelector('#login-message'); messageElement.textContent = message; messageElement.classList.toggle('is-error', Boolean(message))
+}
+
+async function continueAfterPrimaryAuth(session) {
+  if (!session) { showLogin(); return }
+  const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (!assurance.error && assurance.data?.currentLevel === 'aal2') await showAdmin(session)
+  else await showMfa(session)
 }
 
 async function boot() {
   const { data: { session } } = await supabase.auth.getSession()
-  if (session) await showAdmin(session); else showLogin()
+  await continueAfterPrimaryAuth(session)
 }
 
 document.querySelector('#login-form').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('[type="submit"]'); const message = document.querySelector('#login-message'); setBusy(button, true, 'Inloggen'); message.textContent = ''; message.classList.remove('is-error')
   const values = Object.fromEntries(new FormData(form)); const { data, error } = await supabase.auth.signInWithPassword({ email: values.email.trim().toLowerCase(), password: values.password })
   if (error) { message.textContent = 'E-mailadres of wachtwoord is niet juist.'; message.classList.add('is-error'); setBusy(button, false, 'Inloggen'); return }
-  await showAdmin(data.session)
+  setBusy(button, false, 'Inloggen')
+  await continueAfterPrimaryAuth(data.session)
 })
+
+document.querySelector('#mfa-form').addEventListener('submit', async (event) => {
+  event.preventDefault()
+  const form = event.currentTarget
+  const button = form.querySelector('[type="submit"]')
+  const message = document.querySelector('#mfa-message')
+  const code = form.elements.code.value.trim()
+  if (!/^\d{6}$/.test(code) || !state.mfaFactorId) { message.textContent = 'Vul een geldige zescijferige code in.'; message.classList.add('is-error'); return }
+  setBusy(button, true, 'Controleren'); message.textContent = ''; message.classList.remove('is-error')
+  const challenge = await supabase.auth.mfa.challenge({ factorId: state.mfaFactorId })
+  if (challenge.error) { message.textContent = challenge.error.message; message.classList.add('is-error'); setBusy(button, false, 'Controleren'); return }
+  const verification = await supabase.auth.mfa.verify({ factorId: state.mfaFactorId, challengeId: challenge.data.id, code })
+  if (verification.error) { message.textContent = 'De code is niet juist of verlopen. Gebruik de nieuwste code uit je app.'; message.classList.add('is-error'); setBusy(button, false, 'Controleren'); form.elements.code.select(); return }
+  const { data: { session } } = await supabase.auth.getSession()
+  setBusy(button, false, 'Controleren')
+  await showAdmin(session)
+})
+
+document.querySelector('#copy-mfa-secret').addEventListener('click', async () => {
+  const secret = document.querySelector('#mfa-secret').textContent
+  if (!secret) return
+  await navigator.clipboard.writeText(secret)
+  document.querySelector('#mfa-message').textContent = 'Sleutel gekopieerd.'
+})
+
+document.querySelector('#mfa-sign-out').addEventListener('click', () => supabase.auth.signOut())
 
 document.querySelector('#reset-password').addEventListener('click', async () => {
   const email = document.querySelector('#login-form [name="email"]').value.trim().toLowerCase()

@@ -155,8 +155,11 @@ export async function sendEmail(input: {
 export async function requireAdmin(request: Request, db = adminClient()) {
   const authorization = request.headers.get("Authorization")
   if (!authorization?.startsWith("Bearer ")) throw new Error("Niet ingelogd.")
-  const { data: { user }, error } = await db.auth.getUser(authorization.slice(7))
+  const token = authorization.slice(7)
+  const { data: { user }, error } = await db.auth.getUser(token)
   if (error || !user) throw new Error("Ongeldige sessie.")
+  const { data: assurance, error: assuranceError } = await db.auth.mfa.getAuthenticatorAssuranceLevel(token)
+  if (assuranceError || assurance?.currentLevel !== "aal2") throw new Error("Tweestapsverificatie is vereist voor ZOL Admin.")
   const { data: profile } = await db.from("admin_profiles").select("id,email,full_name,role,active").eq("id", user.id).maybeSingle()
   if (!profile?.active) throw new Error("Geen toegang tot ZOL Admin.")
   return profile

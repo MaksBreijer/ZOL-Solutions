@@ -46,6 +46,35 @@
       </aside>
     </main>
 
+    <main class="login-screen mfa-screen" id="mfa-screen" hidden>
+      <section class="login-panel">
+        <a class="login-brand" href="/" aria-label="Terug naar ZOL Solutions">
+          <img class="login-logo-image" src="/media/zol-logo.png" alt="ZOL Solutions" />
+          <span><strong>Solutions</strong><small>Beheeromgeving</small></span>
+        </a>
+        <div class="login-copy mfa-copy">
+          <p class="eyebrow">Extra beveiligingsstap</p>
+          <h1 id="mfa-title">Authenticator<br /><em>instellen.</em></h1>
+          <p id="mfa-description">Scan de QR-code met je authenticator-app en vul daarna de zescijferige code in.</p>
+        </div>
+        <section class="mfa-enrollment" id="mfa-enrollment" hidden>
+          <div class="mfa-qr"><img id="mfa-qr-code" alt="QR-code voor de authenticator-app" /></div>
+          <div><strong>Geen QR-scanner?</strong><p>Voer deze sleutel handmatig in:</p><code id="mfa-secret"></code><button class="text-action" type="button" id="copy-mfa-secret">Sleutel kopiëren</button></div>
+        </section>
+        <form class="login-form mfa-form" id="mfa-form">
+          <label>Code uit authenticator-app<input name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" placeholder="000000" required /></label>
+          <button class="primary-action" type="submit">Controleren <span>→</span></button>
+          <button class="text-action" type="button" id="mfa-sign-out">Terug naar inloggen</button>
+          <p class="form-message" id="mfa-message" aria-live="polite"></p>
+        </form>
+        <p class="login-security">Toegang tot ZOL Admin vereist voortaan je wachtwoord én een tijdelijke code uit je authenticator-app.</p>
+      </section>
+      <aside class="login-visual" aria-hidden="true">
+        <div class="login-orbit"><span></span><span></span><span></span><img src="/media/zol-logo.png" alt="" /></div>
+        <p>TWEE STAPPEN <span>×</span> ÉÉN VEILIGE ADMIN</p>
+      </aside>
+    </main>
+
     <div class="admin-app" id="admin-app" hidden>
       <header class="admin-topbar">
         <button class="mobile-menu-button" id="mobile-menu-button" type="button" aria-label="Menu openen"><i data-lucide="menu"></i></button>

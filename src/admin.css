@@ -150,6 +150,20 @@ svg { display: block; }
 .text-action { justify-self: start; padding: 0; border: 0; background: none; color: var(--admin-blue); font-size: 12px; font-weight: 700; }
 .form-message { min-height: 16px; margin: 0; color: var(--admin-muted); font-size: 12px; }
 .form-message.is-error { color: var(--admin-red); }
+.mfa-copy h1 { font-size: clamp(44px, 5vw, 70px); }
+.mfa-enrollment { margin: -12px 0 22px; padding: 18px; display: grid; grid-template-columns: 168px 1fr; align-items: center; gap: 20px; border: 1px solid #dce4ea; border-radius: 14px; background: #f7f9fb; }
+.mfa-enrollment[hidden] { display: none; }
+.mfa-qr { padding: 10px; border-radius: 10px; background: #fff; box-shadow: 0 6px 20px rgb(17 47 76 / 8%); }
+.mfa-qr img { width: 100%; display: block; }
+.mfa-enrollment strong, .mfa-enrollment p, .mfa-enrollment code { display: block; }
+.mfa-enrollment p { margin: 6px 0 10px; color: var(--admin-muted); font-size: 11px; line-height: 1.5; }
+.mfa-enrollment code { overflow-wrap: anywhere; padding: 9px 10px; border: 1px solid #d8e0e6; border-radius: 7px; background: #fff; color: var(--admin-navy); font-size: 10px; }
+.mfa-enrollment .text-action { margin-top: 10px; }
+.mfa-form input { font-size: 22px; font-weight: 750; letter-spacing: .26em; text-align: center; }
+.mfa-status-card { margin: 18px 0 28px; padding: 16px; display: flex; align-items: center; gap: 13px; border: 1px solid #b9dfca; border-radius: 12px; background: #f2faf5; }
+.mfa-status-card > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: #3d9369; color: #fff; font-weight: 800; }
+.mfa-status-card div { display: grid; gap: 4px; }
+.mfa-status-card small { color: var(--admin-muted); font-size: 9px; }
 .first-admin { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e4e8ed; color: var(--admin-muted); font-size: 12px; }
 .first-admin summary { color: var(--admin-blue); font-weight: 700; cursor: pointer; }
 .first-admin p { line-height: 1.55; }
@@ -797,6 +811,8 @@ svg { display: block; }
   .login-visual { display: none; }
   .login-brand { margin-bottom: 52px; }
   .login-copy h1 { font-size: clamp(49px, 16vw, 68px); }
+  .mfa-copy h1 { font-size: clamp(42px, 13vw, 58px); }
+  .mfa-enrollment { grid-template-columns: 128px 1fr; padding: 14px; gap: 14px; }
   .admin-topbar { padding: 0 10px; grid-template-columns: 35px auto 1fr; gap: 8px; }
   .mobile-menu-button { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #fff; }
   .mobile-menu-button:hover { background: rgb(255 255 255 / 8%); }
