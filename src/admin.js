@@ -982,7 +982,7 @@ function renderPilot() {
 
   const setupNotice = state.pilotReady ? '' : `<section class="panel pilot-setup-warning"><strong>De vragenlijsten staan klaar, maar de database-uitbreiding is nog niet geïnstalleerd.</strong><p>Hierdoor kunnen deelnemers en antwoorden nog niet worden opgeslagen. Dit raakt de bestaande webshop niet.</p></section>`
   const canExport = Boolean(state.pilotReport?.participants?.length) && !state.pilotReportLoading
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="invite-order-customers" ${config.enabled ? '' : 'disabled'}><i data-lucide="send"></i> Bestellers uitnodigen</button><button class="button" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export</button><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Vragenlijst bekijken →</a>`)}
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="invite-order-customers" ${config.enabled ? '' : 'disabled'}><i data-lucide="send"></i> Bestellers uitnodigen</button><button class="button" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export</button><a class="button" href="/meting/?preview=consent" target="_blank" rel="noreferrer">Toestemming bekijken →</a><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Vragenlijst bekijken →</a>`)}
     ${setupNotice}
     <section class="pilot-control-grid">
       <form class="panel pilot-settings" id="pilot-settings-form">

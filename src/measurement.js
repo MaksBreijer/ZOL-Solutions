@@ -61,6 +61,7 @@ function renderConsent(firstName) {
   const decline = content.querySelector('[data-decline]')
   confirm.addEventListener('click', async () => {
     if (!checkbox.checked) { document.querySelector('#consent-error').textContent = 'Vink eerst de toestemming aan.'; return }
+    if (preview) { showConsentFinished(false); return }
     confirm.disabled = true; decline.disabled = true; confirm.textContent = 'Toestemming opslaan…'
     try {
       const result = await invoke({ action: 'consent_confirm', token: consentToken, parent_confirmed: true })
@@ -68,6 +69,7 @@ function renderConsent(firstName) {
     } catch (error) { showError(error.message) }
   })
   decline.addEventListener('click', async () => {
+    if (preview) { showConsentFinished(true); return }
     confirm.disabled = true; decline.disabled = true; decline.textContent = 'Voorkeur opslaan…'
     try { await invoke({ action: 'consent_decline', token: consentToken }); showConsentFinished(true) }
     catch (error) { showError(error.message) }
@@ -137,6 +139,7 @@ function showFinished() {
 }
 
 async function boot() {
+  if (preview === 'consent') { renderConsent('ouder of verzorger'); return }
   if (consentToken) { await bootConsent(); return }
   if (preview && previewMeasurements[preview]) {
     measurement = JSON.parse(JSON.stringify(previewMeasurements[preview]))
