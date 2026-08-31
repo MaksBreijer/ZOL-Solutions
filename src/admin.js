@@ -848,7 +848,7 @@ function renderEmails() {
 }
 
 const pilotTimepoints = [
-  ['baseline', 'Start', 'Direct'],
+  ['baseline', '0-meting', 'Direct'],
   ['week1', 'Week 1', 'Na 7 dagen'],
   ['week4', 'Week 4', 'Na 28 dagen'],
   ['week12', 'Week 12', 'Na 84 dagen'],
@@ -888,13 +888,13 @@ function renderPilotResults() {
     ),
   ).join('')
 
-  const timepointRows = timepoints.map((item) => `<tr><td><strong>${escapeHtml(item.label)}</strong></td><td>${item.sent}</td><td>${item.started}</td><td>${item.completed}</td><td>${pilotAverage(item.averagePain)}</td><td>${pilotAverage(item.averageComfort)}</td><td>${pilotAverage(item.averageRecommend)}</td></tr>`).join('')
+  const timepointRows = timepoints.map((item) => `<tr><td><strong>${escapeHtml(item.label)}</strong></td><td>${item.sent}</td><td>${item.started}</td><td>${item.completed}</td><td>${pilotAverage(item.averagePain)}</td><td>${pilotAverage(item.averageComfort)}</td></tr>`).join('')
   const overviewRows = overview.map((item) => `<tr><td><strong>${escapeHtml(item.code)}</strong><small>${escapeHtml(item.name)} · ${escapeHtml(item.email)}</small></td><td>${pilotScore(item.baselinePain)}</td><td>${pilotScore(item.week1Comfort)}</td><td>${pilotScore(item.week1Pain)}</td><td>${pilotScore(item.week4Change)}</td><td>${pilotScore(item.week4Pain)}</td><td>${pilotScore(item.week12Outcome)}</td><td>${pilotScore(item.week12Pain)}</td><td><strong>${item.completed}/4</strong></td></tr>`).join('')
 
   return `<section class="panel pilot-results-panel">
     <header class="panel-header"><div><h2>Pilotresultaten</h2><p>Scores, voortgang en alle ingevulde antwoorden. De Excel-export gebruikt alleen deelnemercodes.</p></div><span class="pilot-private-badge">Alleen beheer</span></header>
-    <div class="pilot-results-section"><h3>Voortgang per meetmoment</h3><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Meetmoment</th><th>Verstuurd</th><th>Gestart</th><th>Afgerond</th><th>Gem. pijn</th><th>Gem. comfort</th><th>Gem. aanbeveling</th></tr></thead><tbody>${timepointRows}</tbody></table></div></div>
-    <div class="pilot-results-section"><h3>Ontwikkeling per deelnemer</h3><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Deelnemer</th><th>Start pijn</th><th>Week 1 comfort</th><th>Week 1 pijn</th><th>Week 4 verandering</th><th>Week 4 pijn</th><th>Week 12 resultaat</th><th>Week 12 pijn</th><th>Afgerond</th></tr></thead><tbody>${overviewRows}</tbody></table></div></div>
+    <div class="pilot-results-section"><h3>Voortgang per meetmoment</h3><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Meetmoment</th><th>Verstuurd</th><th>Gestart</th><th>Afgerond</th><th>Gem. pijn</th><th>Gem. comfort</th></tr></thead><tbody>${timepointRows}</tbody></table></div></div>
+    <div class="pilot-results-section"><h3>Ontwikkeling per deelnemer</h3><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Deelnemer</th><th>0-meting pijn</th><th>Week 1 comfort</th><th>Week 1 pijn</th><th>Week 4 verandering</th><th>Week 4 pijn</th><th>Week 12 resultaat</th><th>Week 12 pijn</th><th>Afgerond</th></tr></thead><tbody>${overviewRows}</tbody></table></div></div>
     <details class="pilot-answer-details" ${answerRows ? '' : 'hidden'}><summary>Alle ingevulde antwoorden bekijken</summary><div class="table-scroll"><table class="data-table pilot-results-table"><thead><tr><th>Deelnemer</th><th>Meetmoment</th><th>Vraag</th><th>Antwoord</th><th>Ingevuld</th></tr></thead><tbody>${answerRows}</tbody></table></div></details>
   </section>`
 }

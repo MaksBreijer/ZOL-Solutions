@@ -3,6 +3,7 @@ import {
   adminClient, corsHeaders, emailShell, escapeHtml, getEmailConfig, getEmailTemplate,
   logEmail, markEmail, renderTemplate, requireAdmin, sendEmail,
 } from "../_shared/email.ts"
+import { timepoints as pilotTimepoints } from "../_shared/pilot-questions.js"
 
 type Question = {
   key: string
@@ -26,45 +27,7 @@ type Timepoint = {
   questions: Question[]
 }
 
-const timepoints: Timepoint[] = [
-  {
-    key: "baseline", label: "Startmeting", delayDays: 0, templateKey: "pilot_baseline", quickQuestion: "pain_sport",
-    questions: [
-      { key: "pain_sport", label: "Hoeveel hielpijn was er tijdens het sporten?", help: "0 is geen pijn, 10 is de ergst denkbare pijn.", type: "scale", min: 0, max: 10, minLabel: "Geen pijn", maxLabel: "Ergste pijn", required: true },
-      { key: "sport_limit", label: "Kon je kind de sport gewoon meedoen?", type: "choice", required: true, options: [{ value: "full", label: "Ja, volledig" }, { value: "partial", label: "Gedeeltelijk" }, { value: "stopped", label: "Nee, gestopt" }] },
-      { key: "pain_after", label: "Hoeveel hielpijn was er na het sporten?", help: "Denk aan de eerste uren na de training of wedstrijd.", type: "scale", min: 0, max: 10, minLabel: "Geen pijn", maxLabel: "Ergste pijn", required: true },
-      { key: "sport_days", label: "Hoeveel dagen per week sport je kind meestal?", type: "scale", min: 0, max: 7, minLabel: "0 dagen", maxLabel: "7 dagen", required: true },
-    ],
-  },
-  {
-    key: "week1", label: "Meting na 1 week", delayDays: 7, templateKey: "pilot_week1", quickQuestion: "comfort",
-    questions: [
-      { key: "comfort", label: "Hoe comfortabel zitten de ZOL’tjes?", help: "0 is helemaal niet comfortabel, 10 is zeer comfortabel.", type: "scale", min: 0, max: 10, minLabel: "Niet comfortabel", maxLabel: "Zeer comfortabel", required: true },
-      { key: "used_days", label: "Op hoeveel dagen zijn de ZOL’tjes gedragen?", type: "scale", min: 0, max: 7, minLabel: "0 dagen", maxLabel: "7 dagen", required: true },
-      { key: "pain_sport", label: "Hoeveel hielpijn was er tijdens het sporten?", type: "scale", min: 0, max: 10, minLabel: "Geen pijn", maxLabel: "Ergste pijn", required: true },
-      { key: "fit_issue", label: "Zijn er problemen met pasvorm of drukplekken?", type: "choice", required: true, options: [{ value: "no", label: "Nee" }, { value: "a_little", label: "Een beetje" }, { value: "yes", label: "Ja" }] },
-    ],
-  },
-  {
-    key: "week4", label: "Meting na 4 weken", delayDays: 28, templateKey: "pilot_week4", quickQuestion: "change",
-    questions: [
-      { key: "change", label: "Hoe gaat het vergeleken met de start?", type: "choice", required: true, options: [{ value: "worse", label: "Slechter" }, { value: "same", label: "Ongeveer gelijk" }, { value: "better", label: "Beter" }, { value: "much_better", label: "Veel beter" }] },
-      { key: "pain_sport", label: "Hoeveel hielpijn is er nu tijdens het sporten?", type: "scale", min: 0, max: 10, minLabel: "Geen pijn", maxLabel: "Ergste pijn", required: true },
-      { key: "sport_limit", label: "Kan je kind de sport nu gewoon meedoen?", type: "choice", required: true, options: [{ value: "full", label: "Ja, volledig" }, { value: "partial", label: "Gedeeltelijk" }, { value: "stopped", label: "Nee, gestopt" }] },
-      { key: "recommend", label: "Hoe waarschijnlijk is het dat je ZOL aanbeveelt?", type: "scale", min: 0, max: 10, minLabel: "Niet waarschijnlijk", maxLabel: "Zeer waarschijnlijk", required: true },
-    ],
-  },
-  {
-    key: "week12", label: "Meting na 12 weken", delayDays: 84, templateKey: "pilot_week12", quickQuestion: "continued_use",
-    questions: [
-      { key: "continued_use", label: "Worden de ZOL’tjes nog gebruikt?", type: "choice", required: true, options: [{ value: "yes", label: "Ja" }, { value: "sometimes", label: "Soms" }, { value: "no", label: "Nee" }] },
-      { key: "pain_sport", label: "Hoeveel hielpijn is er nu tijdens het sporten?", type: "scale", min: 0, max: 10, minLabel: "Geen pijn", maxLabel: "Ergste pijn", required: true },
-      { key: "sport_limit", label: "Kan je kind de sport nu gewoon meedoen?", type: "choice", required: true, options: [{ value: "full", label: "Ja, volledig" }, { value: "partial", label: "Gedeeltelijk" }, { value: "stopped", label: "Nee, gestopt" }] },
-      { key: "overall", label: "Wat is het resultaat over de hele periode?", type: "choice", required: true, options: [{ value: "worse", label: "Slechter" }, { value: "same", label: "Ongeveer gelijk" }, { value: "better", label: "Beter" }, { value: "much_better", label: "Veel beter" }] },
-      { key: "comment", label: "Wil je nog iets meegeven?", help: "Dit is niet verplicht.", type: "text", required: false },
-    ],
-  },
-]
+const timepoints = pilotTimepoints as Timepoint[]
 
 const encoder = new TextEncoder()
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i

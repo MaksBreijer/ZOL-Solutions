@@ -68,7 +68,6 @@ export function timepointSummary(report) {
       completed: measurements.filter((item) => item.status === 'completed').length,
       averagePain: average(numeric('pain_sport')),
       averageComfort: average(numeric('comfort')),
-      averageRecommend: average(numeric('recommend')),
     }
   })
 }

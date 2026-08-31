@@ -1,25 +1,23 @@
 import { supabase } from './supabase-client.js'
+import { timepoints } from '../supabase/functions/_shared/pilot-questions.js'
 
 const content = document.querySelector('#measurement-content')
 const progress = document.querySelector('#measurement-progress-bar')
 const params = new URLSearchParams(window.location.search)
-const preview = import.meta.env.DEV ? params.get('preview') : ''
+const preview = params.get('preview') || ''
 let token = params.get('token') || sessionStorage.getItem('zol-pilot-token') || ''
 const quickQuestion = params.get('q') || ''
 const quickAnswer = params.get('a') || ''
 let measurement = null
 let stepIndex = 0
 
-const previewMeasurements = {
-  baseline: {
-    timepoint: 'baseline', label: 'Startmeting', intro: 'Voor het eerste gebruik · ongeveer 1 minuut', completed: false, answers: {},
-    questions: [
-      { key: 'pain_sport', label: 'Hoeveel hielpijn was er tijdens het sporten?', help: '0 is geen pijn, 10 is de ergst denkbare pijn.', type: 'scale', min: 0, max: 10, required: true },
-      { key: 'sport_limit', label: 'Kon je kind de sport gewoon meedoen?', type: 'choice', required: true, options: [{ value: 'full', label: 'Ja, volledig' }, { value: 'partial', label: 'Gedeeltelijk' }, { value: 'stopped', label: 'Nee, gestopt' }] },
-      { key: 'pain_after', label: 'Hoeveel hielpijn was er na het sporten?', help: '0 is geen pijn, 10 is de ergst denkbare pijn.', type: 'scale', min: 0, max: 10, required: true },
-    ],
-  },
-}
+const previewMeasurements = Object.fromEntries(timepoints.map((definition) => [definition.key, {
+  timepoint: definition.key,
+  label: definition.label,
+  completed: false,
+  answers: {},
+  questions: definition.questions,
+}]))
 
 function escapeHtml(value = '') {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
