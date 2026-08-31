@@ -56,6 +56,8 @@ const state = {
   emailMessages: [],
   emailTemplates: [],
   pilotEnrollments: [],
+  pilotConsentInvites: [],
+  pilotCustomerSelection: new Set(),
   pilotReady: true,
   pilotReport: null,
   pilotReportLoading: false,
@@ -100,13 +102,14 @@ const prettyStatus = (value = '') => ({
   pending: 'Openstaand', paid: 'Betaald', failed: 'Mislukt', refunded: 'Terugbetaald', partially_refunded: 'Deels terugbetaald',
   unfulfilled: 'Niet verzonden', processing: 'In behandeling', shipped: 'Verzonden', delivered: 'Bezorgd', returned: 'Retour',
   active: 'Actief', inactive: 'Uitgeschakeld', authorized: 'Geautoriseerd', expired: 'Verlopen', withdrawn: 'Gestopt',
+  ready: 'Nog uitnodigen', accepted: 'Toestemming gegeven', declined: 'Afgewezen',
   new: 'Nieuw', read: 'Gelezen', replied: 'Beantwoord', email_failed: 'Melding mislukt', sent: 'Verstuurd', queued: 'In wachtrij', started: 'Gestart',
 }[value] || value.replaceAll('_', ' '))
 
 const statusClass = (value = '') => {
-  if (['paid', 'completed', 'delivered', 'active', 'authorized', 'sent', 'replied'].includes(value)) return 'is-green'
-  if (['failed', 'cancelled', 'returned', 'refunded', 'email_failed'].includes(value)) return 'is-red'
-  if (['open', 'shipped', 'processing', 'new'].includes(value)) return 'is-blue'
+  if (['paid', 'completed', 'delivered', 'active', 'accepted', 'authorized', 'sent', 'replied'].includes(value)) return 'is-green'
+  if (['failed', 'cancelled', 'declined', 'returned', 'refunded', 'email_failed'].includes(value)) return 'is-red'
+  if (['open', 'ready', 'shipped', 'processing', 'new'].includes(value)) return 'is-blue'
   return 'is-orange'
 }
 
@@ -361,6 +364,7 @@ async function fetchAllData() {
     supabase.from('order_notes').select('*').order('created_at', { ascending: false }).limit(1000),
     supabase.from('email_templates').select('*').order('sort_order'),
     fetchPilotEnrollments(),
+    supabase.from('pilot_consent_invites').select('id,customer_id,status,sent_at,accepted_at,declined_at,created_at').order('created_at', { ascending: false }),
   ])
 
   const firstError = requests.find((request) => request.error)?.error
@@ -384,6 +388,7 @@ async function fetchAllData() {
     state.orderNotes,
     state.emailTemplates,
     state.pilotEnrollments,
+    state.pilotConsentInvites,
   ] = requests.map((request) => request.data || [])
 
   const openOrders = visibleOrders().filter((order) => !['completed', 'cancelled'].includes(order.status)).length
@@ -936,27 +941,83 @@ async function exportPilotResults(target) {
   toast('Excel-export aangemaakt', 'Namen en e-mailadressen zijn niet opgenomen; iedere deelnemer heeft een code.')
 }
 
+function painOrderCustomers() {
+  const config = settingsValue('pilot_measurements')
+  const excluded = new Set((config.excluded_emails || []).map((email) => String(email).trim().toLowerCase()))
+  const paidCustomerIds = new Set(state.orders
+    .filter((order) => ['paid', 'partially_refunded', 'refunded'].includes(order.payment_status))
+    .map((order) => order.customer_id))
+  const enrollments = new Map(state.pilotEnrollments.map((item) => [item.customer_id, item]))
+  const consentInvites = new Map(state.pilotConsentInvites.map((item) => [item.customer_id, item]))
+
+  return state.customers
+    .filter((customer) => paidCustomerIds.has(customer.id) && !excluded.has(String(customer.email).trim().toLowerCase()))
+    .map((customer) => {
+      const enrollment = enrollments.get(customer.id)
+      const invite = consentInvites.get(customer.id)
+      const status = enrollment?.status === 'active' ? 'accepted' : invite?.status && invite.status !== 'pending' ? invite.status : 'ready'
+      return { customer, status, selectable: status === 'ready' }
+    })
+    .sort((left, right) => fullName(left.customer).localeCompare(fullName(right.customer), 'nl'))
+}
+
+function renderPainCustomerSelection(customers) {
+  const ready = customers.filter((item) => item.selectable)
+  const readyIds = new Set(ready.map((item) => item.customer.id))
+  state.pilotCustomerSelection = new Set([...state.pilotCustomerSelection].filter((id) => readyIds.has(id)))
+  const rows = customers.map(({ customer, status, selectable }) => `<tr>
+    <td class="pilot-customer-check"><input type="checkbox" data-pain-customer-id="${escapeHtml(customer.id)}" aria-label="Selecteer ${escapeHtml(fullName(customer))}" ${state.pilotCustomerSelection.has(customer.id) ? 'checked' : ''} ${selectable ? '' : 'disabled'}></td>
+    <td><strong>${escapeHtml(fullName(customer))}</strong></td>
+    <td>${escapeHtml(customer.email)}</td>
+    <td>${statusPill(status)}</td>
+  </tr>`).join('')
+
+  return `<section class="panel pilot-customer-picker" id="pain-customer-picker">
+    <header class="panel-header"><div><h2>Bestellers uitnodigen</h2><p>Vink één of meerdere klanten aan. Al uitgenodigde klanten blijven zichtbaar, maar kunnen niet opnieuw worden geselecteerd.</p></div><div class="pilot-selection-buttons"><button type="button" data-action="select-all-pain-customers" ${ready.length ? '' : 'disabled'}>Alles selecteren</button><button type="button" data-action="clear-pain-customers" ${state.pilotCustomerSelection.size ? '' : 'disabled'}>Wis selectie</button></div></header>
+    ${rows ? `<div class="table-scroll"><table class="data-table pilot-customer-table"><thead><tr><th></th><th>Klant</th><th>E-mail</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen betaalde bestellers', 'Zodra een bestelling betaald is, verschijnt de klant hier.', '✉')}
+    <footer class="pilot-customer-actions"><span data-pain-selection-count>${state.pilotCustomerSelection.size} geselecteerd · ${ready.length} nog uit te nodigen</span><button class="button button--primary" type="button" data-action="invite-order-customers" ${state.pilotCustomerSelection.size ? '' : 'disabled'}>Geselecteerde klanten uitnodigen</button></footer>
+  </section>`
+}
+
+function syncPainSelectionControls() {
+  const selected = state.pilotCustomerSelection.size
+  const counter = document.querySelector('[data-pain-selection-count]')
+  const sendButton = document.querySelector('[data-action="invite-order-customers"]')
+  const clearButton = document.querySelector('[data-action="clear-pain-customers"]')
+  if (counter) {
+    const ready = painOrderCustomers().filter((item) => item.selectable).length
+    counter.textContent = `${selected} geselecteerd · ${ready} nog uit te nodigen`
+  }
+  if (sendButton) sendButton.disabled = selected === 0
+  if (clearButton) clearButton.disabled = selected === 0
+}
+
 async function inviteOrderCustomers(target) {
+  const customerIds = [...state.pilotCustomerSelection]
+  if (!customerIds.length) { toast('Selecteer eerst klanten', 'Vink één of meerdere bestellers aan.'); return }
   setBusy(target, true, 'Bestellers controleren')
-  const previewResult = await supabase.functions.invoke('pilot-measurement', { body: { action: 'invite_order_customers', dry_run: true } })
+  const previewResult = await supabase.functions.invoke('pilot-measurement', { body: { action: 'invite_order_customers', customer_ids: customerIds, dry_run: true } })
   if (previewResult.error || previewResult.data?.error) {
     toast('Bestellers controleren mislukt', await edgeFunctionMessage(previewResult.error, previewResult.data, 'De doelgroep kon niet worden gecontroleerd.'), true)
-    setBusy(target, false, 'Bestellers uitnodigen')
+    setBusy(target, false, 'Geselecteerde klanten uitnodigen')
     return
   }
   const count = Number(previewResult.data?.ready || 0)
   if (!count) {
     toast('Niemand wacht op een uitnodiging', `${previewResult.data?.already_invited || 0} klanten zijn al uitgenodigd en ${previewResult.data?.already_enrolled || 0} klanten doen al mee.`)
-    setBusy(target, false, 'Bestellers uitnodigen')
+    setBusy(target, false, 'Geselecteerde klanten uitnodigen')
     return
   }
-  setBusy(target, false, 'Bestellers uitnodigen')
+  setBusy(target, false, 'Geselecteerde klanten uitnodigen')
   if (!window.confirm(`${count} besteller${count === 1 ? '' : 's'} ontvangt nu een echte uitnodiging voor de pijnvragenlijsten. Pas na expliciete toestemming start de 0-meting. Wil je doorgaan?`)) return
   setBusy(target, true, 'Uitnodigingen versturen')
-  const result = await supabase.functions.invoke('pilot-measurement', { body: { action: 'invite_order_customers' } })
+  const result = await supabase.functions.invoke('pilot-measurement', { body: { action: 'invite_order_customers', customer_ids: customerIds } })
   if (result.error || result.data?.error) toast('Uitnodigen mislukt', await edgeFunctionMessage(result.error, result.data, 'De uitnodigingen konden niet worden verstuurd.'), true)
-  else toast('Uitnodigingen verwerkt', `${result.data?.sent || 0} verstuurd${result.data?.failed ? ` · ${result.data.failed} mislukt` : ''}.`)
-  setBusy(target, false, 'Bestellers uitnodigen')
+  else {
+    state.pilotCustomerSelection.clear()
+    toast('Uitnodigingen verwerkt', `${result.data?.sent || 0} verstuurd${result.data?.failed ? ` · ${result.data.failed} mislukt` : ''}.`)
+  }
+  setBusy(target, false, 'Geselecteerde klanten uitnodigen')
   await refreshCurrentRoute()
 }
 
@@ -971,6 +1032,7 @@ function renderPilot() {
   })
   const fallbackCompleted = state.pilotEnrollments.flatMap((item) => item.pilot_invites || []).filter((invite) => invite.status === 'completed').length
   const summary = state.pilotReport ? pilotSummary(state.pilotReport) : { participants: state.pilotEnrollments.length, completed: fallbackCompleted, answered: 0, responseRate: 0 }
+  const orderCustomers = painOrderCustomers()
   const participantCards = state.pilotEnrollments.map((enrollment) => {
     const customer = pilotCustomer(enrollment) || {}
     const reportParticipant = pilotReportParticipant(enrollment.id)
@@ -986,7 +1048,7 @@ function renderPilot() {
 
   const setupNotice = state.pilotReady ? '' : `<section class="panel pilot-setup-warning"><strong>De vragenlijsten staan klaar, maar de database-uitbreiding is nog niet geïnstalleerd.</strong><p>Hierdoor kunnen deelnemers en antwoorden nog niet worden opgeslagen. Dit raakt de bestaande webshop niet.</p></section>`
   const canExport = Boolean(state.pilotReport?.participants?.length) && !state.pilotReportLoading
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="invite-order-customers" ${config.enabled ? '' : 'disabled'}><i data-lucide="send"></i> Bestellers uitnodigen</button><button class="button" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export</button><a class="button" href="/meting/?preview=consent" target="_blank" rel="noreferrer">Toestemming bekijken →</a><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Vragenlijst bekijken →</a>`)}
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="focus-pain-customers" ${config.enabled ? '' : 'disabled'}><i data-lucide="users"></i> Klanten selecteren</button><button class="button" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export</button><a class="button" href="/meting/?preview=consent" target="_blank" rel="noreferrer">Toestemming bekijken →</a><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Vragenlijst bekijken →</a>`)}
     ${setupNotice}
     <section class="pilot-control-grid">
       <form class="panel pilot-settings" id="pilot-settings-form">
@@ -1006,10 +1068,17 @@ function renderPilot() {
         <button class="button button--primary" type="submit" ${state.pilotReady ? '' : 'disabled'}>Klant toevoegen</button>
       </form>
     </section>
+    ${renderPainCustomerSelection(orderCustomers)}
     <section class="pilot-summary"><div><strong>${summary.participants}</strong><span>deelnemers</span></div><div><strong>${summary.completed}</strong><span>vragenlijsten afgerond</span></div><div><strong>${summary.answered}</strong><span>vragen beantwoord</span></div><div><strong>${summary.responseRate}%</strong><span>afgerond van verstuurd</span></div></section>
     ${renderPilotResults()}
     <div class="pilot-participants">${participantCards || emptyState('Nog geen deelnemers', 'Nodig bestellers uit of voeg een klant met vastgelegde toestemming handmatig toe.', '✦')}</div>
   </div>`
+
+  document.querySelectorAll('[data-pain-customer-id]').forEach((input) => input.addEventListener('change', () => {
+    if (input.checked) state.pilotCustomerSelection.add(input.dataset.painCustomerId)
+    else state.pilotCustomerSelection.delete(input.dataset.painCustomerId)
+    syncPainSelectionControls()
+  }))
 
   document.querySelector('#pilot-settings-form')?.addEventListener('submit', async (event) => {
     event.preventDefault()
@@ -2120,6 +2189,19 @@ async function handleContentClick(event) {
   }
   if (action === 'export-pilot-results') await exportPilotResults(target)
   if (action === 'refresh-pilot-results') await loadPilotReport(true)
+  if (action === 'focus-pain-customers') document.querySelector('#pain-customer-picker')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (action === 'select-all-pain-customers') {
+    document.querySelectorAll('[data-pain-customer-id]:not(:disabled)').forEach((input) => {
+      input.checked = true
+      state.pilotCustomerSelection.add(input.dataset.painCustomerId)
+    })
+    syncPainSelectionControls()
+  }
+  if (action === 'clear-pain-customers') {
+    state.pilotCustomerSelection.clear()
+    document.querySelectorAll('[data-pain-customer-id]').forEach((input) => { input.checked = false })
+    syncPainSelectionControls()
+  }
   if (action === 'invite-order-customers') await inviteOrderCustomers(target)
   if (action === 'mark-delivered') await markOrderDelivered(state.orders.find((item) => item.id === id))
   if (action === 'toggle-archive') await toggleOrderArchive(state.orders.find((item) => item.id === id))

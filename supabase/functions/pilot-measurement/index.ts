@@ -413,10 +413,24 @@ async function eligibleOrderCustomers(db: ReturnType<typeof adminClient>, config
   return [...unique.values()]
 }
 
-async function inviteOrderCustomers(db: ReturnType<typeof adminClient>, actor: AdminActor | null, dryRun = false, limit = 100) {
+async function inviteOrderCustomers(
+  db: ReturnType<typeof adminClient>,
+  actor: AdminActor | null,
+  dryRun = false,
+  limit = 100,
+  selectedCustomerIds: string[] | null = null,
+) {
   const config = await getPainConfig(db)
   if (!config.enabled) throw new Error("De pijnvragenlijsten staan uit.")
-  const eligible = await eligibleOrderCustomers(db, config)
+  const requestedIds = selectedCustomerIds
+    ? [...new Set(selectedCustomerIds.map((id) => String(id).trim()))]
+    : null
+  if (requestedIds && (!requestedIds.length || requestedIds.length > 100 || requestedIds.some((id) => !uuidPattern.test(id)))) {
+    throw new Error("Selecteer één tot honderd geldige klanten.")
+  }
+  const eligibleCustomers = await eligibleOrderCustomers(db, config)
+  const requested = requestedIds ? new Set(requestedIds) : null
+  const eligible = requested ? eligibleCustomers.filter((item) => requested.has(item.customer.id)) : eligibleCustomers
   const ids = eligible.map((item) => item.customer.id)
   if (!ids.length) return { eligible: 0, ready: 0, already_enrolled: 0, already_invited: 0, sent: 0, failed: 0 }
   const [{ data: enrollments, error: enrollmentError }, { data: consentInvites, error: consentError }] = await Promise.all([
@@ -521,7 +535,10 @@ Deno.serve(async (request) => {
     const admin = await requireAdmin(request, db)
     if (action === "enroll") return asJson(headers, await enroll(db, body, admin))
     if (action === "send") return asJson(headers, await sendInvite(db, body, admin))
-    if (action === "invite_order_customers") return asJson(headers, await inviteOrderCustomers(db, admin, body.dry_run === true))
+    if (action === "invite_order_customers") {
+      const selectedCustomerIds = Array.isArray(body.customer_ids) ? body.customer_ids.map(String) : null
+      return asJson(headers, await inviteOrderCustomers(db, admin, body.dry_run === true, 100, selectedCustomerIds))
+    }
     if (action === "report") return asJson(headers, await loadAdminReport(db, admin, body.record_export === true))
     return asJson(headers, { error: "Onbekende actie." }, 400)
   } catch (error) {

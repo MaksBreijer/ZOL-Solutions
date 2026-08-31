@@ -50,6 +50,15 @@
 .pilot-setup-warning p { margin: 5px 0 0; color: #765c3d; }
 
 .pilot-results-panel, .pilot-results-state { margin-bottom: 18px; }
+.pilot-customer-picker { margin-bottom: 18px; overflow: hidden; }
+.pilot-selection-buttons { display: flex; align-items: center; gap: 12px; }
+.pilot-customer-table { min-width: 620px; }
+.pilot-customer-table .pilot-customer-check { width: 42px; text-align: center; }
+.pilot-customer-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--admin-blue); }
+.pilot-customer-table tr:has(input:checked) { background: #f1f7fc; }
+.pilot-customer-table tr:has(input:disabled) { color: var(--admin-muted); }
+.pilot-customer-actions { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid #e1e5e8; }
+.pilot-customer-actions span { color: var(--admin-muted); font-size: 10px; font-weight: 700; }
 .pilot-results-panel .panel-header { align-items: flex-start; }
 .pilot-private-badge { padding: 5px 9px; border-radius: 999px; background: #eaf3f9; color: #0d5889; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .pilot-results-section { padding: 18px 18px 4px; }
@@ -93,6 +102,9 @@
   .pilot-timeline { grid-template-columns: 1fr; }
   .pilot-moment { min-height: 0; }
   .pilot-results-panel .panel-header { display: grid; }
+  .pilot-customer-picker .panel-header, .pilot-customer-actions { align-items: stretch; display: grid; }
+  .pilot-selection-buttons { flex-wrap: wrap; }
+  .pilot-customer-actions .button { width: 100%; }
   .pilot-private-badge { width: fit-content; }
 }
 
