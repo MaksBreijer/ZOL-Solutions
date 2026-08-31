@@ -963,8 +963,12 @@ async function inviteOrderCustomers(target) {
 function renderPilot() {
   const config = settingsValue('pilot_measurements')
   const allowedEmails = Array.isArray(config.allowed_emails) ? config.allowed_emails : ['thijn@zolsolutions.nl', 'maks@zolsolutions.nl']
+  const excludedEmails = Array.isArray(config.excluded_emails) ? config.excluded_emails : []
   const testMode = config.test_mode !== false
-  const eligibleCustomers = state.customers.filter((customer) => !testMode || allowedEmails.includes(String(customer.email).toLowerCase()))
+  const eligibleCustomers = state.customers.filter((customer) => {
+    const email = String(customer.email).trim().toLowerCase()
+    return !excludedEmails.includes(email) && (!testMode || allowedEmails.includes(email))
+  })
   const fallbackCompleted = state.pilotEnrollments.flatMap((item) => item.pilot_invites || []).filter((invite) => invite.status === 'completed').length
   const summary = state.pilotReport ? pilotSummary(state.pilotReport) : { participants: state.pilotEnrollments.length, completed: fallbackCompleted, answered: 0, responseRate: 0 }
   const participantCards = state.pilotEnrollments.map((enrollment) => {
@@ -992,6 +996,7 @@ function renderPilot() {
         <label class="checkbox-field"><input name="enabled" type="checkbox" ${config.enabled ? 'checked' : ''}> Pijnvragenlijsten activeren</label>
         <label class="checkbox-field"><input name="automatic_sending" type="checkbox" ${config.automatic_sending ? 'checked' : ''}> Nieuwe betaalde bestellers automatisch uitnodigen en geplande vragenlijsten versturen</label>
         <label class="field">Interne testadressen<textarea name="allowed_emails" rows="3">${escapeHtml(allowedEmails.join('\n'))}</textarea><small>Eén e-mailadres per regel. In de teststand blokkeert de server alle andere adressen.</small></label>
+        <label class="field">Uitgesloten adressen<textarea name="excluded_emails" rows="3">${escapeHtml(excludedEmails.join('\n'))}</textarea><small>Deze klanten worden nooit automatisch of via “Bestellers uitnodigen” benaderd.</small></label>
         <button class="button button--primary" type="submit">Instellingen opslaan</button>
       </form>
       <form class="panel pilot-enroll" id="pilot-enroll-form">
@@ -1014,6 +1019,7 @@ function renderPilot() {
       test_mode: form.elements.test_mode.checked,
       automatic_sending: form.elements.automatic_sending.checked,
       allowed_emails: form.elements.allowed_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
+      excluded_emails: form.elements.excluded_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
     }
     if (!next.test_mode && !window.confirm('Hiermee verdwijnt de blokkade op testadressen. Wil je deze instelling echt opslaan?')) return
     const { error } = await supabase.from('settings').upsert({ key: 'pilot_measurements', category: 'pilot', label: 'Pijnvragenlijsten', value: next, is_public: false })

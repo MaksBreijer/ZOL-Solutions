@@ -207,7 +207,13 @@ async function loadAdminReport(
 
 type AdminActor = { id: string; email: string; role: string }
 type CustomerRow = { id: string; email: string; first_name?: string; last_name?: string }
-type PainConfig = { enabled?: boolean; test_mode?: boolean; automatic_sending?: boolean; allowed_emails?: string[] }
+type PainConfig = {
+  enabled?: boolean
+  test_mode?: boolean
+  automatic_sending?: boolean
+  allowed_emails?: string[]
+  excluded_emails?: string[]
+}
 
 async function getPainConfig(db: ReturnType<typeof adminClient>): Promise<PainConfig> {
   const { data, error } = await db.from("settings").select("value").eq("key", "pilot_measurements").maybeSingle()
@@ -215,7 +221,13 @@ async function getPainConfig(db: ReturnType<typeof adminClient>): Promise<PainCo
   return data?.value || {}
 }
 
+function emailExcluded(config: PainConfig, email: string) {
+  const excluded = (config.excluded_emails || []).map((item) => String(item).trim().toLowerCase())
+  return excluded.includes(email.trim().toLowerCase())
+}
+
 function emailAllowed(config: PainConfig, email: string) {
+  if (emailExcluded(config, email)) return false
   const allowed = (config.allowed_emails || []).map((item) => String(item).trim().toLowerCase())
   return config.test_mode === false || allowed.includes(email.trim().toLowerCase())
 }
