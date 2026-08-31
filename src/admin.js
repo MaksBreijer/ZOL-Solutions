@@ -2,6 +2,7 @@ import './admin.css'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
+import { trackingRemovalUpdate } from './order-tracking.js'
 import { participantOverview, pilotExcelCsv, pilotSummary, timepointSummary } from './pilot-report.js'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
@@ -611,7 +612,7 @@ function openOrder(order) {
         ${order.tracking_code ? `<div class="tracking-summary"><div><span>${escapeHtml(order.tracking_carrier || 'Tracking')}</span><strong>${escapeHtml(order.tracking_code)}</strong>${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" target="_blank" rel="noreferrer">Zending volgen <i data-lucide="external-link"></i></a>` : ''}</div>${order.fulfillment_status === 'delivered' ? statusPill('delivered') : statusPill('shipped')}</div>` : ''}
         <div class="order-products">${itemRows || '<p class="no-order-items">Geen orderregels.</p>'}</div>
         ${postnl.barcode ? `<div class="postnl-shipment"><div><span>PostNL ${postnl.environment === 'production' ? 'productie' : 'sandbox'}</span><strong>Label en barcode aangemaakt</strong>${(postnl.warnings || []).length ? `<small>${escapeHtml(postnl.warnings.join(' · '))}</small>` : ''}</div><button class="button" data-action="postnl-label-url" data-id="${order.id}"><i data-lucide="download"></i> Label openen</button></div>` : ''}
-        <footer><span>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</span><div>${postnl.barcode ? '' : `<button class="button button--primary" data-action="postnl-label" data-id="${order.id}"><i data-lucide="truck"></i> PostNL-label maken</button>`}${order.tracking_code ? `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="pencil"></i> Tracking wijzigen</button>` : `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="plus"></i> Tracking toevoegen</button>`}${order.fulfillment_status === 'shipped' ? `<button class="button" data-action="mark-delivered" data-id="${order.id}"><i data-lucide="check-circle"></i> Markeer bezorgd</button>` : ''}</div></footer>
+        <footer><span>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</span><div>${postnl.barcode ? '' : `<button class="button button--primary" data-action="postnl-label" data-id="${order.id}"><i data-lucide="truck"></i> PostNL-label maken</button>`}${order.tracking_code ? `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="pencil"></i> Tracking wijzigen</button>${canManage ? `<button class="button button--danger" data-action="remove-tracking" data-id="${order.id}">Tracking verwijderen</button>` : ''}` : `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="plus"></i> Tracking toevoegen</button>`}${order.fulfillment_status === 'shipped' ? `<button class="button" data-action="mark-delivered" data-id="${order.id}"><i data-lucide="check-circle"></i> Markeer bezorgd</button>` : ''}</div></footer>
       </section>
       <section class="order-card payment-card"><header><div><i data-lucide="credit-card"></i><h2>${prettyStatus(payment?.status || order.payment_status)}</h2></div><span>${escapeHtml(payment?.provider === 'mollie' ? 'Mollie Payments' : 'Handmatig')}</span></header><div class="payment-lines"><p><span>Subtotaal</span><small>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</small><strong>${formatMoney(order.subtotal_cents)}</strong></p>${order.discount_cents ? `<p><span>Korting ${order.discount_code ? `(${escapeHtml(order.discount_code)})` : ''}</span><small></small><strong>− ${formatMoney(order.discount_cents)}</strong></p>` : ''}<p><span>Verzending</span><small>Standaard</small><strong>${order.shipping_cents ? formatMoney(order.shipping_cents) : 'Gratis'}</strong></p><p class="payment-total"><span>Totaal</span><small></small><strong>${formatMoney(order.total_cents)}</strong></p>${payment?.refunded_cents ? `<p class="payment-refund"><span>Terugbetaald</span><small>${prettyStatus(payment.status)}</small><strong>− ${formatMoney(payment.refunded_cents)}</strong></p>` : ''}</div></section>
       <section class="order-timeline"><h2>Tijdlijn</h2><form id="order-note-form" class="timeline-note"><span>${escapeHtml(initials(state.profile.full_name || state.profile.email))}</span><textarea name="body" rows="2" maxlength="2000" placeholder="Een interne opmerking plaatsen…" required></textarea><button class="button button--primary" type="submit">Plaatsen</button></form><p class="timeline-privacy">Alleen jij en andere beheerders kunnen opmerkingen zien.</p><ol>${timeline.map((item) => `<li class="is-${item.type}"><i></i><div><p>${escapeHtml(item.title)}</p><small>${escapeHtml(item.detail)} · ${formatDate(item.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${item.noteId && canManage ? `<button type="button" data-action="delete-order-note" data-id="${item.noteId}" data-order-id="${order.id}" aria-label="Notitie verwijderen">×</button>` : ''}</li>`).join('')}</ol></section>
@@ -672,6 +673,22 @@ function trackingForm(order) {
     } else toast('Tracking opgeslagen', code)
     closeDialog(); await refreshOrderDetail(order.id)
   })
+}
+
+async function removeOrderTracking(order, button) {
+  if (!order?.tracking_code) return
+  if (!['owner', 'admin'].includes(state.profile?.role)) { toast('Tracking verwijderen mislukt', 'Je hebt geen toegang om tracking te verwijderen.', true); return }
+  if (!window.confirm(`Trackingcode ${order.tracking_code} verwijderen uit bestelling #${order.order_number}? De verzendstatus en een eventueel PostNL-label blijven ongewijzigd.`)) return
+  setBusy(button, true, 'Tracking verwijderen')
+  const { data, error } = await supabase.from('orders').update(trackingRemovalUpdate()).eq('id', order.id).select('id').maybeSingle()
+  if (error || !data) {
+    toast('Tracking verwijderen mislukt', error?.message || 'Je hebt geen toegang om deze bestelling bij te werken.', true)
+    setBusy(button, false, 'Tracking verwijderen')
+    return
+  }
+  await recordActivity('Tracking verwijderd', 'order', order.id, { order_number: order.order_number, carrier: order.tracking_carrier, tracking_code: order.tracking_code })
+  toast('Tracking verwijderd', `Bestelling #${order.order_number} heeft geen trackingcode meer.`)
+  await refreshOrderDetail(order.id)
 }
 
 function postnlLabelForm(order) {
@@ -2053,6 +2070,7 @@ async function handleContentClick(event) {
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))
   if (action === 'back-orders') renderOrders()
   if (action === 'add-tracking') trackingForm(state.orders.find((item) => item.id === id))
+  if (action === 'remove-tracking') await removeOrderTracking(state.orders.find((item) => item.id === id), target)
   if (action === 'postnl-label') postnlLabelForm(state.orders.find((item) => item.id === id))
   if (action === 'postnl-label-url') await openPostnlLabel(state.orders.find((item) => item.id === id))
   if (action === 'test-postnl') {
