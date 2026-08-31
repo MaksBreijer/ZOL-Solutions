@@ -944,6 +944,7 @@ async function exportPilotResults(target) {
 function painOrderCustomers() {
   const config = settingsValue('pilot_measurements')
   const excluded = new Set((config.excluded_emails || []).map((email) => String(email).trim().toLowerCase()))
+  const additional = new Set((config.additional_invitation_emails || []).map((email) => String(email).trim().toLowerCase()))
   const paidCustomerIds = new Set(state.orders
     .filter((order) => ['paid', 'partially_refunded', 'refunded'].includes(order.payment_status))
     .map((order) => order.customer_id))
@@ -951,7 +952,10 @@ function painOrderCustomers() {
   const consentInvites = new Map(state.pilotConsentInvites.map((item) => [item.customer_id, item]))
 
   return state.customers
-    .filter((customer) => paidCustomerIds.has(customer.id) && !excluded.has(String(customer.email).trim().toLowerCase()))
+    .filter((customer) => {
+      const email = String(customer.email).trim().toLowerCase()
+      return (paidCustomerIds.has(customer.id) || additional.has(email)) && !excluded.has(email)
+    })
     .map((customer) => {
       const enrollment = enrollments.get(customer.id)
       const invite = consentInvites.get(customer.id)
@@ -1025,6 +1029,7 @@ function renderPilot() {
   const config = settingsValue('pilot_measurements')
   const allowedEmails = Array.isArray(config.allowed_emails) ? config.allowed_emails : ['thijn@zolsolutions.nl', 'maks@zolsolutions.nl']
   const excludedEmails = Array.isArray(config.excluded_emails) ? config.excluded_emails : []
+  const additionalInvitationEmails = Array.isArray(config.additional_invitation_emails) ? config.additional_invitation_emails : []
   const testMode = config.test_mode !== false
   const eligibleCustomers = state.customers.filter((customer) => {
     const email = String(customer.email).trim().toLowerCase()
@@ -1059,6 +1064,7 @@ function renderPilot() {
         <label class="checkbox-field"><input name="automatic_sending" type="checkbox" ${config.automatic_sending ? 'checked' : ''}> Nieuwe betaalde bestellers automatisch uitnodigen en geplande vragenlijsten versturen</label>
         <label class="field">Interne testadressen<textarea name="allowed_emails" rows="3">${escapeHtml(allowedEmails.join('\n'))}</textarea><small>Eén e-mailadres per regel. In de teststand blokkeert de server alle andere adressen.</small></label>
         <label class="field">Uitgesloten adressen<textarea name="excluded_emails" rows="3">${escapeHtml(excludedEmails.join('\n'))}</textarea><small>Deze klanten worden nooit automatisch of via “Bestellers uitnodigen” benaderd.</small></label>
+        <label class="field">Extra ontvangers<textarea name="additional_invitation_emails" rows="2">${escapeHtml(additionalInvitationEmails.join('\n'))}</textarea><small>Ook zonder betaalde bestelling zichtbaar in de selectielijst.</small></label>
         <button class="button button--primary" type="submit">Instellingen opslaan</button>
       </form>
       <form class="panel pilot-enroll" id="pilot-enroll-form">
@@ -1089,6 +1095,7 @@ function renderPilot() {
       automatic_sending: form.elements.automatic_sending.checked,
       allowed_emails: form.elements.allowed_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
       excluded_emails: form.elements.excluded_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
+      additional_invitation_emails: form.elements.additional_invitation_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
     }
     if (!next.test_mode && !window.confirm('Hiermee verdwijnt de blokkade op testadressen. Wil je deze instelling echt opslaan?')) return
     const { error } = await supabase.from('settings').upsert({ key: 'pilot_measurements', category: 'pilot', label: 'Pijnvragenlijsten', value: next, is_public: false })

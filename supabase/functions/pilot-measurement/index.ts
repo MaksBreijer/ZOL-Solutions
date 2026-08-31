@@ -213,6 +213,7 @@ type PainConfig = {
   automatic_sending?: boolean
   allowed_emails?: string[]
   excluded_emails?: string[]
+  additional_invitation_emails?: string[]
 }
 
 async function getPainConfig(db: ReturnType<typeof adminClient>): Promise<PainConfig> {
@@ -404,11 +405,24 @@ async function eligibleOrderCustomers(db: ReturnType<typeof adminClient>, config
     .order("created_at", { ascending: false })
     .limit(5000)
   if (error) throw error
-  const unique = new Map<string, { customer: CustomerRow; orderId: string }>()
+  const unique = new Map<string, { customer: CustomerRow; orderId: string | null }>()
   for (const order of data || []) {
     const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers
     if (!customer?.id || !customer.email || unique.has(customer.id) || !emailAllowed(config, customer.email)) continue
     unique.set(customer.id, { customer, orderId: order.id })
+  }
+  const additionalEmails = [...new Set((config.additional_invitation_emails || [])
+    .map((email) => String(email).trim().toLowerCase())
+    .filter((email) => email && emailAllowed(config, email)))]
+  if (additionalEmails.length) {
+    const { data: additionalCustomers, error: additionalError } = await db.from("customers")
+      .select("id,email,first_name,last_name")
+      .in("email", additionalEmails)
+    if (additionalError) throw additionalError
+    for (const customer of additionalCustomers || []) {
+      if (!customer?.id || !customer.email || unique.has(customer.id)) continue
+      unique.set(customer.id, { customer: customer as CustomerRow, orderId: null })
+    }
   }
   return [...unique.values()]
 }
