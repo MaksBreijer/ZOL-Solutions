@@ -160,6 +160,9 @@ export async function requireAdmin(request: Request, db = adminClient()) {
   if (error || !user) throw new Error("Ongeldige sessie.")
   const { data: assurance, error: assuranceError } = await db.auth.mfa.getAuthenticatorAssuranceLevel(token)
   if (assuranceError || assurance?.currentLevel !== "aal2") throw new Error("Tweestapsverificatie is vereist voor ZOL Admin.")
+  const sessionId = String((await db.auth.getClaims(token)).data?.claims?.session_id || "")
+  const { data: activeSession, error: sessionError } = await db.rpc("admin_session_is_active", { p_user_id: user.id, p_session_id: sessionId || null })
+  if (sessionError || activeSession !== true) throw new Error("Deze beheerderssessie is ingetrokken. Log opnieuw in.")
   const { data: profile } = await db.from("admin_profiles").select("id,email,full_name,role,active").eq("id", user.id).maybeSingle()
   if (!profile?.active) throw new Error("Geen toegang tot ZOL Admin.")
   return profile
