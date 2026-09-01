@@ -492,6 +492,18 @@ button {
   font-weight: 600;
 }
 
+.hero-visual {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+}
+
+.hero-visual .hero-proof {
+  justify-content: space-between;
+  margin-top: 0;
+  padding: 0 8px;
+}
+
 .hero-proof span,
 .hero-proof a {
   display: flex;
@@ -581,7 +593,18 @@ button {
   color: var(--blue-deep);
   font-size: 13px;
   font-weight: 700;
+  text-decoration: none;
   backdrop-filter: blur(14px);
+}
+
+a.media-chip {
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
+a.media-chip:hover,
+a.media-chip:focus-visible {
+  box-shadow: 0 16px 34px rgb(5 22 40 / 22%);
+  transform: translateY(-2px);
 }
 
 .media-chip--top {
@@ -3694,8 +3717,10 @@ button {
     gap: 18px;
   }
 
-  .hero-proof {
-    display: none;
+  .hero-visual .hero-proof {
+    display: flex;
+    padding-inline: 2px;
+    font-size: 12px;
   }
 
   .hero-media,
@@ -3726,6 +3751,10 @@ button {
   .media-chip--bottom {
     right: 18px;
     bottom: 18px;
+  }
+
+  .hero-visual {
+    gap: 14px;
   }
 
   .signal-strip {
