@@ -27,21 +27,30 @@ const intakeLabels = {
     ["right", "Rechterhiel"],
     ["both", "Beide hielen"],
   ]),
+  discovery_source: new Map([
+    ["google", "Google"],
+    ["social", "Social media"],
+    ["professional", "Zorgprofessional of sportclub"],
+    ["friends-family", "Familie of vrienden"],
+    ["other", "Anders"],
+  ]),
 }
 
 function checkoutIntakeNote(value: Record<string, unknown> = {}) {
   const moment = intakeLabels.pain_moment.get(String(value.pain_moment || ""))
   const duration = intakeLabels.pain_duration.get(String(value.pain_duration || ""))
   const side = intakeLabels.pain_side.get(String(value.pain_side || ""))
+  const discoverySource = intakeLabels.discovery_source.get(String(value.discovery_source || ""))
   const details = String(value.pain_details || "").trim().slice(0, 500)
-  if (!moment || !duration || !side || details.length < 10) {
-    throw new Error("Beantwoord eerst alle vier de vragen over de hielpijn.")
+  if (!moment || !duration || !side || !discoverySource || details.length < 10) {
+    throw new Error("Beantwoord eerst alle vijf de vragen vóór het afrekenen.")
   }
   return [
     "Klachtenvragen checkout",
     `Moment: ${moment}`,
     `Duur: ${duration}`,
     `Kant: ${side}`,
+    `Gevonden via: ${discoverySource}`,
     `Toelichting: ${details}`,
   ].join("\n")
 }

@@ -18,7 +18,7 @@
         <div id="checkout-cart"></div>
         <form class="checkout-form" id="checkout-form" novalidate>
           <section class="checkout-intake" id="checkout-intake">
-            <header><span>02</span><div><h2>Klachten in beeld</h2><p>Vier korte vragen helpen ons om je bestelling beter te begrijpen.</p></div></header>
+            <header><span>02</span><div><h2>Klachten in beeld</h2><p>Vijf korte vragen helpen ons om je bestelling beter te begrijpen.</p></div></header>
             <div class="intake-questions">
               <fieldset class="intake-question">
                 <legend><span>1</span> Wanneer is de hielpijn het sterkst?</legend>
@@ -44,9 +44,19 @@
                   <label><input type="radio" name="pain_side" value="both"><span>Beide hielen</span></label>
                 </div>
               </fieldset>
-              <label class="intake-text" for="pain-details"><span><b>4</b> Vertel kort wanneer de pijn het meest merkbaar is</span><textarea id="pain-details" name="pain_details" rows="4" minlength="10" maxlength="500" required placeholder="Bijvoorbeeld na de voetbaltraining, bij het opstaan of tijdens het wandelen…"></textarea><small>Minimaal 10 tekens · <span id="intake-character-count">0</span>/500</small></label>
+              <fieldset class="intake-question">
+                <legend><span>4</span> Hoe ben je bij ZOL Solutions terechtgekomen?</legend>
+                <div class="intake-options intake-options--source">
+                  <label><input type="radio" name="discovery_source" value="google" required><span>Google</span></label>
+                  <label><input type="radio" name="discovery_source" value="social"><span>Social media</span></label>
+                  <label><input type="radio" name="discovery_source" value="professional"><span>Zorgprofessional of sportclub</span></label>
+                  <label><input type="radio" name="discovery_source" value="friends-family"><span>Familie of vrienden</span></label>
+                  <label><input type="radio" name="discovery_source" value="other"><span>Anders</span></label>
+                </div>
+              </fieldset>
+              <label class="intake-text" for="pain-details"><span><b>5</b> Vertel kort wanneer de pijn het meest merkbaar is</span><textarea id="pain-details" name="pain_details" rows="4" minlength="10" maxlength="500" required placeholder="Bijvoorbeeld na de voetbaltraining, bij het opstaan of tijdens het wandelen…"></textarea><small>Minimaal 10 tekens · <span id="intake-character-count">0</span>/500</small></label>
               <div class="intake-gate">
-                <div><strong id="intake-progress">0/4 beantwoord</strong><small>Eerst de vier vragen, daarna kun je afrekenen.</small></div>
+                <div><strong id="intake-progress">0/5 beantwoord</strong><small>Eerst de vijf vragen, daarna kun je afrekenen.</small></div>
                 <button id="continue-to-checkout" type="button" disabled>Verder naar afrekenen <span>→</span></button>
               </div>
             </div>

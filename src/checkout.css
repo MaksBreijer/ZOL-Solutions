@@ -13,6 +13,7 @@
 .intake-options label:hover>span{border-color:#9fb6ca;background:#fff}
 .intake-options input:checked+span{border-color:var(--blue);background:#edf4fa;color:var(--blue-deep);box-shadow:0 0 0 2px rgba(51,102,155,.1)}
 .intake-options input:focus-visible+span{outline:2px solid var(--blue);outline-offset:2px}
+.intake-options--source{grid-template-columns:repeat(2,minmax(0,1fr))}.intake-options--source label:last-child{grid-column:1/-1}
 .intake-text{display:grid}
 .intake-text textarea{width:100%;min-height:105px;resize:vertical;border:1px solid #cfd6dc;border-radius:10px;padding:12px;outline:none;line-height:1.5}
 .intake-text textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(51,102,155,.12)}

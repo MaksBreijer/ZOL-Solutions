@@ -40,7 +40,7 @@ function updateIntakeGate() {
   const completed = completedIntakeAnswers(intake)
   const complete = isCheckoutIntakeComplete(intake)
   intakeCharacterCount.textContent = String(intakeDetails.value.length)
-  intakeProgress.textContent = complete ? '4/4 beantwoord — klaar om af te rekenen' : `${completed}/4 beantwoord`
+  intakeProgress.textContent = complete ? '5/5 beantwoord — klaar om af te rekenen' : `${completed}/5 beantwoord`
   continueButton.disabled = !complete
   checkoutSubmit.disabled = !complete || submitInFlight
   intakeElement.classList.toggle('is-complete', complete)
@@ -311,7 +311,8 @@ discountInput.addEventListener('keydown', (event) => {
 
 function checkoutValidationMessage(invalid) {
   if (invalid?.name === 'pain_details') return 'Vertel in minimaal 10 tekens wanneer de pijn het meest merkbaar is.'
-  if (invalid?.name?.startsWith('pain_')) return 'Beantwoord eerst alle vier de vragen over de hielpijn.'
+  if (invalid?.name === 'discovery_source') return 'Geef aan hoe je bij ZOL Solutions bent terechtgekomen.'
+  if (invalid?.name?.startsWith('pain_')) return 'Beantwoord eerst alle vragen over de hielpijn.'
   if (invalid?.name === 'terms_accepted') return 'Vink eerst aan dat je akkoord gaat met de voorwaarden en het privacybeleid.'
   if (invalid?.type === 'email') return 'Vul een geldig e-mailadres in.'
   return 'Controleer de gemarkeerde velden en vul alle verplichte gegevens in.'
@@ -348,7 +349,7 @@ form.addEventListener('submit', async (event) => {
   try {
     const customer = Object.fromEntries(new FormData(form))
     const intake = checkoutIntake(customer)
-    ;['pain_moment', 'pain_duration', 'pain_side', 'pain_details'].forEach((field) => { delete customer[field] })
+    ;['pain_moment', 'pain_duration', 'pain_side', 'discovery_source', 'pain_details'].forEach((field) => { delete customer[field] })
     const discountCode = String(customer.discount_code || '').trim().toUpperCase()
     delete customer.discount_code
     delete customer.terms_accepted
