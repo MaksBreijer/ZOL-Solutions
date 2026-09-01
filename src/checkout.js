@@ -9,8 +9,6 @@ const summaryElement = document.querySelector('#checkout-summary')
 const form = document.querySelector('#checkout-form')
 const checkoutFlow = document.querySelector('.checkout-flow')
 const intakeElement = document.querySelector('#checkout-intake')
-const intakeDetails = document.querySelector('#pain-details')
-const intakeCharacterCount = document.querySelector('#intake-character-count')
 const intakeProgress = document.querySelector('#intake-progress')
 const continueButton = document.querySelector('#continue-to-checkout')
 const checkoutDetails = document.querySelector('#checkout-details')
@@ -39,7 +37,6 @@ function updateIntakeGate() {
   const intake = currentIntake()
   const completed = completedIntakeAnswers(intake)
   const complete = isCheckoutIntakeComplete(intake)
-  intakeCharacterCount.textContent = String(intakeDetails.value.length)
   intakeProgress.textContent = complete ? '4/4 beantwoord — klaar om af te rekenen' : `${completed}/4 beantwoord`
   continueButton.disabled = !complete
   checkoutSubmit.disabled = !complete || submitInFlight
@@ -348,7 +345,7 @@ form.addEventListener('submit', async (event) => {
   try {
     const customer = Object.fromEntries(new FormData(form))
     const intake = checkoutIntake(customer)
-    ;['pain_moment', 'pain_duration', 'pain_side', 'discovery_source', 'pain_details'].forEach((field) => { delete customer[field] })
+    ;['pain_moment', 'pain_duration', 'pain_side', 'discovery_source'].forEach((field) => { delete customer[field] })
     const discountCode = String(customer.discount_code || '').trim().toUpperCase()
     delete customer.discount_code
     delete customer.terms_accepted

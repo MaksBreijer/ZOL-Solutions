@@ -4,9 +4,8 @@
 .checkout-intake{background:#fff}
 .intake-questions{padding:21px;display:grid;gap:20px}
 .intake-question{margin:0;padding:0;border:0}
-.intake-question legend,.intake-text>span{display:flex;align-items:center;gap:9px;margin-bottom:10px;color:#253645;font-size:13px;font-weight:800}
-.intake-question legend>span,.intake-text>span>b{display:grid;place-items:center;width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:#eef3f7;color:var(--blue);font-size:10px}
-.intake-text>span>em{margin-left:2px;color:var(--muted);font-size:10px;font-style:normal;font-weight:600}
+.intake-question legend{display:flex;align-items:center;gap:9px;margin-bottom:10px;color:#253645;font-size:13px;font-weight:800}
+.intake-question legend>span{display:grid;place-items:center;width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:#eef3f7;color:var(--blue);font-size:10px}
 .intake-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .intake-options label{position:relative;min-height:50px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
 .intake-options input{position:absolute;opacity:0;pointer-events:none}
@@ -15,10 +14,6 @@
 .intake-options input:checked+span{border-color:var(--blue);background:#edf4fa;color:var(--blue-deep);box-shadow:0 0 0 2px rgba(51,102,155,.1)}
 .intake-options input:focus-visible+span{outline:2px solid var(--blue);outline-offset:2px}
 .intake-options--source{grid-template-columns:repeat(2,minmax(0,1fr))}.intake-options--source label:last-child{grid-column:1/-1}
-.intake-text{display:grid}
-.intake-text textarea{width:100%;min-height:105px;resize:vertical;border:1px solid #cfd6dc;border-radius:10px;padding:12px;outline:none;line-height:1.5}
-.intake-text textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(51,102,155,.12)}
-.intake-text small{margin-top:6px;color:var(--muted);font-size:9px;text-align:right}
 .intake-gate{margin:2px -21px -21px;padding:16px 21px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-top:1px solid var(--line);background:#f6f9fb}
 .intake-gate>div{display:grid;gap:3px}.intake-gate strong{font-size:12px;color:var(--blue-deep)}.intake-gate small{font-size:9px;color:var(--muted)}
 .intake-gate button{min-width:208px;padding:12px 15px;display:flex;align-items:center;justify-content:space-between;gap:18px;border:0;border-radius:9px;background:var(--blue);color:#fff;font-size:11px;font-weight:800;cursor:pointer}

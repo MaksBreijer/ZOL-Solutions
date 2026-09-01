@@ -7,7 +7,6 @@ const complete = {
   pain_duration: '2-6-weeks',
   pain_side: 'both',
   discovery_source: 'google',
-  pain_details: 'Vooral na een voetbaltraining.',
 }
 
 test('de betaalstap blijft dicht zolang niet alle vier verplichte keuzes geldig zijn', () => {
@@ -15,19 +14,12 @@ test('de betaalstap blijft dicht zolang niet alle vier verplichte keuzes geldig 
   assert.equal(isCheckoutIntakeComplete({ ...complete, discovery_source: '' }), false)
 })
 
-test('de betaalstap gaat na vier geldige keuzes ook zonder toelichting open', () => {
-  const withoutDetails = { ...complete, pain_details: '' }
-  assert.equal(completedIntakeAnswers(withoutDetails), 4)
-  assert.equal(isCheckoutIntakeComplete(withoutDetails), true)
+test('de betaalstap gaat na vier geldige keuzes open', () => {
+  assert.equal(completedIntakeAnswers(complete), 4)
+  assert.equal(isCheckoutIntakeComplete(complete), true)
 })
 
 test('onbekende keuzevelden worden niet als voltooid geaccepteerd', () => {
   assert.equal(isCheckoutIntakeComplete({ ...complete, pain_moment: 'anders' }), false)
   assert.equal(isCheckoutIntakeComplete({ ...complete, discovery_source: 'onbekend' }), false)
-})
-
-test('vrije tekst wordt opgeschoond en begrensd', () => {
-  const intake = checkoutIntake({ ...complete, pain_details: `  ${'a'.repeat(520)}  ` })
-  assert.equal(intake.pain_details.length, 500)
-  assert.equal(intake.pain_details.startsWith(' '), false)
 })
