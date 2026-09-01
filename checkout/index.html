@@ -17,23 +17,59 @@
         <div class="checkout-heading"><p>Bestelling afronden</p><h1>Jouw <em>ZOL'tjes.</em></h1></div>
         <div id="checkout-cart"></div>
         <form class="checkout-form" id="checkout-form" novalidate>
-          <header><span>02</span><div><h2>Contact & bezorging</h2><p>Vul de gegevens in voor de bestelling.</p></div></header>
-          <div class="checkout-fields">
-            <label>Voornaam<input name="first_name" autocomplete="given-name" required></label><label>Achternaam<input name="last_name" autocomplete="family-name" required></label>
-            <label>E-mailadres<input name="email" type="email" autocomplete="email" required></label><label>Telefoon<input name="phone" type="tel" autocomplete="tel"></label>
-            <label class="wide">Straat en huisnummer<input name="street" autocomplete="street-address" required></label><label>Postcode<input name="postal_code" autocomplete="postal-code" required></label><label>Plaats<input name="city" autocomplete="address-level2" required></label>
-            <div class="wide discount-code-field"><label for="discount-code">Kortingscode <span>optioneel</span></label><div class="discount-code-control"><input id="discount-code" name="discount_code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" placeholder="Vul je kortingscode in"><button id="apply-discount" type="button">Toepassen</button></div><small id="discount-status" aria-live="polite"></small></div>
-          </div>
-          <fieldset class="payment-methods" id="payment-methods">
-            <legend>Betaalmethode</legend>
-            <p>Kies hoe je veilig wilt betalen. Je rondt de betaling af in de beveiligde omgeving van Mollie.</p>
-            <div class="payment-method-options" id="payment-method-options" aria-live="polite">
-              <div class="payment-method-loading"><span></span><span></span><span></span></div>
+          <section class="checkout-intake" id="checkout-intake">
+            <header><span>02</span><div><h2>Klachten in beeld</h2><p>Vier korte vragen helpen ons om je bestelling beter te begrijpen.</p></div></header>
+            <div class="intake-questions">
+              <fieldset class="intake-question">
+                <legend><span>1</span> Wanneer is de hielpijn het sterkst?</legend>
+                <div class="intake-options">
+                  <label><input type="radio" name="pain_moment" value="during-sport" required><span>Tijdens het sporten</span></label>
+                  <label><input type="radio" name="pain_moment" value="after-sport"><span>Na het sporten</span></label>
+                  <label><input type="radio" name="pain_moment" value="rest"><span>Ook in rust</span></label>
+                </div>
+              </fieldset>
+              <fieldset class="intake-question">
+                <legend><span>2</span> Hoe lang spelen de klachten al?</legend>
+                <div class="intake-options">
+                  <label><input type="radio" name="pain_duration" value="less-2-weeks" required><span>Korter dan 2 weken</span></label>
+                  <label><input type="radio" name="pain_duration" value="2-6-weeks"><span>2 tot 6 weken</span></label>
+                  <label><input type="radio" name="pain_duration" value="more-6-weeks"><span>Langer dan 6 weken</span></label>
+                </div>
+              </fieldset>
+              <fieldset class="intake-question">
+                <legend><span>3</span> Aan welke kant zit de pijn?</legend>
+                <div class="intake-options">
+                  <label><input type="radio" name="pain_side" value="left" required><span>Linkerhiel</span></label>
+                  <label><input type="radio" name="pain_side" value="right"><span>Rechterhiel</span></label>
+                  <label><input type="radio" name="pain_side" value="both"><span>Beide hielen</span></label>
+                </div>
+              </fieldset>
+              <label class="intake-text" for="pain-details"><span><b>4</b> Vertel kort wanneer de pijn het meest merkbaar is</span><textarea id="pain-details" name="pain_details" rows="4" minlength="10" maxlength="500" required placeholder="Bijvoorbeeld na de voetbaltraining, bij het opstaan of tijdens het wandelen…"></textarea><small>Minimaal 10 tekens · <span id="intake-character-count">0</span>/500</small></label>
+              <div class="intake-gate">
+                <div><strong id="intake-progress">0/4 beantwoord</strong><small>Eerst de vier vragen, daarna kun je afrekenen.</small></div>
+                <button id="continue-to-checkout" type="button" disabled>Verder naar afrekenen <span>→</span></button>
+              </div>
             </div>
-          </fieldset>
-          <label class="checkout-consent"><input name="terms_accepted" type="checkbox" required><span>Ik ga akkoord met de <a href="/algemene-voorwaarden/">algemene voorwaarden</a> en het <a href="/privacy/">privacybeleid</a> van ZOL Solutions.</span></label>
-          <button class="checkout-submit" type="submit">Veilig betalen <span>→</span></button>
-          <p class="checkout-form-status" id="checkout-status" aria-live="polite"></p>
+          </section>
+          <section class="checkout-details" id="checkout-details" hidden>
+            <header><span>03</span><div><h2>Contact, bezorging & betaling</h2><p>Vul je gegevens in en kies hoe je veilig wilt betalen.</p></div></header>
+            <div class="checkout-fields">
+              <label>Voornaam<input name="first_name" autocomplete="given-name" required></label><label>Achternaam<input name="last_name" autocomplete="family-name" required></label>
+              <label>E-mailadres<input name="email" type="email" autocomplete="email" required></label><label>Telefoon<input name="phone" type="tel" autocomplete="tel"></label>
+              <label class="wide">Straat en huisnummer<input name="street" autocomplete="street-address" required></label><label>Postcode<input name="postal_code" autocomplete="postal-code" required></label><label>Plaats<input name="city" autocomplete="address-level2" required></label>
+              <div class="wide discount-code-field"><label for="discount-code">Kortingscode <span>optioneel</span></label><div class="discount-code-control"><input id="discount-code" name="discount_code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" placeholder="Vul je kortingscode in"><button id="apply-discount" type="button">Toepassen</button></div><small id="discount-status" aria-live="polite"></small></div>
+            </div>
+            <fieldset class="payment-methods" id="payment-methods">
+              <legend>Betaalmethode</legend>
+              <p>Kies hoe je veilig wilt betalen. Je rondt de betaling af in de beveiligde omgeving van Mollie.</p>
+              <div class="payment-method-options" id="payment-method-options" aria-live="polite">
+                <div class="payment-method-loading"><span></span><span></span><span></span></div>
+              </div>
+            </fieldset>
+            <label class="checkout-consent"><input name="terms_accepted" type="checkbox" required><span>Ik ga akkoord met de <a href="/algemene-voorwaarden/">algemene voorwaarden</a> en het <a href="/privacy/">privacybeleid</a> van ZOL Solutions.</span></label>
+            <button class="checkout-submit" type="submit">Veilig betalen <span>→</span></button>
+            <p class="checkout-form-status" id="checkout-status" aria-live="polite"></p>
+          </section>
         </form>
       </section>
       <aside class="checkout-summary" id="checkout-summary"></aside>

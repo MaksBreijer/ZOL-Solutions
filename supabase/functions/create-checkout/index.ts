@@ -11,6 +11,40 @@ const allowedOrigins = new Set([
 ])
 const retriableStatuses = new Set(["failed", "cancelled", "expired"])
 const mollieStatuses = new Set(["open", "pending", "authorized", "paid", "failed", "cancelled", "expired"])
+const intakeLabels = {
+  pain_moment: new Map([
+    ["during-sport", "Tijdens het sporten"],
+    ["after-sport", "Na het sporten"],
+    ["rest", "Ook in rust"],
+  ]),
+  pain_duration: new Map([
+    ["less-2-weeks", "Korter dan 2 weken"],
+    ["2-6-weeks", "2 tot 6 weken"],
+    ["more-6-weeks", "Langer dan 6 weken"],
+  ]),
+  pain_side: new Map([
+    ["left", "Linkerhiel"],
+    ["right", "Rechterhiel"],
+    ["both", "Beide hielen"],
+  ]),
+}
+
+function checkoutIntakeNote(value: Record<string, unknown> = {}) {
+  const moment = intakeLabels.pain_moment.get(String(value.pain_moment || ""))
+  const duration = intakeLabels.pain_duration.get(String(value.pain_duration || ""))
+  const side = intakeLabels.pain_side.get(String(value.pain_side || ""))
+  const details = String(value.pain_details || "").trim().slice(0, 500)
+  if (!moment || !duration || !side || details.length < 10) {
+    throw new Error("Beantwoord eerst alle vier de vragen over de hielpijn.")
+  }
+  return [
+    "Klachtenvragen checkout",
+    `Moment: ${moment}`,
+    `Duur: ${duration}`,
+    `Kant: ${side}`,
+    `Toelichting: ${details}`,
+  ].join("\n")
+}
 
 function corsHeaders(request: Request) {
   const origin = request.headers.get("origin") || ""
@@ -226,6 +260,7 @@ Deno.serve(async (request) => {
     }
 
     const customer = body.customer || {}
+    const intakeNote = checkoutIntakeNote(body.intake || {})
     const email = String(customer.email || "").trim().toLowerCase()
     if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Vul een geldig e-mailadres in." }, { status: 400, headers })
 
@@ -254,7 +289,7 @@ Deno.serve(async (request) => {
     const { data: order, error: orderError } = await db.rpc("create_checkout_order", {
       p_customer: customer,
       p_items: normalizedItems,
-      p_note: "",
+      p_note: intakeNote,
       p_session_id: String(body.session_id || crypto.randomUUID()).slice(0, 120),
       p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
     })
@@ -296,7 +331,7 @@ Deno.serve(async (request) => {
     }, { headers: { ...headers, "Content-Type": "application/json" } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Afrekenen is niet gelukt."
-    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres/i.test(message) ? 400 : 500
+    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres|hielpijn|vragen/i.test(message) ? 400 : 500
     return Response.json({ error: message }, { status, headers })
   }
 })
