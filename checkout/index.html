@@ -18,7 +18,7 @@
         <div id="checkout-cart"></div>
         <form class="checkout-form" id="checkout-form" novalidate>
           <section class="checkout-intake" id="checkout-intake">
-            <header><span>02</span><div><h2>Klachten in beeld</h2><p>Vijf korte vragen helpen ons om je bestelling beter te begrijpen.</p></div></header>
+            <header><span>02</span><div><h2>Klachten in beeld</h2><p>Vier korte vragen en een optionele toelichting helpen ons om je bestelling beter te begrijpen.</p></div></header>
             <div class="intake-questions">
               <fieldset class="intake-question">
                 <legend><span>1</span> Wanneer is de hielpijn het sterkst?</legend>
@@ -54,9 +54,9 @@
                   <label><input type="radio" name="discovery_source" value="other"><span>Anders</span></label>
                 </div>
               </fieldset>
-              <label class="intake-text" for="pain-details"><span><b>5</b> Vertel kort wanneer de pijn het meest merkbaar is</span><textarea id="pain-details" name="pain_details" rows="4" minlength="10" maxlength="500" required placeholder="Bijvoorbeeld na de voetbaltraining, bij het opstaan of tijdens het wandelen…"></textarea><small>Minimaal 10 tekens · <span id="intake-character-count">0</span>/500</small></label>
+              <label class="intake-text" for="pain-details"><span><b>5</b> Vertel kort wanneer de pijn het meest merkbaar is <em>optioneel</em></span><textarea id="pain-details" name="pain_details" rows="4" maxlength="500" placeholder="Bijvoorbeeld na de voetbaltraining, bij het opstaan of tijdens het wandelen…"></textarea><small>Optioneel · <span id="intake-character-count">0</span>/500</small></label>
               <div class="intake-gate">
-                <div><strong id="intake-progress">0/5 beantwoord</strong><small>Eerst de vijf vragen, daarna kun je afrekenen.</small></div>
+                <div><strong id="intake-progress">0/4 beantwoord</strong><small>Eerst de vier verplichte vragen, daarna kun je afrekenen.</small></div>
                 <button id="continue-to-checkout" type="button" disabled>Verder naar afrekenen <span>→</span></button>
               </div>
             </div>

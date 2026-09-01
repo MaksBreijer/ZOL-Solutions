@@ -10,14 +10,15 @@ const complete = {
   pain_details: 'Vooral na een voetbaltraining.',
 }
 
-test('de betaalstap blijft dicht zolang niet alle vijf antwoorden geldig zijn', () => {
-  assert.equal(completedIntakeAnswers({ ...complete, discovery_source: '' }), 4)
-  assert.equal(isCheckoutIntakeComplete({ ...complete, pain_details: 'te kort' }), false)
+test('de betaalstap blijft dicht zolang niet alle vier verplichte keuzes geldig zijn', () => {
+  assert.equal(completedIntakeAnswers({ ...complete, discovery_source: '' }), 3)
+  assert.equal(isCheckoutIntakeComplete({ ...complete, discovery_source: '' }), false)
 })
 
-test('de betaalstap gaat open na vier geldige keuzes en een toelichting', () => {
-  assert.equal(completedIntakeAnswers(complete), 5)
-  assert.equal(isCheckoutIntakeComplete(complete), true)
+test('de betaalstap gaat na vier geldige keuzes ook zonder toelichting open', () => {
+  const withoutDetails = { ...complete, pain_details: '' }
+  assert.equal(completedIntakeAnswers(withoutDetails), 4)
+  assert.equal(isCheckoutIntakeComplete(withoutDetails), true)
 })
 
 test('onbekende keuzevelden worden niet als voltooid geaccepteerd', () => {

@@ -6,6 +6,7 @@
 .intake-question{margin:0;padding:0;border:0}
 .intake-question legend,.intake-text>span{display:flex;align-items:center;gap:9px;margin-bottom:10px;color:#253645;font-size:13px;font-weight:800}
 .intake-question legend>span,.intake-text>span>b{display:grid;place-items:center;width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:#eef3f7;color:var(--blue);font-size:10px}
+.intake-text>span>em{margin-left:2px;color:var(--muted);font-size:10px;font-style:normal;font-weight:600}
 .intake-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .intake-options label{position:relative;min-height:50px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
 .intake-options input{position:absolute;opacity:0;pointer-events:none}

@@ -40,7 +40,7 @@ function updateIntakeGate() {
   const completed = completedIntakeAnswers(intake)
   const complete = isCheckoutIntakeComplete(intake)
   intakeCharacterCount.textContent = String(intakeDetails.value.length)
-  intakeProgress.textContent = complete ? '5/5 beantwoord — klaar om af te rekenen' : `${completed}/5 beantwoord`
+  intakeProgress.textContent = complete ? '4/4 beantwoord — klaar om af te rekenen' : `${completed}/4 beantwoord`
   continueButton.disabled = !complete
   checkoutSubmit.disabled = !complete || submitInFlight
   intakeElement.classList.toggle('is-complete', complete)
@@ -310,7 +310,6 @@ discountInput.addEventListener('keydown', (event) => {
 })
 
 function checkoutValidationMessage(invalid) {
-  if (invalid?.name === 'pain_details') return 'Vertel in minimaal 10 tekens wanneer de pijn het meest merkbaar is.'
   if (invalid?.name === 'discovery_source') return 'Geef aan hoe je bij ZOL Solutions bent terechtgekomen.'
   if (invalid?.name?.startsWith('pain_')) return 'Beantwoord eerst alle vragen over de hielpijn.'
   if (invalid?.name === 'terms_accepted') return 'Vink eerst aan dat je akkoord gaat met de voorwaarden en het privacybeleid.'

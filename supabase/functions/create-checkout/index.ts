@@ -42,17 +42,18 @@ function checkoutIntakeNote(value: Record<string, unknown> = {}) {
   const side = intakeLabels.pain_side.get(String(value.pain_side || ""))
   const discoverySource = intakeLabels.discovery_source.get(String(value.discovery_source || ""))
   const details = String(value.pain_details || "").trim().slice(0, 500)
-  if (!moment || !duration || !side || !discoverySource || details.length < 10) {
-    throw new Error("Beantwoord eerst alle vijf de vragen vóór het afrekenen.")
+  if (!moment || !duration || !side || !discoverySource) {
+    throw new Error("Beantwoord eerst alle vier de verplichte vragen vóór het afrekenen.")
   }
-  return [
+  const lines = [
     "Klachtenvragen checkout",
     `Moment: ${moment}`,
     `Duur: ${duration}`,
     `Kant: ${side}`,
     `Gevonden via: ${discoverySource}`,
-    `Toelichting: ${details}`,
-  ].join("\n")
+  ]
+  if (details) lines.push(`Toelichting: ${details}`)
+  return lines.join("\n")
 }
 
 function corsHeaders(request: Request) {

@@ -21,9 +21,8 @@ export function completedIntakeAnswers(source = {}) {
     + Number(validOptions.pain_duration.has(intake.pain_duration))
     + Number(validOptions.pain_side.has(intake.pain_side))
     + Number(validOptions.discovery_source.has(intake.discovery_source))
-    + Number(intake.pain_details.length >= 10)
 }
 
 export function isCheckoutIntakeComplete(source = {}) {
-  return completedIntakeAnswers(source) === 5
+  return completedIntakeAnswers(source) === 4
 }
