@@ -10,6 +10,8 @@ const form = document.querySelector('#checkout-form')
 const checkoutFlow = document.querySelector('.checkout-flow')
 const intakeElement = document.querySelector('#checkout-intake')
 const intakeProgress = document.querySelector('#intake-progress')
+const discoveryDetails = document.querySelector('#discovery-details')
+const discoveryDetailsInput = document.querySelector('#discovery-details-input')
 const continueButton = document.querySelector('#continue-to-checkout')
 const checkoutDetails = document.querySelector('#checkout-details')
 const checkoutSubmit = form.querySelector('.checkout-submit')
@@ -43,8 +45,21 @@ function updateIntakeGate() {
   intakeElement.classList.toggle('is-complete', complete)
 }
 
+function updateDiscoveryDetails({ focus = false } = {}) {
+  const isOther = form.elements.discovery_source.value === 'other'
+  discoveryDetails.hidden = !isOther
+  discoveryDetailsInput.disabled = !isOther
+  form.elements.discovery_source.forEach((option) => option.setAttribute('aria-expanded', String(isOther && option.value === 'other')))
+  if (!isOther) discoveryDetailsInput.value = ''
+  if (isOther && focus) requestAnimationFrame(() => discoveryDetailsInput.focus())
+}
+
 intakeElement.addEventListener('input', updateIntakeGate)
-intakeElement.addEventListener('change', updateIntakeGate)
+intakeElement.addEventListener('change', (event) => {
+  updateDiscoveryDetails({ focus: event.target.name === 'discovery_source' && event.target.value === 'other' })
+  updateIntakeGate()
+})
+updateDiscoveryDetails()
 continueButton.addEventListener('click', () => {
   if (!isCheckoutIntakeComplete(currentIntake())) return
   checkoutDetails.hidden = false
@@ -345,7 +360,7 @@ form.addEventListener('submit', async (event) => {
   try {
     const customer = Object.fromEntries(new FormData(form))
     const intake = checkoutIntake(customer)
-    ;['pain_moment', 'pain_duration', 'pain_side', 'discovery_source'].forEach((field) => { delete customer[field] })
+    ;['pain_moment', 'pain_duration', 'pain_side', 'discovery_source', 'discovery_details'].forEach((field) => { delete customer[field] })
     const discountCode = String(customer.discount_code || '').trim().toUpperCase()
     delete customer.discount_code
     delete customer.terms_accepted

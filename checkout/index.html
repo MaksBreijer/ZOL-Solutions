@@ -51,8 +51,9 @@
                   <label><input type="radio" name="discovery_source" value="social"><span>Social media</span></label>
                   <label><input type="radio" name="discovery_source" value="professional"><span>Zorgprofessional of sportclub</span></label>
                   <label><input type="radio" name="discovery_source" value="friends-family"><span>Familie of vrienden</span></label>
-                  <label><input type="radio" name="discovery_source" value="other"><span>Anders</span></label>
+                  <label><input type="radio" name="discovery_source" value="other" aria-controls="discovery-details"><span>Anders</span></label>
                 </div>
+                <label class="discovery-details" id="discovery-details" for="discovery-details-input" hidden><span>Vertel hoe je ons hebt gevonden <em>optioneel</em></span><input id="discovery-details-input" name="discovery_details" maxlength="120" autocomplete="off" disabled placeholder="Bijvoorbeeld via een evenement of advertentie"></label>
               </fieldset>
               <div class="intake-gate">
                 <div><strong id="intake-progress">0/4 beantwoord</strong><small>Eerst de vier verplichte vragen, daarna kun je afrekenen.</small></div>

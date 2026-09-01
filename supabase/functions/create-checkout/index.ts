@@ -41,15 +41,19 @@ function checkoutIntakeNote(value: Record<string, unknown> = {}) {
   const duration = intakeLabels.pain_duration.get(String(value.pain_duration || ""))
   const side = intakeLabels.pain_side.get(String(value.pain_side || ""))
   const discoverySource = intakeLabels.discovery_source.get(String(value.discovery_source || ""))
+  const discoveryDetails = String(value.discovery_details || "").trim().replace(/\s+/g, " ").slice(0, 120)
   if (!moment || !duration || !side || !discoverySource) {
     throw new Error("Beantwoord eerst alle vier de verplichte vragen vóór het afrekenen.")
   }
+  const discoveryAnswer = discoverySource === "Anders" && discoveryDetails
+    ? `${discoverySource} — ${discoveryDetails}`
+    : discoverySource
   return [
     "Klachtenvragen checkout",
     `Moment: ${moment}`,
     `Duur: ${duration}`,
     `Kant: ${side}`,
-    `Gevonden via: ${discoverySource}`,
+    `Gevonden via: ${discoveryAnswer}`,
   ].join("\n")
 }
 

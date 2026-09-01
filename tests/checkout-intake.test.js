@@ -19,6 +19,13 @@ test('de betaalstap gaat na vier geldige keuzes open', () => {
   assert.equal(isCheckoutIntakeComplete(complete), true)
 })
 
+test('een eigen antwoord bij Anders wordt opgeschoond en begrensd', () => {
+  const intake = checkoutIntake({ ...complete, discovery_source: 'other', discovery_details: `  Via   ${'a'.repeat(140)}  ` })
+  assert.equal(intake.discovery_details.length, 120)
+  assert.equal(intake.discovery_details.startsWith('Via a'), true)
+  assert.equal(isCheckoutIntakeComplete(intake), true)
+})
+
 test('onbekende keuzevelden worden niet als voltooid geaccepteerd', () => {
   assert.equal(isCheckoutIntakeComplete({ ...complete, pain_moment: 'anders' }), false)
   assert.equal(isCheckoutIntakeComplete({ ...complete, discovery_source: 'onbekend' }), false)

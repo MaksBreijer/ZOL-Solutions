@@ -11,6 +11,7 @@ export function checkoutIntake(source = {}) {
     pain_duration: String(source.pain_duration || ''),
     pain_side: String(source.pain_side || ''),
     discovery_source: String(source.discovery_source || ''),
+    discovery_details: String(source.discovery_details || '').trim().replace(/\s+/g, ' ').slice(0, 120),
   }
 }
 

@@ -14,6 +14,7 @@
 .intake-options input:checked+span{border-color:var(--blue);background:#edf4fa;color:var(--blue-deep);box-shadow:0 0 0 2px rgba(51,102,155,.1)}
 .intake-options input:focus-visible+span{outline:2px solid var(--blue);outline-offset:2px}
 .intake-options--source{grid-template-columns:repeat(2,minmax(0,1fr))}.intake-options--source label:last-child{grid-column:1/-1}
+.discovery-details{display:grid;gap:7px;margin-top:10px}.discovery-details[hidden]{display:none}.discovery-details>span{color:#39444e;font-size:11px;font-weight:700}.discovery-details>span em{color:var(--muted);font-style:normal;font-weight:500}.discovery-details input{width:100%;border:1px solid #cfd6dc;border-radius:9px;padding:11px 12px;outline:none;background:#fff}.discovery-details input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(51,102,155,.12)}
 .intake-gate{margin:2px -21px -21px;padding:16px 21px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-top:1px solid var(--line);background:#f6f9fb}
 .intake-gate>div{display:grid;gap:3px}.intake-gate strong{font-size:12px;color:var(--blue-deep)}.intake-gate small{font-size:9px;color:var(--muted)}
 .intake-gate button{min-width:208px;padding:12px 15px;display:flex;align-items:center;justify-content:space-between;gap:18px;border:0;border-radius:9px;background:var(--blue);color:#fff;font-size:11px;font-weight:800;cursor:pointer}
