@@ -1,5 +1,5 @@
-import { supabase } from './supabase-client.js'
 import { hasAnalyticsConsent } from './cookie-consent.js'
+import { insertPublic, selectPublic } from './public-api.js'
 
 if (window.location.hostname === 'zol-solutions.pages.dev') {
   window.location.replace(`https://zolsolutions.nl${window.location.pathname}${window.location.search}${window.location.hash}`)
@@ -36,7 +36,7 @@ export async function trackEvent(eventName, metadata = {}) {
     const attribution = Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
       .map((key) => [key, search.get(key)])
       .filter(([, value]) => value))
-    const { error } = await supabase.from('analytics_events').insert({
+    const { error } = await insertPublic('analytics_events', {
       session_id: getSessionId(),
       event_name: eventName,
       page: `${window.location.pathname}${window.location.search}`.slice(0, 300),
@@ -100,8 +100,8 @@ function applyEntry(entry) {
 
 async function loadCms() {
   const [{ data: entries }, { data: settings }] = await Promise.all([
-    supabase.from('site_content').select('*').in('page', ['global', pageName]).eq('active', true).order('sort_order'),
-    supabase.from('settings').select('key,value').in('key', ['theme', 'seo_defaults']).eq('is_public', true),
+    selectPublic(`site_content?select=*&page=in.(${encodeURIComponent(`global,${pageName}`)})&active=eq.true&order=sort_order.asc`),
+    selectPublic('settings?select=key,value&key=in.(theme,seo_defaults)&is_public=eq.true'),
   ])
 
   ;(entries || []).forEach(applyEntry)

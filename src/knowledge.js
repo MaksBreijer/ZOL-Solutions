@@ -6,11 +6,11 @@ const main = document.querySelector('main')
 if (main && !main.id) main.id = 'main-content'
 
 if (!document.querySelector('.site-header')) {
-  document.body.insertAdjacentHTML('afterbegin', `<a class="skip-link" href="#main-content">Meteen naar de inhoud</a><header class="site-header"><nav class="nav-shell" aria-label="Hoofdnavigatie"><a class="brand" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo.png" alt="ZOL Solutions"></a><div class="nav-links" id="nav-links"><a href="/">Home</a><a href="/product/">De ZOL'tjes</a><a href="/kennisbank/">Kennisbank</a><a href="/contact/">Contact</a></div><a class="nav-cta" href="/product/">Bekijk de zool</a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu openen"><span></span><span></span></button></nav></header>`)
+  document.body.insertAdjacentHTML('afterbegin', `<a class="skip-link" href="#main-content">Meteen naar de inhoud</a><header class="site-header"><nav class="nav-shell" aria-label="Hoofdnavigatie"><a class="brand" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo.png" alt="ZOL Solutions"></a><div class="nav-links" id="nav-links"><a href="/">Home</a><a href="/product/">De ZOL'tjes</a><a href="/over-ons/">Ons verhaal</a><a href="/kennisbank/">Kennisbank</a><a href="/contact/">Contact</a></div><a class="nav-cta" href="/product/">Bekijk de zool</a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu openen"><span></span><span></span></button></nav></header>`)
 }
 
 if (!document.querySelector('.site-footer')) {
-  document.body.insertAdjacentHTML('beforeend', `<footer class="site-footer"><a class="footer-brand" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo.png" alt="ZOL Solutions"></a><p>Zachter landen. Beter sporten.</p><div class="footer-contact"><a href="/product/">De ZOL'tjes</a><a href="/kennisbank/">Kennisbank</a><a href="/contact/">Contact</a></div><div class="footer-legal"><span>© 2026 ZOL Solutions</span><a href="/privacy/">Privacy</a><a href="/algemene-voorwaarden/">Voorwaarden</a></div></footer>`)
+  document.body.insertAdjacentHTML('beforeend', `<footer class="site-footer"><a class="footer-brand" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo.png" alt="ZOL Solutions"></a><p>Zachter landen. Beter sporten.</p><div class="footer-contact"><a href="/product/">De ZOL'tjes</a><a href="/over-ons/">Over ons</a><a href="/kennisbank/">Kennisbank</a><a href="/contact/">Contact</a></div><div class="footer-legal"><span>© 2026 ZOL Solutions</span><a href="/privacy/">Privacy</a><a href="/algemene-voorwaarden/">Voorwaarden</a></div></footer>`)
 }
 
 const button = document.querySelector('.menu-toggle')
@@ -43,9 +43,10 @@ if (article && heroInner) {
   breadcrumb.append(homeLink, document.createTextNode(' / '), knowledgeLink, document.createTextNode(' / '), current)
   heroInner.prepend(breadcrumb)
 
+  const isUpdatedToday = ['/kennisbank/hielpijn-bij-kinderen/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(window.location.pathname)
   const meta = document.createElement('p')
   meta.className = 'article-meta'
-  meta.innerHTML = 'Redactie ZOL Solutions <span aria-hidden="true">·</span> Bijgewerkt <time datetime="2026-09-01">1 september 2026</time>'
+  meta.innerHTML = `Redactie ZOL Solutions <span aria-hidden="true">·</span> Bijgewerkt <time datetime="${isUpdatedToday ? '2026-09-02' : '2026-09-01'}">${isUpdatedToday ? '2 september 2026' : '1 september 2026'}</time>`
   article.prepend(meta)
 
   if (!article.querySelector('.article-sources')) {

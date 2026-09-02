@@ -1,8 +1,9 @@
 import './styles.css'
 import { trackEvent } from './site-runtime.js'
-import './product-commerce.js'
 import { Activity, Footprints, Ruler, createIcons } from 'lucide'
-import { supabase } from './supabase-client.js'
+import { invokePublicFunction } from './public-api.js'
+
+if (document.querySelector('.product-purchase')) void import('./product-commerce.js')
 
 document.documentElement.classList.add('js')
 createIcons({ icons: { Activity, Footprints, Ruler } })
@@ -119,7 +120,7 @@ if (contactForm) {
     button.innerHTML = 'Bericht versturen…'
     formStatus.textContent = ''
     formStatus.classList.remove('is-error')
-    const { data, error } = await supabase.functions.invoke('contact-email', { body: payload })
+    const { data, error } = await invokePublicFunction('contact-email', payload)
     if (error || data?.error) {
       const failure = await edgeFunctionFailure(error, data, 'Versturen is niet gelukt. Probeer het later opnieuw.')
       if (failure.saved) {

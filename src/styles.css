@@ -1,3 +1,5 @@
+@import './fonts.css';
+
 :root {
   --blue: #33669b;
   --blue-deep: #102b4a;
@@ -2056,6 +2058,7 @@ a.media-chip:focus-visible {
 
 .footer-brand img {
   width: 92px;
+  height: auto;
   filter: none;
 }
 
@@ -2132,7 +2135,7 @@ a.media-chip:focus-visible {
   padding-top: 0;
   grid-column: 1 / -1;
   gap: 22px;
-  color: rgb(255 255 255 / 36%);
+  color: rgb(255 255 255 / 70%);
   font-size: 12px;
 }
 
@@ -2245,17 +2248,31 @@ a.media-chip:focus-visible {
   gap: 12px;
 }
 
+.product-gallery-main picture,
+.product-gallery-secondary picture,
+.story-image picture,
+.product-photo picture,
+.buy-image picture,
+.product-in-use-image picture,
+.contact-human-image picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .product-gallery-secondary img {
   width: 100%;
   height: 374px;
   object-fit: cover;
 }
 
-.product-gallery-secondary img:first-child {
+.product-gallery-secondary > img:first-child,
+.product-gallery-secondary picture:first-child img {
   border-radius: 8px 34px 8px 8px;
 }
 
-.product-gallery-secondary img:last-child {
+.product-gallery-secondary > img:last-child,
+.product-gallery-secondary picture:last-child img {
   border-radius: 8px 8px 34px 8px;
 }
 
@@ -4114,11 +4131,13 @@ a.media-chip:focus-visible {
     height: 220px;
   }
 
-  .product-gallery-secondary img:first-child {
+  .product-gallery-secondary > img:first-child,
+  .product-gallery-secondary picture:first-child img {
     border-radius: 8px 8px 8px 24px;
   }
 
-  .product-gallery-secondary img:last-child {
+  .product-gallery-secondary > img:last-child,
+  .product-gallery-secondary picture:last-child img {
     border-radius: 8px 8px 24px 8px;
   }
 

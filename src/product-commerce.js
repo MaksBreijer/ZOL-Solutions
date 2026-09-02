@@ -164,7 +164,9 @@ async function initializeProductCommerce() {
             const summary = purchase.querySelector('.product-summary')
             if (summary) summary.textContent = product.description
           }
-          const selected = renderVariantSelector()
+          const requestedSize = new URLSearchParams(window.location.search).get('maat')?.replace('-', '/') || ''
+          const requestedVariant = (product.product_variants || []).find((variant) => variant.shoe_size === requestedSize)
+          const selected = renderVariantSelector(requestedVariant?.id)
           void loadPaymentSupport(selected)
 
           const inventoryChannel = supabase.channel(`product-inventory-${product.id}`)

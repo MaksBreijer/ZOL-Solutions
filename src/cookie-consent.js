@@ -41,7 +41,7 @@ function currentChoiceLabel() {
 function ensureConsentUi() {
   if (document.querySelector('[data-cookie-consent]')) return
   document.body.insertAdjacentHTML('beforeend', `
-    <aside class="cookie-consent" data-cookie-consent role="dialog" aria-modal="false" aria-labelledby="cookie-consent-title" hidden>
+    <div class="cookie-consent" data-cookie-consent role="dialog" aria-modal="false" aria-labelledby="cookie-consent-title" hidden>
       <div class="cookie-consent-copy">
         <span class="cookie-consent-label">Privacyvoorkeur</span>
         <h2 id="cookie-consent-title">Jouw privacy, jouw keuze.</h2>
@@ -53,7 +53,7 @@ function ensureConsentUi() {
         <button type="button" data-cookie-choice="necessary">Alleen noodzakelijk</button>
         <button type="button" data-cookie-choice="accepted">Alles accepteren</button>
       </div>
-    </aside>
+    </div>
     <button class="cookie-preferences-trigger" data-cookie-preferences type="button">Cookievoorkeuren</button>
   `)
 
