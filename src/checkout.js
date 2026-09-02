@@ -7,6 +7,8 @@ const cartElement = document.querySelector('#checkout-cart')
 const summaryElement = document.querySelector('#checkout-summary')
 const form = document.querySelector('#checkout-form')
 const checkoutFlow = document.querySelector('.checkout-flow')
+const discoveryDetails = document.querySelector('#discovery-details')
+const discoveryDetailsInput = document.querySelector('#discovery-details-input')
 const discountInput = form.elements.discount_code
 const discountButton = document.querySelector('#apply-discount')
 const discountStatus = document.querySelector('#discount-status')
@@ -22,6 +24,20 @@ let quotedCart = ''
 let quotedCode = null
 let quoteRequest = 0
 let submitInFlight = false
+
+function updateDiscoveryDetails({ focus = false } = {}) {
+  const isOther = form.elements.discovery_source.value === 'other'
+  discoveryDetails.hidden = !isOther
+  discoveryDetailsInput.disabled = !isOther
+  form.elements.discovery_source.forEach((option) => option.setAttribute('aria-expanded', String(isOther && option.value === 'other')))
+  if (!isOther) discoveryDetailsInput.value = ''
+  if (isOther && focus) requestAnimationFrame(() => discoveryDetailsInput.focus())
+}
+
+form.elements.discovery_source.forEach((option) => option.addEventListener('change', (event) => {
+  updateDiscoveryDetails({ focus: event.target.value === 'other' })
+}))
+updateDiscoveryDetails()
 
 const paymentMethodPresentation = {
   ideal: { label: 'iDEAL', detail: 'Betaal direct via je eigen bank', mark: 'iDEAL' },
@@ -276,6 +292,7 @@ discountInput.addEventListener('keydown', (event) => {
 })
 
 function checkoutValidationMessage(invalid) {
+  if (invalid?.name === 'discovery_source') return 'Geef aan hoe je bij ZOL Solutions bent terechtgekomen.'
   if (invalid?.name === 'terms_accepted') return 'Vink eerst aan dat je akkoord gaat met de voorwaarden en het privacybeleid.'
   if (invalid?.type === 'email') return 'Vul een geldig e-mailadres in.'
   return 'Controleer de gemarkeerde velden en vul alle verplichte gegevens in.'
@@ -311,6 +328,12 @@ form.addEventListener('submit', async (event) => {
   button.disabled = true; button.innerHTML = 'Bestelling verwerken…'
   try {
     const customer = Object.fromEntries(new FormData(form))
+    const discovery = {
+      source: String(customer.discovery_source || ''),
+      details: String(customer.discovery_details || ''),
+    }
+    delete customer.discovery_source
+    delete customer.discovery_details
     const discountCode = String(customer.discount_code || '').trim().toUpperCase()
     delete customer.discount_code
     delete customer.terms_accepted
@@ -320,7 +343,7 @@ form.addEventListener('submit', async (event) => {
     const paymentMethod = String(customer.payment_method || '')
     delete customer.payment_method
     trackEvent('checkout_submit', { payment_method: paymentMethod })
-    const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
+    const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discovery, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
     if (error || data?.error) throw new Error(await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'))
     if (data.checkout_url) { window.location.assign(data.checkout_url); return }
     clearCart()

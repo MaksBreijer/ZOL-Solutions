@@ -5,7 +5,22 @@ import { readFile } from 'node:fs/promises'
 test('checkout goes straight from the cart to customer and payment details', async () => {
   const html = await readFile(new URL('../checkout/index.html', import.meta.url), 'utf8')
 
-  assert.doesNotMatch(html, /checkout-intake|pain_moment|pain_duration|pain_side|discovery_source/)
+  assert.doesNotMatch(html, /checkout-intake|pain_moment|pain_duration|pain_side/)
   assert.match(html, /<section class="checkout-details" id="checkout-details">/)
   assert.match(html, /<header><span>02<\/span><div><h2>Contact, bezorging & betaling<\/h2>/)
+})
+
+test('checkout asks for the discovery source and stores it outside customer data', async () => {
+  const [html, client, edgeFunction] = await Promise.all([
+    readFile(new URL('../checkout/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../src/checkout.js', import.meta.url), 'utf8'),
+    readFile(new URL('../supabase/functions/create-checkout/index.ts', import.meta.url), 'utf8'),
+  ])
+
+  assert.match(html, /name="discovery_source" value="google" required/)
+  assert.match(html, /name="discovery_details"/)
+  assert.match(client, /delete customer\.discovery_source/)
+  assert.match(client, /body: \{ customer, discovery,/)
+  assert.match(edgeFunction, /p_note: discoveryNote/)
+  assert.match(edgeFunction, /Gevonden via:/)
 })

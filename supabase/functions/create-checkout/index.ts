@@ -11,6 +11,20 @@ const allowedOrigins = new Set([
 ])
 const retriableStatuses = new Set(["failed", "cancelled", "expired"])
 const mollieStatuses = new Set(["open", "pending", "authorized", "paid", "failed", "cancelled", "expired"])
+const discoveryLabels = new Map([
+  ["google", "Google"],
+  ["social", "Social media"],
+  ["professional", "Zorgprofessional of sportclub"],
+  ["friends-family", "Familie of vrienden"],
+  ["other", "Anders"],
+])
+
+function checkoutDiscoveryNote(value: Record<string, unknown> = {}) {
+  const source = discoveryLabels.get(String(value.source || ""))
+  if (!source) throw new Error("Geef aan hoe je bij ZOL Solutions bent terechtgekomen.")
+  const details = String(value.details || "").trim().replace(/\s+/g, " ").slice(0, 120)
+  return `Gevonden via: ${source === "Anders" && details ? `${source} — ${details}` : source}`
+}
 
 function corsHeaders(request: Request) {
   const origin = request.headers.get("origin") || ""
@@ -226,6 +240,7 @@ Deno.serve(async (request) => {
     }
 
     const customer = body.customer || {}
+    const discoveryNote = checkoutDiscoveryNote(body.discovery || {})
     const email = String(customer.email || "").trim().toLowerCase()
     if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Vul een geldig e-mailadres in." }, { status: 400, headers })
 
@@ -254,7 +269,7 @@ Deno.serve(async (request) => {
     const { data: order, error: orderError } = await db.rpc("create_checkout_order", {
       p_customer: customer,
       p_items: normalizedItems,
-      p_note: "",
+      p_note: discoveryNote,
       p_session_id: String(body.session_id || crypto.randomUUID()).slice(0, 120),
       p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
     })
@@ -296,7 +311,7 @@ Deno.serve(async (request) => {
     }, { headers: { ...headers, "Content-Type": "application/json" } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Afrekenen is niet gelukt."
-    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres|hielpijn|vragen/i.test(message) ? 400 : 500
+    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres|terechtgekomen/i.test(message) ? 400 : 500
     return Response.json({ error: message }, { status, headers })
   }
 })
