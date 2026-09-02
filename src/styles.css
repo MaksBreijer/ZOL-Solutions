@@ -1325,7 +1325,7 @@ a.media-chip:focus-visible {
   max-width: 530px;
   margin: 30px 0 0;
   grid-column: 2;
-  color: rgb(255 255 255 / 65%);
+  color: #fff;
 }
 
 .solution-commerce {
