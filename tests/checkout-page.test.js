@@ -18,6 +18,8 @@ test('checkout asks for the discovery source and stores it outside customer data
   ])
 
   assert.match(html, /name="discovery_source" value="google" required/)
+  assert.match(html, /<small>Verplicht<\/small>/)
+  assert.match(html, /id="discovery-help">Kies één antwoord\.<\/p>/)
   assert.match(html, /name="discovery_details"/)
   assert.match(client, /delete customer\.discovery_source/)
   assert.match(client, /body: \{ customer, discovery,/)

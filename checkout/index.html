@@ -20,12 +20,13 @@
           <section class="checkout-details" id="checkout-details">
             <header><span>02</span><div><h2>Contact, bezorging & betaling</h2><p>Vul je gegevens in en kies hoe je veilig wilt betalen.</p></div></header>
             <fieldset class="checkout-discovery">
-              <legend>Hoe ben je bij ZOL Solutions terechtgekomen?</legend>
+              <legend><span>Hoe ben je bij ZOL Solutions terechtgekomen?</span><small>Verplicht</small></legend>
+              <p id="discovery-help">Kies één antwoord.</p>
               <div class="discovery-options">
-                <label><input type="radio" name="discovery_source" value="google" required><span>Google</span></label>
+                <label><input type="radio" name="discovery_source" value="google" required aria-describedby="discovery-help"><span>Google</span></label>
                 <label><input type="radio" name="discovery_source" value="social"><span>Social media</span></label>
-                <label><input type="radio" name="discovery_source" value="professional"><span>Zorgprofessional of sportclub</span></label>
-                <label><input type="radio" name="discovery_source" value="friends-family"><span>Familie of vrienden</span></label>
+                <label><input type="radio" name="discovery_source" value="professional"><span>Zorgprofessional / sportclub</span></label>
+                <label><input type="radio" name="discovery_source" value="friends-family"><span>Familie / vrienden</span></label>
                 <label><input type="radio" name="discovery_source" value="other" aria-controls="discovery-details"><span>Anders</span></label>
               </div>
               <label class="discovery-details" id="discovery-details" for="discovery-details-input" hidden><span>Vertel hoe je ons hebt gevonden <em>optioneel</em></span><input id="discovery-details-input" name="discovery_details" maxlength="120" autocomplete="off" disabled placeholder="Bijvoorbeeld via een evenement of advertentie"></label>
