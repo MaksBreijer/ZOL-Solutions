@@ -17,52 +17,8 @@
         <div class="checkout-heading"><p>Bestelling afronden</p><h1>Jouw <em>ZOL'tjes.</em></h1></div>
         <div id="checkout-cart"></div>
         <form class="checkout-form" id="checkout-form" novalidate>
-          <section class="checkout-intake" id="checkout-intake">
-            <header><span>02</span><div><h2>Klachten in beeld</h2><p>Vier korte vragen helpen ons om je bestelling beter te begrijpen.</p></div></header>
-            <div class="intake-questions">
-              <fieldset class="intake-question">
-                <legend><span>1</span> Wanneer is de hielpijn het sterkst?</legend>
-                <div class="intake-options">
-                  <label><input type="radio" name="pain_moment" value="during-sport" required><span>Tijdens het sporten</span></label>
-                  <label><input type="radio" name="pain_moment" value="after-sport"><span>Na het sporten</span></label>
-                  <label><input type="radio" name="pain_moment" value="rest"><span>Ook in rust</span></label>
-                </div>
-              </fieldset>
-              <fieldset class="intake-question">
-                <legend><span>2</span> Hoe lang spelen de klachten al?</legend>
-                <div class="intake-options">
-                  <label><input type="radio" name="pain_duration" value="less-2-weeks" required><span>Korter dan 2 weken</span></label>
-                  <label><input type="radio" name="pain_duration" value="2-6-weeks"><span>2 tot 6 weken</span></label>
-                  <label><input type="radio" name="pain_duration" value="more-6-weeks"><span>Langer dan 6 weken</span></label>
-                </div>
-              </fieldset>
-              <fieldset class="intake-question">
-                <legend><span>3</span> Aan welke kant zit de pijn?</legend>
-                <div class="intake-options">
-                  <label><input type="radio" name="pain_side" value="left" required><span>Linkerhiel</span></label>
-                  <label><input type="radio" name="pain_side" value="right"><span>Rechterhiel</span></label>
-                  <label><input type="radio" name="pain_side" value="both"><span>Beide hielen</span></label>
-                </div>
-              </fieldset>
-              <fieldset class="intake-question">
-                <legend><span>4</span> Hoe ben je bij ZOL Solutions terechtgekomen?</legend>
-                <div class="intake-options intake-options--source">
-                  <label><input type="radio" name="discovery_source" value="google" required><span>Google</span></label>
-                  <label><input type="radio" name="discovery_source" value="social"><span>Social media</span></label>
-                  <label><input type="radio" name="discovery_source" value="professional"><span>Zorgprofessional of sportclub</span></label>
-                  <label><input type="radio" name="discovery_source" value="friends-family"><span>Familie of vrienden</span></label>
-                  <label><input type="radio" name="discovery_source" value="other" aria-controls="discovery-details"><span>Anders</span></label>
-                </div>
-                <label class="discovery-details" id="discovery-details" for="discovery-details-input" hidden><span>Vertel hoe je ons hebt gevonden <em>optioneel</em></span><input id="discovery-details-input" name="discovery_details" maxlength="120" autocomplete="off" disabled placeholder="Bijvoorbeeld via een evenement of advertentie"></label>
-              </fieldset>
-              <div class="intake-gate">
-                <div><strong id="intake-progress">0/4 beantwoord</strong><small>Eerst de vier verplichte vragen, daarna kun je afrekenen.</small></div>
-                <button id="continue-to-checkout" type="button" disabled>Verder naar afrekenen <span>→</span></button>
-              </div>
-            </div>
-          </section>
-          <section class="checkout-details" id="checkout-details" hidden>
-            <header><span>03</span><div><h2>Contact, bezorging & betaling</h2><p>Vul je gegevens in en kies hoe je veilig wilt betalen.</p></div></header>
+          <section class="checkout-details" id="checkout-details">
+            <header><span>02</span><div><h2>Contact, bezorging & betaling</h2><p>Vul je gegevens in en kies hoe je veilig wilt betalen.</p></div></header>
             <div class="checkout-fields">
               <label>Voornaam<input name="first_name" autocomplete="given-name" required></label><label>Achternaam<input name="last_name" autocomplete="family-name" required></label>
               <label>E-mailadres<input name="email" type="email" autocomplete="email" required></label><label>Telefoon<input name="phone" type="tel" autocomplete="tel"></label>

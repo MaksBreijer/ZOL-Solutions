@@ -1,6 +1,5 @@
 import './checkout.css'
 import { clearCart, getCart, updateCartItem } from './cart.js'
-import { checkoutIntake, completedIntakeAnswers, isCheckoutIntakeComplete } from './checkout-intake.js'
 import { formatMoney, supabase } from './supabase-client.js'
 import { getSessionId, trackEvent } from './site-runtime.js'
 
@@ -8,13 +7,6 @@ const cartElement = document.querySelector('#checkout-cart')
 const summaryElement = document.querySelector('#checkout-summary')
 const form = document.querySelector('#checkout-form')
 const checkoutFlow = document.querySelector('.checkout-flow')
-const intakeElement = document.querySelector('#checkout-intake')
-const intakeProgress = document.querySelector('#intake-progress')
-const discoveryDetails = document.querySelector('#discovery-details')
-const discoveryDetailsInput = document.querySelector('#discovery-details-input')
-const continueButton = document.querySelector('#continue-to-checkout')
-const checkoutDetails = document.querySelector('#checkout-details')
-const checkoutSubmit = form.querySelector('.checkout-submit')
 const discountInput = form.elements.discount_code
 const discountButton = document.querySelector('#apply-discount')
 const discountStatus = document.querySelector('#discount-status')
@@ -30,44 +22,6 @@ let quotedCart = ''
 let quotedCode = null
 let quoteRequest = 0
 let submitInFlight = false
-
-function currentIntake() {
-  return checkoutIntake(Object.fromEntries(new FormData(form)))
-}
-
-function updateIntakeGate() {
-  const intake = currentIntake()
-  const completed = completedIntakeAnswers(intake)
-  const complete = isCheckoutIntakeComplete(intake)
-  intakeProgress.textContent = complete ? '4/4 beantwoord — klaar om af te rekenen' : `${completed}/4 beantwoord`
-  continueButton.disabled = !complete
-  checkoutSubmit.disabled = !complete || submitInFlight
-  intakeElement.classList.toggle('is-complete', complete)
-}
-
-function updateDiscoveryDetails({ focus = false } = {}) {
-  const isOther = form.elements.discovery_source.value === 'other'
-  discoveryDetails.hidden = !isOther
-  discoveryDetailsInput.disabled = !isOther
-  form.elements.discovery_source.forEach((option) => option.setAttribute('aria-expanded', String(isOther && option.value === 'other')))
-  if (!isOther) discoveryDetailsInput.value = ''
-  if (isOther && focus) requestAnimationFrame(() => discoveryDetailsInput.focus())
-}
-
-intakeElement.addEventListener('input', updateIntakeGate)
-intakeElement.addEventListener('change', (event) => {
-  updateDiscoveryDetails({ focus: event.target.name === 'discovery_source' && event.target.value === 'other' })
-  updateIntakeGate()
-})
-updateDiscoveryDetails()
-continueButton.addEventListener('click', () => {
-  if (!isCheckoutIntakeComplete(currentIntake())) return
-  checkoutDetails.hidden = false
-  continueButton.innerHTML = 'Vragen beantwoord <span>✓</span>'
-  continueButton.classList.add('is-complete')
-  trackEvent('checkout_questions_completed', { page: '/checkout/' })
-  checkoutDetails.scrollIntoView({ block: 'start', behavior: 'smooth' })
-})
 
 const paymentMethodPresentation = {
   ideal: { label: 'iDEAL', detail: 'Betaal direct via je eigen bank', mark: 'iDEAL' },
@@ -322,8 +276,6 @@ discountInput.addEventListener('keydown', (event) => {
 })
 
 function checkoutValidationMessage(invalid) {
-  if (invalid?.name === 'discovery_source') return 'Geef aan hoe je bij ZOL Solutions bent terechtgekomen.'
-  if (invalid?.name?.startsWith('pain_')) return 'Beantwoord eerst alle vragen over de hielpijn.'
   if (invalid?.name === 'terms_accepted') return 'Vink eerst aan dat je akkoord gaat met de voorwaarden en het privacybeleid.'
   if (invalid?.type === 'email') return 'Vul een geldig e-mailadres in.'
   return 'Controleer de gemarkeerde velden en vul alle verplichte gegevens in.'
@@ -359,8 +311,6 @@ form.addEventListener('submit', async (event) => {
   button.disabled = true; button.innerHTML = 'Bestelling verwerken…'
   try {
     const customer = Object.fromEntries(new FormData(form))
-    const intake = checkoutIntake(customer)
-    ;['pain_moment', 'pain_duration', 'pain_side', 'discovery_source', 'discovery_details'].forEach((field) => { delete customer[field] })
     const discountCode = String(customer.discount_code || '').trim().toUpperCase()
     delete customer.discount_code
     delete customer.terms_accepted
@@ -370,7 +320,7 @@ form.addEventListener('submit', async (event) => {
     const paymentMethod = String(customer.payment_method || '')
     delete customer.payment_method
     trackEvent('checkout_submit', { payment_method: paymentMethod })
-    const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, intake, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
+    const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
     if (error || data?.error) throw new Error(await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'))
     if (data.checkout_url) { window.location.assign(data.checkout_url); return }
     clearCart()
@@ -398,7 +348,6 @@ async function initializeCheckout() {
     if (linkedDiscountCode) discountInput.value = linkedDiscountCode
     render()
     if (getCart().length) await requestQuote({ code: linkedDiscountCode, announce: Boolean(linkedDiscountCode) })
-    updateIntakeGate()
   }
 }
 
