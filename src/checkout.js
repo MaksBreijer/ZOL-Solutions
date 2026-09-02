@@ -7,8 +7,10 @@ const cartElement = document.querySelector('#checkout-cart')
 const summaryElement = document.querySelector('#checkout-summary')
 const form = document.querySelector('#checkout-form')
 const checkoutFlow = document.querySelector('.checkout-flow')
+const discoveryFieldset = document.querySelector('.checkout-discovery')
 const discoveryDetails = document.querySelector('#discovery-details')
 const discoveryDetailsInput = document.querySelector('#discovery-details-input')
+const discoveryError = document.querySelector('#discovery-error')
 const discountInput = form.elements.discount_code
 const discountButton = document.querySelector('#apply-discount')
 const discountStatus = document.querySelector('#discount-status')
@@ -25,6 +27,15 @@ let quotedCode = null
 let quoteRequest = 0
 let submitInFlight = false
 
+function setDiscoveryError(show) {
+  discoveryError.hidden = !show
+  discoveryFieldset.classList.toggle('is-invalid', show)
+  form.elements.discovery_source.forEach((option) => {
+    if (show) option.setAttribute('aria-invalid', 'true')
+    else option.removeAttribute('aria-invalid')
+  })
+}
+
 function updateDiscoveryDetails({ focus = false } = {}) {
   const isOther = form.elements.discovery_source.value === 'other'
   discoveryDetails.hidden = !isOther
@@ -35,6 +46,7 @@ function updateDiscoveryDetails({ focus = false } = {}) {
 }
 
 form.elements.discovery_source.forEach((option) => option.addEventListener('change', (event) => {
+  setDiscoveryError(false)
   updateDiscoveryDetails({ focus: event.target.value === 'other' })
 }))
 updateDiscoveryDetails()
@@ -300,13 +312,16 @@ function checkoutValidationMessage(invalid) {
 
 function validateCheckoutForm(status) {
   form.querySelectorAll('[aria-invalid="true"]').forEach((field) => field.removeAttribute('aria-invalid'))
+  setDiscoveryError(false)
   const invalid = [...form.elements].find((field) => field.willValidate && !field.validity.valid)
   if (!invalid) return true
   invalid.setAttribute('aria-invalid', 'true')
+  const isDiscovery = invalid.name === 'discovery_source'
+  if (isDiscovery) setDiscoveryError(true)
   status.textContent = checkoutValidationMessage(invalid)
   status.classList.add('is-error')
   invalid.focus()
-  invalid.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  ;(isDiscovery ? discoveryFieldset : invalid).scrollIntoView({ block: 'center', behavior: 'smooth' })
   trackEvent('checkout_error', { stage: 'validation', field: invalid.name || invalid.type })
   return false
 }
