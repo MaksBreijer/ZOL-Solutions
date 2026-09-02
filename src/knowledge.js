@@ -10,7 +10,7 @@ if (!document.querySelector('.site-header')) {
 }
 
 if (!document.querySelector('.site-footer')) {
-  document.body.insertAdjacentHTML('beforeend', `<footer class="site-footer"><a class="footer-brand" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo.png" alt="ZOL Solutions"></a><p>Zachter landen. Beter sporten.</p><div class="footer-contact"><a href="/product/">De ZOL'tjes</a><a href="/over-ons/">Over ons</a><a href="/kennisbank/">Kennisbank</a><a href="/contact/">Contact</a></div><div class="footer-legal"><span>© 2026 ZOL Solutions</span><a href="/privacy/">Privacy</a><a href="/algemene-voorwaarden/">Voorwaarden</a></div></footer>`)
+  document.body.insertAdjacentHTML('beforeend', `<footer class="site-footer"><a class="footer-brand" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo.png" alt="ZOL Solutions"></a><p>Zachter landen. Beter sporten.</p><div class="footer-contact"><a href="/product/">De ZOL'tjes</a><a href="/over-ons/">Over ons</a><a href="/kennisbank/">Kennisbank</a><a href="/contact/">Contact</a><a href="https://www.instagram.com/zolsolutions/" target="_blank" rel="noopener noreferrer" aria-label="Volg ZOL Solutions op Instagram">Instagram ↗</a><a href="https://www.linkedin.com/company/zolsolutions/" target="_blank" rel="noopener noreferrer" aria-label="Volg ZOL Solutions op LinkedIn">LinkedIn ↗</a></div><div class="footer-legal"><span>© 2026 ZOL Solutions</span><a href="/privacy/">Privacy</a><a href="/algemene-voorwaarden/">Voorwaarden</a></div></footer>`)
 }
 
 const button = document.querySelector('.menu-toggle')

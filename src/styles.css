@@ -2071,6 +2071,8 @@ a.media-chip:focus-visible {
 
 .footer-contact {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 22px;
 }
 
@@ -4800,6 +4802,7 @@ blockquote {
     display: grid;
     width: 100%;
     grid-column: 1;
+    justify-content: stretch;
     gap: 0;
     border-top: 1px solid rgb(255 255 255 / 12%);
   }
