@@ -336,6 +336,11 @@ svg { display: block; }
 .empty-state p { max-width: 440px; margin: auto; font-size: 10px; line-height: 1.6; }
 
 /* Finance */
+.finance-tabs { margin: -4px 0 16px; padding: 4px; overflow-x: auto; display: flex; gap: 3px; border: 1px solid var(--admin-line); border-radius: 10px; background: #e8ebed; scrollbar-width: none; }
+.finance-tabs::-webkit-scrollbar { display: none; }
+.finance-tabs button { min-height: 34px; padding: 7px 13px; flex: 0 0 auto; border: 0; border-radius: 7px; background: transparent; color: #5b6974; font-size: 9px; font-weight: 750; }
+.finance-tabs button:hover { color: var(--admin-blue-dark); }
+.finance-tabs button.is-active { background: #fff; color: var(--admin-navy); box-shadow: 0 1px 3px rgb(23 37 49 / 10%); }
 .finance-toolbar { margin-bottom: 16px; padding: 13px 15px; display: flex; align-items: center; gap: 16px; }
 .finance-toolbar label { min-width: 190px; display: grid; gap: 5px; color: #52616d; font-size: 8px; font-weight: 750; text-transform: uppercase; }
 .finance-toolbar select { min-height: 36px; padding: 7px 10px; border: 1px solid #cbd3d9; border-radius: 7px; background: #fff; color: #263644; font-size: 10px; text-transform: none; }
@@ -354,6 +359,16 @@ svg { display: block; }
 .finance-table-panel .panel-header > span { color: var(--admin-muted); font-size: 8px; font-weight: 750; }
 .finance-difference.is-different { color: var(--admin-red); font-weight: 750; }
 .finance-export-note { margin: 12px 2px 0; color: var(--admin-muted); font-size: 8px; line-height: 1.5; }
+.accounting-metrics { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.accounting-setup { min-height: 130px; padding: 25px; display: flex; align-items: center; gap: 18px; border-color: #e6c89d; background: #fffaf2; }
+.accounting-setup > span { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border-radius: 50%; background: #fff0dc; font-size: 19px; }
+.accounting-setup h2 { margin: 0; color: #3a454e; font-size: 14px; }
+.accounting-setup p { max-width: 600px; margin: 6px 0 0; color: var(--admin-muted); font-size: 9px; line-height: 1.55; }
+.accounting-positive { color: var(--admin-green); }
+.accounting-negative { color: var(--admin-red); }
+.table-actions button { width: 27px; height: 27px; margin-left: 3px; display: inline-grid; place-items: center; border: 1px solid #dbe1e5; border-radius: 6px; background: #fff; color: #61717e; }
+.table-actions button:hover { border-color: #a9c3d6; background: var(--admin-blue-soft); color: var(--admin-blue-dark); }
+.table-actions button svg { width: 13px; height: 13px; }
 
 /* Product, media and CMS grids */
 .product-grid, .media-grid, .content-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
@@ -451,7 +466,7 @@ svg { display: block; }
 .settings-panel h2 { margin: 0; font-size: 16px; }
 .settings-panel > p { color: var(--admin-muted); font-size: 10px; line-height: 1.55; }
 .form-grid { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.field--full { grid-column: 1 / -1; }
+.field--full, .field--wide { grid-column: 1 / -1; }
 .field textarea { min-height: 110px; resize: vertical; }
 .field small { color: var(--admin-muted); font-size: 8px; font-weight: 500; }
 .variant-stock-editor { overflow: hidden; border: 1px solid #d6e1e8; border-radius: 11px; background: #f8fafb; }
@@ -856,7 +871,7 @@ svg { display: block; }
   .settings-nav { position: static; display: flex; overflow-x: auto; }
   .settings-nav button { width: auto; white-space: nowrap; }
   .form-grid { grid-template-columns: 1fr; }
-  .field--full { grid-column: auto; }
+  .field--full, .field--wide { grid-column: auto; }
   .variant-stock-grid { grid-template-columns: 1fr; }
   .variant-stock-editor > footer { align-items: stretch; flex-direction: column; }
   .variant-stock-editor > footer .button { justify-content: center; }

@@ -1,4 +1,5 @@
 import './admin.css'
+import { calculateVatBreakdown, ledgerExcelCsv, matchBankTransactions, parseBankCsv, vatSummary } from './accounting.js'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
@@ -47,6 +48,12 @@ const state = {
   contactMessages: [],
   products: [],
   payments: [],
+  accountingAccounts: [],
+  accountingPeriods: [],
+  accountingExpenses: [],
+  accountingBank: [],
+  accountingEntries: [],
+  accountingReady: false,
   media: [],
   content: [],
   settings: [],
@@ -82,7 +89,7 @@ const routeMeta = {
   discounts: ['Kortingen', 'Maak kortingscodes en automatische acties voor de ZOL-webshop.'],
   content: ['Website CMS', 'Bewerk teksten, knoppen, beelden, video en SEO zonder code.'],
   media: ['Mediabibliotheek', 'Eén centrale plek voor afbeeldingen, video en iconen.'],
-  payments: ['Financiën', 'Omzet, btw, betalingen, refunds en boekhoudcontrole in één overzicht.'],
+  payments: ['Financiën', 'Verkoop, kosten, bank, btw en grootboek voor de ZOL VOF.'],
   analytics: ['Analytics', 'Verkeer, omzet, winkelgedrag en conversie in één rapport.'],
   live: ['Live View', 'Bekijk live bezoekers, winkelgedrag en bestellingen.'],
   activity: ['Activiteiten', 'Recente wijzigingen door beheerders.'],
@@ -103,6 +110,7 @@ const slugify = (value = '') =>
 
 const prettyStatus = (value = '') => ({
   open: 'Open', draft: 'Concept', completed: 'Afgerond', cancelled: 'Geannuleerd',
+  posted: 'Geboekt', reversed: 'Tegengeboekt', closed: 'Afgesloten', unpaid: 'Onbetaald',
   pending: 'Openstaand', paid: 'Betaald', failed: 'Mislukt', refunded: 'Terugbetaald', partially_refunded: 'Deels terugbetaald',
   unfulfilled: 'Niet verzonden', processing: 'In behandeling', shipped: 'Verzonden', delivered: 'Bezorgd', returned: 'Retour',
   active: 'Actief', inactive: 'Uitgeschakeld', authorized: 'Geautoriseerd', expired: 'Verlopen', withdrawn: 'Gestopt',
@@ -111,7 +119,7 @@ const prettyStatus = (value = '') => ({
 }[value] || value.replaceAll('_', ' '))
 
 const statusClass = (value = '') => {
-  if (['paid', 'completed', 'delivered', 'active', 'accepted', 'authorized', 'sent', 'replied'].includes(value)) return 'is-green'
+  if (['paid', 'posted', 'completed', 'delivered', 'active', 'accepted', 'authorized', 'sent', 'replied'].includes(value)) return 'is-green'
   if (['failed', 'cancelled', 'declined', 'returned', 'refunded', 'email_failed'].includes(value)) return 'is-red'
   if (['open', 'ready', 'shipped', 'processing', 'new'].includes(value)) return 'is-blue'
   return 'is-orange'
@@ -349,8 +357,33 @@ async function fetchPilotEnrollments() {
   return result
 }
 
-async function fetchAllData() {
+async function fetchAccountingData() {
   const requests = await Promise.all([
+    supabase.from('accounting_accounts').select('*').order('code'),
+    supabase.from('accounting_periods').select('*').order('starts_on', { ascending: false }),
+    supabase.from('accounting_expenses').select('*').order('invoice_date', { ascending: false }).limit(1000),
+    supabase.from('accounting_bank_transactions').select('*').order('booked_on', { ascending: false }).limit(2000),
+    supabase.from('accounting_entries').select('*, accounting_lines(*, accounting_accounts(code,name))').order('entry_date', { ascending: false }).order('entry_number', { ascending: false }).limit(1000),
+  ])
+  const firstError = requests.find((request) => request.error)?.error
+  if (firstError) {
+    if (['42P01', 'PGRST205', '42501'].includes(firstError.code)) {
+      return { ready: false, accounts: [], periods: [], expenses: [], bank: [], entries: [] }
+    }
+    throw firstError
+  }
+  return {
+    ready: (requests[0].data || []).length > 0,
+    accounts: requests[0].data || [],
+    periods: requests[1].data || [],
+    expenses: requests[2].data || [],
+    bank: requests[3].data || [],
+    entries: requests[4].data || [],
+  }
+}
+
+async function fetchAllData() {
+  const [requests, accounting] = await Promise.all([Promise.all([
     fetchAllRows('orders', '*, order_items(*, products(images))'),
     fetchAllRows('customers'),
     supabase.from('contact_messages').select('*').order('created_at', { ascending: false }).limit(500),
@@ -369,7 +402,7 @@ async function fetchAllData() {
     supabase.from('email_templates').select('*').order('sort_order'),
     fetchPilotEnrollments(),
     supabase.from('pilot_consent_invites').select('id,customer_id,status,sent_at,accepted_at,declined_at,created_at').order('created_at', { ascending: false }),
-  ])
+  ]), fetchAccountingData()])
 
   const firstError = requests.find((request) => request.error)?.error
   if (firstError) throw firstError
@@ -394,6 +427,13 @@ async function fetchAllData() {
     state.pilotEnrollments,
     state.pilotConsentInvites,
   ] = requests.map((request) => request.data || [])
+
+  state.accountingReady = accounting.ready
+  state.accountingAccounts = accounting.accounts
+  state.accountingPeriods = accounting.periods
+  state.accountingExpenses = accounting.expenses
+  state.accountingBank = accounting.bank
+  state.accountingEntries = accounting.entries
 
   const openOrders = visibleOrders().filter((order) => !['completed', 'cancelled'].includes(order.status)).length
   document.querySelector('#open-order-count').textContent = openOrders || ''
@@ -1627,6 +1667,7 @@ async function deleteMedia(mediaId) {
 }
 
 let financeMonth = financeMonthKey()
+let financeView = 'overview'
 
 const financeStatusLabel = (status) => ({
   matched: 'Klopt',
@@ -1644,7 +1685,242 @@ const financeStatusPill = (status) => {
   return `<span class="status-pill ${className}">${escapeHtml(financeStatusLabel(status))}</span>`
 }
 
+const accountingCanManage = () => ['owner', 'admin'].includes(state.profile?.role)
+const accountingPeriodItems = (items) => (items || []).filter((item) => financeMonth === 'all' || financeMonthKey(item.invoice_date || item.booked_on || item.entry_date) === financeMonth)
+const accountingExpenseAccounts = () => state.accountingAccounts.filter((account) => account.account_type === 'expense' && account.active)
+
+function financeTabsMarkup() {
+  const tabs = accountingCanManage() ? [
+    ['overview', 'Overzicht'],
+    ['expenses', 'Kosten & bonnetjes'],
+    ['bank', 'Bank'],
+    ['vat', 'BTW'],
+    ['ledger', 'Grootboek'],
+  ] : [['overview', 'Overzicht']]
+  return `<nav class="finance-tabs" aria-label="Financiële onderdelen">${tabs.map(([view, label]) => `<button type="button" class="${financeView === view ? 'is-active' : ''}" data-action="finance-view" data-view="${view}">${label}</button>`).join('')}</nav>`
+}
+
+function accountingSetupNotice() {
+  return `<section class="panel accounting-setup"><span>⌛</span><div><h2>Boekhoudmodule wordt klaargezet</h2><p>De interface is gereed. De beveiligde boekhoudtabellen moeten nog één keer aan de live ZOL-database worden gekoppeld.</p></div></section>`
+}
+
+function financePeriodToolbar(description) {
+  const dateItems = [
+    ...state.orders,
+    ...state.accountingExpenses.map((item) => ({ created_at: item.invoice_date })),
+    ...state.accountingBank.map((item) => ({ created_at: item.booked_on })),
+    ...state.accountingEntries.map((item) => ({ created_at: item.entry_date })),
+  ]
+  const months = financeMonthOptions(dateItems)
+  const options = months.map((month) => `<option value="${month}" ${month === financeMonth ? 'selected' : ''}>${escapeHtml(financeMonthLabel(month))}</option>`).join('')
+  return `<section class="panel finance-toolbar"><label>Periode<select data-finance-month><option value="all" ${financeMonth === 'all' ? 'selected' : ''}>Alle periodes</option>${options}</select></label><div><strong>${escapeHtml(financeMonthLabel(financeMonth))}</strong><span>${escapeHtml(description)}</span></div></section>`
+}
+
+function renderExpenses() {
+  const expenses = accountingPeriodItems(state.accountingExpenses)
+  const total = expenses.filter((expense) => expense.status === 'posted').reduce((sum, expense) => sum + Number(expense.total_cents), 0)
+  const vat = expenses.filter((expense) => expense.status === 'posted').reduce((sum, expense) => sum + Number(expense.vat_cents), 0)
+  const rows = expenses.map((expense) => `<tr>
+    <td><strong>${escapeHtml(expense.supplier)}</strong><small class="table-subline">${escapeHtml(expense.description || expense.invoice_number || 'Geen omschrijving')}</small></td>
+    <td>${formatDate(expense.invoice_date)}</td>
+    <td>${escapeHtml(expense.category_account_code)}</td>
+    <td><strong>${formatMoney(expense.total_cents)}</strong><small class="table-subline">${formatMoney(expense.vat_cents)} btw</small></td>
+    <td>${statusPill(expense.status)}</td><td>${statusPill(expense.payment_status)}</td>
+    <td class="table-actions">${expense.document_path ? `<button type="button" data-action="open-expense-document" data-id="${expense.id}" title="Bon openen"><i data-lucide="file-text"></i></button>` : ''}${expense.status === 'draft' ? `<button type="button" data-action="post-expense" data-id="${expense.id}" title="Definitief boeken"><i data-lucide="check-circle"></i></button><button type="button" data-action="delete-expense" data-id="${expense.id}" title="Verwijderen">×</button>` : ''}</td>
+  </tr>`).join('')
+
+  elements.content.innerHTML = `<div class="page-container">
+    ${pageHeader('payments', state.accountingReady && accountingCanManage() ? '<button class="button button--primary" data-action="new-expense"><i data-lucide="plus"></i> Kosten toevoegen</button>' : '')}
+    ${financeTabsMarkup()}${financePeriodToolbar('Inkoopfacturen en zakelijke bonnetjes. Alleen concepten zijn nog te wijzigen.')}
+    ${state.accountingReady ? `<section class="metric-grid accounting-metrics"><article class="metric-card"><header><span>Geboekte kosten</span><span class="metric-icon"><i data-lucide="file-text"></i></span></header><strong>${formatMoney(total)}</strong><footer><span>Inclusief btw</span><span>${expenses.filter((item) => item.status === 'posted').length} geboekt</span></footer></article><article class="metric-card"><header><span>Terug te vragen btw</span><span class="metric-icon"><i data-lucide="circle-euro"></i></span></header><strong>${formatMoney(vat)}</strong><footer><span>Uit geboekte kosten</span><span>${financeMonthLabel(financeMonth)}</span></footer></article></section>
+    <section class="panel"><header class="panel-header"><div><h2>Kostenregister</h2><p>Een definitief geboekte regel wordt vergrendeld en blijft in de audittrail staan.</p></div><span>${expenses.length} regels</span></header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Leverancier</th><th>Factuurdatum</th><th>Rekening</th><th>Bedrag</th><th>Boeking</th><th>Betaling</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen kosten in deze periode', 'Voeg een factuur of bon toe om de voorbelasting en kosten vast te leggen.', '€')}</section>` : accountingSetupNotice()}
+  </div>`
+}
+
+function expenseForm() {
+  const accounts = accountingExpenseAccounts().map((account) => `<option value="${account.code}">${account.code} · ${escapeHtml(account.name)}</option>`).join('')
+  openDialog('Kosten of bon toevoegen', 'Boekhouding', `<form id="expense-form"><div class="form-grid">
+    <label class="field">Leverancier<input name="supplier" maxlength="140" required placeholder="Naam leverancier"></label>
+    <label class="field">Factuurnummer<input name="invoice_number" maxlength="100" placeholder="Optioneel"></label>
+    <label class="field">Factuurdatum<input name="invoice_date" type="date" value="${new Date().toISOString().slice(0, 10)}" required></label>
+    <label class="field">Categorie<select name="category_account_code" required>${accounts}</select></label>
+    <label class="field">Bedrag incl. btw (€)<input name="total" type="number" min="0.01" step="0.01" required placeholder="0,00"></label>
+    <label class="field">BTW-percentage<select name="vat_rate"><option value="21">21%</option><option value="9">9%</option><option value="0">0%</option></select></label>
+    <label class="field">Betaalstatus<select name="payment_status"><option value="unpaid">Nog te betalen</option><option value="paid">Betaald</option></select></label>
+    <label class="field field--wide">Omschrijving<input name="description" maxlength="300" placeholder="Waarvoor was deze uitgave?"></label>
+    <label class="field field--wide">Factuur of bon<input name="document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><small>PDF, JPG, PNG of WebP · maximaal 10 MB · alleen zichtbaar voor Finance-beheerders</small></label>
+  </div><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button" type="submit" value="draft">Als concept opslaan</button><button class="button button--primary" type="submit" value="post">Opslaan en boeken</button></div></form>`)
+  const form = document.querySelector('#expense-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const button = event.submitter
+    const values = Object.fromEntries(new FormData(form))
+    const breakdown = calculateVatBreakdown(Math.round(Number(values.total) * 100), Number(values.vat_rate))
+    if (!breakdown.totalCents) { toast('Vul een geldig bedrag in', '', true); return }
+    setBusy(button, true, button.value === 'post' ? 'Boeken' : 'Opslaan')
+    const { data: expense, error } = await supabase.from('accounting_expenses').insert({
+      supplier: values.supplier.trim(), invoice_number: values.invoice_number.trim(), invoice_date: values.invoice_date,
+      description: values.description.trim(), category_account_code: values.category_account_code,
+      total_cents: breakdown.totalCents, amount_excluding_vat_cents: breakdown.excludingVatCents,
+      vat_cents: breakdown.vatCents, vat_rate: breakdown.vatRate, payment_status: values.payment_status,
+    }).select().single()
+    if (error) { toast('Kosten opslaan mislukt', error.message, true); setBusy(button, false, 'Opnieuw proberen'); return }
+    const file = form.elements.document.files?.[0]
+    if (file) {
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'bin'
+      const path = `${state.session.user.id}/${expense.id}/${Date.now()}-${slugify(file.name.replace(/\.[^.]+$/, ''))}.${extension}`
+      const upload = await supabase.storage.from('accounting-documents').upload(path, file, { contentType: file.type, upsert: false })
+      if (upload.error) { toast('Kosten opgeslagen, bon niet geüpload', upload.error.message, true) }
+      else await supabase.from('accounting_expenses').update({ document_path: path }).eq('id', expense.id)
+    }
+    if (button.value === 'post') {
+      const posting = await supabase.rpc('post_accounting_expense', { p_expense_id: expense.id })
+      if (posting.error) { toast('Concept opgeslagen, boeken mislukt', posting.error.message, true); closeDialog(); await refreshCurrentRoute(); return }
+    }
+    await recordActivity(button.value === 'post' ? 'Kosten definitief geboekt' : 'Kostenconcept toegevoegd', 'accounting_expense', expense.id, { total_cents: breakdown.totalCents })
+    closeDialog(); await refreshCurrentRoute(); toast(button.value === 'post' ? 'Kosten geboekt' : 'Kostenconcept opgeslagen', `${values.supplier} · ${formatMoney(breakdown.totalCents)}`)
+  })
+}
+
+async function postExpense(expense) {
+  if (!expense || !window.confirm(`Kosten van ${expense.supplier} definitief boeken? Daarna kun je deze regel alleen nog corrigeren.`)) return
+  const { error } = await supabase.rpc('post_accounting_expense', { p_expense_id: expense.id })
+  if (error) { toast('Boeken mislukt', error.message, true); return }
+  await recordActivity('Kosten definitief geboekt', 'accounting_expense', expense.id, { total_cents: expense.total_cents })
+  await refreshCurrentRoute(); toast('Kosten definitief geboekt')
+}
+
+async function deleteExpense(expense) {
+  if (!expense || expense.status !== 'draft' || !window.confirm(`Concept van ${expense.supplier} verwijderen?`)) return
+  if (expense.document_path) await supabase.storage.from('accounting-documents').remove([expense.document_path])
+  const { error } = await supabase.from('accounting_expenses').delete().eq('id', expense.id)
+  if (error) { toast('Verwijderen mislukt', error.message, true); return }
+  await refreshCurrentRoute(); toast('Kostenconcept verwijderd')
+}
+
+async function openExpenseDocument(expense) {
+  if (!expense?.document_path) return
+  const { data, error } = await supabase.storage.from('accounting-documents').createSignedUrl(expense.document_path, 120)
+  if (error) { toast('Document openen mislukt', error.message, true); return }
+  window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+}
+
+function renderBank() {
+  const transactions = accountingPeriodItems(state.accountingBank)
+  const matched = transactions.filter((item) => item.status === 'matched').length
+  const incoming = transactions.reduce((sum, item) => sum + Math.max(0, Number(item.amount_cents)), 0)
+  const outgoing = transactions.reduce((sum, item) => sum + Math.abs(Math.min(0, Number(item.amount_cents))), 0)
+  const rows = transactions.map((item) => {
+    const order = state.orders.find((candidate) => candidate.id === item.matched_order_id)
+    const expense = state.accountingExpenses.find((candidate) => candidate.id === item.matched_expense_id)
+    const match = order ? `Bestelling #${order.order_number}` : expense ? expense.supplier : item.status === 'ignored' ? 'Genegeerd' : 'Nog koppelen'
+    return `<tr><td>${formatDate(item.booked_on)}</td><td><strong>${escapeHtml(item.counterparty || 'Onbekend')}</strong><small class="table-subline">${escapeHtml(item.description)}</small></td><td class="${item.amount_cents < 0 ? 'accounting-negative' : 'accounting-positive'}"><strong>${item.amount_cents < 0 ? '− ' : '+ '}${formatMoney(Math.abs(item.amount_cents))}</strong></td><td>${financeStatusPill(item.status === 'matched' ? 'matched' : item.status === 'ignored' ? 'cancelled' : 'open')}</td><td>${escapeHtml(match)}</td><td class="table-actions">${item.status !== 'matched' ? `<button type="button" data-action="toggle-bank-ignore" data-id="${item.id}" title="${item.status === 'ignored' ? 'Terugzetten' : 'Negeren'}">${item.status === 'ignored' ? '↶' : '×'}</button>` : ''}</td></tr>`
+  }).join('')
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('payments', state.accountingReady && accountingCanManage() ? '<button class="button button--primary" data-action="import-bank"><i data-lucide="download"></i> Knab CSV importeren</button>' : '')}${financeTabsMarkup()}${financePeriodToolbar('Knab-bankregels worden ontdubbeld en waar mogelijk automatisch aan een order of kostenregel gekoppeld.')}${state.accountingReady ? `<section class="metric-grid accounting-metrics"><article class="metric-card"><header><span>Bijgeschreven</span><span class="metric-icon"><i data-lucide="trending-up"></i></span></header><strong>${formatMoney(incoming)}</strong><footer><span>${financeMonthLabel(financeMonth)}</span><span>Bank</span></footer></article><article class="metric-card"><header><span>Afgeschreven</span><span class="metric-icon"><i data-lucide="credit-card"></i></span></header><strong>${formatMoney(outgoing)}</strong><footer><span>${matched}/${transactions.length} gekoppeld</span><span>Controle</span></footer></article></section><section class="panel"><header class="panel-header"><div><h2>Bankmutaties</h2><p>Exacte, unieke bedragen binnen de datumsmarge worden automatisch herkend.</p></div><span>${transactions.length - matched} open</span></header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Tegenpartij</th><th>Bedrag</th><th>Status</th><th>Koppeling</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen bankmutaties', 'Exporteer een CSV vanuit Knab en importeer die hier. Bestaande regels worden automatisch overgeslagen.', '€')}</section>` : accountingSetupNotice()}</div>`
+}
+
+function bankImportForm() {
+  openDialog('Knab-bankbestand importeren', 'Bank', `<form id="bank-import-form"><section class="csv-import-intro"><strong>Veilig importeren zonder bankkoppeling</strong><p>Exporteer transacties als CSV in Knab. ZOL controleert dubbele regels en zoekt exacte matches met bestellingen en kosten.</p></section><label class="csv-file-field"><span>CSV-bestand kiezen</span><input id="bank-import-file" type="file" accept=".csv,text/csv,text/plain" required><small>Er wordt pas iets opgeslagen na de controle.</small></label><section class="csv-import-preview" id="bank-import-preview"><span>Nog geen bestand gekozen</span><p>Kies een CSV om de kolommen en regels te controleren.</p></section><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit" disabled>Gecontroleerde regels importeren</button></div></form>`)
+  const form = document.querySelector('#bank-import-form')
+  const fileInput = form.querySelector('#bank-import-file')
+  const preview = form.querySelector('#bank-import-preview')
+  const submit = form.querySelector('[type="submit"]')
+  let parsed
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0]
+    parsed = null; submit.disabled = true
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { preview.innerHTML = '<span class="is-error">Bestand is te groot</span><p>Gebruik maximaal 10 MB.</p>'; return }
+    parsed = parseBankCsv(await file.text())
+    const matches = matchBankTransactions(parsed.transactions, state.orders, state.accountingExpenses)
+    const matchedCount = matches.filter((item) => item.status === 'matched').length
+    parsed.transactions = matches
+    preview.innerHTML = `<header><div><span>${escapeHtml(file.name)}</span><small>${parsed.delimiter === ';' ? 'Puntkomma' : parsed.delimiter === '\t' ? 'Tab' : 'Komma'} als scheidingsteken</small></div><strong>${parsed.transactions.length} bankregels</strong></header><div class="csv-import-stats"><span>${matchedCount} automatisch gekoppeld</span><span>${parsed.transactions.length - matchedCount} nog te controleren</span><span>${parsed.issues.length} fouten</span></div>${parsed.issues.length ? `<div class="csv-import-errors"><strong>Los deze regels eerst op:</strong><ul>${parsed.issues.slice(0, 8).map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')}</ul></div>` : '<p class="csv-import-ready">✓ Bestand is gecontroleerd en klaar voor import.</p>'}`
+    submit.disabled = !parsed.transactions.length || parsed.issues.length > 0
+  })
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    if (!parsed?.transactions.length || parsed.issues.length) return
+    setBusy(submit, true, 'Importeren')
+    const { data, error } = await supabase.from('accounting_bank_transactions').upsert(parsed.transactions, { onConflict: 'import_hash', ignoreDuplicates: true }).select('id')
+    if (error) { toast('Bankimport mislukt', error.message, true); setBusy(submit, false, 'Opnieuw proberen'); return }
+    await recordActivity('Knab-bankbestand geïmporteerd', 'accounting_bank', '', { rows: data?.length || 0, filename: fileInput.files?.[0]?.name || '' })
+    closeDialog(); await refreshCurrentRoute(); toast('Bankbestand geïmporteerd', `${data?.length || 0} nieuwe regels; dubbele transacties zijn overgeslagen.`)
+  })
+}
+
+async function toggleBankIgnore(transaction) {
+  if (!transaction) return
+  const status = transaction.status === 'ignored' ? 'unmatched' : 'ignored'
+  const { error } = await supabase.from('accounting_bank_transactions').update({ status }).eq('id', transaction.id)
+  if (error) { toast('Bankregel bijwerken mislukt', error.message, true); return }
+  await refreshCurrentRoute()
+}
+
+function renderVat() {
+  const reportRows = financeRows(state.orders, state.payments, financeMonth)
+  const expenses = accountingPeriodItems(state.accountingExpenses)
+  const vat = vatSummary(reportRows, expenses)
+  const selectedDate = financeMonth === 'all' ? null : `${financeMonth}-15`
+  const period = selectedDate ? state.accountingPeriods.find((item) => selectedDate >= item.starts_on && selectedDate <= item.ends_on) : null
+  const periodAction = period && accountingCanManage() ? `<button class="button ${period.status === 'open' ? 'button--primary' : ''}" data-action="set-accounting-period" data-id="${period.id}" data-status="${period.status === 'open' ? 'closed' : 'open'}">${period.status === 'open' ? `Kwartaal ${period.quarter} afsluiten` : `Kwartaal ${period.quarter} heropenen`}</button>` : ''
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('payments', periodAction)}${financeTabsMarkup()}${financePeriodToolbar('BTW op ontvangen omzet minus terug te vragen BTW uit definitief geboekte kosten.')}${state.accountingReady ? `<section class="metric-grid accounting-metrics"><article class="metric-card"><header><span>BTW over verkoop</span><span class="metric-icon"><i data-lucide="circle-euro"></i></span></header><strong>${formatMoney(vat.outputVatCents)}</strong><footer><span>Af te dragen</span><span>${reportRows.length} orders</span></footer></article><article class="metric-card"><header><span>BTW op kosten</span><span class="metric-icon"><i data-lucide="file-text"></i></span></header><strong>− ${formatMoney(vat.inputVatCents)}</strong><footer><span>Voorbelasting</span><span>${expenses.filter((item) => item.status === 'posted').length} kosten</span></footer></article><article class="metric-card"><header><span>Saldo BTW</span><span class="metric-icon"><i data-lucide="credit-card"></i></span></header><strong>${vat.payableVatCents < 0 ? 'Terug ' : ''}${formatMoney(Math.abs(vat.payableVatCents))}</strong><footer><span>${vat.payableVatCents < 0 ? 'Te ontvangen' : 'Te betalen'}</span><span>${financeMonthLabel(financeMonth)}</span></footer></article></section><section class="finance-grid"><article class="panel finance-summary-card"><header class="panel-header"><div><h2>BTW-berekening</h2><p>${financeMonthLabel(financeMonth)}</p></div></header><dl><div><dt>Verschuldigde omzetbelasting</dt><dd>${formatMoney(vat.outputVatCents)}</dd></div><div><dt>Aftrekbare voorbelasting</dt><dd>− ${formatMoney(vat.inputVatCents)}</dd></div><div><dt>Saldo aangifte</dt><dd class="${vat.payableVatCents > 0 ? 'is-alert' : 'is-good'}">${vat.payableVatCents < 0 ? '− ' : ''}${formatMoney(Math.abs(vat.payableVatCents))}</dd></div></dl></article><article class="panel finance-summary-card"><header class="panel-header"><div><h2>Periodecontrole</h2><p>Voordat je de aangifte verstuurt</p></div></header><dl><div><dt>Verkoop gesynchroniseerd</dt><dd>${state.accountingEntries.filter((entry) => entry.source_type === 'order_sale').length}</dd></div><div><dt>Kosten nog in concept</dt><dd class="${expenses.some((item) => item.status === 'draft') ? 'is-alert' : 'is-good'}">${expenses.filter((item) => item.status === 'draft').length}</dd></div><div><dt>Kwartaalstatus</dt><dd>${period ? prettyStatus(period.status) : 'Kies een maand'}</dd></div></dl></article></section><p class="finance-export-note">Dit overzicht ondersteunt de aangifte, maar verstuurt haar niet automatisch naar de Belastingdienst. Laat de eerste aangiftes door een boekhouder controleren.</p>` : accountingSetupNotice()}</div>`
+}
+
+function renderLedger() {
+  const entries = accountingPeriodItems(state.accountingEntries)
+  const rows = entries.map((entry) => {
+    const total = (entry.accounting_lines || []).reduce((sum, line) => sum + Number(line.debit_cents || 0), 0)
+    const accounts = (entry.accounting_lines || []).map((line) => line.accounting_accounts?.code).filter(Boolean).join(', ')
+    return `<tr><td><strong>${entry.entry_number}</strong></td><td>${formatDate(entry.entry_date)}</td><td>${escapeHtml(entry.journal)}</td><td><strong>${escapeHtml(entry.description)}</strong><small class="table-subline">${escapeHtml(entry.reference)}</small></td><td>${escapeHtml(accounts)}</td><td><strong>${formatMoney(total)}</strong></td><td>${statusPill(entry.status)}</td></tr>`
+  }).join('')
+  const actions = state.accountingReady && accountingCanManage() ? `<button class="button" data-action="sync-accounting-sales"><i data-lucide="refresh-cw"></i> Verkopen bijwerken</button><button class="button" data-action="new-accounting-correction"><i data-lucide="plus"></i> Correctie</button><button class="button button--primary" data-action="export-ledger" ${entries.length ? '' : 'disabled'}><i data-lucide="download"></i> Grootboek exporteren</button>` : ''
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('payments', actions)}${financeTabsMarkup()}${financePeriodToolbar('Dubbel boekhouden: elke definitieve boeking bevat evenveel debet als credit.')}${state.accountingReady ? `<section class="panel"><header class="panel-header"><div><h2>Journaalposten</h2><p>Verkoop, kosten, refunds en correcties in één controleerbaar grootboek.</p></div><span>${entries.length} boekstukken</span></header>${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Boekstuk</th><th>Datum</th><th>Dagboek</th><th>Omschrijving</th><th>Rekeningen</th><th>Bedrag</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen journaalposten', 'Werk de verkopen bij of boek de eerste kostenregel.', '€')}</section>` : accountingSetupNotice()}</div>`
+}
+
+async function syncAccountingSales() {
+  const { data, error } = await supabase.rpc('sync_accounting_sales')
+  if (error) { toast('Verkoopboek bijwerken mislukt', error.message, true); return }
+  await recordActivity('Verkoopboek gesynchroniseerd', 'accounting', '', data || {})
+  await refreshCurrentRoute(); toast('Verkoopboek is bijgewerkt', `${data?.sales_created || 0} verkopen en ${data?.refunds_created || 0} refunds geboekt.`)
+}
+
+function accountingCorrectionForm() {
+  const options = state.accountingAccounts.filter((account) => account.active).map((account) => `<option value="${account.code}">${account.code} · ${escapeHtml(account.name)}</option>`).join('')
+  openDialog('Correctieboeking maken', 'Grootboek', `<form id="accounting-correction-form"><div class="form-grid"><label class="field">Datum<input name="entry_date" type="date" value="${new Date().toISOString().slice(0, 10)}" required></label><label class="field">Referentie<input name="reference" maxlength="100" placeholder="Bijv. COR-001"></label><label class="field field--wide">Omschrijving<input name="description" maxlength="300" required></label><label class="field">Debetrekening<select name="debit_code">${options}</select></label><label class="field">Creditrekening<select name="credit_code">${options}</select></label><label class="field">Bedrag (€)<input name="amount" type="number" min="0.01" step="0.01" required></label></div><p class="form-hint">Correcties zijn direct definitief en kunnen niet worden verwijderd. Een fout herstel je met een nieuwe tegenboeking.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Correctie boeken</button></div></form>`)
+  const form = document.querySelector('#accounting-correction-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const button = form.querySelector('[type="submit"]'); const values = Object.fromEntries(new FormData(form))
+    if (values.debit_code === values.credit_code) { toast('Kies twee verschillende rekeningen', '', true); return }
+    setBusy(button, true, 'Boeken')
+    const { error } = await supabase.rpc('post_accounting_correction', { p_entry_date: values.entry_date, p_reference: values.reference, p_description: values.description, p_debit_code: values.debit_code, p_credit_code: values.credit_code, p_amount_cents: Math.round(Number(values.amount) * 100) })
+    if (error) { toast('Correctie boeken mislukt', error.message, true); setBusy(button, false, 'Opnieuw proberen'); return }
+    closeDialog(); await refreshCurrentRoute(); toast('Correctie geboekt')
+  })
+}
+
+function exportLedger() {
+  const entries = accountingPeriodItems(state.accountingEntries)
+  if (!entries.length) { toast('Geen grootboekregels om te exporteren'); return }
+  const url = URL.createObjectURL(new Blob([ledgerExcelCsv(entries)], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a'); link.href = url; link.download = `zol-grootboek-${financeMonth === 'all' ? 'alle-periodes' : financeMonth}.csv`; link.click(); URL.revokeObjectURL(url)
+  toast('Grootboekexport aangemaakt', `${entries.length} boekstukken.`)
+}
+
+async function setAccountingPeriod(period, status) {
+  if (!period) return
+  const label = `kwartaal ${period.quarter} van ${period.year}`
+  if (!window.confirm(`${status === 'closed' ? 'Sluit' : 'Heropen'} ${label}? ${status === 'closed' ? 'Boekingen in deze periode worden daarna geblokkeerd.' : ''}`)) return
+  const { error } = await supabase.rpc('set_accounting_period_status', { p_period_id: period.id, p_status: status })
+  if (error) { toast('Periode bijwerken mislukt', error.message, true); return }
+  await refreshCurrentRoute(); toast(`Boekhoudperiode ${status === 'closed' ? 'afgesloten' : 'heropend'}`, label)
+}
+
 function renderPayments() {
+  if (financeView === 'expenses') { renderExpenses(); return }
+  if (financeView === 'bank') { renderBank(); return }
+  if (financeView === 'vat') { renderVat(); return }
+  if (financeView === 'ledger') { renderLedger(); return }
   const months = financeMonthOptions(state.orders)
   if (financeMonth !== 'all' && !months.includes(financeMonth)) financeMonth = months[0]
   const reportRows = financeRows(state.orders, state.payments, financeMonth)
@@ -1664,6 +1940,7 @@ function renderPayments() {
 
   elements.content.innerHTML = `<div class="page-container">
     ${pageHeader('payments', `<button class="button" data-route-jump="settings">Betaalmethoden beheren</button><button class="button button--primary" data-action="export-finance" ${reportRows.length ? '' : 'disabled'}><i data-lucide="download"></i> Boekhoudingsexport (CSV)</button>`)}
+    ${financeTabsMarkup()}
     <section class="panel finance-toolbar">
       <label>Periode op besteldatum<select data-finance-month><option value="all" ${financeMonth === 'all' ? 'selected' : ''}>Alle periodes</option>${monthOptions}</select></label>
       <div><strong>Alleen-lezen financieel overzicht</strong><span>Gebaseerd op ZOL-bestellingen en geregistreerde betalingen. Er wordt niets aangepast.</span></div>
@@ -2194,6 +2471,17 @@ async function handleContentClick(event) {
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
   if (action === 'export-finance') exportFinance()
+  if (action === 'finance-view') { financeView = target.dataset.view || 'overview'; renderPayments(); refreshIcons() }
+  if (action === 'new-expense') expenseForm()
+  if (action === 'post-expense') await postExpense(state.accountingExpenses.find((item) => item.id === id))
+  if (action === 'delete-expense') await deleteExpense(state.accountingExpenses.find((item) => item.id === id))
+  if (action === 'open-expense-document') await openExpenseDocument(state.accountingExpenses.find((item) => item.id === id))
+  if (action === 'import-bank') bankImportForm()
+  if (action === 'toggle-bank-ignore') await toggleBankIgnore(state.accountingBank.find((item) => item.id === id))
+  if (action === 'sync-accounting-sales') await syncAccountingSales()
+  if (action === 'new-accounting-correction') accountingCorrectionForm()
+  if (action === 'export-ledger') exportLedger()
+  if (action === 'set-accounting-period') await setAccountingPeriod(state.accountingPeriods.find((item) => item.id === id), target.dataset.status)
   if (action === 'import-orders') importOrdersForm()
   if (action === 'download-order-template') downloadOrderImportTemplate()
   if (action === 'import-customers') importCustomersForm()
