@@ -31,7 +31,7 @@
 .recognition-card { min-height:240px; padding:28px; display:flex; flex-direction:column; justify-content:flex-end; border:1px solid var(--line); border-radius:22px; background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(227,238,247,.72)); box-shadow:0 20px 55px rgba(16,43,74,.07); }
 .recognition-card > span { margin-bottom:auto; color:var(--blue); font-size:11px; font-weight:800; letter-spacing:.14em; }
 .recognition-card h3 { margin:0 0 10px; color:var(--blue-deep); font:700 clamp(28px,3vw,40px)/.95 "Barlow Condensed",sans-serif; text-transform:uppercase; }
-.recognition-card p { margin:0; color:var(--muted); line-height:1.55; }
+.recognition-card p { min-height:3.1em; margin:0; color:var(--muted); line-height:1.55; }
 .problem-subtitle { max-width:680px; margin:10px 0 25px; color:var(--blue-deep); font:700 clamp(44px,5.6vw,76px)/.92 "Barlow Condensed",sans-serif; letter-spacing:-.035em; text-transform:uppercase; }
 .problem-copy .text-link { margin-top:24px; }
 
@@ -75,6 +75,7 @@
 @media (max-width: 900px) {
   .recognition-grid,.knowledge-grid { grid-template-columns:1fr; }
   .recognition-card { min-height:190px; }
+  .recognition-card p { min-height:0; }
   .comparison-grid,.professionals-inner { grid-template-columns:1fr; }
 }
 @media (max-width: 640px) {
