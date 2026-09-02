@@ -1328,6 +1328,10 @@ a.media-chip:focus-visible {
   color: #fff;
 }
 
+.solution-heading > p:not(.section-index) {
+  color: #fff;
+}
+
 .solution-commerce {
   display: flex;
   align-items: center;
