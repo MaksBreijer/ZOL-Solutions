@@ -2089,6 +2089,32 @@ a.media-chip:focus-visible {
   color: #fff;
 }
 
+.footer-contact a[href*="instagram.com"],
+.footer-contact a[href*="linkedin.com"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.footer-contact a[href*="instagram.com"]::before,
+.footer-contact a[href*="linkedin.com"]::before {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  content: "";
+}
+
+.footer-contact a[href*="instagram.com"]::before {
+  background-image: url("/media/social-instagram.svg");
+}
+
+.footer-contact a[href*="linkedin.com"]::before {
+  background-image: url("/media/social-linkedin.svg");
+}
+
 .footer-payments {
   display: flex;
   padding-top: 20px;
