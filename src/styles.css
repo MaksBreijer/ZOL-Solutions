@@ -1371,13 +1371,13 @@ a.media-chip:focus-visible {
 
 .product-blueprint {
   position: relative;
-  min-height: 900px;
-  margin-top: clamp(80px, 10vw, 130px);
+  min-height: 700px;
+  margin-top: clamp(60px, 7vw, 90px);
 }
 
 .product-photo {
   --float-offset: 0px;
-  width: min(650px, 62%);
+  width: min(600px, 58%);
   margin: 0 auto;
   transform: translateY(var(--float-offset));
   transition: transform 120ms linear;
@@ -1385,8 +1385,9 @@ a.media-chip:focus-visible {
 
 .product-photo img {
   width: 100%;
-  height: 820px;
+  height: 620px;
   object-fit: cover;
+  object-position: center 50%;
 }
 
 .spec-callout {
@@ -1423,7 +1424,7 @@ a.media-chip:focus-visible {
 }
 
 .spec-callout--impact {
-  top: 20%;
+  top: 17%;
   left: 0;
 }
 
@@ -1433,7 +1434,7 @@ a.media-chip:focus-visible {
 }
 
 .spec-callout--support {
-  top: 46%;
+  top: 43%;
   right: 0;
 }
 
@@ -1442,7 +1443,7 @@ a.media-chip:focus-visible {
 }
 
 .spec-callout--profile {
-  bottom: 10%;
+  bottom: 7%;
   left: 2%;
 }
 
@@ -3574,12 +3575,12 @@ a.media-chip:focus-visible {
   }
 
   .product-photo {
-    width: min(660px, 82%);
+    width: min(600px, 78%);
     grid-column: 1 / -1;
   }
 
   .product-photo img {
-    height: 720px;
+    height: 600px;
   }
 
   .spec-callout {
@@ -3589,8 +3590,8 @@ a.media-chip:focus-visible {
     bottom: auto;
     left: auto;
     width: auto;
-    min-height: 110px;
-    margin-top: 40px;
+    min-height: 96px;
+    margin-top: 28px;
     padding: 18px;
     float: none;
     border-top-color: rgb(255 255 255 / 24%);
@@ -3887,7 +3888,7 @@ a.media-chip:focus-visible {
   }
 
   .product-blueprint {
-    margin-top: 65px;
+    margin-top: 52px;
     grid-template-columns: 1fr;
   }
 
@@ -3897,7 +3898,7 @@ a.media-chip:focus-visible {
   }
 
   .product-photo img {
-    height: 570px;
+    height: 430px;
   }
 
   .spec-callout {
