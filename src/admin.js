@@ -1023,9 +1023,9 @@ function trackingForm(order) {
         <label class="field">Trackingcode<input name="tracking_code" maxlength="120" value="${escapeHtml(order.tracking_code || '')}" required></label>
         <label class="field field--full">Trackinglink <span>optioneel; wordt anders automatisch ingevuld</span><input name="tracking_url" type="url" value="${escapeHtml(order.tracking_url || '')}" placeholder="https://…"></label>
         <label class="field">Verzendmoment<input name="shipped_at" type="datetime-local" value="${order.shipped_at ? new Date(order.shipped_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)}" required></label>
-        <label id="tracking-notify-field" class="checkbox-field"><input name="notify" type="checkbox" ${emailEnabled && destination.type === 'customer' ? 'checked' : ''} ${emailEnabled && destination.type === 'customer' ? '' : 'disabled'}> Klant per e-mail informeren</label>
+        <label id="tracking-notify-field" class="checkbox-field"><input name="notify" type="checkbox" ${emailEnabled && (destination.type === 'customer' || isPhysioOrder) ? 'checked' : ''} ${emailEnabled && (destination.type === 'customer' || isPhysioOrder) ? '' : 'disabled'}> ${isPhysioOrder ? 'Fysio automatisch per e-mail informeren' : 'Klant per e-mail informeren'}</label>
       </div>
-      <p id="tracking-destination-hint" class="form-hint" ${destination.type === 'physio' ? '' : 'hidden'}>Bij een fysiozending wordt de klant niet automatisch gemaild. De fysio en het adres worden wel bij de tracking opgeslagen.</p>
+      <p id="tracking-destination-hint" class="form-hint" ${destination.type === 'physio' ? '' : 'hidden'}>${isPhysioOrder ? 'Na het opslaan krijgt de fysio automatisch een verzendmail met de track-and-trace.' : 'Bij verzending naar een losse fysio wordt de klant niet automatisch gemaild. De fysio en het adres worden wel bij de tracking opgeslagen.'}</p>
       ${!emailEnabled ? '<p class="form-hint">Activeer de e-mailkoppeling bij Instellingen om de klant automatisch een verzendmail te sturen.</p>' : ''}
       <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Tracking opslaan</button></div>
     </form>`,
@@ -1045,8 +1045,8 @@ function trackingForm(order) {
     customerDestination.hidden = isPhysio
     destinationHint.hidden = !isPhysio
     requiredPhysioFields.forEach((name) => { form.elements[name].required = isPhysio })
-    notifyInput.disabled = !emailEnabled || isPhysio
-    if (isPhysio) notifyInput.checked = false
+    notifyInput.disabled = !emailEnabled || (isPhysio && !isPhysioOrder)
+    notifyInput.checked = emailEnabled && (!isPhysio || isPhysioOrder)
   }
   destinationSelect.addEventListener('change', setDestinationMode)
   setDestinationMode()
@@ -1115,7 +1115,7 @@ function postnlLabelForm(order) {
   const isPhysioOrder = order.order_type === 'physio'
   const canNotifyCustomer = emailEnabled && !isPhysioOrder
   const isProduction = environment === 'production'
-  openDialog('PostNL-label maken', `Bestelling #${order.order_number}`, `<form id="postnl-label-form"><div class="email-connection ${isProduction ? '' : 'is-connected'}"><i>${isProduction ? '!' : '✓'}</i><div><strong>${isProduction ? 'Productie — deze zending wordt echt aangemeld' : 'Veilige sandbox-test'}</strong><small>${isProduction ? 'PostNL kan deze zending factureren. Controleer adres en betaling zorgvuldig.' : 'Er wordt geen echte betaalde zending aangemaakt.'}</small></div></div><div class="form-grid"><label class="field">Pakkettype<input value="${config.shipment_type === 'letterbox' ? 'Brievenbuspakje' : 'Pakket'}" disabled></label><label class="checkbox-field field--full"><input name="notify" type="checkbox" ${isPhysioOrder || (canNotifyCustomer && isProduction) ? 'checked' : ''} ${canNotifyCustomer ? '' : 'disabled'}> ${isPhysioOrder ? 'Na het maken als verzonden markeren' : 'Na het maken als verzonden markeren en de klant mailen'}</label>${isProduction ? '<label class="checkbox-field field--full"><input name="confirm_production" type="checkbox" required> Ik bevestig dat dit een echte productiezending mag worden</label>' : ''}</div>${isPhysioOrder ? '<p class="form-hint">Dit is een fysiobestelling. Het label gebruikt het praktijkadres en er wordt geen automatische klantmail verstuurd.</p>' : !emailEnabled ? '<p class="form-hint">De trackingcode wordt wel opgeslagen; activeer e-mail eerst om de klant automatisch te informeren.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'}</button></div></form>`)
+  openDialog('PostNL-label maken', `Bestelling #${order.order_number}`, `<form id="postnl-label-form"><div class="email-connection ${isProduction ? '' : 'is-connected'}"><i>${isProduction ? '!' : '✓'}</i><div><strong>${isProduction ? 'Productie — deze zending wordt echt aangemeld' : 'Veilige sandbox-test'}</strong><small>${isProduction ? 'PostNL kan deze zending factureren. Controleer adres en betaling zorgvuldig.' : 'Er wordt geen echte betaalde zending aangemaakt.'}</small></div></div><div class="form-grid"><label class="field">Pakkettype<input value="${config.shipment_type === 'letterbox' ? 'Brievenbuspakje' : 'Pakket'}" disabled></label><label class="checkbox-field field--full"><input name="notify" type="checkbox" ${emailEnabled && (isPhysioOrder || (canNotifyCustomer && isProduction)) ? 'checked' : ''} ${isPhysioOrder || !emailEnabled ? 'disabled' : ''}> ${isPhysioOrder ? 'Als verzonden markeren en de fysio automatisch mailen' : 'Na het maken als verzonden markeren en de klant mailen'}</label>${isProduction ? '<label class="checkbox-field field--full"><input name="confirm_production" type="checkbox" required> Ik bevestig dat dit een echte productiezending mag worden</label>' : ''}</div>${isPhysioOrder && emailEnabled ? '<p class="form-hint">Na een succesvol label krijgt de fysio automatisch de track-and-trace per e-mail. Het bijbehorende verzendlabel opent voor jullie.</p>' : isPhysioOrder ? '<p class="form-hint">De e-mailkoppeling staat uit. Het label wordt wel gemaakt, maar de fysiomail kan pas na activering worden verstuurd.</p>' : !emailEnabled ? '<p class="form-hint">De trackingcode wordt wel opgeslagen; activeer e-mail eerst om de klant automatisch te informeren.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'}</button></div></form>`)
   const form = document.querySelector('#postnl-label-form')
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
@@ -1123,12 +1123,13 @@ function postnlLabelForm(order) {
     setBusy(button, true, isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken')
     const { data, error } = await supabase.functions.invoke('postnl-shipment', { body: { action: 'create', order_id: order.id, confirm_production: Boolean(form.elements.confirm_production?.checked) } })
     if (error || data?.error) { toast('PostNL-label mislukt', await edgeFunctionMessage(error, data, 'Het label kon niet worden gemaakt.'), true); setBusy(button, false, isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'); return }
+    const shouldNotify = (isPhysioOrder && emailEnabled) || form.elements.notify.checked
     if (isPhysioOrder || form.elements.notify.checked) {
       const { error: statusError } = await supabase.from('orders').update({ fulfillment_status: 'shipped', shipped_at: new Date().toISOString() }).eq('id', order.id)
       if (statusError) toast('Label gemaakt, verzendstatus niet bijgewerkt', statusError.message, true)
-      else if (!isPhysioOrder && form.elements.notify.checked) {
+      else if (shouldNotify) {
         const { data: emailData, error: emailError } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'shipping' } })
-        if (emailError || emailData?.error) toast('Label gemaakt, verzendmail mislukt', await edgeFunctionMessage(emailError, emailData, 'De e-mail kon niet worden verstuurd.'), true)
+        if (emailError || emailData?.error || emailData?.skipped) toast('Label gemaakt, verzendmail niet verstuurd', await edgeFunctionMessage(emailError, emailData, 'De e-mail kon niet worden verstuurd.'), true)
       }
     }
     if (data.label_url) window.open(data.label_url, '_blank', 'noopener')
