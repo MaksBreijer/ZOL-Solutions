@@ -47,8 +47,10 @@ test('builds a bounded public-data query and a reviewable mail draft', () => {
 
 test('builds rate-limit friendly public searches and reads their results', () => {
   const queries = buildNominatimQueries('NL-NH', 'all', 180)
-  assert.equal(queries.length, 4)
-  assert.ok(queries.every((query) => query.url.includes('limit=45')))
+  assert.equal(queries.length, 8)
+  assert.ok(queries.every((query) => query.url.includes('limit=23')))
+  assert.equal(queries.filter((query) => query.type === 'school').length, 2)
+  assert.equal(queries.filter((query) => query.type === 'sports_club').length, 4)
   const leads = parseNominatimLeads([{ osm_type: 'node', osm_id: 7, name: 'Testschool', address: { city: 'Amsterdam' }, extratags: { website: 'https://school.test' } }], 'school', 'NL-NH', '2026-09-03T10:00:00Z')
   assert.equal(leads[0].type, 'school')
   assert.equal(leads[0].city, 'Amsterdam')

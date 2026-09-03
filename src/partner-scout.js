@@ -103,6 +103,7 @@ export function defaultPartnerScoutState() {
     default_region: 'NL-NH',
     auto_refresh_days: 7,
     last_scan_at: '',
+    scan_profile: '',
     last_scan_region: '',
     last_scan_added: 0,
     updated_at: stamp,
@@ -221,13 +222,17 @@ export function parseOverpassLeads(payload, regionCode, stamp = now()) {
 export function buildNominatimQueries(regionCode, type = 'all', limit = 180) {
   const region = partnerRegionLabel(regionCode || 'NL-NH')
   const terms = {
-    physio: 'fysiotherapie', podotherapy: 'podotherapie', school: 'school', sports_club: 'sportclub',
+    physio: ['fysiotherapie'],
+    podotherapy: ['podotherapie'],
+    school: ['middelbare school', 'basisschool'],
+    sports_club: ['hockeyclub', 'voetbalclub', 'tennisclub', 'atletiekvereniging'],
   }
   const types = type === 'all' ? Object.keys(terms) : [terms[type] ? type : 'physio']
-  const perType = Math.max(5, Math.min(50, Math.ceil((Number(limit) || 180) / types.length)))
-  return types.map((leadType) => ({
+  const searches = types.flatMap((leadType) => terms[leadType].map((term) => ({ leadType, term })))
+  const perSearch = Math.max(5, Math.min(50, Math.ceil((Number(limit) || 180) / searches.length)))
+  return searches.map(({ leadType, term }) => ({
     type: leadType,
-    url: `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=nl&addressdetails=1&extratags=1&namedetails=1&limit=${perType}&q=${encodeURIComponent(`${terms[leadType]} ${region}`)}`,
+    url: `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=nl&addressdetails=1&extratags=1&namedetails=1&limit=${perSearch}&q=${encodeURIComponent(`${term} ${region}`)}`,
   }))
 }
 

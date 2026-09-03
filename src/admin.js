@@ -41,6 +41,7 @@ let partnerFilters = { query: '', type: '', status: '', flow: 'todo', priority: 
 let partnerSelectedId = ''
 let partnerRefreshTimer = null
 let partnerPulseRunning = false
+const PARTNER_SCAN_PROFILE = 'schools-and-clubs-v2'
 
 const elements = {
   loading: document.querySelector('#admin-loading'),
@@ -1197,7 +1198,7 @@ function renderPartners() {
   </div>`
   wirePartnerDetailForms()
   const refreshDays = Number(state.partnerScout.auto_refresh_days) || 7
-  const scanDue = !state.partnerScout.last_scan_at || Date.now() - new Date(state.partnerScout.last_scan_at).getTime() > refreshDays * 86400000
+  const scanDue = state.partnerScout.scan_profile !== PARTNER_SCAN_PROFILE || !state.partnerScout.last_scan_at || Date.now() - new Date(state.partnerScout.last_scan_at).getTime() > refreshDays * 86400000
   if (scanDue && !partnerPulseRunning && navigator.onLine) window.setTimeout(() => discoverPartnerMatches({ region: state.partnerScout.default_region || 'NL-NH', type: 'all', limit: 180, silent: true }), 250)
 }
 
@@ -1257,7 +1258,7 @@ async function discoverPartnerMatches({ region = 'NL-NH', type = 'all', limit = 
       discovered = parseOverpassLeads(payload, region, stamp)
     }
     const merged = mergeDiscoveredLeads(state.partnerScout.leads, discovered)
-    await savePartnerScout({ ...state.partnerScout, leads: merged.leads, last_scan_at: stamp, last_scan_region: region, last_scan_added: merged.added, default_region: region }, 'Partnerbronnen vernieuwd', { region, type, found: discovered.length, added: merged.added, refreshed: merged.refreshed })
+    await savePartnerScout({ ...state.partnerScout, leads: merged.leads, last_scan_at: stamp, scan_profile: PARTNER_SCAN_PROFILE, last_scan_region: region, last_scan_added: merged.added, default_region: region }, 'Partnerbronnen vernieuwd', { region, type, found: discovered.length, added: merged.added, refreshed: merged.refreshed })
     if (currentRoute() === 'partners') renderPartners()
     if (!silent) toast('ZOL Pulse is bijgewerkt', `${merged.added} nieuwe matches · ${merged.refreshed} bestaande bronnen vernieuwd.`)
     return true
