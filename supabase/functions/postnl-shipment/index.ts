@@ -245,7 +245,15 @@ Deno.serve(async (request) => {
       return Response.json({ error: "Deze koppeling is nu veilig ingesteld voor Nederlandse zendingen. Internationale zendingen vereisen aanvullende douane- en productgegevens." }, { status: 409, headers })
     }
     const recipientStreet = splitStreet(address.street)
-    const recipientName = splitName(order.customer_name)
+    const isPhysioOrder = order.order_type === "physio"
+    const contactName = clean(order.tracking_destination?.contact_name, 70)
+    if (isPhysioOrder && !contactName) {
+      return Response.json({ error: "Vul eerst bij de fysio-ontvanger een contactpersoon in. Die naam komt samen met de praktijknaam op het verzendlabel." }, { status: 409, headers })
+    }
+    const recipientName = isPhysioOrder && !/\s/.test(contactName)
+      ? { firstName: "", lastName: contactName }
+      : splitName(isPhysioOrder ? contactName : order.customer_name)
+    const companyName = isPhysioOrder ? clean(order.tracking_destination?.practice_name || order.customer_name, 35) : ""
     const mobile = clean(order.customers?.phone, 17)
     const barcodeResult = await generateBarcode(environment, apiKey, config)
     if (!barcodeResult.response.ok || !barcodeResult.barcode) {
@@ -271,6 +279,7 @@ Deno.serve(async (request) => {
       Shipments: [{
         Addresses: [{
           AddressType: "01", City: clean(address.city, 35), Countrycode: "NL", FirstName: recipientName.firstName.slice(0, 35),
+          ...(companyName ? { CompanyName: companyName } : {}),
           HouseNr: recipientStreet.houseNumber, ...(recipientStreet.houseNumberAddition ? { HouseNrExt: recipientStreet.houseNumberAddition } : {}),
           Name: recipientName.lastName.slice(0, 35), Street: recipientStreet.street.slice(0, 95),
           Zipcode: clean(address.postal_code, 17).replaceAll(" ", "").toUpperCase(),

@@ -92,8 +92,8 @@ test('created email handler sends to the customer or physio without requiring pa
   const source = readFileSync(new URL('../supabase/functions/order-email/index.ts', import.meta.url), 'utf8')
     .replace(/^import[\s\S]*?from "\.\.\/_shared\/email\.ts"\n/, '')
   for (const type of ['customer','physio']) {
-    for (const status of ['pending','paid']) {
-      const order = {id:customer,order_number:123,order_type:type,customer_id:type === 'customer' ? customer : null,customer_email:`${type}@example.invalid`,customer_name:'Test Recipient',payment_status:status,total_cents:0,subtotal_cents:0,shipping_cents:0,currency:'EUR',order_items:[],shipping_address:{}}
+    for (const [status, orderSource] of [['pending','admin'],['paid','admin'],['pending','zol-webshop'],['paid','zol-webshop']]) {
+      const order = {id:customer,order_number:123,source:orderSource,order_type:type,customer_id:type === 'customer' ? customer : null,customer_email:`${type}@example.invalid`,customer_name:'Test Recipient',payment_status:status,total_cents:0,subtotal_cents:0,shipping_cents:0,currency:'EUR',order_items:[],shipping_address:{}}
       const logs = new Map(), sent = []
       let handler
       const db = {
@@ -119,27 +119,37 @@ test('created email handler sends to the customer or physio without requiring pa
       })
       const request = action => new Request('https://example.invalid/order-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:customer,action})})
       assert.equal((await handler(request('created'))).status,200)
-      assert.deepEqual(sent.map(email => [email.to,email.subject]),[[`${type}@example.invalid`,'order_received'],['admin@example.invalid','new_order_admin']])
+      const expected = [[`${type}@example.invalid`,'order_received']]
+      if (orderSource !== 'admin') expected.push(['admin@example.invalid','new_order_admin'])
+      assert.deepEqual(sent.map(email => [email.to,email.subject]),expected)
       assert.equal((await handler(request('created'))).status,200)
-      assert.equal(sent.length,2,'a retry must not send another confirmation')
+      assert.equal(sent.length,expected.length,'a retry must not send another confirmation')
       if (status === 'pending') {
         assert.equal((await handler(request('paid'))).status,409)
-        assert.equal(sent.length,2,'an unpaid order must never get payment_confirmed')
+        assert.equal(sent.length,expected.length,'an unpaid order must never get payment_confirmed')
       }
       order.tracking_code = 'SANDBOX'
       order.postnl = {environment:'sandbox',barcode:'SANDBOX'}
       assert.equal((await (await handler(request('shipping'))).json()).skipped,'sandbox_tracking')
-      assert.equal(sent.length,2)
+      assert.equal(sent.length,expected.length)
       order.tracking_code = 'REAL123'
       order.tracking_url = 'https://jouw.postnl.nl/track-and-trace/REAL123-NL-1234AB'
       order.postnl = {environment:'production',barcode:'REAL123'}
       assert.equal((await handler(request('shipping'))).status,200)
-      assert.equal(sent[2].to,`${type}@example.invalid`)
-      assert.equal(sent[2].subject,'order_shipped')
-      assert.match(sent[2].text,/REAL123/)
-      assert.match(sent[2].text,/https:\/\/jouw\.postnl\.nl\/track-and-trace\//)
+      assert.equal(sent.at(-1).to,`${type}@example.invalid`)
+      assert.equal(sent.at(-1).subject,'order_shipped')
+      assert.match(sent.at(-1).text,/REAL123/)
+      assert.match(sent.at(-1).text,/https:\/\/jouw\.postnl\.nl\/track-and-trace\//)
       await handler(request('shipping'))
-      assert.equal(sent.length,3,'the database hook and browser call share one shipment dedupe key')
+      assert.equal(sent.length,expected.length + 1,'the database hook and browser call share one shipment dedupe key')
+      order.payment_status = 'paid'
+      assert.equal((await handler(request('paid'))).status,200)
+      assert.equal(sent.at(-1).subject,'payment_confirmed')
+      assert.equal(sent.length,expected.length + 2,'marking paid must not introduce an internal manual-order mail')
+      const direct = await (await handler(request('new_order_admin'))).json()
+      assert.equal(direct.results[0].status,orderSource === 'admin' ? 'skipped' : 'already_sent')
+      assert.equal(sent.filter(email => email.to === 'admin@example.invalid').length,orderSource === 'admin' ? 0 : 1)
+      assert.equal([...logs.values()].filter(log => log.kind === 'new_order_admin').length,orderSource === 'admin' ? 0 : 1)
     }
   }
 })

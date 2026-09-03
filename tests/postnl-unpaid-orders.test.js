@@ -8,7 +8,7 @@ const source = stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/
   .replace(/^import .*\n/gm,''))
 
 function harness(overrides = {}, configOverrides = {}) {
-  const order = {id:'00000000-0000-0000-0000-000000000001',order_number:123,source:'admin',order_type:'physio',payment_status:'pending',fulfillment_status:'unfulfilled',total_cents:0,customer_name:'Test Praktijk',customer_email:'physio@example.invalid',shipping_address:{street:'Teststraat 1',postal_code:'1234AB',city:'Teststad',country:'NL'},postnl:{},...overrides}
+  const order = {id:'00000000-0000-0000-0000-000000000001',order_number:123,source:'admin',order_type:'physio',payment_status:'pending',fulfillment_status:'unfulfilled',total_cents:0,customer_name:'Test Praktijk',customer_email:'physio@example.invalid',tracking_destination:{type:'physio',practice_name:'Test Praktijk',contact_name:'Anne de Vries'},shipping_address:{street:'Teststraat 1',postal_code:'1234AB',city:'Teststad',country:'NL'},postnl:{},...overrides}
   const config = {environment:'production',enabled:true,production_enabled:true,customer_number:'TEST',customer_code:'TEST',sender_street:'Teststraat',sender_house_number:'1',sender_postal_code:'1234AB',sender_city:'Teststad',...configOverrides}
   const requests = [], updates = []
   let handler
@@ -104,4 +104,51 @@ test('foreign and malformed country values never become Dutch by truncation',asy
     assert.equal(h.requests.length,0,'no barcode or paid shipment may be requested')
     assert.equal(h.updates.length,0)
   }
+})
+
+test('physio labels include the contact person and practice as separate recipient fields',async () => {
+  for (const [contact,first,last] of [['Anne de Vries','Anne','de Vries'],['  Test   Fysio  ','Test','Fysio'],['Sam','','Sam']]) {
+    const h = harness({tracking_destination:{practice_name:'  Test Praktijk  ',contact_name:contact}})
+    assert.equal((await h.create()).status,200)
+    const payload = JSON.parse(h.requests[1].options.body)
+    const recipient = payload.Shipments[0].Addresses[0]
+    assert.equal(recipient.CompanyName,'Test Praktijk')
+    assert.equal(recipient.FirstName,first)
+    assert.equal(recipient.Name,last)
+    assert.equal(payload.Shipments[0].Contacts[0].Email,'physio@example.invalid')
+    assert.equal(h.order.customer_name,'Test Praktijk','do not overwrite the order or billing recipient')
+  }
+})
+
+test('physio labels with a missing contact name are blocked before any PostNL request',async () => {
+  for (const destination of [null,{}, {contact_name:''}, {contact_name:'   '}]) {
+    const h = harness({tracking_destination:destination})
+    const response = await h.create()
+    assert.equal(response.status,409)
+    assert.match((await response.json()).error,/contactpersoon/)
+    assert.equal(h.requests.length,0)
+    assert.equal(h.updates.length,0)
+  }
+})
+
+test('ordinary customer label names are unchanged even with stale physio destination data',async () => {
+  const h = harness({order_type:'customer',customer_name:'Test van Klant',payment_status:'paid'})
+  assert.equal((await h.create()).status,200)
+  const recipient = JSON.parse(h.requests[1].options.body).Shipments[0].Addresses[0]
+  assert.equal(recipient.CompanyName,undefined)
+  assert.equal(recipient.FirstName,'Test')
+  assert.equal(recipient.Name,'van Klant')
+})
+
+test('opening an existing physio label never buys a replacement or changes the original label',async () => {
+  const existing = {barcode:'EXISTING123',label_path:'saved-label.pdf',environment:'production'}
+  const h = harness({postnl:existing,tracking_destination:{}})
+  const response = await h.create()
+  assert.equal(response.status,200)
+  const data = await response.json()
+  assert.equal(data.existing,true)
+  assert.equal(data.barcode,'EXISTING123')
+  assert.equal(h.requests.length,0)
+  assert.equal(h.updates.length,0)
+  assert.deepEqual(h.order.postnl,existing)
 })

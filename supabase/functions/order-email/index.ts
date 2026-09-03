@@ -95,6 +95,12 @@ Deno.serve(async (request) => {
 
     const results = []
     for (const key of templateKeys) {
+      // Manual orders still notify the recipient, but not our own new-order inbox.
+      // Apply to created, paid and direct template requests alike.
+      if (key === "new_order_admin" && order.source === "admin") {
+        results.push({ kind: key, status: "skipped", reason: "manual_order" })
+        continue
+      }
       const template = await getEmailTemplate(key, db)
       if (!template.enabled) { results.push({ kind: key, status: "disabled" }); continue }
       const recipient = template.audience === "admin" ? (config.admin_email || "info@zolsolutions.nl") : order.customer_email
