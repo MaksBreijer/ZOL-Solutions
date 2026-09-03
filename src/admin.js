@@ -9,7 +9,7 @@ import { participantOverview, pilotExcelCsv, pilotSummary, timepointSummary } fr
 import {
   PARTNER_REGIONS, PARTNER_STATUSES, PARTNER_TYPES, buildNominatimQueries, buildOverpassQuery, defaultPartnerScoutState,
   filterPartnerLeads, mergeDiscoveredLeads, normalizePartnerScoutState, parseNominatimLeads, parseOverpassLeads,
-  partnerCsv, partnerIsDone, partnerMailDraft, partnerRegionLabel, partnerStats,
+  partnerChannel, partnerCode, partnerCsv, partnerIsDone, partnerMailDraft, partnerNextAction, partnerRegionLabel, partnerStats, partnerTrackingUrl,
   partnerStatusLabel, partnerTypeLabel,
 } from './partner-scout.js'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
@@ -37,7 +37,7 @@ const GOOGLE_CALENDAR_URL = `https://calendar.google.com/calendar/u/0/r?cid=${en
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
 let calendarRefreshTimer = null
 let calendarShowSetup = false
-let partnerFilters = { query: '', type: '', status: '', flow: 'todo', priority: '' }
+let partnerFilters = { query: '', type: 'sports_club', status: '', flow: 'todo', priority: '' }
 let partnerSelectedId = ''
 let partnerRefreshTimer = null
 let partnerPulseRunning = false
@@ -488,6 +488,7 @@ function renderDashboard() {
   const conversions = state.analytics.filter((event) => event.event_name === 'order_created').length
   const conversionRate = sessions ? (conversions / sessions) * 100 : 0
   const salesPartners = partnerStats(state.partnerScout.leads)
+  const partnerRevenue = partnerRevenueTotals(state.partnerScout.leads)
   const lastSevenDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(startWeek); date.setDate(startWeek.getDate() + index)
     const dayRevenue = paid.filter((order) => new Date(order.created_at).toDateString() === date.toDateString()).reduce((sum, order) => sum + order.total_cents, 0)
@@ -503,7 +504,7 @@ function renderDashboard() {
       <article class="metric-card"><header><span>Conversie</span><span class="metric-icon"><i data-lucide="trending-up"></i></span></header><strong>${conversionRate.toFixed(1)}%</strong><footer><span>${sessions} sessies gemeten</span><span>30 dagen</span></footer></article>
       <article class="metric-card"><header><span>Nieuwe klanten</span><span class="metric-icon"><i data-lucide="user-plus"></i></span></header><strong>${newCustomers}</strong><footer><span>${state.customers.length} klanten totaal</span><span>Maand</span></footer></article>
     </section>
-    <a class="partner-dashboard-strip" href="#partners"><span><i data-lucide="sparkles"></i></span><div><small>PARTNER SCOUT</small><strong>${salesPartners.due ? `${salesPartners.due} verkoopactie${salesPartners.due === 1 ? '' : 's'} wacht${salesPartners.due === 1 ? '' : 'en'} op jullie` : `${salesPartners.hot} high-fit matches staan klaar`}</strong><p>Scholen, sportclubs en zorgpraktijken · ${formatMoney(salesPartners.pipelineCents)} indicatieve pipeline</p></div><b>Open saleswerkbank →</b></a>
+    <a class="partner-dashboard-strip" href="#partners"><span><i data-lucide="sparkles"></i></span><div><small>PARTNER SCOUT · REVENUE SPRINT</small><strong>${salesPartners.due ? `${salesPartners.due} verkoopactie${salesPartners.due === 1 ? '' : 's'} wacht${salesPartners.due === 1 ? '' : 'en'} op jullie` : `${salesPartners.hot} high-fit matches staan klaar`}</strong><p>${partnerRevenue.orders} partnerbestellingen · ${formatMoney(partnerRevenue.revenueCents)} echte partneromzet</p></div><b>Open saleswerkbank →</b></a>
     <div class="dashboard-grid">
       <div>
         <section class="panel"><header class="panel-header"><div><h2>Omzet afgelopen 7 dagen</h2><p>Alle betaalde bestellingen</p></div><strong>${formatMoney(revenueSince(startWeek))}</strong></header>
@@ -1108,6 +1109,42 @@ async function updatePartnerLead(id, patch, activity = 'Partner bijgewerkt', int
   } catch (error) { toast('Partner opslaan mislukt', error.message, true) }
 }
 
+function partnerPerformance(lead) {
+  const code = partnerCode(lead)
+  const events = state.analytics.filter((event) => String(event.metadata?.partner_code || '').toUpperCase() === code)
+  const sessions = new Set(events.filter((event) => ['page_view', 'product_view'].includes(event.event_name)).map((event) => event.session_id).filter(Boolean))
+  const paidOrders = new Map(events.filter((event) => event.event_name === 'partner_order_paid' && event.metadata?.order_number).map((event) => [String(event.metadata.order_number), Number(event.metadata.total_cents) || 0]))
+  return {
+    clicks: sessions.size + (Number(lead.qr_clicks) || 0),
+    orders: paidOrders.size + (Number(lead.orders_count) || 0),
+    revenueCents: [...paidOrders.values()].reduce((sum, amount) => sum + amount, 0) + (Number(lead.revenue_cents) || 0),
+  }
+}
+
+function partnerRevenueTotals(leads = state.partnerScout.leads) {
+  return leads.reduce((totals, lead) => {
+    const performance = partnerPerformance(lead)
+    totals.clicks += performance.clicks
+    totals.orders += performance.orders
+    totals.revenueCents += performance.revenueCents
+    if (lead.status === 'won' || performance.orders) totals.activePartners += 1
+    return totals
+  }, { clicks: 0, orders: 0, revenueCents: 0, activePartners: 0 })
+}
+
+function partnerChannelLabel(lead) {
+  const channel = partnerChannel(lead)
+  return channel === 'club_sales' ? 'Club Sales' : channel === 'physio_referral' ? 'Fysio Referral' : channel === 'school_reach' ? 'School Reach' : 'Partner'
+}
+
+function partnerActionQueue(leads = state.partnerScout.leads) {
+  return leads.filter((lead) => !partnerIsDone(lead)).sort((a, b) => {
+    const dateA = a.next_action_at ? new Date(a.next_action_at).getTime() : Number.MAX_SAFE_INTEGER
+    const dateB = b.next_action_at ? new Date(b.next_action_at).getTime() : Number.MAX_SAFE_INTEGER
+    return dateA - dateB || b.score - a.score
+  }).slice(0, 5)
+}
+
 function partnerListMarkup(leads) {
   if (!leads.length) return emptyState('Geen matches in dit filter', 'Pas de filters aan of laat ZOL Pulse nieuwe organisaties zoeken.', '◇')
   return leads.map((lead) => {
@@ -1126,17 +1163,30 @@ function partnerDetailMarkup(lead) {
   const [freshness, freshnessClass] = partnerFreshness(lead)
   const interactions = state.partnerScout.interactions.filter((item) => item.lead_id === lead.id).slice(0, 6)
   const websiteHost = lead.website ? (() => { try { return new URL(lead.website).hostname.replace(/^www\./, '') } catch { return lead.website } })() : ''
+  const performance = partnerPerformance(lead)
+  const code = partnerCode(lead)
+  const trackingUrl = partnerTrackingUrl(lead)
+  const draft = partnerMailDraft(lead)
   return `<article class="partner-workbench">
-    <header><div><span>${escapeHtml(partnerTypeLabel(lead.type))}</span><h2>${escapeHtml(lead.name)}</h2><p>${[lead.city, lead.region].filter(Boolean).map(escapeHtml).join(' · ') || 'Locatie nog aanvullen'}</p></div><span class="partner-score partner-score--large ${lead.score >= 80 ? 'is-hot' : ''}">${lead.score}<small>/100 MATCH</small></span></header>
-    <div class="partner-detail-actions"><button class="button button--primary" data-action="partner-mail" data-id="${escapeHtml(lead.id)}"><i data-lucide="sparkles"></i> Persoonlijke mail</button>${lead.website ? `<a class="button" href="${escapeHtml(lead.website)}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> ${escapeHtml(websiteHost)}</a>` : ''}<button class="button" data-action="edit-partner" data-id="${escapeHtml(lead.id)}"><i data-lucide="pencil"></i> Bewerken</button></div>
+    <header><div><span>${escapeHtml(partnerChannelLabel(lead))} · ${escapeHtml(partnerTypeLabel(lead.type))}</span><h2>${escapeHtml(lead.name)}</h2><p>${[lead.city, lead.region].filter(Boolean).map(escapeHtml).join(' · ') || 'Locatie nog aanvullen'}</p></div><span class="partner-score partner-score--large ${lead.score >= 80 ? 'is-hot' : ''}">${lead.score}<small>/100 MATCH</small></span></header>
+    <div class="partner-detail-actions"><button class="button button--primary" data-action="toggle-partner-mail" data-id="${escapeHtml(lead.id)}"><i data-lucide="mail"></i> Mail opstellen</button><button class="button" data-action="copy-partner-link" data-id="${escapeHtml(lead.id)}"><i data-lucide="link"></i> Partnerlink kopiëren</button>${lead.website ? `<a class="button" href="${escapeHtml(lead.website)}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> ${escapeHtml(websiteHost)}</a>` : ''}</div>
+    <section class="partner-revenue-card"><div><small>ECHTE PARTNEROMZET</small><strong>${formatMoney(performance.revenueCents)}</strong><span>${performance.orders} bestellingen · ${performance.clicks} gemeten bezoeken</span></div><div><small>UNIEKE PARTNERCODE</small><code>${escapeHtml(code)}</code><span>Webresultaten worden gemeten; offline verkoop kun je aanvullen</span></div></section>
+    <section class="partner-next-action"><i data-lucide="zap"></i><div><small>VOLGENDE BESTE ACTIE</small><strong>${escapeHtml(partnerNextAction(lead))}</strong></div></section>
+    <form class="partner-inline-mail" id="partner-inline-mail" data-id="${escapeHtml(lead.id)}" hidden><header><strong>Persoonlijke benadering</strong><button type="button" data-action="toggle-partner-mail">Sluiten</button></header><label>Naar<input name="email" type="email" value="${escapeHtml(lead.email)}" placeholder="Openbaar zakelijk e-mailadres" required></label><label>Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(draft.subject)}" required></label><label>Bericht<textarea name="body" rows="9" maxlength="5000" required>${escapeHtml(draft.body)}</textarea></label><div><button class="button" type="button" data-action="copy-inline-partner-mail">Kopiëren</button><button class="button button--primary" type="submit"><i data-lucide="mail"></i> Open in e-mail</button></div></form>
     <section class="partner-ai-reason"><span><i data-lucide="brain-circuit"></i> ZOL MATCH-ANALYSE</span><h3>Waarom dit een kans is</h3><p>${escapeHtml(lead.match_reason || 'Voeg website en doelgroepinformatie toe om deze match beter te kwalificeren.')}</p>${lead.angle ? `<div><small>Beste openingshoek</small><strong>${escapeHtml(lead.angle)}</strong></div>` : ''}</section>
     <form class="partner-quick-form" id="partner-quick-form" data-id="${escapeHtml(lead.id)}">
       <label>Verkoopfase<select name="status">${PARTNER_STATUSES.map(([value, label]) => `<option value="${value}" ${lead.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
       <label>Volgende actie<input name="next_action_at" type="date" value="${escapeHtml((lead.next_action_at || '').slice(0, 10))}"></label>
-      <label>Potentie (paren)<input name="estimated_units" type="number" min="0" max="10000" value="${lead.estimated_units || 0}"></label>
-      <button class="button" type="submit">Pipeline opslaan</button>
+      <label>Bereik jeugd/ouders<input name="audience_size" type="number" min="0" max="100000" value="${lead.audience_size || 0}"></label>
+      <label>Verwachte paren<input name="estimated_units" type="number" min="0" max="10000" value="${lead.estimated_units || 0}"></label>
+      <label>Activatiedatum<input name="activation_at" type="date" value="${escapeHtml((lead.activation_at || '').slice(0, 10))}"></label>
+      <label>Handmatige QR-bezoeken<input name="qr_clicks" type="number" min="0" max="1000000" value="${lead.qr_clicks || 0}"></label>
+      <label>Handmatige bestellingen<input name="orders_count" type="number" min="0" max="100000" value="${lead.orders_count || 0}"></label>
+      <label>Handmatige omzet (€)<input name="revenue" type="number" min="0" step="0.01" value="${((lead.revenue_cents || 0) / 100).toFixed(2)}"></label>
+      <button class="button button--primary" type="submit">Resultaten opslaan</button>
     </form>
     <section class="partner-contact-grid"><div><small>Aanspreekpunt</small><strong>${escapeHtml(lead.contact_name || lead.contact_role || 'Nog vinden')}</strong><span>${lead.contact_name && lead.contact_role ? escapeHtml(lead.contact_role) : ''}</span></div><div><small>Zakelijk contact</small>${lead.email ? `<a href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>` : '<strong>Nog geen openbaar e-mailadres</strong>'}${lead.phone ? `<span>${escapeHtml(lead.phone)}</span>` : ''}</div><div><small>Brondatum</small><strong class="partner-freshness ${freshnessClass}"><i></i>${escapeHtml(freshness)}</strong>${lead.source_url ? `<a href="${escapeHtml(lead.source_url)}" target="_blank" rel="noreferrer">Bron bekijken ↗</a>` : ''}</div></section>
+    <details class="partner-inline-editor"><summary><i data-lucide="pencil"></i> Contactgegevens en verkoophoek bewerken</summary><form id="partner-inline-edit" data-id="${escapeHtml(lead.id)}"><div class="form-grid"><label class="field">Contactpersoon<input name="contact_name" maxlength="120" value="${escapeHtml(lead.contact_name)}"></label><label class="field">Functie / rol<input name="contact_role" maxlength="120" value="${escapeHtml(lead.contact_role)}"></label><label class="field">Zakelijk e-mailadres<input name="email" type="email" maxlength="200" value="${escapeHtml(lead.email)}"></label><label class="field">Telefoon<input name="phone" maxlength="60" value="${escapeHtml(lead.phone)}"></label><label class="field field--full">Beste openingshoek<textarea name="angle" rows="2" maxlength="500">${escapeHtml(lead.angle)}</textarea></label></div><button class="button" type="submit">Contactgegevens opslaan</button></form></details>
     <section class="partner-notes"><h3>Contactlogboek</h3><form id="partner-note-form" data-id="${escapeHtml(lead.id)}"><textarea name="body" rows="2" maxlength="1000" placeholder="Bijv. Thijn heeft gebeld; LO-coördinator terugbellen op vrijdag…" required></textarea><button class="button" type="submit">Notitie plaatsen</button></form>${interactions.length ? `<ol>${interactions.map((item) => `<li><i></i><div><p>${escapeHtml(item.body)}</p><small>${escapeHtml(item.author)} · ${formatDate(item.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div></li>`).join('')}</ol>` : '<p class="partner-no-notes">Nog geen contactmomenten. De eerste actie komt hier automatisch te staan.</p>'}</section>
   </article>`
 }
@@ -1151,7 +1201,33 @@ function wirePartnerDetailForms() {
     event.preventDefault()
     const values = Object.fromEntries(new FormData(quickForm))
     const nextAction = values.next_action_at ? new Date(`${values.next_action_at}T09:00:00`).toISOString() : ''
-    await updatePartnerLead(quickForm.dataset.id, { status: values.status, next_action_at: nextAction, estimated_units: Number(values.estimated_units) || 0 }, 'Partnerpipeline bijgewerkt', { kind: 'status', body: `Fase ingesteld op ${partnerStatusLabel(values.status)}${nextAction ? ` · opvolgen op ${formatDate(nextAction)}` : ''}.` })
+    const activationAt = values.activation_at ? new Date(`${values.activation_at}T09:00:00`).toISOString() : ''
+    await updatePartnerLead(quickForm.dataset.id, {
+      status: values.status,
+      next_action_at: nextAction,
+      activation_at: activationAt,
+      audience_size: Number(values.audience_size) || 0,
+      estimated_units: Number(values.estimated_units) || 0,
+      qr_clicks: Number(values.qr_clicks) || 0,
+      orders_count: Number(values.orders_count) || 0,
+      revenue_cents: Math.round((Number(values.revenue) || 0) * 100),
+    }, 'Partnerresultaten bijgewerkt', { kind: 'status', body: `Fase ingesteld op ${partnerStatusLabel(values.status)}${nextAction ? ` · opvolgen op ${formatDate(nextAction)}` : ''}.` })
+  })
+  const editForm = document.querySelector('#partner-inline-edit')
+  editForm?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = Object.fromEntries(new FormData(editForm))
+    await updatePartnerLead(editForm.dataset.id, values, 'Partnercontact bijgewerkt', { kind: 'edit', body: 'Contactgegevens en verkoophoek bijgewerkt.' })
+  })
+  const mailForm = document.querySelector('#partner-inline-mail')
+  mailForm?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = Object.fromEntries(new FormData(mailForm)); const lead = partnerLead(mailForm.dataset.id)
+    if (!lead) return
+    const timestamp = new Date().toISOString(); const followUp = lead.next_action_at || new Date(Date.now() + 3 * 86400000).toISOString()
+    try {
+      await savePartnerScout({ ...state.partnerScout, leads: state.partnerScout.leads.map((item) => item.id === lead.id ? { ...item, email: values.email, status: ['new', 'research', 'qualified'].includes(item.status) ? 'contacted' : item.status, last_contacted_at: timestamp, next_action_at: followUp, updated_at: timestamp } : item), interactions: [partnerInteraction(lead.id, 'email', `Persoonlijke e-mail voorbereid: ${values.subject}`), ...state.partnerScout.interactions] }, 'Partner-e-mail voorbereid', { lead_id: lead.id, partner_name: lead.name })
+      window.location.href = `mailto:${encodeURIComponent(values.email)}?subject=${encodeURIComponent(values.subject)}&body=${encodeURIComponent(values.body)}`
+      toast('E-mail staat klaar', `De Scout blijft open; opvolging voor ${lead.name} is over 3 dagen gepland.`)
+    } catch (error) { toast('E-mail voorbereiden mislukt', error.message, true) }
   })
   const noteForm = document.querySelector('#partner-note-form')
   noteForm?.addEventListener('submit', async (event) => {
@@ -1174,24 +1250,28 @@ function renderPartnerPanels() {
 
 function renderPartners() {
   const stats = partnerStats(state.partnerScout.leads)
+  const revenue = partnerRevenueTotals()
   const lastScan = state.partnerScout.last_scan_at ? formatDate(state.partnerScout.last_scan_at, { hour: '2-digit', minute: '2-digit' }) : 'Nog niet automatisch gezocht'
   const pipeline = formatMoney(stats.pipelineCents)
   const stageCounts = Object.fromEntries(PARTNER_STATUSES.map(([status]) => [status, state.partnerScout.leads.filter((lead) => lead.status === status).length]))
   const leads = visiblePartnerLeads()
+  const queue = partnerActionQueue(leads)
   if (!leads.some((lead) => lead.id === partnerSelectedId)) partnerSelectedId = leads[0]?.id || ''
   elements.content.innerHTML = `<div class="page-container partner-page">
-    ${pageHeader('partners', '<button class="button" data-action="export-partners"><i data-lucide="download"></i> Exporteren</button><button class="button" data-action="new-partner"><i data-lucide="plus"></i> Handmatig toevoegen</button><button class="button button--primary" data-action="discover-partners"><i data-lucide="sparkles"></i> Nieuwe matches zoeken</button>')}
-    <section class="partner-hero"><div><span><i></i> ZOL PULSE · LIVE SALESINTELLIGENCE</span><h2>Van openbare data naar de volgende verkoopactie.</h2><p>Scholen, LO-contacten, fysiopraktijken en sportclubs in één prioriteitenlijst — inclusief waarom ze passen en wat jullie nu moeten doen.</p></div><aside><small>Laatste datascan</small><strong>${escapeHtml(lastScan)}</strong><span>${state.partnerScout.last_scan_added ? `+${state.partnerScout.last_scan_added} nieuwe matches` : 'Automatische deduplicatie actief'}</span></aside></section>
+    ${pageHeader('partners', '<button class="button" data-action="export-partners"><i data-lucide="download"></i> Exporteren</button><button class="button" data-action="new-partner"><i data-lucide="plus"></i> Handmatig toevoegen</button><button class="button button--primary" data-action="discover-partners-now"><i data-lucide="sparkles"></i> Scout bijwerken</button>')}
+    <section class="partner-hero"><div><span><i></i> REVENUE SPRINT · LIVE</span><h2>Van partner naar bestelling.</h2><p>Club Sales brengt ZOL rechtstreeks bij ouders. Fysio Referral bouwt vertrouwen en verwijzingen op. Iedere actie, klik, bestelling en euro komt hier samen.</p></div><aside><small>Laatste stille datascan</small><strong>${escapeHtml(lastScan)}</strong><span>Blijft op deze pagina · geen pop-ups</span></aside></section>
+    <nav class="partner-channel-switch" aria-label="Partnerkanalen"><button class="${partnerFilters.type === 'sports_club' ? 'is-active' : ''}" data-partner-channel="sports_club"><i data-lucide="target"></i><span><strong>Club Sales</strong><small>Verkoopmomenten en ouderbereik</small></span></button><button class="${partnerFilters.type === 'physio' ? 'is-active' : ''}" data-partner-channel="physio"><i data-lucide="users"></i><span><strong>Fysio Referral</strong><small>Demo’s en warme verwijzingen</small></span></button><button class="${partnerFilters.type === '' ? 'is-active' : ''}" data-partner-channel=""><i data-lucide="building-2"></i><span><strong>Alle matches</strong><small>Inclusief scholen en partners</small></span></button></nav>
     <section class="partner-metrics">
-      <article><span><i data-lucide="building-2"></i></span><div><small>Actieve kansen</small><strong>${stats.active}</strong><p>${stats.total} organisaties totaal</p></div></article>
-      <article><span><i data-lucide="target"></i></span><div><small>High-fit matches</small><strong>${stats.hot}</strong><p>score 80 of hoger</p></div></article>
+      <article><span><i data-lucide="circle-euro"></i></span><div><small>Echte partneromzet</small><strong>${formatMoney(revenue.revenueCents)}</strong><p>gemeten + handmatig geboekt</p></div></article>
+      <article><span><i data-lucide="shopping-bag"></i></span><div><small>Partnerbestellingen</small><strong>${revenue.orders}</strong><p>${revenue.clicks} gemeten bezoeken</p></div></article>
       <article class="${stats.due ? 'needs-action' : ''}"><span><i data-lucide="calendar-days"></i></span><div><small>Nu opvolgen</small><strong>${stats.due}</strong><p>actie is aan de beurt</p></div></article>
-      <article><span><i data-lucide="trending-up"></i></span><div><small>Pipelinepotentie</small><strong>${pipeline}</strong><p>indicatie bij €99,95 per paar</p></div></article>
+      <article><span><i data-lucide="trending-up"></i></span><div><small>Gewogen pipeline</small><strong>${pipeline}</strong><p>kansgewogen, geen omzetbelofte</p></div></article>
     </section>
+    <section class="partner-action-queue"><header><div><small>VANDAAG</small><h2>Volgende omzetacties</h2></div><span>${queue.length} acties klaar</span></header><div>${queue.length ? queue.map((lead, index) => `<button data-action="open-partner" data-id="${escapeHtml(lead.id)}"><b>${String(index + 1).padStart(2, '0')}</b><span><strong>${escapeHtml(lead.name)}</strong><small>${escapeHtml(partnerNextAction(lead))}</small></span><em>${lead.next_action_at ? formatDate(lead.next_action_at) : 'Vandaag starten'}</em><i data-lucide="chevron-right"></i></button>`).join('') : '<p>Geen open acties in dit kanaal.</p>'}</div></section>
     <section class="partner-pipeline" aria-label="Verkooppipeline">${PARTNER_STATUSES.map(([status, label]) => `<button data-partner-stage="${status}" class="${partnerFilters.status === status ? 'is-active' : ''}"><span>${stageCounts[status]}</span><small>${label}</small></button>`).join('')}</section>
     <section class="partner-command panel">
       <div class="partner-filters"><label><i data-lucide="search"></i><input data-filter="partners" value="${escapeHtml(partnerFilters.query)}" placeholder="Zoek organisatie, plaats, contact of signaal…"></label><select data-filter-type="partners"><option value="">Alle doelgroepen</option>${PARTNER_TYPES.map(([value, label]) => `<option value="${value}" ${partnerFilters.type === value ? 'selected' : ''}>${label}</option>`).join('')}</select><select data-filter-flow="partners"><option value="">Alles</option><option value="todo" ${partnerFilters.flow === 'todo' ? 'selected' : ''}>Nog te doen</option><option value="done" ${partnerFilters.flow === 'done' ? 'selected' : ''}>Afgerond</option></select><select data-filter-priority="partners"><option value="">Elke prioriteit</option><option value="hot" ${partnerFilters.priority === 'hot' ? 'selected' : ''}>High-fit ≥ 80</option><option value="due" ${partnerFilters.priority === 'due' ? 'selected' : ''}>Nu opvolgen</option></select></div>
-      <div class="partner-command-status"><span id="partner-filter-count">${leads.length} van ${state.partnerScout.leads.length} matches</span><span><i></i> Gedeeld met alle ZOL-beheerders</span><button data-action="refresh-partners"><i data-lucide="refresh-cw"></i> Sync</button></div>
+      <div class="partner-command-status"><span id="partner-filter-count">${leads.length} van ${state.partnerScout.leads.length} matches</span><span id="partner-sync-state"><i></i> Gedeeld met alle ZOL-beheerders</span><button data-action="refresh-partners"><i data-lucide="refresh-cw"></i> Sync</button></div>
       <div class="partner-command-grid"><div class="partner-lead-list" id="partner-lead-list">${partnerListMarkup(leads)}</div><div class="partner-detail" id="partner-detail">${partnerDetailMarkup(partnerLead())}</div></div>
     </section>
     <section class="partner-privacy"><i data-lucide="zap"></i><div><strong>Zakelijk en doelgericht</strong><p>ZOL Pulse gebruikt openbare organisatiegegevens uit <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>. Controleer ieder bericht vóór verzending en benader alleen contacten waarvoor het product aantoonbaar relevant is.</p></div></section>
@@ -1249,7 +1329,8 @@ async function fetchNominatimMatches(region, type, limit, stamp) {
 async function discoverPartnerMatches({ region = 'NL-NH', type = 'all', limit = 180, silent = false, button } = {}) {
   if (partnerPulseRunning) return false
   partnerPulseRunning = true
-  if (button) setBusy(button, true, 'Nieuwe matches zoeken')
+  const buttonLabel = button?.textContent?.trim() || 'Scout bijwerken'
+  if (button) setBusy(button, true, buttonLabel)
   try {
     const stamp = new Date().toISOString()
     let discovered = await fetchNominatimMatches(region, type, limit, stamp)
@@ -1267,7 +1348,7 @@ async function discoverPartnerMatches({ region = 'NL-NH', type = 'all', limit = 
     return false
   } finally {
     partnerPulseRunning = false
-    if (button?.isConnected) setBusy(button, false, 'Nieuwe matches zoeken')
+    if (button?.isConnected) setBusy(button, false, buttonLabel)
   }
 }
 
@@ -1335,7 +1416,9 @@ function startPartnerUpdates() {
     state.partnerScout = normalizePartnerScoutState(data.value)
     const local = state.settings.find((item) => item.key === 'partner_scout')
     if (local) Object.assign(local, data); else state.settings.push(data)
-    renderPartners(); toast('Partner Scout gesynchroniseerd', 'Wijzigingen van een andere ZOL-beheerder zijn geladen.')
+    if (!document.activeElement?.closest('.partner-page form')) renderPartnerPanels()
+    const syncState = document.querySelector('#partner-sync-state')
+    if (syncState) syncState.innerHTML = '<i></i> Stil gesynchroniseerd met alle ZOL-beheerders'
   }, 30000)
 }
 
@@ -2967,6 +3050,8 @@ function printInvoice(order) {
 async function handleContentClick(event) {
   const close = event.target.closest('[data-close-dialog]'); if (close) { closeDialog(); return }
   const jump = event.target.closest('[data-route-jump]'); if (jump) { const fromEmails = currentRoute() === 'emails' && jump.dataset.routeJump === 'settings'; window.location.hash = jump.dataset.routeJump; if (fromEmails) window.setTimeout(() => renderSettings('email'), 0); return }
+  const partnerChannelButton = event.target.closest('[data-partner-channel]')
+  if (partnerChannelButton) { partnerFilters = { ...partnerFilters, type: partnerChannelButton.dataset.partnerChannel || '', status: '', flow: 'todo' }; renderPartners(); refreshIcons(); return }
   const partnerStage = event.target.closest('[data-partner-stage]')
   if (partnerStage) { partnerFilters.status = partnerFilters.status === partnerStage.dataset.partnerStage ? '' : partnerStage.dataset.partnerStage; renderPartners(); refreshIcons(); return }
   const target = event.target.closest('[data-action]'); if (!target) return
@@ -2982,11 +3067,14 @@ async function handleContentClick(event) {
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'open-partner') { partnerSelectedId = id; renderPartnerPanels() }
+  if (action === 'toggle-partner-mail') { const form = document.querySelector('#partner-inline-mail'); if (form) { form.hidden = !form.hidden; if (!form.hidden) form.querySelector('input')?.focus() } }
+  if (action === 'copy-partner-link') { const lead = partnerLead(id); if (lead) { try { await navigator.clipboard.writeText(partnerTrackingUrl(lead)); toast('Partnerlink gekopieerd', `${partnerCode(lead)} staat klaar voor QR, nieuwsbrief of WhatsApp.`) } catch { toast('Kopiëren lukt niet', 'Kopieer de link handmatig uit het partnerblok.', true) } } }
+  if (action === 'copy-inline-partner-mail') { const form = document.querySelector('#partner-inline-mail'); if (form) { const values = Object.fromEntries(new FormData(form)); try { await navigator.clipboard.writeText(`${values.subject}\n\n${values.body}`); toast('Mailconcept gekopieerd') } catch { toast('Kopiëren lukt niet', 'Selecteer de tekst en kopieer hem handmatig.', true) } } }
   if (action === 'export-partners') exportPartners()
   if (action === 'new-partner') partnerForm()
   if (action === 'edit-partner') partnerForm(partnerLead(id))
   if (action === 'partner-mail') partnerMailForm(partnerLead(id))
-  if (action === 'discover-partners') partnerDiscoveryForm()
+  if (action === 'discover-partners-now') await discoverPartnerMatches({ region: state.partnerScout.default_region || 'NL-NH', type: ['sports_club', 'physio', 'school'].includes(partnerFilters.type) ? partnerFilters.type : 'all', limit: 180, button: target })
   if (action === 'refresh-partners') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
   if (action === 'export-finance') exportFinance()

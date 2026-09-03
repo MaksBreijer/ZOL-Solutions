@@ -1,12 +1,12 @@
 export const PARTNER_STATUSES = [
-  ['new', 'Nieuw'],
-  ['research', 'Te onderzoeken'],
-  ['qualified', 'Kansrijk'],
+  ['new', 'Match gevonden'],
+  ['research', 'Gegevens controleren'],
+  ['qualified', 'Contactpersoon gevonden'],
   ['contacted', 'Benaderd'],
-  ['follow_up', 'Opvolgen'],
+  ['follow_up', 'Reactie / opvolgen'],
   ['meeting', 'Gesprek gepland'],
-  ['pilot', 'Pilot'],
-  ['won', 'Samenwerking'],
+  ['pilot', 'Partnerpakket / test'],
+  ['won', 'Partner actief'],
   ['lost', 'Niet passend'],
 ]
 
@@ -81,7 +81,7 @@ const seedLeads = [
 export function defaultPartnerScoutState() {
   const stamp = now()
   return {
-    version: 2,
+    version: 3,
     leads: seedLeads.map((lead) => ({
       email: '', phone: '', notes: '', next_action_at: '', last_contacted_at: '', tags: [],
       created_at: stamp, updated_at: stamp, ...lead,
@@ -114,6 +114,12 @@ export function normalizePartnerScoutState(value = {}) {
     contact_role: clean(lead.contact_role), match_reason: clean(lead.match_reason), angle: clean(lead.angle),
     notes: clean(lead.notes), next_action_at: clean(lead.next_action_at), last_contacted_at: clean(lead.last_contacted_at),
     tags: Array.isArray(lead.tags) ? lead.tags.map(clean).filter(Boolean).slice(0, 12) : [],
+    audience_size: Math.max(0, Math.min(100000, Number(lead.audience_size) || 0)),
+    partner_code: clean(lead.partner_code).toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 40),
+    qr_clicks: Math.max(0, Math.min(1000000, Number(lead.qr_clicks) || 0)),
+    orders_count: Math.max(0, Math.min(100000, Number(lead.orders_count) || 0)),
+    revenue_cents: Math.max(0, Math.min(1000000000, Math.round(Number(lead.revenue_cents) || 0))),
+    activation_at: clean(lead.activation_at), activation_type: clean(lead.activation_type),
     source_provider: clean(lead.source_provider), source_url: clean(lead.source_url), external_id: clean(lead.external_id),
     last_verified_at: clean(lead.last_verified_at), estimated_units: Math.max(0, Math.min(10000, Number(lead.estimated_units) || 0)),
     created_at: clean(lead.created_at) || now(), updated_at: clean(lead.updated_at) || now(),
@@ -122,7 +128,7 @@ export function normalizePartnerScoutState(value = {}) {
   return {
     ...fallback,
     ...value,
-    version: 2,
+    version: 3,
     leads: normalizedLeads,
     interactions: Array.isArray(value.interactions) ? value.interactions.filter((item) => leadIds.has(item.lead_id)).slice(0, 1000) : [],
   }
@@ -133,14 +139,52 @@ export const partnerTypeLabel = (type) => typeLabelMap[type] || type
 export const partnerRegionLabel = (region) => regionLabelMap[region] || region
 export const partnerIsDone = (lead) => doneStatuses.has(lead?.status)
 
+export function partnerChannel(lead = {}) {
+  if (lead.type === 'sports_club') return 'club_sales'
+  if (lead.type === 'physio') return 'physio_referral'
+  if (lead.type === 'school') return 'school_reach'
+  return 'other'
+}
+
+export function partnerCode(lead = {}) {
+  const prefix = lead.type === 'sports_club' ? 'CLUB' : lead.type === 'physio' ? 'FYSIO' : 'PARTNER'
+  const slug = clean(lead.name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 22)
+  return clean(lead.partner_code).toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 40) || `ZOL-${prefix}-${slug || 'NIEUW'}`
+}
+
+export function partnerTrackingUrl(lead = {}) {
+  const campaign = partnerChannel(lead) === 'club_sales' ? 'club-sales' : partnerChannel(lead) === 'physio_referral' ? 'fysio-referral' : 'partner-reach'
+  return `https://zolsolutions.nl/product/?partner=${encodeURIComponent(partnerCode(lead))}&utm_source=partner&utm_medium=qr&utm_campaign=${campaign}`
+}
+
+export function partnerNextAction(lead = {}) {
+  const club = partnerChannel(lead) === 'club_sales'
+  const physio = partnerChannel(lead) === 'physio_referral'
+  const actions = {
+    new: 'Controleer de website en vind de juiste beslisser.',
+    research: `Bel de ${club ? 'jeugdcoördinator of medische commissie' : physio ? 'kinder- of sportfysiotherapeut' : 'contactpersoon'}.`,
+    qualified: club ? 'Bel met het voorstel voor een ouder- of clubavond.' : physio ? 'Bied een demonstratiepakket zonder verkoopdruk aan.' : 'Stuur een persoonlijk voorstel.',
+    contacted: 'Volg binnen drie werkdagen telefonisch op.',
+    follow_up: 'Bel opnieuw en vraag om een concrete datum of besluit.',
+    meeting: club ? 'Plan het verkoopmoment en activeer de partnerlink.' : physio ? 'Breng het demonstratiepakket en de ouderkaarten.' : 'Bevestig de afgesproken activatie.',
+    pilot: 'Controleer QR-klikken, bestellingen en feedback.',
+    won: club ? 'Plan het volgende clubmoment.' : 'Vul de kaarten aan en vraag om feedback.',
+    lost: 'Geen actie nodig; noteer waarom deze partner niet past.',
+  }
+  return actions[lead.status] || actions.new
+}
+
 export function partnerStats(leads = [], today = new Date()) {
   const active = leads.filter((lead) => !partnerIsDone(lead))
   const due = active.filter((lead) => lead.next_action_at && new Date(lead.next_action_at) <= today)
   const hot = active.filter((lead) => lead.score >= 80)
   const won = leads.filter((lead) => lead.status === 'won')
   const stale = leads.filter((lead) => !lead.last_verified_at || today - new Date(lead.last_verified_at) > 90 * 86400000)
-  const pipelineCents = active.reduce((sum, lead) => sum + (Number(lead.estimated_units) || 0) * 9995, 0)
-  return { total: leads.length, active: active.length, due: due.length, hot: hot.length, won: won.length, stale: stale.length, pipelineCents }
+  const weights = { new: .05, research: .1, qualified: .2, contacted: .3, follow_up: .4, meeting: .55, pilot: .75, won: 1, lost: 0 }
+  const pipelineCents = leads.reduce((sum, lead) => sum + (Number(lead.estimated_units) || 0) * 9995 * (weights[lead.status] ?? .05), 0)
+  const revenueCents = leads.reduce((sum, lead) => sum + (Number(lead.revenue_cents) || 0), 0)
+  const orders = leads.reduce((sum, lead) => sum + (Number(lead.orders_count) || 0), 0)
+  return { total: leads.length, active: active.length, due: due.length, hot: hot.length, won: won.length, stale: stale.length, pipelineCents: Math.round(pipelineCents), revenueCents, orders }
 }
 
 export function filterPartnerLeads(leads = [], filters = {}) {
@@ -306,8 +350,8 @@ export function partnerMailDraft(lead) {
 export function partnerCsv(leads = []) {
   const quote = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
   const rows = [
-    ['Organisatie', 'Type', 'Plaats', 'Regio', 'Score', 'Status', 'Contactpersoon', 'Rol', 'E-mail', 'Telefoon', 'Website', 'Volgende actie', 'Potentiële paren', 'Matchreden', 'Notities'],
-    ...leads.map((lead) => [lead.name, partnerTypeLabel(lead.type), lead.city, lead.region, lead.score, partnerStatusLabel(lead.status), lead.contact_name, lead.contact_role, lead.email, lead.phone, lead.website, lead.next_action_at, lead.estimated_units, lead.match_reason, lead.notes]),
+    ['Organisatie', 'Type', 'Kanaal', 'Plaats', 'Regio', 'Score', 'Status', 'Contactpersoon', 'Rol', 'E-mail', 'Telefoon', 'Website', 'Partnercode', 'Partnerlink', 'Bereik', 'QR-bezoeken', 'Bestellingen', 'Omzet EUR', 'Activatiedatum', 'Volgende actie', 'Verwachte paren', 'Matchreden', 'Notities'],
+    ...leads.map((lead) => [lead.name, partnerTypeLabel(lead.type), partnerChannel(lead), lead.city, lead.region, lead.score, partnerStatusLabel(lead.status), lead.contact_name, lead.contact_role, lead.email, lead.phone, lead.website, partnerCode(lead), partnerTrackingUrl(lead), lead.audience_size, lead.qr_clicks, lead.orders_count, ((lead.revenue_cents || 0) / 100).toFixed(2), lead.activation_at, lead.next_action_at, lead.estimated_units, lead.match_reason, lead.notes]),
   ]
   return rows.map((row) => row.map(quote).join(',')).join('\n')
 }

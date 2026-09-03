@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildNominatimQueries, buildOverpassQuery, filterPartnerLeads, mergeDiscoveredLeads, parseNominatimLeads, parseOverpassLeads,
-  normalizePartnerScoutState, partnerMailDraft, partnerStats,
+  normalizePartnerScoutState, partnerCode, partnerMailDraft, partnerNextAction, partnerStats, partnerTrackingUrl,
 } from '../src/partner-scout.js'
 
 test('turns public map organizations into scored ZOL prospects', () => {
@@ -32,7 +32,18 @@ test('filters completed work and calculates sales pipeline', () => {
   assert.deepEqual(filterPartnerLeads(leads, { flow: 'done' }).map((lead) => lead.name), ['B'])
   const stats = partnerStats(leads, new Date('2026-09-03T12:00:00Z'))
   assert.equal(stats.due, 1)
-  assert.equal(stats.pipelineCents, 99950)
+  assert.equal(stats.pipelineCents, 54973)
+})
+
+test('turns partner work into trackable revenue actions', () => {
+  const club = { name: 'HC Bloemendaal', type: 'sports_club', status: 'qualified', estimated_units: 10, orders_count: 3, revenue_cents: 29985 }
+  assert.equal(partnerCode(club), 'ZOL-CLUB-HC-BLOEMENDAAL')
+  assert.match(partnerTrackingUrl(club), /partner=ZOL-CLUB-HC-BLOEMENDAAL/)
+  assert.match(partnerNextAction(club), /ouder- of clubavond/)
+  const stats = partnerStats([club])
+  assert.equal(stats.pipelineCents, 19990)
+  assert.equal(stats.revenueCents, 29985)
+  assert.equal(stats.orders, 3)
 })
 
 test('builds a bounded public-data query and a reviewable mail draft', () => {

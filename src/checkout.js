@@ -1,7 +1,7 @@
 import './checkout.css'
 import { clearCart, getCart, updateCartItem } from './cart.js'
 import { formatMoney, supabase } from './supabase-client.js'
-import { getSessionId, trackEvent } from './site-runtime.js'
+import { getPartnerAttributionCode, getSessionId, trackEvent } from './site-runtime.js'
 
 const cartElement = document.querySelector('#checkout-cart')
 const summaryElement = document.querySelector('#checkout-summary')
@@ -21,11 +21,17 @@ const returnParams = new URLSearchParams(window.location.search)
 const returnOrderId = returnParams.get('ref')
 const returnToken = returnParams.get('token')
 const linkedDiscountCode = String(returnParams.get('discount') || '').trim().toUpperCase().slice(0, 40)
+const linkedPartnerCode = getPartnerAttributionCode()
 let currentQuote = null
 let quotedCart = ''
 let quotedCode = null
 let quoteRequest = 0
 let submitInFlight = false
+
+if (linkedPartnerCode) {
+  const professionalSource = [...form.elements.discovery_source].find((option) => option.value === 'professional')
+  if (professionalSource) professionalSource.checked = true
+}
 
 function setDiscoveryError(show) {
   discoveryError.hidden = !show
@@ -252,6 +258,7 @@ async function renderPaymentReturn() {
   const processing = ['open', 'pending'].includes(status)
   const retryable = ['failed', 'cancelled', 'expired'].includes(status)
   if (successful || processing) clearCart()
+  if (successful) trackEvent('partner_order_paid', { partner_code: getPartnerAttributionCode(), order_number: data.order_number, total_cents: Number(data.total_cents) || 0 })
 
   const title = successful ? 'Betaling gelukt' : processing ? 'Betaling wordt verwerkt' : retryable ? 'Betaling niet afgerond' : 'Bestelling ontvangen'
   const message = successful
@@ -344,8 +351,8 @@ form.addEventListener('submit', async (event) => {
   try {
     const customer = Object.fromEntries(new FormData(form))
     const discovery = {
-      source: String(customer.discovery_source || ''),
-      details: String(customer.discovery_details || ''),
+      source: linkedPartnerCode ? 'professional' : String(customer.discovery_source || ''),
+      details: linkedPartnerCode ? `Partnercode ${linkedPartnerCode}` : String(customer.discovery_details || ''),
     }
     delete customer.discovery_source
     delete customer.discovery_details
@@ -361,6 +368,7 @@ form.addEventListener('submit', async (event) => {
     const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discovery, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
     if (error || data?.error) throw new Error(await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'))
     if (data.checkout_url) { window.location.assign(data.checkout_url); return }
+    trackEvent('partner_order_created', { partner_code: getPartnerAttributionCode(), order_number: data.order_number, total_cents: Number(data.total_cents) || 0 })
     clearCart()
     document.querySelector('.checkout-flow').innerHTML = `<section class="cart-block"><div class="checkout-success"><span>✓</span><h2>Bestelling #${data.order_number} is ontvangen</h2><p>Je bestelling staat veilig in ZOL Admin. Online betalen wordt geactiveerd zodra Mollie is gekoppeld; ZOL neemt tot die tijd persoonlijk contact met je op over de betaling.</p><a href="/">Terug naar ZOL Solutions</a></div></section>`
     summaryElement.innerHTML = `<h2>Ontvangen</h2>${data.discount_cents ? `<div class="summary-line"><span>Korting ${data.discount_code ? `(${data.discount_code})` : ''}</span><strong>− ${formatMoney(data.discount_cents)}</strong></div>` : ''}<div class="summary-line total"><span>Totaal</span><strong>${formatMoney(data.total_cents)}</strong></div><p class="summary-note">Bewaar bestelnummer #${data.order_number} voor vragen over je bestelling.</p>`

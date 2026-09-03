@@ -10,6 +10,16 @@ const pageName = normalizedPath === '/'
   ? 'home'
   : normalizedPath.slice(1).split('/').join('.')
 
+export function getPartnerAttributionCode() {
+  const incoming = new URLSearchParams(window.location.search).get('partner')?.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 40) || ''
+  try {
+    if (incoming) sessionStorage.setItem('zol_partner_code', incoming)
+    return incoming || sessionStorage.getItem('zol_partner_code') || ''
+  } catch { return incoming }
+}
+
+getPartnerAttributionCode()
+
 export function browserSafeId() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   const bytes = new Uint8Array(16)
@@ -36,6 +46,7 @@ export async function trackEvent(eventName, metadata = {}) {
     const attribution = Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
       .map((key) => [key, search.get(key)])
       .filter(([, value]) => value))
+    const partnerCode = getPartnerAttributionCode()
     const { error } = await insertPublic('analytics_events', {
       session_id: getSessionId(),
       event_name: eventName,
@@ -45,6 +56,7 @@ export async function trackEvent(eventName, metadata = {}) {
         referrer: document.referrer || 'Direct',
         language: navigator.language || 'nl-NL',
         ...attribution,
+        ...(partnerCode ? { partner_code: partnerCode } : {}),
         ...metadata,
       },
     })
