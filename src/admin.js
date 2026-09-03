@@ -25,6 +25,11 @@ const adminIcons = {
 
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
 
+const ZOL_CALENDAR_ID = '7d10f76a1ef8cdb5ca15ae46e3ba1e70af731fd60f5fa40abf93c259ea88f0dd@group.calendar.google.com'
+const ZOL_CALENDAR_ICS_URL = `https://calendar.google.com/calendar/ical/${encodeURIComponent(ZOL_CALENDAR_ID)}/public/basic.ics`
+const ZOL_CALENDAR_EMBED_URL = `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(ZOL_CALENDAR_ID)}&ctz=Europe%2FAmsterdam`
+const GOOGLE_CALENDAR_URL = 'https://calendar.google.com/calendar/u/0/r'
+
 const elements = {
   loading: document.querySelector('#admin-loading'),
   login: document.querySelector('#login-screen'),
@@ -84,6 +89,7 @@ const routeMeta = {
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
   messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
   emails: ['E-mails', 'Bewerk automatische bestel-, bedank- en productmails in de ZOL-huisstijl.'],
+  calendar: ['Teamagenda', 'Plan afspraken, opvolging en ZOL-momenten vanuit één centrale agenda.'],
   pilot: ['Pijnvragenlijsten', 'Volg hoe het met de hielpijn, het sporten en het gebruik van de ZOL’tjes gaat.'],
   products: ['Producten', 'Prijzen, maten, voorraad en productmedia.'],
   discounts: ['Kortingen', 'Maak kortingscodes en automatische acties voor de ZOL-webshop.'],
@@ -483,6 +489,47 @@ function renderDashboard() {
         <section class="panel"><header class="panel-header"><div><h2>Snel beheren</h2><p>Direct naar een veelgebruikte actie</p></div></header><div class="quick-actions">
           <button data-action="new-product"><span><i data-lucide="package"></i></span>Product toevoegen</button><button data-route-jump="media"><span><i data-lucide="images"></i></span>Media uploaden</button><button data-route-jump="content"><span><i data-lucide="panels-top-left"></i></span>Website bewerken</button><button data-route-jump="settings"><span><i data-lucide="settings"></i></span>Instellingen</button>
         </div></section>
+      </aside>
+    </div>
+  </div>`
+}
+
+function renderCalendar() {
+  elements.content.innerHTML = `<div class="page-container calendar-page">
+    ${pageHeader('calendar', `<button class="button" type="button" data-action="copy-calendar-feed"><i data-lucide="link"></i> Link voor telefoon</button><a class="button button--primary" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Beheren in Google Agenda</a>`)}
+    <section class="calendar-intro" aria-label="Zo werkt de ZOL Teamagenda">
+      <article class="calendar-intro-card calendar-intro-card--primary">
+        <span class="calendar-step-icon"><i data-lucide="calendar-days"></i></span>
+        <div><small>ÉÉN CENTRALE AGENDA</small><h2>ZOL Teamagenda</h2><p>Wat je in Google Agenda toevoegt of wijzigt, verschijnt hier automatisch en wordt bijgewerkt op gekoppelde telefoons.</p></div>
+      </article>
+      <article class="calendar-intro-card">
+        <strong>1</strong><div><h3>Beheren</h3><p>Maak en wijzig afspraken via de knop <b>Beheren in Google Agenda</b>.</p></div>
+      </article>
+      <article class="calendar-intro-card">
+        <strong>2</strong><div><h3>Meenemen</h3><p>Kopieer de link en voeg hem als agenda-abonnement toe aan Apple Agenda of Outlook.</p></div>
+      </article>
+    </section>
+
+    <div class="calendar-layout">
+      <section class="panel calendar-panel">
+        <header class="panel-header"><div><h2>Live agenda</h2><p>Rechtstreeks uit de gedeelde Google-agenda · tijdzone Europe/Amsterdam</p></div><span class="calendar-live-status"><i></i> LIVE</span></header>
+        <div class="calendar-embed-shell">
+          <iframe src="${ZOL_CALENDAR_EMBED_URL}" title="ZOL Teamagenda" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </section>
+
+      <aside class="calendar-side">
+        <section class="panel calendar-subscribe-card">
+          <span class="calendar-card-icon"><i data-lucide="link"></i></span>
+          <h2>Op je telefoon</h2>
+          <p>Abonneer je één keer. Nieuwe en gewijzigde afspraken komen daarna vanzelf binnen.</p>
+          <button class="button button--primary" type="button" data-action="copy-calendar-feed">Abonnementslink kopiëren</button>
+          <ol><li>Open Apple Agenda of Outlook.</li><li>Kies <b>Agenda-abonnement toevoegen</b>.</li><li>Plak de gekopieerde link.</li></ol>
+          <small>Dit abonnement is alleen-lezen. Afspraken beheer je in Google Agenda.</small>
+        </section>
+        <section class="calendar-privacy-card">
+          <span>!</span><div><strong>Let op: openbare agenda</strong><p>Deze koppeling is openbaar leesbaar. Zet daarom geen medische gegevens, diagnoses of andere gevoelige persoonsgegevens in afspraken.</p></div>
+        </section>
       </aside>
     </div>
   </div>`
@@ -2340,7 +2387,7 @@ function renderRoute(route = currentRoute(), option) {
   if (route !== 'live') stopLiveUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, emails: renderEmails, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
   refreshIcons()
@@ -2467,6 +2514,14 @@ async function handleContentClick(event) {
   const jump = event.target.closest('[data-route-jump]'); if (jump) { const fromEmails = currentRoute() === 'emails' && jump.dataset.routeJump === 'settings'; window.location.hash = jump.dataset.routeJump; if (fromEmails) window.setTimeout(() => renderSettings('email'), 0); return }
   const target = event.target.closest('[data-action]'); if (!target) return
   const { action, id } = target.dataset
+  if (action === 'copy-calendar-feed') {
+    try {
+      await navigator.clipboard.writeText(ZOL_CALENDAR_ICS_URL)
+      toast('Agendalink gekopieerd', 'Plak hem als agenda-abonnement in Apple Agenda, Outlook of een andere agenda-app.')
+    } catch {
+      window.prompt('Kopieer deze agendalink:', ZOL_CALENDAR_ICS_URL)
+    }
+  }
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
