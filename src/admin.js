@@ -1,6 +1,6 @@
 import './admin.css'
 import { calculateVatBreakdown, ledgerExcelCsv, matchBankTransactions, parseBankCsv, vatSummary } from './accounting.js'
-import { calendarGridRange, eventsForDay, googleCalendarEventUrl, parseCalendarEvents } from './calendar-feed.js'
+import { appleCalendarSubscriptionUrl, calendarGridRange, eventsForDay, googleCalendarEventUrl, parseCalendarEvents } from './calendar-feed.js'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
@@ -546,6 +546,15 @@ function newCalendarEventForm() {
   })
 }
 
+function subscribeCalendarOnIphone() {
+  try {
+    const url = appleCalendarSubscriptionUrl(settingsValue('calendar_config').private_ics_url || '')
+    window.location.href = url
+  } catch (error) {
+    toast('iPhone-koppeling niet beschikbaar', error.message, true)
+  }
+}
+
 function renderCalendarGrid(events) {
   const grid = document.querySelector('#calendar-month-grid')
   if (!grid) return
@@ -626,7 +635,7 @@ async function saveCalendarConfig(event) {
 function renderCalendar() {
   const configured = Boolean(settingsValue('calendar_config').private_ics_url)
   elements.content.innerHTML = `<div class="page-container calendar-page">
-    ${pageHeader('calendar', `${configured ? '<button class="button" type="button" data-action="calendar-config"><i data-lucide="settings"></i> Verbinding</button>' : ''}<a class="button" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Agenda openen</a><button class="button button--primary" type="button" data-action="calendar-new-event"><i data-lucide="calendar-plus"></i> Nieuwe afspraak</button>`)}
+    ${pageHeader('calendar', `${configured ? '<button class="button" type="button" data-action="calendar-config"><i data-lucide="settings"></i> Verbinding</button><button class="button" type="button" data-action="calendar-iphone"><i data-lucide="smartphone"></i> Op iPhone zetten</button>' : ''}<a class="button" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Agenda openen</a><button class="button button--primary" type="button" data-action="calendar-new-event"><i data-lucide="calendar-plus"></i> Nieuwe afspraak</button>`)}
     <section class="calendar-intro" aria-label="Zo werkt de ZOL Teamagenda">
       <article class="calendar-intro-card calendar-intro-card--primary">
         <span class="calendar-step-icon"><i data-lucide="calendar-days"></i></span>
@@ -2645,6 +2654,7 @@ async function handleContentClick(event) {
   if (action === 'calendar-config') { calendarShowSetup = true; renderCalendar(); refreshIcons() }
   if (action === 'calendar-cancel-config') { calendarShowSetup = false; renderCalendar(); refreshIcons() }
   if (action === 'calendar-new-event') newCalendarEventForm()
+  if (action === 'calendar-iphone') subscribeCalendarOnIphone()
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { calendarGridRange, eventsForDay, googleCalendarEventUrl, parseCalendarEvents } from '../src/calendar-feed.js'
+import { appleCalendarSubscriptionUrl, calendarGridRange, eventsForDay, googleCalendarEventUrl, parseCalendarEvents } from '../src/calendar-feed.js'
 
 const fixture = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -53,4 +53,10 @@ test('builds a prefilled Google Calendar appointment without losing event detail
 
 test('rejects an appointment that ends before it starts', () => {
   assert.throws(() => googleCalendarEventUrl({ title: 'Fout', start: '2026-09-04T10:00', end: '2026-09-04T09:00' }), /eindtijd/i)
+})
+
+test('turns a private Google iCal feed into an Apple Calendar subscription link', () => {
+  const result = appleCalendarSubscriptionUrl('https://calendar.google.com/calendar/ical/zol%40group.calendar.google.com/private-token/basic.ics')
+  assert.equal(result, 'webcal://calendar.google.com/calendar/ical/zol%40group.calendar.google.com/private-token/basic.ics')
+  assert.throws(() => appleCalendarSubscriptionUrl('https://example.com/agenda.ics'), /geldig verbonden/i)
 })

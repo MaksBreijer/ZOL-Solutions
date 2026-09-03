@@ -95,3 +95,12 @@ export function googleCalendarEventUrl({ title, start, end, description = '', lo
   if (calendarId.trim()) params.set('src', calendarId.trim())
   return `https://calendar.google.com/calendar/render?${params}`
 }
+
+export function appleCalendarSubscriptionUrl(privateIcsUrl) {
+  let url
+  try { url = new URL(privateIcsUrl) } catch { throw new Error('De agenda is nog niet geldig verbonden.') }
+  if (url.protocol !== 'https:' || url.hostname !== 'calendar.google.com' || !/\/calendar\/ical\/.+\/(?:private-[^/]+|public)\/basic\.ics$/.test(url.pathname)) {
+    throw new Error('De agenda is nog niet geldig verbonden.')
+  }
+  return url.href.replace(/^https:/, 'webcal:')
+}
