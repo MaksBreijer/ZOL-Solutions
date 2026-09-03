@@ -1,6 +1,6 @@
 import './admin.css'
 import { calculateVatBreakdown, ledgerExcelCsv, matchBankTransactions, parseBankCsv, vatSummary } from './accounting.js'
-import { appleCalendarSubscriptionUrl, calendarGridRange, eventsForDay, googleCalendarEventUrl, parseCalendarEvents } from './calendar-feed.js'
+import { appleCalendarSubscriptionUrl, calendarGridRange, eventsForDay, parseCalendarEvents } from './calendar-feed.js'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
@@ -560,20 +560,34 @@ function newCalendarEventForm() {
   start.setSeconds(0, 0)
   start.setMinutes(Math.ceil((start.getMinutes() + 1) / 30) * 30)
   const end = new Date(start.getTime() + 60 * 60 * 1000)
-  openDialog('Nieuwe afspraak', 'ZOL Teamagenda', `<form id="calendar-event-form"><div class="form-grid"><label class="field field--full">Titel<input name="title" maxlength="180" placeholder="Bijv. kennismaking Fysio Noord" required autofocus></label><label class="field">Begint op<input name="start" type="datetime-local" value="${localDateTimeValue(start)}" required></label><label class="field">Eindigt op<input name="end" type="datetime-local" value="${localDateTimeValue(end)}" required></label><label class="field field--full">Locatie <span>optioneel</span><input name="location" maxlength="300" placeholder="Adres, praktijk of online"></label><label class="field field--full">Notities <span>optioneel</span><textarea name="description" rows="5" maxlength="3000" placeholder="Contactpersoon, doel van de afspraak en voorbereiding"></textarea></label></div><p class="form-hint">Google Agenda opent met alles ingevuld. Kies daar de <b>ZOL Teamagenda</b> en druk op Opslaan; daarna verschijnt de afspraak automatisch hier en op jullie telefoons.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit"><i data-lucide="calendar-plus"></i> Doorgaan naar Google</button></div></form>`)
+  openDialog('Nieuwe afspraak', 'ZOL Teamagenda', `<form id="calendar-event-form"><div class="form-grid"><label class="field field--full">Titel<input name="title" maxlength="180" placeholder="Bijv. kennismaking Fysio Noord" required autofocus></label><label class="field">Begint op<input name="start" type="datetime-local" value="${localDateTimeValue(start)}" required></label><label class="field">Eindigt op<input name="end" type="datetime-local" value="${localDateTimeValue(end)}" required></label><label class="field field--full">Locatie <span>optioneel</span><input name="location" maxlength="300" placeholder="Adres, praktijk of online"></label><label class="field field--full">Notities <span>optioneel</span><textarea name="description" rows="5" maxlength="3000" placeholder="Contactpersoon, doel van de afspraak en voorbereiding"></textarea></label></div><p class="form-hint">Deze afspraak wordt rechtstreeks in de <b>ZOL Teamagenda</b> opgeslagen en verschijnt daarna automatisch hier en op jullie telefoons.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit"><i data-lucide="calendar-plus"></i> Opslaan in ZOL Teamagenda</button></div></form>`)
   refreshIcons()
   const form = document.querySelector('#calendar-event-form')
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault()
     const values = new FormData(form)
-    try {
-      const url = googleCalendarEventUrl({ title: values.get('title'), start: values.get('start'), end: values.get('end'), location: values.get('location'), description: values.get('description'), calendarId: ZOL_CALENDAR_ID })
-      window.open(url, '_blank', 'noopener')
-      closeDialog()
-      toast('ZOL-afspraak staat klaar', 'Controleer in Google of ZOL Teamagenda is geselecteerd en druk op Opslaan.')
-    } catch (error) {
-      toast('Controleer de afspraak', error.message, true)
+    const button = form.querySelector('[type="submit"]')
+    const payload = {
+      request_id: crypto.randomUUID(),
+      title: String(values.get('title') || '').trim(),
+      start: String(values.get('start') || ''),
+      end: String(values.get('end') || ''),
+      location: String(values.get('location') || '').trim(),
+      description: String(values.get('description') || '').trim(),
     }
+    if (!payload.title) { toast('Controleer de afspraak', 'Vul een titel in.', true); return }
+    if (!payload.start || !payload.end || payload.end <= payload.start) { toast('Controleer de afspraak', 'De eindtijd moet na de begintijd liggen.', true); return }
+    setBusy(button, true)
+    const { data, error } = await supabase.functions.invoke('calendar-events', { body: payload })
+    if (error || data?.error) {
+      toast('Afspraak niet opgeslagen', await edgeFunctionMessage(error, data, 'De afspraak kon niet in ZOL Teamagenda worden opgeslagen.'), true)
+      setBusy(button, false, 'Opslaan in ZOL Teamagenda')
+      return
+    }
+    await recordActivity('Afspraak toegevoegd aan ZOL Teamagenda', 'calendar', data?.event?.id || payload.request_id)
+    closeDialog()
+    toast('Afspraak opgeslagen', `${payload.title} staat in ZOL Teamagenda.`)
+    await loadCalendarFeed()
   })
 }
 

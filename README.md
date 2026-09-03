@@ -114,6 +114,19 @@ De mailflow staat standaard veilig uit. Activeer deze pas nadat het afzenderdome
 
 Daarna worden contactberichten naar het interne adres verstuurd, krijgen klant en beheer automatisch bericht zodra een bestelling betaald is, en kunnen beheerders vanuit een klantprofiel e-mailen. De betaalmail wordt getriggerd door de orderstatus; de Mollie-webhook werkt zodra ook `MOLLIE_API_KEY` server-side is ingesteld.
 
+## Rechtstreeks opslaan in ZOL Teamagenda
+
+Nieuwe afspraken uit ZOL Admin worden via de Supabase Edge Function `calendar-events` rechtstreeks in de vaste Google-agenda **ZOL Teamagenda** opgeslagen. De browser krijgt geen Google-sleutel en kan daardoor nooit stilletjes terugvallen op een persoonlijke agenda.
+
+Voor de eenmalige serverkoppeling:
+
+1. Maak in Google Cloud een serviceaccount aan en schakel de Google Calendar API in.
+2. Deel ZOL Teamagenda met het e-mailadres van dat serviceaccount en geef **Wijzigingen aanbrengen in afspraken**.
+3. Voeg `GOOGLE_CALENDAR_SERVICE_ACCOUNT_EMAIL` en `GOOGLE_CALENDAR_PRIVATE_KEY` toe als Supabase Edge Function Secrets. Gebruik voor de private key de volledige PEM-waarde; zowel echte regeleinden als `\\n` worden ondersteund.
+4. Deploy `supabase/functions/calendar-events/index.ts` met JWT-verificatie ingeschakeld.
+
+Zonder deze twee secrets weigert de admin de afspraak veilig met een duidelijke melding; er wordt niets in een persoonlijke agenda opgeslagen.
+
 ## Mollie activeren
 
 De betaalintegratie draait volledig in Supabase Edge Functions. Plaats een Mollie-sleutel daarom alleen als server-side secret en nooit in `.env`, HTML of een `VITE_`-variabele.
