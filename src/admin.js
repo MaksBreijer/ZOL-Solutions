@@ -6,22 +6,28 @@ import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
 import { trackingRemovalUpdate } from './order-tracking.js'
 import { participantOverview, pilotExcelCsv, pilotSummary, timepointSummary } from './pilot-report.js'
+import {
+  PARTNER_REGIONS, PARTNER_STATUSES, PARTNER_TYPES, buildNominatimQueries, buildOverpassQuery, defaultPartnerScoutState,
+  filterPartnerLeads, mergeDiscoveredLeads, normalizePartnerScoutState, parseNominatimLeads, parseOverpassLeads,
+  partnerCsv, partnerIsDone, partnerMailDraft, partnerRegionLabel, partnerStats,
+  partnerStatusLabel, partnerTypeLabel,
+} from './partner-scout.js'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
-  Archive, ArrowLeft, BadgePercent, Bell, CalendarDays, ChartNoAxesCombined,
+  Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
   ExternalLink, FileText, History, House, Images, Link, LogOut, Mail, MapPin,
   Menu, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw,
-  Search, Settings, ShoppingBag, Store, Tag, TrendingUp, Truck, UserCog, UserPlus, Users,
+  Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, UserCog, UserPlus, Users, Zap,
   createIcons,
 } from 'lucide'
 
 const adminIcons = {
-  Archive, ArrowLeft, BadgePercent, Bell, CalendarDays, ChartNoAxesCombined,
+  Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
   ExternalLink, FileText, History, House, Images, Link, LogOut, Mail, MapPin,
   Menu, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw,
-  Search, Settings, ShoppingBag, Store, Tag, TrendingUp, Truck, UserCog, UserPlus, Users,
+  Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, UserCog, UserPlus, Users, Zap,
 }
 
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
@@ -31,6 +37,10 @@ const GOOGLE_CALENDAR_URL = `https://calendar.google.com/calendar/u/0/r?cid=${en
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
 let calendarRefreshTimer = null
 let calendarShowSetup = false
+let partnerFilters = { query: '', type: '', status: '', flow: 'todo', priority: '' }
+let partnerSelectedId = ''
+let partnerRefreshTimer = null
+let partnerPulseRunning = false
 
 const elements = {
   loading: document.querySelector('#admin-loading'),
@@ -82,6 +92,7 @@ const state = {
   mfaFactors: [],
   discounts: [],
   orderNotes: [],
+  partnerScout: defaultPartnerScoutState(),
   search: '',
 }
 
@@ -89,6 +100,7 @@ const routeMeta = {
   dashboard: ['Home', 'Alles wat vandaag aandacht nodig heeft, op één plek.'],
   orders: ['Bestellingen', 'Beheer betalingen, verzending en orderdetails.'],
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
+  partners: ['Partner Scout', 'Vind, kwalificeer en bereik scholen, zorgpraktijken en sportclubs.'],
   messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
   emails: ['E-mails', 'Bewerk automatische bestel-, bedank- en productmails in de ZOL-huisstijl.'],
   calendar: ['Teamagenda', 'Plan afspraken, opvolging en ZOL-momenten vanuit één centrale agenda.'],
@@ -263,6 +275,9 @@ function globalSearchItems(query) {
   state.customers.forEach((customer) => {
     if (includes(fullName(customer), customer.email, customer.phone)) items.push({ route: 'customers', label: fullName(customer), meta: customer.email || 'Klant', icon: 'K', id: customer.id, action: 'open-customer' })
   })
+  state.partnerScout.leads.forEach((lead) => {
+    if (includes(lead.name, lead.city, lead.region, lead.email, lead.contact_name, lead.match_reason)) items.push({ route: 'partners', label: lead.name, meta: `${partnerTypeLabel(lead.type)} · ${partnerStatusLabel(lead.status)}`, icon: 'P', id: lead.id, action: 'open-partner' })
+  })
   state.products.forEach((product) => {
     if (includes(product.name, product.slug, product.description)) items.push({ route: 'products', label: product.name, meta: 'Product', icon: 'P', id: product.id, action: 'open-product' })
   })
@@ -304,6 +319,10 @@ function openGlobalSearchResult(button) {
   const { searchRoute: route, searchId: id, searchAction: action, searchQuery: query } = button.dataset
   hideGlobalSearch()
   document.querySelector('#global-search').value = ''
+  if (route === 'partners' && action === 'open-partner' && id) {
+    partnerFilters = { ...partnerFilters, query: '', status: '', flow: '' }
+    partnerSelectedId = id
+  }
   if (currentRoute() === route) renderRoute(route)
   else window.location.hash = route
   window.setTimeout(() => {
@@ -442,11 +461,14 @@ async function fetchAllData() {
   state.accountingExpenses = accounting.expenses
   state.accountingBank = accounting.bank
   state.accountingEntries = accounting.entries
+  state.partnerScout = normalizePartnerScoutState(settingsValue('partner_scout'))
 
   const openOrders = visibleOrders().filter((order) => !['completed', 'cancelled'].includes(order.status)).length
   document.querySelector('#open-order-count').textContent = openOrders || ''
   const newMessages = state.contactMessages.filter((message) => ['new', 'email_failed'].includes(message.status)).length
   document.querySelector('#new-message-count').textContent = newMessages || ''
+  const duePartners = partnerStats(state.partnerScout.leads).due
+  document.querySelector('#partner-due-count').textContent = duePartners || ''
 }
 
 function renderDashboard() {
@@ -464,6 +486,7 @@ function renderDashboard() {
   const sessions = new Set(state.analytics.filter((event) => event.event_name === 'page_view').map((event) => event.session_id)).size
   const conversions = state.analytics.filter((event) => event.event_name === 'order_created').length
   const conversionRate = sessions ? (conversions / sessions) * 100 : 0
+  const salesPartners = partnerStats(state.partnerScout.leads)
   const lastSevenDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(startWeek); date.setDate(startWeek.getDate() + index)
     const dayRevenue = paid.filter((order) => new Date(order.created_at).toDateString() === date.toDateString()).reduce((sum, order) => sum + order.total_cents, 0)
@@ -479,6 +502,7 @@ function renderDashboard() {
       <article class="metric-card"><header><span>Conversie</span><span class="metric-icon"><i data-lucide="trending-up"></i></span></header><strong>${conversionRate.toFixed(1)}%</strong><footer><span>${sessions} sessies gemeten</span><span>30 dagen</span></footer></article>
       <article class="metric-card"><header><span>Nieuwe klanten</span><span class="metric-icon"><i data-lucide="user-plus"></i></span></header><strong>${newCustomers}</strong><footer><span>${state.customers.length} klanten totaal</span><span>Maand</span></footer></article>
     </section>
+    <a class="partner-dashboard-strip" href="#partners"><span><i data-lucide="sparkles"></i></span><div><small>PARTNER SCOUT</small><strong>${salesPartners.due ? `${salesPartners.due} verkoopactie${salesPartners.due === 1 ? '' : 's'} wacht${salesPartners.due === 1 ? '' : 'en'} op jullie` : `${salesPartners.hot} high-fit matches staan klaar`}</strong><p>Scholen, sportclubs en zorgpraktijken · ${formatMoney(salesPartners.pipelineCents)} indicatieve pipeline</p></div><b>Open saleswerkbank →</b></a>
     <div class="dashboard-grid">
       <div>
         <section class="panel"><header class="panel-header"><div><h2>Omzet afgelopen 7 dagen</h2><p>Alle betaalde bestellingen</p></div><strong>${formatMoney(revenueSince(startWeek))}</strong></header>
@@ -489,7 +513,7 @@ function renderDashboard() {
       <aside class="dashboard-side">
         <section class="panel"><header class="panel-header"><div><h2>Recente activiteit</h2><p>Wijzigingen in de admin</p></div><a href="#activity">Logboek →</a></header>${activityList(state.activity.slice(0, 7))}</section>
         <section class="panel"><header class="panel-header"><div><h2>Snel beheren</h2><p>Direct naar een veelgebruikte actie</p></div></header><div class="quick-actions">
-          <button data-action="new-product"><span><i data-lucide="package"></i></span>Product toevoegen</button><button data-route-jump="media"><span><i data-lucide="images"></i></span>Media uploaden</button><button data-route-jump="content"><span><i data-lucide="panels-top-left"></i></span>Website bewerken</button><button data-route-jump="settings"><span><i data-lucide="settings"></i></span>Instellingen</button>
+          <button data-action="new-product"><span><i data-lucide="package"></i></span>Product toevoegen</button><button data-route-jump="partners"><span><i data-lucide="target"></i></span>Partner Scout</button><button data-route-jump="media"><span><i data-lucide="images"></i></span>Media uploaden</button><button data-route-jump="content"><span><i data-lucide="panels-top-left"></i></span>Website bewerken</button><button data-route-jump="settings"><span><i data-lucide="settings"></i></span>Instellingen</button>
         </div></section>
       </aside>
     </div>
@@ -1027,6 +1051,291 @@ async function deleteOrder(orderId) {
   await recordActivity('Bestelling verwijderd', 'order', order.id, { order_number: order.order_number, stock_restored: data.stock_restored })
   toast('Bestelling verwijderd', 'Productvoorraad en klanttotalen zijn bijgewerkt.')
   closeDialog(); await refreshCurrentRoute()
+}
+
+function partnerLead(id = partnerSelectedId) {
+  return state.partnerScout.leads.find((lead) => lead.id === id)
+}
+
+function partnerStatusPill(status) {
+  const statusClassName = status === 'won' ? 'is-won' : status === 'lost' ? 'is-lost' : ['meeting', 'pilot'].includes(status) ? 'is-meeting' : ['contacted', 'follow_up'].includes(status) ? 'is-contacted' : status === 'qualified' ? 'is-qualified' : 'is-new'
+  return `<span class="partner-status ${statusClassName}">${escapeHtml(partnerStatusLabel(status))}</span>`
+}
+
+function partnerFreshness(lead) {
+  if (!lead.last_verified_at) return ['Bron niet gecontroleerd', 'is-stale']
+  const days = Math.floor((Date.now() - new Date(lead.last_verified_at).getTime()) / 86400000)
+  if (days <= 7) return ['Deze week gecontroleerd', 'is-fresh']
+  if (days <= 45) return [`${days} dagen geleden gecontroleerd`, 'is-current']
+  return [`${days} dagen geleden — vernieuwen`, 'is-stale']
+}
+
+function partnerInteraction(leadId, kind, body) {
+  return {
+    id: crypto.randomUUID(), lead_id: leadId, kind, body,
+    author: state.profile?.full_name || state.profile?.email || 'ZOL Admin', created_at: new Date().toISOString(),
+  }
+}
+
+async function savePartnerScout(next, activity = '', details = {}) {
+  const normalized = normalizePartnerScoutState({ ...next, updated_at: new Date().toISOString() })
+  const { error } = await supabase.from('settings').upsert({
+    key: 'partner_scout', category: 'sales', label: 'Partner Scout CRM', value: normalized, is_public: false,
+  })
+  if (error) throw error
+  state.partnerScout = normalized
+  const setting = state.settings.find((item) => item.key === 'partner_scout')
+  if (setting) { setting.value = normalized; setting.updated_at = normalized.updated_at }
+  else state.settings.push({ key: 'partner_scout', category: 'sales', label: 'Partner Scout CRM', value: normalized, is_public: false, updated_at: normalized.updated_at })
+  if (activity) await recordActivity(activity, 'partner', details.lead_id || '', details)
+  const dueCount = partnerStats(normalized.leads).due
+  document.querySelector('#partner-due-count').textContent = dueCount || ''
+}
+
+async function updatePartnerLead(id, patch, activity = 'Partner bijgewerkt', interaction) {
+  const timestamp = new Date().toISOString()
+  const current = partnerLead(id)
+  if (!current) return
+  const next = {
+    ...state.partnerScout,
+    leads: state.partnerScout.leads.map((lead) => lead.id === id ? { ...lead, ...patch, updated_at: timestamp } : lead),
+    interactions: interaction ? [partnerInteraction(id, interaction.kind, interaction.body), ...state.partnerScout.interactions].slice(0, 1000) : state.partnerScout.interactions,
+  }
+  try {
+    await savePartnerScout(next, activity, { lead_id: id, partner_name: current.name, ...patch })
+    renderPartners(); toast(activity, current.name)
+  } catch (error) { toast('Partner opslaan mislukt', error.message, true) }
+}
+
+function partnerListMarkup(leads) {
+  if (!leads.length) return emptyState('Geen matches in dit filter', 'Pas de filters aan of laat ZOL Pulse nieuwe organisaties zoeken.', '◇')
+  return leads.map((lead) => {
+    const [freshness, freshnessClass] = partnerFreshness(lead)
+    const due = lead.next_action_at && new Date(lead.next_action_at) <= new Date() && !partnerIsDone(lead)
+    return `<button class="partner-lead${lead.id === partnerSelectedId ? ' is-active' : ''}" type="button" data-action="open-partner" data-id="${escapeHtml(lead.id)}">
+      <span class="partner-score ${lead.score >= 80 ? 'is-hot' : ''}">${lead.score}<small>/100</small></span>
+      <span class="partner-lead-main"><span><strong>${escapeHtml(lead.name)}</strong>${due ? '<em>ACTIE</em>' : ''}</span><small>${escapeHtml(partnerTypeLabel(lead.type))}${lead.city ? ` · ${escapeHtml(lead.city)}` : ''}</small><span class="partner-reason">${escapeHtml(lead.match_reason || 'Nog te kwalificeren')}</span><span class="partner-freshness ${freshnessClass}"><i></i>${escapeHtml(freshness)}</span></span>
+      <span class="partner-lead-stage">${partnerStatusPill(lead.status)}<i data-lucide="chevron-right"></i></span>
+    </button>`
+  }).join('')
+}
+
+function partnerDetailMarkup(lead) {
+  if (!lead) return `<div class="partner-empty-detail"><i data-lucide="target"></i><h3>Kies een match</h3><p>Bekijk waarom de organisatie bij ZOL past en zet direct de volgende verkoopactie klaar.</p></div>`
+  const [freshness, freshnessClass] = partnerFreshness(lead)
+  const interactions = state.partnerScout.interactions.filter((item) => item.lead_id === lead.id).slice(0, 6)
+  const websiteHost = lead.website ? (() => { try { return new URL(lead.website).hostname.replace(/^www\./, '') } catch { return lead.website } })() : ''
+  return `<article class="partner-workbench">
+    <header><div><span>${escapeHtml(partnerTypeLabel(lead.type))}</span><h2>${escapeHtml(lead.name)}</h2><p>${[lead.city, lead.region].filter(Boolean).map(escapeHtml).join(' · ') || 'Locatie nog aanvullen'}</p></div><span class="partner-score partner-score--large ${lead.score >= 80 ? 'is-hot' : ''}">${lead.score}<small>/100 MATCH</small></span></header>
+    <div class="partner-detail-actions"><button class="button button--primary" data-action="partner-mail" data-id="${escapeHtml(lead.id)}"><i data-lucide="sparkles"></i> Persoonlijke mail</button>${lead.website ? `<a class="button" href="${escapeHtml(lead.website)}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> ${escapeHtml(websiteHost)}</a>` : ''}<button class="button" data-action="edit-partner" data-id="${escapeHtml(lead.id)}"><i data-lucide="pencil"></i> Bewerken</button></div>
+    <section class="partner-ai-reason"><span><i data-lucide="brain-circuit"></i> ZOL MATCH-ANALYSE</span><h3>Waarom dit een kans is</h3><p>${escapeHtml(lead.match_reason || 'Voeg website en doelgroepinformatie toe om deze match beter te kwalificeren.')}</p>${lead.angle ? `<div><small>Beste openingshoek</small><strong>${escapeHtml(lead.angle)}</strong></div>` : ''}</section>
+    <form class="partner-quick-form" id="partner-quick-form" data-id="${escapeHtml(lead.id)}">
+      <label>Verkoopfase<select name="status">${PARTNER_STATUSES.map(([value, label]) => `<option value="${value}" ${lead.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+      <label>Volgende actie<input name="next_action_at" type="date" value="${escapeHtml((lead.next_action_at || '').slice(0, 10))}"></label>
+      <label>Potentie (paren)<input name="estimated_units" type="number" min="0" max="10000" value="${lead.estimated_units || 0}"></label>
+      <button class="button" type="submit">Pipeline opslaan</button>
+    </form>
+    <section class="partner-contact-grid"><div><small>Aanspreekpunt</small><strong>${escapeHtml(lead.contact_name || lead.contact_role || 'Nog vinden')}</strong><span>${lead.contact_name && lead.contact_role ? escapeHtml(lead.contact_role) : ''}</span></div><div><small>Zakelijk contact</small>${lead.email ? `<a href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>` : '<strong>Nog geen openbaar e-mailadres</strong>'}${lead.phone ? `<span>${escapeHtml(lead.phone)}</span>` : ''}</div><div><small>Brondatum</small><strong class="partner-freshness ${freshnessClass}"><i></i>${escapeHtml(freshness)}</strong>${lead.source_url ? `<a href="${escapeHtml(lead.source_url)}" target="_blank" rel="noreferrer">Bron bekijken ↗</a>` : ''}</div></section>
+    <section class="partner-notes"><h3>Contactlogboek</h3><form id="partner-note-form" data-id="${escapeHtml(lead.id)}"><textarea name="body" rows="2" maxlength="1000" placeholder="Bijv. Thijn heeft gebeld; LO-coördinator terugbellen op vrijdag…" required></textarea><button class="button" type="submit">Notitie plaatsen</button></form>${interactions.length ? `<ol>${interactions.map((item) => `<li><i></i><div><p>${escapeHtml(item.body)}</p><small>${escapeHtml(item.author)} · ${formatDate(item.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div></li>`).join('')}</ol>` : '<p class="partner-no-notes">Nog geen contactmomenten. De eerste actie komt hier automatisch te staan.</p>'}</section>
+  </article>`
+}
+
+function visiblePartnerLeads() {
+  return filterPartnerLeads(state.partnerScout.leads, partnerFilters)
+}
+
+function wirePartnerDetailForms() {
+  const quickForm = document.querySelector('#partner-quick-form')
+  quickForm?.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const values = Object.fromEntries(new FormData(quickForm))
+    const nextAction = values.next_action_at ? new Date(`${values.next_action_at}T09:00:00`).toISOString() : ''
+    await updatePartnerLead(quickForm.dataset.id, { status: values.status, next_action_at: nextAction, estimated_units: Number(values.estimated_units) || 0 }, 'Partnerpipeline bijgewerkt', { kind: 'status', body: `Fase ingesteld op ${partnerStatusLabel(values.status)}${nextAction ? ` · opvolgen op ${formatDate(nextAction)}` : ''}.` })
+  })
+  const noteForm = document.querySelector('#partner-note-form')
+  noteForm?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const body = noteForm.elements.body.value.trim(); if (!body) return
+    await updatePartnerLead(noteForm.dataset.id, { notes: [partnerLead(noteForm.dataset.id)?.notes, body].filter(Boolean).join('\n') }, 'Contactnotitie toegevoegd', { kind: 'note', body })
+  })
+}
+
+function renderPartnerPanels() {
+  const leads = visiblePartnerLeads()
+  if (!leads.some((lead) => lead.id === partnerSelectedId)) partnerSelectedId = leads[0]?.id || ''
+  const list = document.querySelector('#partner-lead-list')
+  const detail = document.querySelector('#partner-detail')
+  if (list) list.innerHTML = partnerListMarkup(leads)
+  if (detail) detail.innerHTML = partnerDetailMarkup(partnerLead())
+  const count = document.querySelector('#partner-filter-count')
+  if (count) count.textContent = `${leads.length} van ${state.partnerScout.leads.length} matches`
+  wirePartnerDetailForms(); refreshIcons()
+}
+
+function renderPartners() {
+  const stats = partnerStats(state.partnerScout.leads)
+  const lastScan = state.partnerScout.last_scan_at ? formatDate(state.partnerScout.last_scan_at, { hour: '2-digit', minute: '2-digit' }) : 'Nog niet automatisch gezocht'
+  const pipeline = formatMoney(stats.pipelineCents)
+  const stageCounts = Object.fromEntries(PARTNER_STATUSES.map(([status]) => [status, state.partnerScout.leads.filter((lead) => lead.status === status).length]))
+  const leads = visiblePartnerLeads()
+  if (!leads.some((lead) => lead.id === partnerSelectedId)) partnerSelectedId = leads[0]?.id || ''
+  elements.content.innerHTML = `<div class="page-container partner-page">
+    ${pageHeader('partners', '<button class="button" data-action="export-partners"><i data-lucide="download"></i> Exporteren</button><button class="button" data-action="new-partner"><i data-lucide="plus"></i> Handmatig toevoegen</button><button class="button button--primary" data-action="discover-partners"><i data-lucide="sparkles"></i> Nieuwe matches zoeken</button>')}
+    <section class="partner-hero"><div><span><i></i> ZOL PULSE · LIVE SALESINTELLIGENCE</span><h2>Van openbare data naar de volgende verkoopactie.</h2><p>Scholen, LO-contacten, fysiopraktijken, podotherapie en sportclubs in één prioriteitenlijst — inclusief waarom ze passen en wat jullie nu moeten doen.</p></div><aside><small>Laatste datascan</small><strong>${escapeHtml(lastScan)}</strong><span>${state.partnerScout.last_scan_added ? `+${state.partnerScout.last_scan_added} nieuwe matches` : 'Automatische deduplicatie actief'}</span></aside></section>
+    <section class="partner-metrics">
+      <article><span><i data-lucide="building-2"></i></span><div><small>Actieve kansen</small><strong>${stats.active}</strong><p>${stats.total} organisaties totaal</p></div></article>
+      <article><span><i data-lucide="target"></i></span><div><small>High-fit matches</small><strong>${stats.hot}</strong><p>score 80 of hoger</p></div></article>
+      <article class="${stats.due ? 'needs-action' : ''}"><span><i data-lucide="calendar-days"></i></span><div><small>Nu opvolgen</small><strong>${stats.due}</strong><p>actie is aan de beurt</p></div></article>
+      <article><span><i data-lucide="trending-up"></i></span><div><small>Pipelinepotentie</small><strong>${pipeline}</strong><p>indicatie bij €99,95 per paar</p></div></article>
+    </section>
+    <section class="partner-pipeline" aria-label="Verkooppipeline">${PARTNER_STATUSES.map(([status, label]) => `<button data-partner-stage="${status}" class="${partnerFilters.status === status ? 'is-active' : ''}"><span>${stageCounts[status]}</span><small>${label}</small></button>`).join('')}</section>
+    <section class="partner-command panel">
+      <div class="partner-filters"><label><i data-lucide="search"></i><input data-filter="partners" value="${escapeHtml(partnerFilters.query)}" placeholder="Zoek organisatie, plaats, contact of signaal…"></label><select data-filter-type="partners"><option value="">Alle doelgroepen</option>${PARTNER_TYPES.map(([value, label]) => `<option value="${value}" ${partnerFilters.type === value ? 'selected' : ''}>${label}</option>`).join('')}</select><select data-filter-flow="partners"><option value="">Alles</option><option value="todo" ${partnerFilters.flow === 'todo' ? 'selected' : ''}>Nog te doen</option><option value="done" ${partnerFilters.flow === 'done' ? 'selected' : ''}>Afgerond</option></select><select data-filter-priority="partners"><option value="">Elke prioriteit</option><option value="hot" ${partnerFilters.priority === 'hot' ? 'selected' : ''}>High-fit ≥ 80</option><option value="due" ${partnerFilters.priority === 'due' ? 'selected' : ''}>Nu opvolgen</option></select></div>
+      <div class="partner-command-status"><span id="partner-filter-count">${leads.length} van ${state.partnerScout.leads.length} matches</span><span><i></i> Gedeeld met alle ZOL-beheerders</span><button data-action="refresh-partners"><i data-lucide="refresh-cw"></i> Sync</button></div>
+      <div class="partner-command-grid"><div class="partner-lead-list" id="partner-lead-list">${partnerListMarkup(leads)}</div><div class="partner-detail" id="partner-detail">${partnerDetailMarkup(partnerLead())}</div></div>
+    </section>
+    <section class="partner-privacy"><i data-lucide="zap"></i><div><strong>Zakelijk en doelgericht</strong><p>ZOL Pulse gebruikt openbare organisatiegegevens uit <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>. Controleer ieder bericht vóór verzending en benader alleen contacten waarvoor het product aantoonbaar relevant is.</p></div></section>
+  </div>`
+  wirePartnerDetailForms()
+  const refreshDays = Number(state.partnerScout.auto_refresh_days) || 7
+  const scanDue = !state.partnerScout.last_scan_at || Date.now() - new Date(state.partnerScout.last_scan_at).getTime() > refreshDays * 86400000
+  if (scanDue && !partnerPulseRunning && navigator.onLine) window.setTimeout(() => discoverPartnerMatches({ region: state.partnerScout.default_region || 'NL-NH', type: 'all', limit: 180, silent: true }), 250)
+}
+
+function filterPartners() {
+  partnerFilters = {
+    query: document.querySelector('[data-filter="partners"]')?.value || partnerFilters.query,
+    type: document.querySelector('[data-filter-type="partners"]')?.value || '',
+    status: partnerFilters.status,
+    flow: document.querySelector('[data-filter-flow="partners"]')?.value || '',
+    priority: document.querySelector('[data-filter-priority="partners"]')?.value || '',
+  }
+  renderPartnerPanels()
+}
+
+async function fetchOverpass(query) {
+  let lastError
+  for (const endpoint of ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']) {
+    try {
+      const controller = new AbortController(); const timer = window.setTimeout(() => controller.abort(), 32000)
+      const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: `data=${encodeURIComponent(query)}`, signal: controller.signal })
+      window.clearTimeout(timer)
+      if (!response.ok) throw new Error(`Databron reageert met ${response.status}`)
+      return await response.json()
+    } catch (error) { lastError = error }
+  }
+  throw lastError || new Error('De openbare databron is tijdelijk niet bereikbaar.')
+}
+
+async function fetchNominatimMatches(region, type, limit, stamp) {
+  const queries = buildNominatimQueries(region, type, limit)
+  const leads = []
+  let succeeded = 0
+  for (let index = 0; index < queries.length; index += 1) {
+    const query = queries[index]
+    try {
+      const controller = new AbortController(); const timer = window.setTimeout(() => controller.abort(), 18000)
+      const response = await fetch(query.url, { headers: { 'accept-language': 'nl-NL,nl;q=0.9' }, signal: controller.signal })
+      window.clearTimeout(timer)
+      if (!response.ok) throw new Error(`Openbare zoekbron reageert met ${response.status}`)
+      leads.push(...parseNominatimLeads(await response.json(), query.type, region, stamp)); succeeded += 1
+    } catch { /* Een volgende doelgroep mag nog wel slagen. */ }
+    if (index < queries.length - 1) await new Promise((resolve) => window.setTimeout(resolve, 1100))
+  }
+  if (!succeeded) throw new Error('De openbare organisatiezoeker is tijdelijk niet bereikbaar.')
+  return leads
+}
+
+async function discoverPartnerMatches({ region = 'NL-NH', type = 'all', limit = 180, silent = false, button } = {}) {
+  if (partnerPulseRunning) return false
+  partnerPulseRunning = true
+  if (button) setBusy(button, true, 'Nieuwe matches zoeken')
+  try {
+    const stamp = new Date().toISOString()
+    let discovered = await fetchNominatimMatches(region, type, limit, stamp)
+    if (!discovered.length) {
+      const payload = await fetchOverpass(buildOverpassQuery(region, type, limit))
+      discovered = parseOverpassLeads(payload, region, stamp)
+    }
+    const merged = mergeDiscoveredLeads(state.partnerScout.leads, discovered)
+    await savePartnerScout({ ...state.partnerScout, leads: merged.leads, last_scan_at: stamp, last_scan_region: region, last_scan_added: merged.added, default_region: region }, 'Partnerbronnen vernieuwd', { region, type, found: discovered.length, added: merged.added, refreshed: merged.refreshed })
+    if (currentRoute() === 'partners') renderPartners()
+    if (!silent) toast('ZOL Pulse is bijgewerkt', `${merged.added} nieuwe matches · ${merged.refreshed} bestaande bronnen vernieuwd.`)
+    return true
+  } catch (error) {
+    if (!silent) toast('Nieuwe matches zoeken lukt nu niet', error.name === 'AbortError' ? 'De openbare databron reageerde niet op tijd. Probeer het straks opnieuw.' : error.message, true)
+    return false
+  } finally {
+    partnerPulseRunning = false
+    if (button?.isConnected) setBusy(button, false, 'Nieuwe matches zoeken')
+  }
+}
+
+function partnerDiscoveryForm() {
+  openDialog('Nieuwe matches zoeken', 'ZOL Pulse', `<form id="partner-discovery-form"><section class="partner-dialog-intro"><i data-lucide="sparkles"></i><div><strong>Scan openbare organisatiegegevens</strong><p>Nieuwe organisaties worden toegevoegd; bestaande verkoopstatussen, notities en contactmomenten blijven intact.</p></div></section><div class="form-grid"><label class="field">Provincie<select name="region">${PARTNER_REGIONS.map(([value, label]) => `<option value="${value}" ${state.partnerScout.default_region === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="field">Doelgroep<select name="type"><option value="all">Alles relevant voor ZOL</option>${PARTNER_TYPES.filter(([value]) => ['physio', 'podotherapy', 'school', 'sports_club'].includes(value)).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select></label><label class="field">Maximaal resultaten<select name="limit"><option value="100">100</option><option value="180" selected>180</option><option value="300">300</option></select></label></div><p class="form-hint">Voor scholen zoekt de Scout organisaties. Voeg daarna een openbaar zakelijk aanspreekpunt toe, zoals de LO-docent of zorgcoördinator.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Nieuwe matches zoeken</button></div></form>`)
+  const form = document.querySelector('#partner-discovery-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = Object.fromEntries(new FormData(form)); const button = form.querySelector('[type="submit"]')
+    const succeeded = await discoverPartnerMatches({ region: values.region, type: values.type, limit: Number(values.limit), button })
+    if (succeeded) closeDialog()
+  })
+  refreshIcons()
+}
+
+function partnerForm(lead) {
+  const existing = Boolean(lead)
+  openDialog(existing ? 'Partner bewerken' : 'Nieuwe partner', existing ? lead.name : 'Partner Scout', `<form id="partner-form"><div class="form-grid"><label class="field field--full">Organisatie<input name="name" maxlength="160" value="${escapeHtml(lead?.name || '')}" required></label><label class="field">Doelgroep<select name="type">${PARTNER_TYPES.map(([value, label]) => `<option value="${value}" ${lead?.type === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="field">Plaats<input name="city" maxlength="100" value="${escapeHtml(lead?.city || '')}"></label><label class="field">Contactpersoon<input name="contact_name" maxlength="120" value="${escapeHtml(lead?.contact_name || '')}"></label><label class="field">Functie / rol<input name="contact_role" maxlength="120" value="${escapeHtml(lead?.contact_role || '')}" placeholder="bijv. LO-coördinator"></label><label class="field">Zakelijk e-mailadres<input name="email" type="email" maxlength="200" value="${escapeHtml(lead?.email || '')}"></label><label class="field">Telefoon<input name="phone" maxlength="60" value="${escapeHtml(lead?.phone || '')}"></label><label class="field field--full">Website<input name="website" type="url" value="${escapeHtml(lead?.website || '')}" placeholder="https://…"></label><label class="field">Matchscore<input name="score" type="number" min="0" max="100" value="${lead?.score ?? 70}"></label><label class="field">Potentie (paren)<input name="estimated_units" type="number" min="0" max="10000" value="${lead?.estimated_units ?? 5}"></label><label class="field field--full">Waarom past dit bij ZOL?<textarea name="match_reason" rows="3" maxlength="800">${escapeHtml(lead?.match_reason || '')}</textarea></label><label class="field field--full">Beste openingshoek<textarea name="angle" rows="2" maxlength="500">${escapeHtml(lead?.angle || '')}</textarea></label><label class="field field--full">Interne notities<textarea name="notes" rows="3" maxlength="2000">${escapeHtml(lead?.notes || '')}</textarea></label></div><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${existing ? 'Partner opslaan' : 'Toevoegen aan pipeline'}</button></div></form>`)
+  const form = document.querySelector('#partner-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = Object.fromEntries(new FormData(form)); const timestamp = new Date().toISOString()
+    const record = { ...lead, ...values, id: lead?.id || crypto.randomUUID(), region: lead?.region || '', status: lead?.status || 'new', score: Number(values.score) || 0, estimated_units: Number(values.estimated_units) || 0, tags: lead?.tags || [], source_provider: lead?.source_provider || 'Handmatig', source_url: lead?.source_url || values.website, last_verified_at: lead?.last_verified_at || timestamp, created_at: lead?.created_at || timestamp, updated_at: timestamp }
+    const next = { ...state.partnerScout, leads: existing ? state.partnerScout.leads.map((item) => item.id === record.id ? record : item) : [record, ...state.partnerScout.leads], interactions: [partnerInteraction(record.id, existing ? 'edit' : 'created', existing ? 'Partnergegevens bijgewerkt.' : 'Nieuwe partner handmatig aan de pipeline toegevoegd.'), ...state.partnerScout.interactions] }
+    try { await savePartnerScout(next, existing ? 'Partner bijgewerkt' : 'Partner toegevoegd', { lead_id: record.id, partner_name: record.name }); partnerSelectedId = record.id; closeDialog(); renderPartners(); toast(existing ? 'Partner bijgewerkt' : 'Partner toegevoegd', record.name) } catch (error) { toast('Partner opslaan mislukt', error.message, true) }
+  })
+}
+
+function partnerMailForm(lead) {
+  if (!lead) return
+  const draft = partnerMailDraft(lead)
+  openDialog('Persoonlijke partnerbenadering', `${lead.score}/100 match · ${lead.name}`, `<form id="partner-mail-form"><section class="partner-mail-fit"><i data-lucide="brain-circuit"></i><div><strong>Gebaseerd op het type organisatie en de matchreden</strong><p>Controleer de inhoud en pas hem aan met iets specifieks dat je op de website of in een gesprek hebt gezien.</p></div></section><label class="field">Naar<input name="email" type="email" value="${escapeHtml(lead.email)}" placeholder="Openbaar zakelijk e-mailadres" required></label><label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(draft.subject)}" required></label><label class="field">Bericht<textarea name="body" rows="13" maxlength="5000" required>${escapeHtml(draft.body)}</textarea></label><p class="form-hint">De Scout verzendt niet op de achtergrond. Je opent dit bericht bewust in je eigen mailapp en controleert het vóór verzending.</p><div class="form-actions"><button class="button" type="button" data-action="copy-partner-mail">Kopiëren</button><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit"><i data-lucide="mail"></i> Open in e-mail</button></div></form>`)
+  const form = document.querySelector('#partner-mail-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = Object.fromEntries(new FormData(form)); const timestamp = new Date().toISOString(); const followUp = lead.next_action_at || new Date(Date.now() + 7 * 86400000).toISOString()
+    try {
+      await savePartnerScout({ ...state.partnerScout, leads: state.partnerScout.leads.map((item) => item.id === lead.id ? { ...item, email: values.email, status: ['new', 'research', 'qualified'].includes(item.status) ? 'contacted' : item.status, last_contacted_at: timestamp, next_action_at: followUp, updated_at: timestamp } : item), interactions: [partnerInteraction(lead.id, 'email', `Persoonlijke e-mail voorbereid: ${values.subject}`), ...state.partnerScout.interactions] }, 'Partner-e-mail voorbereid', { lead_id: lead.id, partner_name: lead.name })
+      window.location.href = `mailto:${encodeURIComponent(values.email)}?subject=${encodeURIComponent(values.subject)}&body=${encodeURIComponent(values.body)}`
+      closeDialog(); renderPartners(); toast('E-mail staat klaar', `Opvolging voor ${lead.name} is over 7 dagen gepland.`)
+    } catch (error) { toast('E-mail voorbereiden mislukt', error.message, true) }
+  })
+  form.querySelector('[data-action="copy-partner-mail"]').addEventListener('click', async () => {
+    const values = Object.fromEntries(new FormData(form))
+    try { await navigator.clipboard.writeText(`${values.subject}\n\n${values.body}`); toast('Mailconcept gekopieerd') } catch { toast('Kopiëren lukt niet', 'Selecteer de tekst en kopieer hem handmatig.', true) }
+  })
+  refreshIcons()
+}
+
+function exportPartners() {
+  const leads = visiblePartnerLeads()
+  const url = URL.createObjectURL(new Blob([`\ufeff${partnerCsv(leads)}`], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a'); link.href = url; link.download = `zol-partner-scout-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
+  recordActivity('Partnerlijst geëxporteerd', 'partner', '', { count: leads.length }); toast('Partnerlijst geëxporteerd', `${leads.length} matches in het bestand.`)
+}
+
+function stopPartnerUpdates() {
+  if (partnerRefreshTimer) window.clearInterval(partnerRefreshTimer)
+  partnerRefreshTimer = null
+}
+
+function startPartnerUpdates() {
+  stopPartnerUpdates()
+  partnerRefreshTimer = window.setInterval(async () => {
+    if (currentRoute() !== 'partners') return
+    const { data } = await supabase.from('settings').select('*').eq('key', 'partner_scout').maybeSingle()
+    if (!data?.value || !data.updated_at || new Date(data.updated_at) <= new Date(state.partnerScout.updated_at || 0)) return
+    state.partnerScout = normalizePartnerScoutState(data.value)
+    const local = state.settings.find((item) => item.key === 'partner_scout')
+    if (local) Object.assign(local, data); else state.settings.push(data)
+    renderPartners(); toast('Partner Scout gesynchroniseerd', 'Wijzigingen van een andere ZOL-beheerder zijn geladen.')
+  }, 30000)
 }
 
 function customersTable(customers) {
@@ -2527,12 +2836,14 @@ function bindSettingsForms(category) {
 function renderRoute(route = currentRoute(), option) {
   if (route !== 'live') stopLiveUpdates()
   if (route !== 'calendar') stopCalendarUpdates()
+  if (route !== 'partners') stopPartnerUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
   if (route === 'calendar' && !calendarRefreshTimer) startCalendarUpdates()
+  if (route === 'partners' && !partnerRefreshTimer) startPartnerUpdates()
   refreshIcons()
   elements.content.focus({ preventScroll: true })
   window.scrollTo({ top: 0, behavior: 'instant' })
@@ -2655,6 +2966,8 @@ function printInvoice(order) {
 async function handleContentClick(event) {
   const close = event.target.closest('[data-close-dialog]'); if (close) { closeDialog(); return }
   const jump = event.target.closest('[data-route-jump]'); if (jump) { const fromEmails = currentRoute() === 'emails' && jump.dataset.routeJump === 'settings'; window.location.hash = jump.dataset.routeJump; if (fromEmails) window.setTimeout(() => renderSettings('email'), 0); return }
+  const partnerStage = event.target.closest('[data-partner-stage]')
+  if (partnerStage) { partnerFilters.status = partnerFilters.status === partnerStage.dataset.partnerStage ? '' : partnerStage.dataset.partnerStage; renderPartners(); refreshIcons(); return }
   const target = event.target.closest('[data-action]'); if (!target) return
   const { action, id } = target.dataset
   if (action === 'calendar-prev') { calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1); renderCalendar(); refreshIcons() }
@@ -2667,6 +2980,13 @@ async function handleContentClick(event) {
   if (action === 'calendar-iphone') subscribeCalendarOnIphone()
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
+  if (action === 'open-partner') { partnerSelectedId = id; renderPartnerPanels() }
+  if (action === 'export-partners') exportPartners()
+  if (action === 'new-partner') partnerForm()
+  if (action === 'edit-partner') partnerForm(partnerLead(id))
+  if (action === 'partner-mail') partnerMailForm(partnerLead(id))
+  if (action === 'discover-partners') partnerDiscoveryForm()
+  if (action === 'refresh-partners') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
   if (action === 'export-finance') exportFinance()
   if (action === 'finance-view') { financeView = target.dataset.view || 'overview'; renderPayments(); refreshIcons() }
@@ -2774,6 +3094,7 @@ function handleFilters(event) {
   if (event.target.matches('[data-filter="content"], [data-filter-page="content"], [data-filter-type="content"]')) filterContent()
   if (event.target.matches('[data-filter="media"], [data-filter-kind="media"]')) filterMedia()
   if (event.target.matches('[data-filter="discounts"], [data-filter-status="discounts"]')) filterDiscounts()
+  if (event.target.matches('[data-filter="partners"], [data-filter-type="partners"], [data-filter-flow="partners"], [data-filter-priority="partners"]')) filterPartners()
   if (event.target.matches('[data-finance-month]')) { financeMonth = event.target.value; renderPayments() }
 }
 
@@ -2893,7 +3214,7 @@ document.querySelector('#reset-password').addEventListener('click', async () => 
   toast('Herstellink verstuurd', 'Controleer je inbox.')
 })
 
-document.querySelector('#sign-out').addEventListener('click', () => { stopLiveUpdates(); stopCalendarUpdates(); supabase.auth.signOut() })
+document.querySelector('#sign-out').addEventListener('click', () => { stopLiveUpdates(); stopCalendarUpdates(); stopPartnerUpdates(); supabase.auth.signOut() })
 document.querySelector('#notification-button').addEventListener('click', () => { window.location.hash = 'activity' })
 document.querySelector('#account-button').addEventListener('click', () => { window.location.hash = 'settings'; window.setTimeout(() => renderSettings('security'), 0) })
 document.querySelector('#mobile-menu-button').addEventListener('click', () => elements.sidebar.classList.toggle('is-open'))
@@ -2921,7 +3242,7 @@ document.querySelector('#global-search-results').addEventListener('click', (even
 document.addEventListener('click', (event) => { if (!event.target.closest('.global-search-shell')) hideGlobalSearch() })
 
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') { stopLiveUpdates(); stopCalendarUpdates(); state.session = null; state.profile = null; showLogin() }
+  if (event === 'SIGNED_OUT') { stopLiveUpdates(); stopCalendarUpdates(); stopPartnerUpdates(); state.session = null; state.profile = null; showLogin() }
   if (event === 'PASSWORD_RECOVERY') { window.location.hash = 'settings'; if (session) showAdmin(session).then(() => renderSettings('security')) }
 })
 
