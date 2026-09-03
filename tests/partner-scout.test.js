@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildNominatimQueries, buildOverpassQuery, filterPartnerLeads, mergeDiscoveredLeads, parseNominatimLeads, parseOverpassLeads,
-  partnerMailDraft, partnerStats,
+  normalizePartnerScoutState, partnerMailDraft, partnerStats,
 } from '../src/partner-scout.js'
 
 test('turns public map organizations into scored ZOL prospects', () => {
@@ -47,11 +47,26 @@ test('builds a bounded public-data query and a reviewable mail draft', () => {
 
 test('builds rate-limit friendly public searches and reads their results', () => {
   const queries = buildNominatimQueries('NL-NH', 'all', 180)
-  assert.equal(queries.length, 8)
-  assert.ok(queries.every((query) => query.url.includes('limit=23')))
+  assert.equal(queries.length, 7)
+  assert.ok(queries.every((query) => query.url.includes('limit=26')))
+  assert.equal(queries.some((query) => query.type === 'podotherapy'), false)
   assert.equal(queries.filter((query) => query.type === 'school').length, 2)
   assert.equal(queries.filter((query) => query.type === 'sports_club').length, 4)
   const leads = parseNominatimLeads([{ osm_type: 'node', osm_id: 7, name: 'Testschool', address: { city: 'Amsterdam' }, extratags: { website: 'https://school.test' } }], 'school', 'NL-NH', '2026-09-03T10:00:00Z')
   assert.equal(leads[0].type, 'school')
   assert.equal(leads[0].city, 'Amsterdam')
+})
+
+test('excludes foot specialists from imported and stored partner leads', () => {
+  const imported = parseOverpassLeads({ elements: [{ type: 'node', id: 9, tags: { name: 'Test Podotherapie', healthcare: 'podiatrist' } }] }, 'NL-NH')
+  assert.deepEqual(imported, [])
+  const stored = normalizePartnerScoutState({
+    leads: [
+      { id: 'keep', name: 'Jeugdfysio', type: 'physio' },
+      { id: 'remove', name: 'Voetpraktijk', type: 'podotherapy', contact_role: 'Podoloog' },
+    ],
+    interactions: [{ id: 'a', lead_id: 'keep' }, { id: 'b', lead_id: 'remove' }],
+  })
+  assert.deepEqual(stored.leads.map((lead) => lead.id), ['keep'])
+  assert.deepEqual(stored.interactions.map((item) => item.id), ['a'])
 })

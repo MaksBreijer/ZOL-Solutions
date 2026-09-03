@@ -12,7 +12,6 @@ export const PARTNER_STATUSES = [
 
 export const PARTNER_TYPES = [
   ['physio', 'Fysiopraktijk'],
-  ['podotherapy', 'Podotherapie'],
   ['school', 'School / LO'],
   ['sports_club', 'Sportclub'],
   ['retail', 'Sportretail'],
@@ -72,18 +71,6 @@ const seedLeads = [
     source_provider: 'Openbare website', source_url: 'https://www.amsterdamfysio.nl/fysiotherapievoor-kinderen/', last_verified_at: '2026-09-03T00:00:00.000Z', estimated_units: 7,
   },
   {
-    id: 'prospect-fysio-noordkop', name: 'Fysiotherapie Noordkop', type: 'physio', city: 'Den Helder', region: 'Noord-Holland',
-    website: 'https://www.fysiotherapienoordkop.nl/', score: 91, status: 'research', contact_name: '', contact_role: 'Kinder- of sportfysiotherapeut',
-    match_reason: 'Kinder- en sportfysiotherapie, podotherapie en ervaring met voetzooltjes komen samen.', angle: 'Waar bestaande zool- of hieloplossingen bij kinderen tekortschieten.',
-    source_provider: 'Openbare website', source_url: 'https://www.fysiotherapienoordkop.nl/', last_verified_at: '2026-09-03T00:00:00.000Z', estimated_units: 8,
-  },
-  {
-    id: 'prospect-paramee', name: 'Kinderpraktijk Paramee', type: 'medical', city: 'Medemblik', region: 'Noord-Holland',
-    website: 'https://www.paramee.nl/', score: 90, status: 'new', contact_name: '', contact_role: 'Kinderfysio / kinderpodotherapeut',
-    match_reason: 'Multidisciplinaire kinderpraktijk met kinderfysiotherapie en kinderpodotherapie.', angle: 'Samen bepalen wanneer een ondersteunende zool zinvol is.',
-    source_provider: 'Openbare website', source_url: 'https://www.paramee.nl/', last_verified_at: '2026-09-03T00:00:00.000Z', estimated_units: 7,
-  },
-  {
     id: 'prospect-arena-fysio', name: 'Arena Fysio', type: 'physio', city: 'Amsterdam Zuidoost', region: 'Noord-Holland',
     website: 'https://arena-fysio.nl/zuidoost/', score: 84, status: 'new', contact_name: '', contact_role: 'Sportfysiotherapeut',
     match_reason: 'Aandacht voor sportende kinderen en enkel- en voetrevalidatie.', angle: 'Wat ZOL aantoonbaar moet opleveren binnen return-to-sport.',
@@ -94,7 +81,7 @@ const seedLeads = [
 export function defaultPartnerScoutState() {
   const stamp = now()
   return {
-    version: 1,
+    version: 2,
     leads: seedLeads.map((lead) => ({
       email: '', phone: '', notes: '', next_action_at: '', last_contacted_at: '', tags: [],
       created_at: stamp, updated_at: stamp, ...lead,
@@ -113,24 +100,31 @@ export function defaultPartnerScoutState() {
 export function normalizePartnerScoutState(value = {}) {
   const fallback = defaultPartnerScoutState()
   const leads = Array.isArray(value.leads) && value.leads.length ? value.leads : fallback.leads
+  const allowedLeads = leads.filter((lead) => {
+    const identity = [lead.type, lead.name, lead.contact_role, lead.match_reason, lead.website].map(clean).join(' ')
+    return !/podotherap|podolog|podiatr|chiropod/i.test(identity)
+  })
+  const normalizedLeads = allowedLeads.map((lead, index) => ({
+    id: clean(lead.id) || `partner-${index}-${Date.now()}`,
+    name: clean(lead.name) || 'Naamloos contact',
+    type: typeLabelMap[lead.type] ? lead.type : 'other',
+    city: clean(lead.city), region: clean(lead.region), website: clean(lead.website),
+    email: clean(lead.email), phone: clean(lead.phone), score: Math.max(0, Math.min(100, Number(lead.score) || 0)),
+    status: statusLabelMap[lead.status] ? lead.status : 'new', contact_name: clean(lead.contact_name),
+    contact_role: clean(lead.contact_role), match_reason: clean(lead.match_reason), angle: clean(lead.angle),
+    notes: clean(lead.notes), next_action_at: clean(lead.next_action_at), last_contacted_at: clean(lead.last_contacted_at),
+    tags: Array.isArray(lead.tags) ? lead.tags.map(clean).filter(Boolean).slice(0, 12) : [],
+    source_provider: clean(lead.source_provider), source_url: clean(lead.source_url), external_id: clean(lead.external_id),
+    last_verified_at: clean(lead.last_verified_at), estimated_units: Math.max(0, Math.min(10000, Number(lead.estimated_units) || 0)),
+    created_at: clean(lead.created_at) || now(), updated_at: clean(lead.updated_at) || now(),
+  }))
+  const leadIds = new Set(normalizedLeads.map((lead) => lead.id))
   return {
     ...fallback,
     ...value,
-    leads: leads.map((lead, index) => ({
-      id: clean(lead.id) || `partner-${index}-${Date.now()}`,
-      name: clean(lead.name) || 'Naamloos contact',
-      type: typeLabelMap[lead.type] ? lead.type : 'other',
-      city: clean(lead.city), region: clean(lead.region), website: clean(lead.website),
-      email: clean(lead.email), phone: clean(lead.phone), score: Math.max(0, Math.min(100, Number(lead.score) || 0)),
-      status: statusLabelMap[lead.status] ? lead.status : 'new', contact_name: clean(lead.contact_name),
-      contact_role: clean(lead.contact_role), match_reason: clean(lead.match_reason), angle: clean(lead.angle),
-      notes: clean(lead.notes), next_action_at: clean(lead.next_action_at), last_contacted_at: clean(lead.last_contacted_at),
-      tags: Array.isArray(lead.tags) ? lead.tags.map(clean).filter(Boolean).slice(0, 12) : [],
-      source_provider: clean(lead.source_provider), source_url: clean(lead.source_url), external_id: clean(lead.external_id),
-      last_verified_at: clean(lead.last_verified_at), estimated_units: Math.max(0, Math.min(10000, Number(lead.estimated_units) || 0)),
-      created_at: clean(lead.created_at) || now(), updated_at: clean(lead.updated_at) || now(),
-    })),
-    interactions: Array.isArray(value.interactions) ? value.interactions.slice(0, 1000) : [],
+    version: 2,
+    leads: normalizedLeads,
+    interactions: Array.isArray(value.interactions) ? value.interactions.filter((item) => leadIds.has(item.lead_id)).slice(0, 1000) : [],
   }
 }
 
@@ -170,15 +164,15 @@ export function filterPartnerLeads(leads = [], filters = {}) {
 
 function leadCategory(element) {
   const tags = element.tags || {}
+  if (['podiatrist', 'chiropodist'].includes(tags.healthcare) || /podotherap|podolog/i.test(tags.name || '')) return 'excluded'
   if (tags.healthcare === 'physiotherapist' || /fysio/i.test(`${tags.name || ''} ${tags['healthcare:speciality'] || ''}`)) return 'physio'
-  if (['podiatrist', 'chiropodist'].includes(tags.healthcare) || /podotherap|podolog/i.test(tags.name || '')) return 'podotherapy'
   if (['school', 'college'].includes(tags.amenity)) return 'school'
   if (tags.club === 'sport' || ['sports_centre', 'sports_club'].includes(tags.leisure)) return 'sports_club'
   return 'other'
 }
 
 function scoreDiscoveredLead(type, tags = {}) {
-  let score = { physio: 80, podotherapy: 82, sports_club: 66, school: 62, medical: 72, retail: 58, other: 48 }[type] || 48
+  let score = { physio: 80, sports_club: 66, school: 62, medical: 72, retail: 58, other: 48 }[type] || 48
   const text = Object.values(tags).join(' ').toLowerCase()
   if (/kind|jeugd|junior|youth/.test(text)) score += 10
   if (/sport|voetbal|hockey|tennis|atletiek|gymnastiek|handbal|basketbal/.test(text)) score += 7
@@ -195,7 +189,7 @@ export function parseOverpassLeads(payload, regionCode, stamp = now()) {
     const name = clean(tags.name || tags.operator || tags.brand)
     if (!name) return null
     const type = leadCategory(element)
-    if (type === 'other') return null
+    if (type === 'other' || type === 'excluded') return null
     const city = clean(tags['addr:city'] || tags['addr:place'] || tags['is_in:city'])
     const website = clean(tags.website || tags['contact:website'] || tags.url)
     const email = clean(tags.email || tags['contact:email'])
@@ -203,13 +197,12 @@ export function parseOverpassLeads(payload, regionCode, stamp = now()) {
     const score = scoreDiscoveredLead(type, tags)
     const sport = clean(tags.sport).replaceAll(';', ', ')
     const reason = type === 'physio' ? 'Openbare vermelding als fysiopraktijk; relevant voor kinderen met sportgerelateerde hielklachten.'
-      : type === 'podotherapy' ? 'Openbare vermelding als podotherapie; directe inhoudelijke aansluiting op voet- en hielondersteuning.'
-        : type === 'school' ? 'School met bereik onder leerlingen; kansrijk via LO-docent, zorgcoördinator of sportprogramma.'
-          : `Sportorganisatie${sport ? ` voor ${sport}` : ''} met direct bereik onder sporters en begeleiders.`
+      : type === 'school' ? 'School met bereik onder leerlingen; kansrijk via LO-docent, zorgcoördinator of sportprogramma.'
+        : `Sportorganisatie${sport ? ` voor ${sport}` : ''} met direct bereik onder sporters en begeleiders.`
     return {
       id: `osm-${element.type}-${element.id}`, external_id: `osm:${element.type}:${element.id}`, name, type, city, region,
       website, email, phone, score, status: 'new', contact_name: '',
-      contact_role: type === 'school' ? 'LO-docent / zorgcoördinator' : type === 'sports_club' ? 'Jeugdcoördinator / medische staf' : type === 'podotherapy' ? 'Podotherapeut' : 'Kinder- of sportfysiotherapeut',
+      contact_role: type === 'school' ? 'LO-docent / zorgcoördinator' : type === 'sports_club' ? 'Jeugdcoördinator / medische staf' : 'Kinder- of sportfysiotherapeut',
       match_reason: reason, angle: type === 'school' ? 'Sportende leerlingen met terugkerende hielpijn eerder herkennen.' : type === 'sports_club' ? 'Jeugdleden langer verantwoord laten sporten.' : 'Ondersteuning bij sportende kinderen met hielpijn.',
       notes: '', next_action_at: '', last_contacted_at: '', tags: sport ? sport.split(',').map(clean) : [],
       source_provider: 'OpenStreetMap', source_url: `https://www.openstreetmap.org/${element.type}/${element.id}`,
@@ -223,7 +216,6 @@ export function buildNominatimQueries(regionCode, type = 'all', limit = 180) {
   const region = partnerRegionLabel(regionCode || 'NL-NH')
   const terms = {
     physio: ['fysiotherapie'],
-    podotherapy: ['podotherapie'],
     school: ['middelbare school', 'basisschool'],
     sports_club: ['hockeyclub', 'voetbalclub', 'tennisclub', 'atletiekvereniging'],
   }
@@ -239,7 +231,6 @@ export function buildNominatimQueries(regionCode, type = 'all', limit = 180) {
 export function parseNominatimLeads(payload, type, regionCode, stamp = now()) {
   const typeTags = {
     physio: { healthcare: 'physiotherapist' },
-    podotherapy: { healthcare: 'podiatrist' },
     school: { amenity: 'school' },
     sports_club: { leisure: 'sports_club' },
   }
@@ -287,7 +278,6 @@ export function buildOverpassQuery(regionCode, type = 'all', limit = 180) {
   const safeLimit = Math.max(10, Math.min(300, Number(limit) || 180))
   const blocks = {
     physio: ['nwr["healthcare"="physiotherapist"](area.searchArea);', 'nwr["healthcare:speciality"~"physiotherapy"](area.searchArea);'],
-    podotherapy: ['nwr["healthcare"~"podiatrist|chiropodist"](area.searchArea);'],
     school: ['nwr["amenity"~"school|college"](area.searchArea);'],
     sports_club: ['nwr["leisure"~"sports_centre|sports_club"](area.searchArea);', 'nwr["club"="sport"](area.searchArea);'],
   }
@@ -302,9 +292,7 @@ export function partnerMailDraft(lead) {
     ? 'Jullie bereiken dagelijks sportende leerlingen. Bij ZOL Solutions helpen we jonge sporters met hielpijn om comfortabel en verantwoord te blijven bewegen.'
     : lead.type === 'sports_club'
       ? 'Jullie begeleiden jonge sporters op het moment dat hielpijn training en plezier in de weg kan zitten. ZOL Solutions ontwikkelt hiervoor een praktische ondersteunende zool.'
-      : lead.type === 'podotherapy'
-        ? 'Jullie expertise rond voetstand en belasting sluit direct aan op wat wij bij ZOL Solutions ontwikkelen voor sportende kinderen met hielpijn.'
-        : 'Op jullie openbare informatie zagen we een duidelijke combinatie van jeugd, sport en bewegen. ZOL Solutions ontwikkelt een ondersteunende zool voor sportende kinderen met hielpijn.'
+      : 'Op jullie openbare informatie zagen we een duidelijke combinatie van jeugd, sport en bewegen. ZOL Solutions ontwikkelt een ondersteunende zool voor sportende kinderen met hielpijn.'
   const angle = lead.angle ? ` Vooral jullie aandacht voor ${lead.angle.charAt(0).toLowerCase()}${lead.angle.slice(1)} viel ons op.` : ''
   const ask = lead.status === 'won'
     ? 'Zullen we kort afstemmen welke volgende gezamenlijke stap de meeste waarde oplevert?'
