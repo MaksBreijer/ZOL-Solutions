@@ -770,7 +770,7 @@ function newOrderForm() {
       <label class="field">Verzendkosten (€)<input name="shipping" type="number" min="0" max="10000" step="0.01" value="0.00"></label>
     </div>
     <section class="manual-order-items">
-      <header><div><strong>Producten</strong><small>Kies de maten en aantallen voor deze bestelling.</small></div><button class="button button--small" type="button" data-action="add-order-line">＋ Regel toevoegen</button></header>
+      <header><div><strong>Producten</strong><small>Kies de maten, aantallen en prijzen. Vul € 0,00 in voor een gratis product.</small></div><button class="button button--small" type="button" data-action="add-order-line">＋ Regel toevoegen</button></header>
       <div id="manual-order-lines"></div>
       <footer><span>Voorlopig totaal</span><strong id="manual-order-total">€ 0,00</strong></footer>
     </section>
@@ -803,21 +803,29 @@ function newOrderForm() {
   const addLine = () => {
     const row = document.createElement('div')
     row.className = 'manual-order-line'
-    row.innerHTML = `<label class="field">Product en maat<select data-order-variant required><option value="">Kies een maat</option>${variantOptions}</select></label><label class="field">Aantal<input data-order-quantity type="number" min="1" max="100" value="1" required></label><button class="button button--danger button--small" type="button" data-action="remove-order-line" aria-label="Orderregel verwijderen">Verwijder</button>`
+    row.innerHTML = `<label class="field">Product en maat<select data-order-variant required><option value="">Kies een maat</option>${variantOptions}</select></label><label class="field">Aantal<input data-order-quantity type="number" min="1" max="100" value="1" required></label><label class="field">Prijs per stuk (€)<input data-order-price type="number" min="0" max="10000" step="0.01" placeholder="0.00" required></label><button class="button button--danger button--small" type="button" data-action="remove-order-line" aria-label="Orderregel verwijderen">Verwijder</button>`
     lines.append(row)
     updateManualOrderTotal(form)
   }
   addLine()
   form.addEventListener('input', () => updateManualOrderTotal(form))
-  form.addEventListener('change', () => updateManualOrderTotal(form))
+  form.addEventListener('change', (event) => {
+    if (event.target.matches('[data-order-variant]')) {
+      const price = event.target.selectedOptions[0]?.dataset.price
+      event.target.closest('.manual-order-line').querySelector('[data-order-price]').value = price == null ? '' : (Number(price) / 100).toFixed(2)
+    }
+    updateManualOrderTotal(form)
+  })
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
     const button = form.querySelector('[type="submit"]')
     const items = [...form.querySelectorAll('.manual-order-line')].map((row) => ({
       variant_id: row.querySelector('[data-order-variant]').value,
       quantity: Number(row.querySelector('[data-order-quantity]').value),
+      unit_price_cents: Math.round(row.querySelector('[data-order-price]').valueAsNumber * 100),
     }))
     if (!items.length || items.some((item) => !item.variant_id || !Number.isInteger(item.quantity) || item.quantity < 1)) { toast('Controleer de producten', 'Kies voor iedere regel een maat en geldig aantal.', true); return }
+    if (items.some((item) => !Number.isSafeInteger(item.unit_price_cents) || item.unit_price_cents < 0 || item.unit_price_cents > 1000000)) { toast('Controleer de prijzen', 'Vul voor iedere regel een prijs tussen € 0,00 en € 10.000,00 in.', true); return }
     if (new Set(items.map((item) => item.variant_id)).size !== items.length) { toast('Dubbele maat gekozen', 'Combineer hetzelfde product en dezelfde maat in één regel.', true); return }
     const values = Object.fromEntries(new FormData(form))
     const isPhysio = values.order_type === 'physio'
@@ -847,9 +855,9 @@ function newOrderForm() {
 function updateManualOrderTotal(form) {
   let total = Math.round(Number(form.elements.shipping?.value || 0) * 100)
   form.querySelectorAll('.manual-order-line').forEach((row) => {
-    const option = row.querySelector('[data-order-variant]')?.selectedOptions[0]
+    const price = Math.round(Number(row.querySelector('[data-order-price]')?.value || 0) * 100)
     const quantity = Number(row.querySelector('[data-order-quantity]')?.value || 0)
-    total += Number(option?.dataset.price || 0) * Math.max(0, quantity)
+    total += price * Math.max(0, quantity)
   })
   form.querySelector('#manual-order-total').textContent = formatMoney(total)
 }
@@ -3299,7 +3307,7 @@ async function handleContentClick(event) {
   if (action === 'delete-order-note') await deleteOrderNote(id, target.dataset.orderId)
   if (action === 'new-order') newOrderForm()
   if (action === 'delete-order') await deleteOrder(id)
-  if (action === 'add-order-line') { const form = document.querySelector('#new-order-form'); if (form) { const line = form.querySelector('.manual-order-line')?.cloneNode(true); if (line) { line.querySelector('[data-order-variant]').value = ''; line.querySelector('[data-order-quantity]').value = '1'; form.querySelector('#manual-order-lines').append(line); updateManualOrderTotal(form) } } }
+  if (action === 'add-order-line') { const form = document.querySelector('#new-order-form'); if (form) { const line = form.querySelector('.manual-order-line')?.cloneNode(true); if (line) { line.querySelector('[data-order-variant]').value = ''; line.querySelector('[data-order-quantity]').value = '1'; line.querySelector('[data-order-price]').value = ''; form.querySelector('#manual-order-lines').append(line); updateManualOrderTotal(form) } } }
   if (action === 'remove-order-line') { const form = document.querySelector('#new-order-form'); const lines = form?.querySelectorAll('.manual-order-line'); if (lines?.length > 1) { target.closest('.manual-order-line')?.remove(); updateManualOrderTotal(form) } else toast('Minimaal één product nodig', '', true) }
   if (action === 'open-customer') customerForm(state.customers.find((item) => item.id === id))
   if (action === 'open-message') await openContactMessage(state.contactMessages.find((item) => item.id === id))
