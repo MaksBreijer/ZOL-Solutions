@@ -1,5 +1,6 @@
 import './admin.css'
 import { calculateVatBreakdown, ledgerExcelCsv, matchBankTransactions, parseBankCsv, vatSummary } from './accounting.js'
+import { calendarGridRange, eventsForDay, parseCalendarEvents } from './calendar-feed.js'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
@@ -26,6 +27,9 @@ const adminIcons = {
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
 
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com/calendar/u/0/r'
+let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+let calendarRefreshTimer = null
+let calendarShowSetup = false
 
 const elements = {
   loading: document.querySelector('#admin-loading'),
@@ -491,9 +495,110 @@ function renderDashboard() {
   </div>`
 }
 
+function calendarSetupMarkup(configured) {
+  return `<section class="panel calendar-setup-panel">
+    <div class="calendar-setup-copy"><span><i data-lucide="calendar-days"></i></span><div><p class="eyebrow">Eenmalig verbinden</p><h2>Toon de privéagenda veilig in ZOL Admin</h2><p>Plak hieronder de <b>geheime iCal-link</b> uit Google Agenda. De link wordt privé in Supabase opgeslagen en alleen via een beveiligde functie aan ingelogde beheerders getoond.</p></div></div>
+    <form id="calendar-config-form" autocomplete="off">
+      <label class="field">Geheime iCal-link
+        <input name="private_ics_url" type="password" inputmode="url" placeholder="${configured ? 'Er is al een geheime link opgeslagen' : 'https://calendar.google.com/calendar/ical/.../private-.../basic.ics'}" ${configured ? '' : 'required'}>
+        <small>Google Agenda → Instellingen → ZOL Teamagenda → Agenda integreren → Geheim adres in iCal-indeling. Deel deze link verder met niemand.</small>
+      </label>
+      <div class="form-actions">${configured ? '<button class="button" type="button" data-action="calendar-cancel-config">Annuleren</button>' : ''}<button class="button button--primary" type="submit">Agenda veilig verbinden</button></div>
+    </form>
+  </section>`
+}
+
+function calendarShellMarkup() {
+  const monthLabel = calendarMonth.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })
+  return `<section class="panel calendar-panel">
+    <header class="calendar-toolbar"><div><button type="button" data-action="calendar-prev" aria-label="Vorige maand">‹</button><button type="button" data-action="calendar-today">Vandaag</button><button type="button" data-action="calendar-next" aria-label="Volgende maand">›</button></div><h2 id="calendar-month-title">${escapeHtml(monthLabel)}</h2><button type="button" data-action="calendar-refresh"><i data-lucide="refresh-cw"></i> Verversen</button></header>
+    <div class="calendar-weekdays" aria-hidden="true">${['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((day) => `<span>${day}</span>`).join('')}</div>
+    <div class="calendar-month-grid" id="calendar-month-grid"><div class="calendar-loading"><span class="spinner"></span><p>Gedeelde agenda laden…</p></div></div>
+    <footer class="calendar-panel-footer"><span id="calendar-sync-status">Beveiligde verbinding met Google Agenda</span><a href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer">Afspraken beheren in Google →</a></footer>
+  </section>`
+}
+
+function renderCalendarGrid(events) {
+  const grid = document.querySelector('#calendar-month-grid')
+  if (!grid) return
+  const { start } = calendarGridRange(calendarMonth)
+  const today = new Date()
+  const days = Array.from({ length: 42 }, (_, index) => { const day = new Date(start); day.setDate(start.getDate() + index); return day })
+  grid.innerHTML = days.map((day) => {
+    const dayEvents = eventsForDay(events, day)
+    const isMuted = day.getMonth() !== calendarMonth.getMonth()
+    const isToday = day.toDateString() === today.toDateString()
+    const visible = dayEvents.slice(0, 3)
+    return `<article class="calendar-day ${isMuted ? 'is-muted' : ''} ${isToday ? 'is-today' : ''}"><header><span>${day.getDate()}</span>${isToday ? '<small>VANDAAG</small>' : ''}</header><div>${visible.map((event) => `<a href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer" title="${escapeHtml([event.title, event.location].filter(Boolean).join(' · '))}"><time>${event.allDay ? '' : event.start.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</time><span>${escapeHtml(event.title)}</span></a>`).join('')}${dayEvents.length > 3 ? `<small class="calendar-more">+ ${dayEvents.length - 3} meer</small>` : ''}</div></article>`
+  }).join('')
+  const status = document.querySelector('#calendar-sync-status')
+  if (status) status.textContent = `${events.length} afspraken geladen · bijgewerkt om ${new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+async function loadCalendarFeed(showToast = false) {
+  const grid = document.querySelector('#calendar-month-grid')
+  if (!grid || !settingsValue('calendar_config').private_ics_url) return
+  grid.classList.add('is-loading')
+  const { data, error } = await supabase.functions.invoke('calendar-feed', { body: {} })
+  if (currentRoute() !== 'calendar') return
+  if (error || data?.error) {
+    grid.classList.remove('is-loading')
+    grid.innerHTML = emptyState('Agenda kon niet worden geladen', data?.error || 'Controleer de geheime iCal-link via Verbinding.', '!')
+    if (showToast) toast('Agenda laden mislukt', data?.error || error?.message || '', true)
+    return
+  }
+  try {
+    const ics = data instanceof Blob ? await data.text() : String(data || '')
+    const { start, end } = calendarGridRange(calendarMonth)
+    const events = parseCalendarEvents(ics, start, end)
+    grid.classList.remove('is-loading')
+    renderCalendarGrid(events)
+    if (showToast) toast('Agenda bijgewerkt', `${events.length} afspraken in deze kalenderweergave.`)
+  } catch (parseError) {
+    grid.classList.remove('is-loading')
+    grid.innerHTML = emptyState('Onleesbare agenda', 'Google gaf agenda-informatie terug die niet kon worden verwerkt.', '!')
+    if (showToast) toast('Agenda verwerken mislukt', parseError.message, true)
+  }
+}
+
+function stopCalendarUpdates() {
+  if (calendarRefreshTimer) window.clearInterval(calendarRefreshTimer)
+  calendarRefreshTimer = null
+}
+
+function startCalendarUpdates() {
+  stopCalendarUpdates()
+  calendarRefreshTimer = window.setInterval(() => {
+    if (currentRoute() === 'calendar' && !calendarShowSetup) loadCalendarFeed()
+  }, 60_000)
+}
+
+async function saveCalendarConfig(event) {
+  event.preventDefault()
+  const form = event.currentTarget
+  const input = form.elements.private_ics_url
+  const value = input.value.trim()
+  if (!value && settingsValue('calendar_config').private_ics_url) { calendarShowSetup = false; renderCalendar(); refreshIcons(); return }
+  let url
+  try { url = new URL(value) } catch { toast('Ongeldige link', 'Plak het volledige geheime iCal-adres uit Google Agenda.', true); return }
+  if (url.protocol !== 'https:' || url.hostname !== 'calendar.google.com' || !/\/calendar\/ical\/.+\/private-[^/]+\/basic\.ics$/.test(url.pathname)) {
+    toast('Dit is niet de geheime iCal-link', 'Kopieer in Google Agenda het “Geheim adres in iCal-indeling”, niet het openbare adres.', true); return
+  }
+  const button = form.querySelector('[type="submit"]')
+  setBusy(button, true, 'Verbinden')
+  const { error } = await supabase.from('settings').upsert({ key: 'calendar_config', category: 'calendar', label: 'Google Agenda-koppeling', value: { private_ics_url: value }, is_public: false })
+  if (error) { toast('Agenda opslaan mislukt', error.message, true); setBusy(button, false, 'Agenda veilig verbinden'); return }
+  await recordActivity('Google Agenda verbonden', 'settings', 'calendar_config')
+  await fetchAllData()
+  calendarShowSetup = false
+  toast('Google Agenda verbonden', 'De afspraken worden nu veilig in ZOL Admin geladen.')
+  renderCalendar(); refreshIcons()
+}
+
 function renderCalendar() {
+  const configured = Boolean(settingsValue('calendar_config').private_ics_url)
   elements.content.innerHTML = `<div class="page-container calendar-page">
-    ${pageHeader('calendar', `<a class="button button--primary" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> ZOL-agenda openen</a>`)}
+    ${pageHeader('calendar', `${configured ? '<button class="button" type="button" data-action="calendar-config"><i data-lucide="settings"></i> Verbinding</button>' : ''}<a class="button button--primary" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Afspraken beheren</a>`)}
     <section class="calendar-intro" aria-label="Zo werkt de ZOL Teamagenda">
       <article class="calendar-intro-card calendar-intro-card--primary">
         <span class="calendar-step-icon"><i data-lucide="calendar-days"></i></span>
@@ -507,23 +612,7 @@ function renderCalendar() {
       </article>
     </section>
 
-    <div class="calendar-layout">
-      <section class="panel calendar-panel">
-        <header class="panel-header"><div><h2>Google Agenda-koppeling</h2><p>Eén agenda voor de admin, jullie telefoons en alle beheerders</p></div><span class="calendar-live-status"><i></i> SYNCHRONISATIE</span></header>
-        <div class="calendar-sync-stage">
-          <div class="calendar-sync-item"><span><i data-lucide="users"></i></span><strong>ZOL-team</strong><small>Maks & Thijn</small></div>
-          <b>↔</b>
-          <div class="calendar-sync-item calendar-sync-item--google"><span><i data-lucide="calendar-days"></i></span><strong>Google Agenda</strong><small>Centrale bron</small></div>
-          <b>↔</b>
-          <div class="calendar-sync-item"><span><i data-lucide="refresh-cw"></i></span><strong>Telefoons</strong><small>Altijd bijgewerkt</small></div>
-        </div>
-        <div class="calendar-manage-box">
-          <div><strong>Afspraken bekijken of wijzigen</strong><p>Google blokkeert het bewerken van een privéagenda binnen een website. Daarom opent de beveiligde agenda in Google; je blijft vanuit ZOL Admin werken en alle wijzigingen synchroniseren met jullie telefoons.</p></div>
-          <a class="button button--primary" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Open gedeelde agenda</a>
-        </div>
-      </section>
-
-      <aside class="calendar-side">
+    ${calendarShowSetup || !configured ? calendarSetupMarkup(configured) : `<div class="calendar-layout">${calendarShellMarkup()}<aside class="calendar-side">
         <section class="panel calendar-subscribe-card">
           <span class="calendar-card-icon"><i data-lucide="refresh-cw"></i></span>
           <h2>Op je telefoon</h2>
@@ -534,9 +623,10 @@ function renderCalendar() {
         <section class="calendar-privacy-card">
           <span>✓</span><div><strong>Veilig delen</strong><p>Deel de agenda alleen met specifieke ZOL-beheerders. Zo hoeft de agenda niet openbaar te worden gemaakt.</p></div>
         </section>
-      </aside>
-    </div>
+      </aside></div>`}
   </div>`
+  document.querySelector('#calendar-config-form')?.addEventListener('submit', saveCalendarConfig)
+  if (configured && !calendarShowSetup) window.setTimeout(() => loadCalendarFeed(), 0)
 }
 
 function ordersTable(orders, showAll = true) {
@@ -2389,11 +2479,13 @@ function bindSettingsForms(category) {
 
 function renderRoute(route = currentRoute(), option) {
   if (route !== 'live') stopLiveUpdates()
+  if (route !== 'calendar') stopCalendarUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
   const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
+  if (route === 'calendar' && !calendarRefreshTimer) startCalendarUpdates()
   refreshIcons()
   elements.content.focus({ preventScroll: true })
   window.scrollTo({ top: 0, behavior: 'instant' })
@@ -2518,6 +2610,12 @@ async function handleContentClick(event) {
   const jump = event.target.closest('[data-route-jump]'); if (jump) { const fromEmails = currentRoute() === 'emails' && jump.dataset.routeJump === 'settings'; window.location.hash = jump.dataset.routeJump; if (fromEmails) window.setTimeout(() => renderSettings('email'), 0); return }
   const target = event.target.closest('[data-action]'); if (!target) return
   const { action, id } = target.dataset
+  if (action === 'calendar-prev') { calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1); renderCalendar(); refreshIcons() }
+  if (action === 'calendar-next') { calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1); renderCalendar(); refreshIcons() }
+  if (action === 'calendar-today') { const now = new Date(); calendarMonth = new Date(now.getFullYear(), now.getMonth(), 1); renderCalendar(); refreshIcons() }
+  if (action === 'calendar-refresh') await loadCalendarFeed(true)
+  if (action === 'calendar-config') { calendarShowSetup = true; renderCalendar(); refreshIcons() }
+  if (action === 'calendar-cancel-config') { calendarShowSetup = false; renderCalendar(); refreshIcons() }
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
@@ -2746,7 +2844,7 @@ document.querySelector('#reset-password').addEventListener('click', async () => 
   toast('Herstellink verstuurd', 'Controleer je inbox.')
 })
 
-document.querySelector('#sign-out').addEventListener('click', () => { stopLiveUpdates(); supabase.auth.signOut() })
+document.querySelector('#sign-out').addEventListener('click', () => { stopLiveUpdates(); stopCalendarUpdates(); supabase.auth.signOut() })
 document.querySelector('#notification-button').addEventListener('click', () => { window.location.hash = 'activity' })
 document.querySelector('#account-button').addEventListener('click', () => { window.location.hash = 'settings'; window.setTimeout(() => renderSettings('security'), 0) })
 document.querySelector('#mobile-menu-button').addEventListener('click', () => elements.sidebar.classList.toggle('is-open'))
@@ -2774,7 +2872,7 @@ document.querySelector('#global-search-results').addEventListener('click', (even
 document.addEventListener('click', (event) => { if (!event.target.closest('.global-search-shell')) hideGlobalSearch() })
 
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') { stopLiveUpdates(); state.session = null; state.profile = null; showLogin() }
+  if (event === 'SIGNED_OUT') { stopLiveUpdates(); stopCalendarUpdates(); state.session = null; state.profile = null; showLogin() }
   if (event === 'PASSWORD_RECOVERY') { window.location.hash = 'settings'; if (session) showAdmin(session).then(() => renderSettings('security')) }
 })
 
