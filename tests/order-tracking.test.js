@@ -19,6 +19,26 @@ test('removes only tracking fields from an order', () => {
   assert.equal('postnl' in trackingRemovalUpdate(), false)
 })
 
+test('keeps the physio recipient when tracking is removed from a physio order', () => {
+  assert.deepEqual(trackingRemovalUpdate({
+    type: 'physio',
+    practice_name: ' Fysio De Lijn ',
+    email: ' INFO@DELIJN.NL ',
+    street: ' Wilhelminasingel 18 ',
+    postal_code: ' 6221 bk ',
+    city: ' Maastricht ',
+  }).tracking_destination, {
+    type: 'physio',
+    practice_name: 'Fysio De Lijn',
+    contact_name: '',
+    email: 'info@delijn.nl',
+    street: 'Wilhelminasingel 18',
+    postal_code: '6221 BK',
+    city: 'Maastricht',
+    country: 'NL',
+  })
+})
+
 test('normalizes a manual physio destination', () => {
   assert.deepEqual(trackingDestinationFromForm({
     tracking_destination_type: 'physio',

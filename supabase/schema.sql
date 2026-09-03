@@ -229,6 +229,7 @@ create table public.orders (
   customer_id uuid references public.customers(id) on delete set null,
   customer_email text not null,
   customer_name text not null default '',
+  order_type text not null default 'customer' check (order_type in ('customer', 'physio')),
   status text not null default 'open' check (status in ('draft', 'open', 'completed', 'cancelled')),
   payment_status text not null default 'pending' check (payment_status in ('pending', 'paid', 'failed', 'partially_refunded', 'refunded')),
   fulfillment_status text not null default 'unfulfilled' check (fulfillment_status in ('unfulfilled', 'processing', 'shipped', 'delivered', 'returned')),

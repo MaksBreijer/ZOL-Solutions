@@ -1,9 +1,9 @@
-export function trackingRemovalUpdate() {
+export function trackingRemovalUpdate(destination = { type: 'customer' }) {
   return {
     tracking_code: '',
     tracking_carrier: '',
     tracking_url: '',
-    tracking_destination: { type: 'customer' },
+    tracking_destination: normalizeTrackingDestination(destination),
   }
 }
 

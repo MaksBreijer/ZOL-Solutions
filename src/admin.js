@@ -716,7 +716,7 @@ function ordersTable(orders, showAll = true) {
   return `<div class="table-scroll"><table class="data-table"><thead><tr><th>Bestelling</th><th>Datum</th><th>Klant</th><th>Herkomst</th><th>Totaal</th><th>Betaling</th><th>Verzending</th><th>Status</th></tr></thead><tbody>
     ${orders.map((order) => {
       const discoveryAnswer = checkoutAnswer(order)
-      return `<tr data-action="open-order" data-id="${order.id}"><td><strong>#${order.order_number}</strong>${order.external_reference ? `<small class="table-subline">Import: ${escapeHtml(order.external_reference)}</small>` : ''}</td><td>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit', year: undefined })}</td><td>${escapeHtml(order.customer_name || order.customer_email)}</td><td>${discoveryAnswer ? `<span class="checkout-source-pill">${escapeHtml(discoveryAnswer)}</span>` : '<span class="table-empty-value">—</span>'}</td><td><strong>${formatMoney(order.total_cents, order.currency)}</strong></td><td>${statusPill(order.payment_status)}</td><td>${statusPill(order.fulfillment_status)}</td><td>${statusPill(order.status)}</td></tr>`
+      return `<tr data-action="open-order" data-id="${order.id}"><td><strong>#${order.order_number}</strong>${order.external_reference ? `<small class="table-subline">Import: ${escapeHtml(order.external_reference)}</small>` : ''}</td><td>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit', year: undefined })}</td><td>${escapeHtml(order.customer_name || order.customer_email)}${order.order_type === 'physio' ? '<small class="table-subline">Fysiobestelling</small>' : ''}</td><td>${discoveryAnswer ? `<span class="checkout-source-pill">${escapeHtml(discoveryAnswer)}</span>` : order.order_type === 'physio' ? '<span class="checkout-source-pill">Fysio</span>' : '<span class="table-empty-value">—</span>'}</td><td><strong>${formatMoney(order.total_cents, order.currency)}</strong></td><td>${statusPill(order.payment_status)}</td><td>${statusPill(order.fulfillment_status)}</td><td>${statusPill(order.status)}</td></tr>`
     }).join('')}
   </tbody></table></div>${showAll ? `<footer class="table-footer"><span>${orders.length} bestellingen</span><span>Klik op een bestelling om deze te bewerken</span></footer>` : ''}`
 }
@@ -743,15 +743,27 @@ function orderVariantOptions() {
 
 function newOrderForm() {
   if (!['owner', 'admin'].includes(state.profile?.role)) return
-  if (!state.customers.length) { toast('Voeg eerst een klant toe', 'Ga naar Klanten en maak de klant handmatig aan.', true); return }
   const variants = orderVariantOptions()
   if (!variants.length) { toast('Geen verkoopbare producten', 'Activeer eerst een product en maat.', true); return }
   const customerOptions = state.customers.map((customer) => `<option value="${customer.id}">${escapeHtml(fullName(customer))} — ${escapeHtml(customer.email)}</option>`).join('')
   const variantOptions = variants.map((variant) => `<option value="${variant.id}" data-price="${variant.price}" data-stock="${variant.stock}" ${variant.stock < 1 ? 'disabled' : ''}>${escapeHtml(variant.label)} · ${variant.stock < 1 ? 'uitverkocht' : `voorraad ${variant.stock}`} · ${formatMoney(variant.price)}</option>`).join('')
+  const defaultOrderType = state.customers.length ? 'customer' : 'physio'
 
   openDialog('Handmatige bestelling', 'Bestelling', `<form id="new-order-form">
     <div class="form-grid">
-      <label class="field field--full">Klant<select name="customer_id" required><option value="">Kies een klant</option>${customerOptions}</select><small>Staat de klant er niet tussen? Voeg deze eerst toe via Klanten.</small></label>
+      <label class="field field--full">Type bestelling<select name="order_type"><option value="customer" ${defaultOrderType === 'customer' ? 'selected' : ''} ${state.customers.length ? '' : 'disabled'}>Klant — bestaande klant</option><option value="physio" ${defaultOrderType === 'physio' ? 'selected' : ''}>Fysio — praktijkgegevens invoeren</option></select><small>Een fysiobestelling staat los van het klantenbestand en gebruikt de praktijk als ontvanger.</small></label>
+      <div id="manual-customer-fields" class="field--full" ${defaultOrderType === 'physio' ? 'hidden' : ''}>
+        <label class="field">Klant<select name="customer_id"><option value="">Kies een klant</option>${customerOptions}</select><small>Staat de klant er niet tussen? Voeg deze eerst toe via Klanten.</small></label>
+      </div>
+      <div id="manual-physio-fields" class="tracking-recipient-fields" ${defaultOrderType === 'physio' ? '' : 'hidden'}>
+        <div class="tracking-recipient-heading"><strong>Gegevens van de fysio</strong><small>Dit wordt meteen het afleveradres voor het label en de tracking.</small></div>
+        <label class="field">Praktijknaam<input name="physio_practice_name" maxlength="140" autocomplete="organization"></label>
+        <label class="field">Contactpersoon <span>optioneel</span><input name="physio_contact_name" maxlength="120" autocomplete="name"></label>
+        <label class="field field--full">E-mailadres<input name="physio_email" type="email" maxlength="254" autocomplete="email" placeholder="praktijk@voorbeeld.nl"></label>
+        <label class="field field--full">Straat en huisnummer<input name="physio_street" maxlength="160" autocomplete="street-address"></label>
+        <label class="field">Postcode<input name="physio_postal_code" maxlength="24" autocomplete="postal-code"></label>
+        <label class="field">Plaats<input name="physio_city" maxlength="100" autocomplete="address-level2"></label>
+      </div>
       <label class="field">Orderstatus<select name="status"><option value="open">Open</option><option value="draft">Concept</option><option value="completed">Afgerond</option></select></label>
       <label class="field">Betaalstatus<select name="payment_status"><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="failed">Mislukt</option></select></label>
       <label class="field">Verzendstatus<select name="fulfillment_status"><option value="unfulfilled">Niet verzonden</option><option value="processing">In behandeling</option><option value="shipped">Verzonden</option><option value="delivered">Bezorgd</option></select></label>
@@ -768,6 +780,25 @@ function newOrderForm() {
   elements.dialog.classList.add('admin-dialog--wide')
   const form = document.querySelector('#new-order-form')
   const lines = form.querySelector('#manual-order-lines')
+  const orderTypeSelect = form.elements.order_type
+  const customerFields = form.querySelector('#manual-customer-fields')
+  const physioFields = form.querySelector('#manual-physio-fields')
+  const requiredPhysioFields = ['physio_practice_name', 'physio_email', 'physio_street', 'physio_postal_code', 'physio_city']
+
+  const setOrderTypeMode = () => {
+    const isPhysio = orderTypeSelect.value === 'physio'
+    customerFields.hidden = isPhysio
+    physioFields.hidden = !isPhysio
+    form.elements.customer_id.required = !isPhysio
+    form.elements.customer_id.disabled = isPhysio
+    requiredPhysioFields.forEach((name) => {
+      form.elements[name].required = isPhysio
+      form.elements[name].disabled = !isPhysio
+    })
+    form.elements.physio_contact_name.disabled = !isPhysio
+  }
+  orderTypeSelect.addEventListener('change', setOrderTypeMode)
+  setOrderTypeMode()
 
   const addLine = () => {
     const row = document.createElement('div')
@@ -789,20 +820,27 @@ function newOrderForm() {
     if (!items.length || items.some((item) => !item.variant_id || !Number.isInteger(item.quantity) || item.quantity < 1)) { toast('Controleer de producten', 'Kies voor iedere regel een maat en geldig aantal.', true); return }
     if (new Set(items.map((item) => item.variant_id)).size !== items.length) { toast('Dubbele maat gekozen', 'Combineer hetzelfde product en dezelfde maat in één regel.', true); return }
     const values = Object.fromEntries(new FormData(form))
+    const isPhysio = values.order_type === 'physio'
+    const physio = isPhysio ? trackingDestinationFromForm({ ...values, tracking_destination_type: 'physio' }) : {}
     setBusy(button, true, 'Bestelling aanmaken')
     const { data, error } = await supabase.rpc('create_admin_order', {
-      p_customer_id: values.customer_id,
+      p_customer_id: values.customer_id || null,
       p_items: items,
       p_status: values.status,
       p_payment_status: values.payment_status,
       p_fulfillment_status: values.fulfillment_status,
       p_shipping_cents: Math.round(Number(values.shipping || 0) * 100),
       p_note: values.note || '',
+      p_order_type: values.order_type,
+      p_physio: physio,
     })
     if (error) { toast('Bestelling aanmaken mislukt', error.message, true); setBusy(button, false, 'Bestelling aanmaken'); return }
-    await recordActivity('Handmatige bestelling aangemaakt', 'order', data.order_id, { order_number: data.order_number })
-    toast('Bestelling aangemaakt', `Order #${data.order_number} staat in het overzicht.`)
-    closeDialog(); await refreshCurrentRoute()
+    await recordActivity(isPhysio ? 'Fysiobestelling aangemaakt' : 'Handmatige bestelling aangemaakt', 'order', data.order_id, { order_number: data.order_number, order_type: values.order_type })
+    toast(isPhysio ? 'Fysiobestelling aangemaakt' : 'Bestelling aangemaakt', `Order #${data.order_number} is klaar om te verzenden.`)
+    closeDialog()
+    await fetchAllData()
+    const createdOrder = state.orders.find((order) => order.id === data.order_id)
+    if (createdOrder) openOrder(createdOrder); else renderOrders()
   })
 }
 
@@ -855,7 +893,7 @@ function orderTimeline(order) {
   state.orderNotes.filter((item) => item.order_id === order.id).forEach((item) => events.push({ id: `note-${item.id}`, type: 'note', title: item.body, detail: item.author_email, created_at: item.created_at, noteId: item.id }))
   state.emailMessages.filter((item) => item.order_id === order.id).forEach((item) => events.push({ id: `email-${item.id}`, type: 'email', title: item.status === 'sent' ? `E-mail verstuurd: ${item.subject}` : `E-mailstatus: ${item.subject}`, detail: prettyStatus(item.status), created_at: item.sent_at || item.created_at }))
   state.payments.filter((item) => item.order_id === order.id).forEach((item) => events.push({ id: `payment-${item.id}`, type: 'payment', title: `Betaling ${prettyStatus(item.status).toLowerCase()} · ${formatMoney(item.amount_cents)}`, detail: item.provider === 'mollie' ? 'Mollie Payments' : 'Handmatige betaling', created_at: item.updated_at || item.created_at }))
-  events.push({ id: `order-${order.id}`, type: 'order', title: `${order.customer_name || order.customer_email} heeft deze bestelling geplaatst`, detail: order.source === 'admin' ? 'ZOL Admin' : 'ZOL-webshop', created_at: order.created_at })
+  events.push({ id: `order-${order.id}`, type: 'order', title: order.order_type === 'physio' ? `Fysiobestelling voor ${order.customer_name || order.customer_email} aangemaakt` : `${order.customer_name || order.customer_email} heeft deze bestelling geplaatst`, detail: order.source === 'admin' ? 'ZOL Admin' : 'ZOL-webshop', created_at: order.created_at })
   return events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 }
 
@@ -869,10 +907,20 @@ function openOrder(order) {
   if (!order) return
   const canManage = ['owner', 'admin'].includes(state.profile?.role)
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
+  const isPhysioOrder = order.order_type === 'physio'
   const payment = state.payments.find((item) => item.order_id === order.id)
   const customer = state.customers.find((item) => item.id === order.customer_id)
   const address = order.shipping_address || {}
   const trackingDestination = normalizeTrackingDestination(order.tracking_destination)
+  const physio = isPhysioOrder ? {
+    practice_name: trackingDestination.practice_name || order.customer_name,
+    contact_name: trackingDestination.contact_name || '',
+    email: trackingDestination.email || order.customer_email,
+    street: trackingDestination.street || address.street,
+    postal_code: trackingDestination.postal_code || address.postal_code,
+    city: trackingDestination.city || address.city,
+    country: trackingDestination.country || address.country || 'NL',
+  } : null
   const postnl = order.postnl || {}
   const timeline = orderTimeline(order)
   const trackingPostalCode = trackingDestination.type === 'physio' ? trackingDestination.postal_code : address.postal_code
@@ -882,14 +930,17 @@ function openOrder(order) {
   const discoveryAnswer = checkoutAnswer(order)
   const orderEvent = state.analytics.find((event) => event.event_name === 'order_created' && String(event.metadata?.order_number) === String(order.order_number))
   const sessionEvents = orderEvent ? state.analytics.filter((event) => event.session_id === orderEvent.session_id) : []
-  const customerOrders = state.orders.filter((item) => item.customer_id === order.customer_id)
+  const customerOrders = isPhysioOrder ? [] : state.orders.filter((item) => item.customer_id === order.customer_id)
   const itemCount = (order.order_items || []).reduce((sum, item) => sum + item.quantity, 0)
   const itemRows = (order.order_items || []).map((item) => {
     const image = Array.isArray(item.products?.images) ? item.products.images[0] : ''
     return `<article class="order-product"><div class="order-product-image">${image ? `<img src="${escapeHtml(image)}" alt="">` : '<span>ZOL</span>'}</div><div><strong>${escapeHtml(item.product_name)}</strong><small>${escapeHtml(item.variant_name || item.sku)}</small></div><p>${formatMoney(item.unit_price_cents)} × ${item.quantity}</p><b>${formatMoney(item.total_cents)}</b></article>`
   }).join('')
+  const recipientCard = isPhysioOrder
+    ? `<section class="order-card customer-card"><header><h2>Fysio</h2></header><strong class="customer-link">${escapeHtml(physio.practice_name)}</strong>${physio.contact_name ? `<span>${escapeHtml(physio.contact_name)}</span>` : ''}<h3>Contactgegevens</h3><a href="mailto:${escapeHtml(physio.email)}">${escapeHtml(physio.email)}</a><h3>Afleveradres</h3><address>${escapeHtml(physio.practice_name)}${physio.contact_name ? `<br>${escapeHtml(physio.contact_name)}` : ''}<br>${escapeHtml(physio.street || '')}<br>${escapeHtml(physio.postal_code || '')} ${escapeHtml(physio.city || '')}<br>${escapeHtml(physio.country === 'NL' ? 'Nederland' : physio.country || '')}</address>${physio.street ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([physio.street, physio.postal_code, physio.city].filter(Boolean).join(' '))}" target="_blank" rel="noreferrer">Kaart weergeven</a>` : ''}</section>`
+    : `<section class="order-card customer-card"><header><h2>Klant</h2></header><button class="customer-link" data-action="open-customer" data-id="${order.customer_id}">${escapeHtml(order.customer_name || order.customer_email)}</button><a href="#customers">${customerOrders.length} bestelling${customerOrders.length === 1 ? '' : 'en'}</a><h3>Contactgegevens</h3><a href="mailto:${escapeHtml(order.customer_email)}">${escapeHtml(order.customer_email)}</a>${customer?.phone ? `<a href="tel:${escapeHtml(customer.phone)}">${escapeHtml(customer.phone)}</a>` : ''}<h3>Bezorgadres</h3><address>${escapeHtml(order.customer_name)}<br>${escapeHtml(address.street || '')}<br>${escapeHtml(address.postal_code || '')} ${escapeHtml(address.city || '')}<br>${escapeHtml(address.country === 'NL' ? 'Nederland' : address.country || '')}</address>${address.street ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([address.street, address.postal_code, address.city].filter(Boolean).join(' '))}" target="_blank" rel="noreferrer">Kaart weergeven</a>` : ''}</section>`
   elements.content.innerHTML = `<div class="page-container order-detail-page">
-    <header class="order-detail-header"><div><button class="order-back" type="button" data-action="back-orders"><i data-lucide="arrow-left"></i></button><div><div class="order-title-line"><h1>#${order.order_number}</h1>${statusPill(order.payment_status)}${statusPill(order.fulfillment_status)}${order.archived ? '<span class="status-pill">Gearchiveerd</span>' : ''}</div><p>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit' })} via ${order.source === 'admin' ? 'ZOL Admin' : order.source === 'csv-import' ? `CSV-import${order.external_reference ? ` · ${escapeHtml(order.external_reference)}` : ''}` : 'Webshop'}</p></div></div><div class="order-header-actions">${refundable && canManage ? `<button class="button" data-action="refund-order" data-id="${order.id}"><i data-lucide="rotate-ccw"></i> Terugbetalen</button>` : ''}${order.fulfillment_status !== 'returned' && canManage ? `<button class="button" data-action="return-order" data-id="${order.id}">Retourneren</button>` : ''}<button class="button" data-action="toggle-archive" data-id="${order.id}"><i data-lucide="archive"></i>${order.archived ? 'Uit archief' : 'Archiveren'}</button></div></header>
+    <header class="order-detail-header"><div><button class="order-back" type="button" data-action="back-orders"><i data-lucide="arrow-left"></i></button><div><div class="order-title-line"><h1>#${order.order_number}</h1>${isPhysioOrder ? '<span class="status-pill">Fysio</span>' : ''}${statusPill(order.payment_status)}${statusPill(order.fulfillment_status)}${order.archived ? '<span class="status-pill">Gearchiveerd</span>' : ''}</div><p>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit' })} via ${order.source === 'admin' ? 'ZOL Admin' : order.source === 'csv-import' ? `CSV-import${order.external_reference ? ` · ${escapeHtml(order.external_reference)}` : ''}` : 'Webshop'}</p></div></div><div class="order-header-actions">${refundable && canManage ? `<button class="button" data-action="refund-order" data-id="${order.id}"><i data-lucide="rotate-ccw"></i> Terugbetalen</button>` : ''}${order.fulfillment_status !== 'returned' && canManage ? `<button class="button" data-action="return-order" data-id="${order.id}">Retourneren</button>` : ''}<button class="button" data-action="toggle-archive" data-id="${order.id}"><i data-lucide="archive"></i>${order.archived ? 'Uit archief' : 'Archiveren'}</button></div></header>
     <div class="order-detail-grid"><main class="order-detail-main">
       <section class="order-card fulfillment-card"><header><div><i data-lucide="truck"></i><div><h2>${prettyStatus(order.fulfillment_status)}</h2><p>${order.shipped_at ? `Verzonden ${formatDate(order.shipped_at, { hour: '2-digit', minute: '2-digit' })}` : 'Klaar voor verwerking'}</p></div></div><span>#${order.order_number}-F1</span></header>
         ${order.tracking_code ? `<div class="tracking-summary"><div><span>${escapeHtml(order.tracking_carrier || 'Tracking')} · Naar ${trackingDestination.type === 'physio' ? 'fysio' : 'klant'}</span><strong>${escapeHtml(order.tracking_code)}</strong>${trackingDestination.type === 'physio' ? `<small class="tracking-recipient"><b>${escapeHtml(trackingDestinationLabel(trackingDestination))}</b>${trackingDestination.contact_name ? ` · ${escapeHtml(trackingDestination.contact_name)}` : ''}<br>${escapeHtml([trackingDestination.street, trackingDestination.postal_code, trackingDestination.city].filter(Boolean).join(', '))}</small>` : ''}${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" target="_blank" rel="noreferrer">Zending volgen <i data-lucide="external-link"></i></a>` : ''}</div>${order.fulfillment_status === 'delivered' ? statusPill('delivered') : statusPill('shipped')}</div>` : ''}
@@ -902,11 +953,11 @@ function openOrder(order) {
     </main><aside class="order-detail-side">
       ${order.source === 'zol-webshop' ? `<section class="order-card checkout-answer-card"><header><div><span>CHECKOUTANTWOORD</span><h2>Hoe kwam deze klant bij ZOL?</h2></div><i data-lucide="file-text"></i></header><div><small>Antwoord van de klant</small><strong>${escapeHtml(discoveryAnswer || 'Geen antwoord opgeslagen')}</strong></div></section>` : ''}
       ${!discoveryAnswer ? `<section class="order-card order-note-card"><header><h2>Notities</h2>${canManage ? `<button data-action="edit-order-note" data-id="${order.id}" aria-label="Notitie bewerken"><i data-lucide="pencil"></i></button>` : ''}</header><p>${escapeHtml(order.note || 'Geen notities van klant').replaceAll('\n', '<br>')}</p></section>` : ''}
-      <section class="order-card customer-card"><header><h2>Klant</h2></header><button class="customer-link" data-action="open-customer" data-id="${order.customer_id}">${escapeHtml(order.customer_name || order.customer_email)}</button><a href="#customers">${customerOrders.length} bestelling${customerOrders.length === 1 ? '' : 'en'}</a><h3>Contactgegevens</h3><a href="mailto:${escapeHtml(order.customer_email)}">${escapeHtml(order.customer_email)}</a>${customer?.phone ? `<a href="tel:${escapeHtml(customer.phone)}">${escapeHtml(customer.phone)}</a>` : ''}<h3>Bezorgadres</h3><address>${escapeHtml(order.customer_name)}<br>${escapeHtml(address.street || '')}<br>${escapeHtml(address.postal_code || '')} ${escapeHtml(address.city || '')}<br>${escapeHtml(address.country === 'NL' ? 'Nederland' : address.country || '')}</address>${address.street ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([address.street, address.postal_code, address.city].filter(Boolean).join(' '))}" target="_blank" rel="noreferrer">Kaart weergeven</a>` : ''}</section>
-      <section class="order-card conversion-card"><header><h2>Conversieoverzicht</h2></header><p><i data-lucide="shopping-bag"></i>Dit is hun ${customerOrders.length === 1 ? '1e' : `${customerOrders.length}e`} bestelling.</p><p><i data-lucide="link"></i>${orderEvent?.metadata?.referrer && orderEvent.metadata.referrer !== 'Direct' ? escapeHtml(orderEvent.metadata.referrer) : 'Sessie was direct naar de winkel'}</p><p><i data-lucide="chart-no-axes-combined"></i>${sessionEvents.length || 1} gemeten gebeurtenis${sessionEvents.length === 1 ? '' : 'sen'}</p></section>
+      ${recipientCard}
+      ${isPhysioOrder ? '' : `<section class="order-card conversion-card"><header><h2>Conversieoverzicht</h2></header><p><i data-lucide="shopping-bag"></i>Dit is hun ${customerOrders.length === 1 ? '1e' : `${customerOrders.length}e`} bestelling.</p><p><i data-lucide="link"></i>${orderEvent?.metadata?.referrer && orderEvent.metadata.referrer !== 'Direct' ? escapeHtml(orderEvent.metadata.referrer) : 'Sessie was direct naar de winkel'}</p><p><i data-lucide="chart-no-axes-combined"></i>${sessionEvents.length || 1} gemeten gebeurtenis${sessionEvents.length === 1 ? '' : 'sen'}</p></section>`}
       <section class="order-card risk-card"><header><h2>Bestelrisico</h2><span class="risk-label ${riskClass}">${riskLabel}</span></header><div class="risk-meter ${riskClass}"><i></i></div><div class="risk-scale"><span>Laag</span><span>Gemiddeld</span><span>Hoog</span></div><p>${riskCopy}</p></section>
       <section class="order-card tags-card"><header><h2>Tags</h2><i data-lucide="tag"></i></header><form id="order-tags-form"><input name="tags" maxlength="400" value="${escapeHtml((order.tags || []).join(', '))}" placeholder="bijv. club, spoed, VIP" ${canManage ? '' : 'disabled'}><button class="button" type="submit" ${canManage ? '' : 'disabled'}>Opslaan</button></form></section>
-      <section class="order-card status-card"><header><h2>Status beheren</h2></header><form id="order-status-form"><label>Bestelstatus<select name="status" ${canManage ? '' : 'disabled'}><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label><label>Verzendstatus<select name="fulfillment_status" ${canManage ? '' : 'disabled'}><option value="unfulfilled">Niet verzonden</option><option value="processing">In behandeling</option><option value="shipped">Verzonden</option><option value="delivered">Bezorgd</option></select></label><button class="button" type="submit" ${canManage ? '' : 'disabled'}>Status opslaan</button></form><div class="order-secondary-actions"><button class="button" data-action="print-invoice" data-id="${order.id}"><i data-lucide="file-text"></i> Factuur</button>${order.payment_status === 'paid' ? `<button class="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging</button>` : ''}${canManage ? `<button class="button button--danger" data-action="delete-order" data-id="${order.id}">Verwijderen</button>` : ''}</div></section>
+      <section class="order-card status-card"><header><h2>Status beheren</h2></header><form id="order-status-form"><label>Bestelstatus<select name="status" ${canManage ? '' : 'disabled'}><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label><label>Verzendstatus<select name="fulfillment_status" ${canManage ? '' : 'disabled'}><option value="unfulfilled">Niet verzonden</option><option value="processing">In behandeling</option><option value="shipped">Verzonden</option><option value="delivered">Bezorgd</option></select></label><button class="button" type="submit" ${canManage ? '' : 'disabled'}>Status opslaan</button></form><div class="order-secondary-actions"><button class="button" data-action="print-invoice" data-id="${order.id}"><i data-lucide="file-text"></i> Factuur</button>${order.payment_status === 'paid' && !isPhysioOrder ? `<button class="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging</button>` : ''}${canManage ? `<button class="button button--danger" data-action="delete-order" data-id="${order.id}">Verwijderen</button>` : ''}</div></section>
     </aside></div>
   </div>`
 
@@ -942,6 +993,7 @@ function openOrder(order) {
 function trackingForm(order) {
   const address = order.shipping_address || {}
   const destination = normalizeTrackingDestination(order.tracking_destination)
+  const isPhysioOrder = order.order_type === 'physio'
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
   openDialog(
     order.tracking_code ? 'Tracking wijzigen' : 'Tracking toevoegen',
@@ -950,7 +1002,7 @@ function trackingForm(order) {
       <div class="form-grid">
         <label class="field field--full">Ontvanger
           <select name="tracking_destination_type">
-            <option value="customer" ${destination.type === 'customer' ? 'selected' : ''}>Klant — bestaand bezorgadres</option>
+            <option value="customer" ${destination.type === 'customer' ? 'selected' : ''} ${isPhysioOrder ? 'disabled' : ''}>Klant — bestaand bezorgadres</option>
             <option value="physio" ${destination.type === 'physio' ? 'selected' : ''}>Fysio — handmatig adres</option>
           </select>
         </label>
@@ -1044,7 +1096,8 @@ async function removeOrderTracking(order, button) {
   if (!['owner', 'admin'].includes(state.profile?.role)) { toast('Tracking verwijderen mislukt', 'Je hebt geen toegang om tracking te verwijderen.', true); return }
   if (!window.confirm(`Trackingcode ${order.tracking_code} verwijderen uit bestelling #${order.order_number}? De verzendstatus en een eventueel PostNL-label blijven ongewijzigd.`)) return
   setBusy(button, true, 'Tracking verwijderen')
-  const { data, error } = await supabase.from('orders').update(trackingRemovalUpdate()).eq('id', order.id).select('id').maybeSingle()
+  const destination = order.order_type === 'physio' ? order.tracking_destination : { type: 'customer' }
+  const { data, error } = await supabase.from('orders').update(trackingRemovalUpdate(destination)).eq('id', order.id).select('id').maybeSingle()
   if (error || !data) {
     toast('Tracking verwijderen mislukt', error?.message || 'Je hebt geen toegang om deze bestelling bij te werken.', true)
     setBusy(button, false, 'Tracking verwijderen')
@@ -1059,8 +1112,10 @@ function postnlLabelForm(order) {
   const config = settingsValue('postnl_config')
   const environment = config.environment === 'production' ? 'production' : 'sandbox'
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
+  const isPhysioOrder = order.order_type === 'physio'
+  const canNotifyCustomer = emailEnabled && !isPhysioOrder
   const isProduction = environment === 'production'
-  openDialog('PostNL-label maken', `Bestelling #${order.order_number}`, `<form id="postnl-label-form"><div class="email-connection ${isProduction ? '' : 'is-connected'}"><i>${isProduction ? '!' : '✓'}</i><div><strong>${isProduction ? 'Productie — deze zending wordt echt aangemeld' : 'Veilige sandbox-test'}</strong><small>${isProduction ? 'PostNL kan deze zending factureren. Controleer adres en betaling zorgvuldig.' : 'Er wordt geen echte betaalde zending aangemaakt.'}</small></div></div><div class="form-grid"><label class="field">Pakkettype<input value="${config.shipment_type === 'letterbox' ? 'Brievenbuspakje' : 'Pakket'}" disabled></label><label class="checkbox-field field--full"><input name="notify" type="checkbox" ${emailEnabled && isProduction ? 'checked' : ''} ${emailEnabled ? '' : 'disabled'}> Na het maken als verzonden markeren en de klant mailen</label>${isProduction ? '<label class="checkbox-field field--full"><input name="confirm_production" type="checkbox" required> Ik bevestig dat dit een echte productiezending mag worden</label>' : ''}</div>${!emailEnabled ? '<p class="form-hint">De trackingcode wordt wel opgeslagen; activeer e-mail eerst om de klant automatisch te informeren.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'}</button></div></form>`)
+  openDialog('PostNL-label maken', `Bestelling #${order.order_number}`, `<form id="postnl-label-form"><div class="email-connection ${isProduction ? '' : 'is-connected'}"><i>${isProduction ? '!' : '✓'}</i><div><strong>${isProduction ? 'Productie — deze zending wordt echt aangemeld' : 'Veilige sandbox-test'}</strong><small>${isProduction ? 'PostNL kan deze zending factureren. Controleer adres en betaling zorgvuldig.' : 'Er wordt geen echte betaalde zending aangemaakt.'}</small></div></div><div class="form-grid"><label class="field">Pakkettype<input value="${config.shipment_type === 'letterbox' ? 'Brievenbuspakje' : 'Pakket'}" disabled></label><label class="checkbox-field field--full"><input name="notify" type="checkbox" ${isPhysioOrder || (canNotifyCustomer && isProduction) ? 'checked' : ''} ${canNotifyCustomer ? '' : 'disabled'}> ${isPhysioOrder ? 'Na het maken als verzonden markeren' : 'Na het maken als verzonden markeren en de klant mailen'}</label>${isProduction ? '<label class="checkbox-field field--full"><input name="confirm_production" type="checkbox" required> Ik bevestig dat dit een echte productiezending mag worden</label>' : ''}</div>${isPhysioOrder ? '<p class="form-hint">Dit is een fysiobestelling. Het label gebruikt het praktijkadres en er wordt geen automatische klantmail verstuurd.</p>' : !emailEnabled ? '<p class="form-hint">De trackingcode wordt wel opgeslagen; activeer e-mail eerst om de klant automatisch te informeren.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'}</button></div></form>`)
   const form = document.querySelector('#postnl-label-form')
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
@@ -1068,10 +1123,10 @@ function postnlLabelForm(order) {
     setBusy(button, true, isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken')
     const { data, error } = await supabase.functions.invoke('postnl-shipment', { body: { action: 'create', order_id: order.id, confirm_production: Boolean(form.elements.confirm_production?.checked) } })
     if (error || data?.error) { toast('PostNL-label mislukt', await edgeFunctionMessage(error, data, 'Het label kon niet worden gemaakt.'), true); setBusy(button, false, isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'); return }
-    if (form.elements.notify.checked) {
+    if (isPhysioOrder || form.elements.notify.checked) {
       const { error: statusError } = await supabase.from('orders').update({ fulfillment_status: 'shipped', shipped_at: new Date().toISOString() }).eq('id', order.id)
       if (statusError) toast('Label gemaakt, verzendstatus niet bijgewerkt', statusError.message, true)
-      else {
+      else if (!isPhysioOrder && form.elements.notify.checked) {
         const { data: emailData, error: emailError } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'shipping' } })
         if (emailError || emailData?.error) toast('Label gemaakt, verzendmail mislukt', await edgeFunctionMessage(emailError, emailData, 'De e-mail kon niet worden verstuurd.'), true)
       }
