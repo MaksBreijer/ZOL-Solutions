@@ -25,9 +25,6 @@ const adminIcons = {
 
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
 
-const ZOL_CALENDAR_ID = '7d10f76a1ef8cdb5ca15ae46e3ba1e70af731fd60f5fa40abf93c259ea88f0dd@group.calendar.google.com'
-const ZOL_CALENDAR_ICS_URL = `https://calendar.google.com/calendar/ical/${encodeURIComponent(ZOL_CALENDAR_ID)}/public/basic.ics`
-const ZOL_CALENDAR_EMBED_URL = `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(ZOL_CALENDAR_ID)}&ctz=Europe%2FAmsterdam`
 const GOOGLE_CALENDAR_URL = 'https://calendar.google.com/calendar/u/0/r'
 
 const elements = {
@@ -496,39 +493,46 @@ function renderDashboard() {
 
 function renderCalendar() {
   elements.content.innerHTML = `<div class="page-container calendar-page">
-    ${pageHeader('calendar', `<button class="button" type="button" data-action="copy-calendar-feed"><i data-lucide="link"></i> Link voor telefoon</button><a class="button button--primary" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Beheren in Google Agenda</a>`)}
+    ${pageHeader('calendar', `<a class="button button--primary" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> ZOL-agenda openen</a>`)}
     <section class="calendar-intro" aria-label="Zo werkt de ZOL Teamagenda">
       <article class="calendar-intro-card calendar-intro-card--primary">
         <span class="calendar-step-icon"><i data-lucide="calendar-days"></i></span>
-        <div><small>ÉÉN CENTRALE AGENDA</small><h2>ZOL Teamagenda</h2><p>Wat je in Google Agenda toevoegt of wijzigt, verschijnt hier automatisch en wordt bijgewerkt op gekoppelde telefoons.</p></div>
+        <div><small>ÉÉN CENTRALE AGENDA</small><h2>ZOL Teamagenda</h2><p>Google Agenda is de centrale bron. Wijzigingen die jij of Thijn daar doet, synchroniseren automatisch met alle gekoppelde telefoons.</p></div>
       </article>
       <article class="calendar-intro-card">
-        <strong>1</strong><div><h3>Beheren</h3><p>Maak en wijzig afspraken via de knop <b>Beheren in Google Agenda</b>.</p></div>
+        <strong>1</strong><div><h3>Beheren</h3><p>Maak en wijzig afspraken via de knop <b>ZOL-agenda openen</b>.</p></div>
       </article>
       <article class="calendar-intro-card">
-        <strong>2</strong><div><h3>Meenemen</h3><p>Kopieer de link en voeg hem als agenda-abonnement toe aan Apple Agenda of Outlook.</p></div>
+        <strong>2</strong><div><h3>Synchroniseren</h3><p>Voeg hetzelfde Google-account toe op je telefoon voor wijzigingen in beide richtingen.</p></div>
       </article>
     </section>
 
     <div class="calendar-layout">
       <section class="panel calendar-panel">
-        <header class="panel-header"><div><h2>Live agenda</h2><p>Rechtstreeks uit de gedeelde Google-agenda · tijdzone Europe/Amsterdam</p></div><span class="calendar-live-status"><i></i> LIVE</span></header>
-        <div class="calendar-embed-shell">
-          <iframe src="${ZOL_CALENDAR_EMBED_URL}" title="ZOL Teamagenda" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <header class="panel-header"><div><h2>Google Agenda-koppeling</h2><p>Eén agenda voor de admin, jullie telefoons en alle beheerders</p></div><span class="calendar-live-status"><i></i> SYNCHRONISATIE</span></header>
+        <div class="calendar-sync-stage">
+          <div class="calendar-sync-item"><span><i data-lucide="users"></i></span><strong>ZOL-team</strong><small>Maks & Thijn</small></div>
+          <b>↔</b>
+          <div class="calendar-sync-item calendar-sync-item--google"><span><i data-lucide="calendar-days"></i></span><strong>Google Agenda</strong><small>Centrale bron</small></div>
+          <b>↔</b>
+          <div class="calendar-sync-item"><span><i data-lucide="refresh-cw"></i></span><strong>Telefoons</strong><small>Altijd bijgewerkt</small></div>
+        </div>
+        <div class="calendar-manage-box">
+          <div><strong>Afspraken bekijken of wijzigen</strong><p>Google blokkeert het bewerken van een privéagenda binnen een website. Daarom opent de beveiligde agenda in Google; je blijft vanuit ZOL Admin werken en alle wijzigingen synchroniseren met jullie telefoons.</p></div>
+          <a class="button button--primary" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Open gedeelde agenda</a>
         </div>
       </section>
 
       <aside class="calendar-side">
         <section class="panel calendar-subscribe-card">
-          <span class="calendar-card-icon"><i data-lucide="link"></i></span>
+          <span class="calendar-card-icon"><i data-lucide="refresh-cw"></i></span>
           <h2>Op je telefoon</h2>
-          <p>Abonneer je één keer. Nieuwe en gewijzigde afspraken komen daarna vanzelf binnen.</p>
-          <button class="button button--primary" type="button" data-action="copy-calendar-feed">Abonnementslink kopiëren</button>
-          <ol><li>Open Apple Agenda of Outlook.</li><li>Kies <b>Agenda-abonnement toevoegen</b>.</li><li>Plak de gekopieerde link.</li></ol>
-          <small>Dit abonnement is alleen-lezen. Afspraken beheer je in Google Agenda.</small>
+          <p>Koppel het Google-account in plaats van een openbare ICS-link. Dan kun je op je telefoon ook afspraken toevoegen en wijzigen.</p>
+          <ol><li>Deel de ZOL-agenda met het Google-account van iedere beheerder.</li><li>Voeg dat Google-account toe aan de agenda-app op de telefoon.</li><li>Zet <b>ZOL Teamagenda</b> aan in de lijst met agenda's.</li></ol>
+          <small>Google synchroniseert wijzigingen automatisch in beide richtingen. Een ICS-abonnement kan alleen lezen.</small>
         </section>
         <section class="calendar-privacy-card">
-          <span>!</span><div><strong>Let op: openbare agenda</strong><p>Deze koppeling is openbaar leesbaar. Zet daarom geen medische gegevens, diagnoses of andere gevoelige persoonsgegevens in afspraken.</p></div>
+          <span>✓</span><div><strong>Veilig delen</strong><p>Deel de agenda alleen met specifieke ZOL-beheerders. Zo hoeft de agenda niet openbaar te worden gemaakt.</p></div>
         </section>
       </aside>
     </div>
@@ -2514,14 +2518,6 @@ async function handleContentClick(event) {
   const jump = event.target.closest('[data-route-jump]'); if (jump) { const fromEmails = currentRoute() === 'emails' && jump.dataset.routeJump === 'settings'; window.location.hash = jump.dataset.routeJump; if (fromEmails) window.setTimeout(() => renderSettings('email'), 0); return }
   const target = event.target.closest('[data-action]'); if (!target) return
   const { action, id } = target.dataset
-  if (action === 'copy-calendar-feed') {
-    try {
-      await navigator.clipboard.writeText(ZOL_CALENDAR_ICS_URL)
-      toast('Agendalink gekopieerd', 'Plak hem als agenda-abonnement in Apple Agenda, Outlook of een andere agenda-app.')
-    } catch {
-      window.prompt('Kopieer deze agendalink:', ZOL_CALENDAR_ICS_URL)
-    }
-  }
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()
