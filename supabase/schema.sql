@@ -245,6 +245,19 @@ create table public.orders (
   tracking_code text not null default '',
   tracking_carrier text not null default '',
   tracking_url text not null default '',
+  tracking_destination jsonb not null default '{"type":"customer"}'::jsonb check (
+    jsonb_typeof(tracking_destination) = 'object'
+    and tracking_destination ->> 'type' in ('customer', 'physio')
+    and (
+      tracking_destination ->> 'type' = 'customer'
+      or (
+        char_length(btrim(coalesce(tracking_destination ->> 'practice_name', ''))) between 1 and 140
+        and char_length(btrim(coalesce(tracking_destination ->> 'street', ''))) between 1 and 160
+        and char_length(btrim(coalesce(tracking_destination ->> 'postal_code', ''))) between 1 and 24
+        and char_length(btrim(coalesce(tracking_destination ->> 'city', ''))) between 1 and 100
+      )
+    )
+  ),
   invoice_url text not null default '',
   postnl jsonb not null default '{}'::jsonb check (jsonb_typeof(postnl) = 'object'),
   archived boolean not null default false,

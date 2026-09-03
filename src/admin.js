@@ -4,7 +4,12 @@ import { appleCalendarSubscriptionUrl, calendarGridRange, eventsForDay, googleCa
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
-import { trackingRemovalUpdate } from './order-tracking.js'
+import {
+  normalizeTrackingDestination,
+  trackingDestinationFromForm,
+  trackingDestinationLabel,
+  trackingRemovalUpdate,
+} from './order-tracking.js'
 import { participantOverview, pilotExcelCsv, pilotSummary, timepointSummary } from './pilot-report.js'
 import {
   PARTNER_REGIONS, PARTNER_STATUSES, PARTNER_TYPES, buildNominatimQueries, buildOverpassQuery, defaultPartnerScoutState,
@@ -853,9 +858,11 @@ function openOrder(order) {
   const payment = state.payments.find((item) => item.order_id === order.id)
   const customer = state.customers.find((item) => item.id === order.customer_id)
   const address = order.shipping_address || {}
+  const trackingDestination = normalizeTrackingDestination(order.tracking_destination)
   const postnl = order.postnl || {}
   const timeline = orderTimeline(order)
-  const trackingUrl = order.tracking_url || orderTrackingUrl(order.tracking_carrier, order.tracking_code, address.postal_code)
+  const trackingPostalCode = trackingDestination.type === 'physio' ? trackingDestination.postal_code : address.postal_code
+  const trackingUrl = order.tracking_url || orderTrackingUrl(order.tracking_carrier, order.tracking_code, trackingPostalCode)
   const refundable = payment ? Math.max(0, payment.amount_cents - payment.refunded_cents) : 0
   const [riskLabel, riskClass, riskCopy] = orderRisk(order, payment)
   const discoveryAnswer = checkoutAnswer(order)
@@ -871,7 +878,7 @@ function openOrder(order) {
     <header class="order-detail-header"><div><button class="order-back" type="button" data-action="back-orders"><i data-lucide="arrow-left"></i></button><div><div class="order-title-line"><h1>#${order.order_number}</h1>${statusPill(order.payment_status)}${statusPill(order.fulfillment_status)}${order.archived ? '<span class="status-pill">Gearchiveerd</span>' : ''}</div><p>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit' })} via ${order.source === 'admin' ? 'ZOL Admin' : order.source === 'csv-import' ? `CSV-import${order.external_reference ? ` · ${escapeHtml(order.external_reference)}` : ''}` : 'Webshop'}</p></div></div><div class="order-header-actions">${refundable && canManage ? `<button class="button" data-action="refund-order" data-id="${order.id}"><i data-lucide="rotate-ccw"></i> Terugbetalen</button>` : ''}${order.fulfillment_status !== 'returned' && canManage ? `<button class="button" data-action="return-order" data-id="${order.id}">Retourneren</button>` : ''}<button class="button" data-action="toggle-archive" data-id="${order.id}"><i data-lucide="archive"></i>${order.archived ? 'Uit archief' : 'Archiveren'}</button></div></header>
     <div class="order-detail-grid"><main class="order-detail-main">
       <section class="order-card fulfillment-card"><header><div><i data-lucide="truck"></i><div><h2>${prettyStatus(order.fulfillment_status)}</h2><p>${order.shipped_at ? `Verzonden ${formatDate(order.shipped_at, { hour: '2-digit', minute: '2-digit' })}` : 'Klaar voor verwerking'}</p></div></div><span>#${order.order_number}-F1</span></header>
-        ${order.tracking_code ? `<div class="tracking-summary"><div><span>${escapeHtml(order.tracking_carrier || 'Tracking')}</span><strong>${escapeHtml(order.tracking_code)}</strong>${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" target="_blank" rel="noreferrer">Zending volgen <i data-lucide="external-link"></i></a>` : ''}</div>${order.fulfillment_status === 'delivered' ? statusPill('delivered') : statusPill('shipped')}</div>` : ''}
+        ${order.tracking_code ? `<div class="tracking-summary"><div><span>${escapeHtml(order.tracking_carrier || 'Tracking')} · Naar ${trackingDestination.type === 'physio' ? 'fysio' : 'klant'}</span><strong>${escapeHtml(order.tracking_code)}</strong>${trackingDestination.type === 'physio' ? `<small class="tracking-recipient"><b>${escapeHtml(trackingDestinationLabel(trackingDestination))}</b>${trackingDestination.contact_name ? ` · ${escapeHtml(trackingDestination.contact_name)}` : ''}<br>${escapeHtml([trackingDestination.street, trackingDestination.postal_code, trackingDestination.city].filter(Boolean).join(', '))}</small>` : ''}${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" target="_blank" rel="noreferrer">Zending volgen <i data-lucide="external-link"></i></a>` : ''}</div>${order.fulfillment_status === 'delivered' ? statusPill('delivered') : statusPill('shipped')}</div>` : ''}
         <div class="order-products">${itemRows || '<p class="no-order-items">Geen orderregels.</p>'}</div>
         ${postnl.barcode ? `<div class="postnl-shipment"><div><span>PostNL ${postnl.environment === 'production' ? 'productie' : 'sandbox'}</span><strong>Label en barcode aangemaakt</strong>${(postnl.warnings || []).length ? `<small>${escapeHtml(postnl.warnings.join(' · '))}</small>` : ''}</div><button class="button" data-action="postnl-label-url" data-id="${order.id}"><i data-lucide="download"></i> Label openen</button></div>` : ''}
         <footer><span>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</span><div>${postnl.barcode ? '' : `<button class="button button--primary" data-action="postnl-label" data-id="${order.id}"><i data-lucide="truck"></i> PostNL-label maken</button>`}${order.tracking_code ? `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="pencil"></i> Tracking wijzigen</button>${canManage ? `<button class="button button--danger" data-action="remove-tracking" data-id="${order.id}">Tracking verwijderen</button>` : ''}` : `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="plus"></i> Tracking toevoegen</button>`}${order.fulfillment_status === 'shipped' ? `<button class="button" data-action="mark-delivered" data-id="${order.id}"><i data-lucide="check-circle"></i> Markeer bezorgd</button>` : ''}</div></footer>
@@ -920,20 +927,100 @@ function openOrder(order) {
 
 function trackingForm(order) {
   const address = order.shipping_address || {}
+  const destination = normalizeTrackingDestination(order.tracking_destination)
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
-  openDialog(order.tracking_code ? 'Tracking wijzigen' : 'Tracking toevoegen', `Bestelling #${order.order_number}`, `<form id="tracking-form"><div class="form-grid"><label class="field">Bezorgdienst<select name="tracking_carrier"><option value="PostNL">PostNL</option><option value="DHL">DHL</option><option value="DPD">DPD</option><option value="UPS">UPS</option><option value="GLS">GLS</option><option value="Anders">Anders</option></select></label><label class="field">Trackingcode<input name="tracking_code" maxlength="120" value="${escapeHtml(order.tracking_code || '')}" required></label><label class="field field--full">Trackinglink <span>optioneel; wordt anders automatisch ingevuld</span><input name="tracking_url" type="url" value="${escapeHtml(order.tracking_url || '')}" placeholder="https://…"></label><label class="field">Verzendmoment<input name="shipped_at" type="datetime-local" value="${order.shipped_at ? new Date(order.shipped_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)}"></label><label class="checkbox-field"><input name="notify" type="checkbox" ${emailEnabled ? 'checked' : 'disabled'}> Klant per e-mail informeren</label></div>${!emailEnabled ? '<p class="form-hint">Activeer de e-mailkoppeling bij Instellingen om automatisch een verzendmail te sturen.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Tracking opslaan</button></div></form>`)
-  const form = document.querySelector('#tracking-form'); form.elements.tracking_carrier.value = order.tracking_carrier || 'PostNL'
+  openDialog(
+    order.tracking_code ? 'Tracking wijzigen' : 'Tracking toevoegen',
+    `Bestelling #${order.order_number}`,
+    `<form id="tracking-form">
+      <div class="form-grid">
+        <label class="field field--full">Ontvanger
+          <select name="tracking_destination_type">
+            <option value="customer" ${destination.type === 'customer' ? 'selected' : ''}>Klant — bestaand bezorgadres</option>
+            <option value="physio" ${destination.type === 'physio' ? 'selected' : ''}>Fysio — handmatig adres</option>
+          </select>
+        </label>
+        <div id="tracking-customer-destination" class="tracking-destination-preview field--full" ${destination.type === 'physio' ? 'hidden' : ''}>
+          <i data-lucide="map-pin"></i><div><strong>${escapeHtml(order.customer_name || order.customer_email)}</strong><small>${escapeHtml([address.street, address.postal_code, address.city].filter(Boolean).join(', ') || 'Geen bezorgadres beschikbaar')}</small></div>
+        </div>
+        <div id="tracking-physio-fields" class="tracking-recipient-fields" ${destination.type === 'physio' ? '' : 'hidden'}>
+          <div class="tracking-recipient-heading"><strong>Gegevens van de fysio</strong><small>Deze gegevens gelden alleen voor deze zending.</small></div>
+          <label class="field">Praktijknaam<input name="physio_practice_name" maxlength="140" autocomplete="organization" value="${escapeHtml(destination.practice_name || '')}"></label>
+          <label class="field">Contactpersoon <span>optioneel</span><input name="physio_contact_name" maxlength="120" autocomplete="name" value="${escapeHtml(destination.contact_name || '')}"></label>
+          <label class="field field--full">E-mailadres <span>optioneel</span><input name="physio_email" type="email" maxlength="254" autocomplete="email" value="${escapeHtml(destination.email || '')}" placeholder="praktijk@voorbeeld.nl"></label>
+          <label class="field field--full">Straat en huisnummer<input name="physio_street" maxlength="160" autocomplete="street-address" value="${escapeHtml(destination.street || '')}"></label>
+          <label class="field">Postcode<input name="physio_postal_code" maxlength="24" autocomplete="postal-code" value="${escapeHtml(destination.postal_code || '')}"></label>
+          <label class="field">Plaats<input name="physio_city" maxlength="100" autocomplete="address-level2" value="${escapeHtml(destination.city || '')}"></label>
+        </div>
+        <div class="tracking-form-divider field--full"><span>Verzendgegevens</span></div>
+        <label class="field">Bezorgdienst<select name="tracking_carrier"><option value="PostNL">PostNL</option><option value="DHL">DHL</option><option value="DPD">DPD</option><option value="UPS">UPS</option><option value="GLS">GLS</option><option value="Anders">Anders</option></select></label>
+        <label class="field">Trackingcode<input name="tracking_code" maxlength="120" value="${escapeHtml(order.tracking_code || '')}" required></label>
+        <label class="field field--full">Trackinglink <span>optioneel; wordt anders automatisch ingevuld</span><input name="tracking_url" type="url" value="${escapeHtml(order.tracking_url || '')}" placeholder="https://…"></label>
+        <label class="field">Verzendmoment<input name="shipped_at" type="datetime-local" value="${order.shipped_at ? new Date(order.shipped_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)}" required></label>
+        <label id="tracking-notify-field" class="checkbox-field"><input name="notify" type="checkbox" ${emailEnabled && destination.type === 'customer' ? 'checked' : ''} ${emailEnabled && destination.type === 'customer' ? '' : 'disabled'}> Klant per e-mail informeren</label>
+      </div>
+      <p id="tracking-destination-hint" class="form-hint" ${destination.type === 'physio' ? '' : 'hidden'}>Bij een fysiozending wordt de klant niet automatisch gemaild. De fysio en het adres worden wel bij de tracking opgeslagen.</p>
+      ${!emailEnabled ? '<p class="form-hint">Activeer de e-mailkoppeling bij Instellingen om de klant automatisch een verzendmail te sturen.</p>' : ''}
+      <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Tracking opslaan</button></div>
+    </form>`,
+  )
+  const form = document.querySelector('#tracking-form')
+  form.elements.tracking_carrier.value = order.tracking_carrier || 'PostNL'
+  const destinationSelect = form.elements.tracking_destination_type
+  const physioFields = form.querySelector('#tracking-physio-fields')
+  const customerDestination = form.querySelector('#tracking-customer-destination')
+  const destinationHint = form.querySelector('#tracking-destination-hint')
+  const notifyInput = form.elements.notify
+  const requiredPhysioFields = ['physio_practice_name', 'physio_street', 'physio_postal_code', 'physio_city']
+
+  const setDestinationMode = () => {
+    const isPhysio = destinationSelect.value === 'physio'
+    physioFields.hidden = !isPhysio
+    customerDestination.hidden = isPhysio
+    destinationHint.hidden = !isPhysio
+    requiredPhysioFields.forEach((name) => { form.elements[name].required = isPhysio })
+    notifyInput.disabled = !emailEnabled || isPhysio
+    if (isPhysio) notifyInput.checked = false
+  }
+  destinationSelect.addEventListener('change', setDestinationMode)
+  setDestinationMode()
+  refreshIcons()
+
   form.addEventListener('submit', async (event) => {
-    event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Tracking opslaan'); const values = Object.fromEntries(new FormData(form)); const code = values.tracking_code.trim(); const carrier = values.tracking_carrier
-    const trackingUrl = values.tracking_url.trim() || orderTrackingUrl(carrier, code, address.postal_code)
-    const { error } = await supabase.from('orders').update({ tracking_code: code, tracking_carrier: carrier, tracking_url: trackingUrl, shipped_at: new Date(values.shipped_at).toISOString(), fulfillment_status: 'shipped' }).eq('id', order.id)
-    if (error) { toast('Tracking opslaan mislukt', error.message, true); setBusy(button, false, 'Tracking opslaan'); return }
-    await recordActivity(order.tracking_code ? 'Tracking bijgewerkt' : 'Tracking toegevoegd', 'order', order.id, { order_number: order.order_number, carrier, tracking_code: code })
+    event.preventDefault()
+    const button = form.querySelector('[type="submit"]')
+    setBusy(button, true, 'Tracking opslaan')
+    const values = Object.fromEntries(new FormData(form))
+    const code = values.tracking_code.trim()
+    const carrier = values.tracking_carrier
+    const trackingDestination = trackingDestinationFromForm(values)
+    const postalCode = trackingDestination.type === 'physio' ? trackingDestination.postal_code : address.postal_code
+    const trackingUrl = values.tracking_url.trim() || orderTrackingUrl(carrier, code, postalCode)
+    const { data, error } = await supabase.from('orders').update({
+      tracking_code: code,
+      tracking_carrier: carrier,
+      tracking_url: trackingUrl,
+      tracking_destination: trackingDestination,
+      shipped_at: new Date(values.shipped_at).toISOString(),
+      fulfillment_status: 'shipped',
+    }).eq('id', order.id).select('id').maybeSingle()
+    if (error || !data) {
+      toast('Tracking opslaan mislukt', error?.message || 'Je hebt geen toegang om deze bestelling bij te werken.', true)
+      setBusy(button, false, 'Tracking opslaan')
+      return
+    }
+    const destinationText = trackingDestination.type === 'physio' ? ` naar ${trackingDestinationLabel(trackingDestination)}` : ''
+    await recordActivity(
+      order.tracking_code ? `Tracking${destinationText} bijgewerkt` : `Tracking${destinationText} toegevoegd`,
+      'order',
+      order.id,
+      { order_number: order.order_number, carrier, tracking_code: code, destination_type: trackingDestination.type, recipient: trackingDestinationLabel(trackingDestination) },
+    )
     if (values.notify === 'on') {
       const { data, error: emailError } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'shipping' } })
       if (emailError || data?.error) toast('Tracking opgeslagen, verzendmail mislukt', await edgeFunctionMessage(emailError, data, 'De e-mail kon niet worden verstuurd.'), true)
       else toast('Tracking en verzendmail verwerkt', code)
-    } else toast('Tracking opgeslagen', code)
+    } else toast(trackingDestination.type === 'physio' ? 'Tracking naar fysio opgeslagen' : 'Tracking opgeslagen', code)
     closeDialog(); await refreshOrderDetail(order.id)
   })
 }

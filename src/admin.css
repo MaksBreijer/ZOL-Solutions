@@ -536,6 +536,19 @@ svg { display: block; }
 .field--full, .field--wide { grid-column: 1 / -1; }
 .field textarea { min-height: 110px; resize: vertical; }
 .field small { color: var(--admin-muted); font-size: 8px; font-weight: 500; }
+.tracking-destination-preview { min-height: 58px; padding: 11px 13px; display: flex; align-items: center; gap: 10px; border: 1px solid #d8e2eb; border-radius: 9px; background: #f7fafc; }
+.tracking-destination-preview[hidden], .tracking-recipient-fields[hidden], .form-hint[hidden] { display: none; }
+.tracking-destination-preview > svg { width: 17px; height: 17px; color: var(--admin-blue); }
+.tracking-destination-preview strong, .tracking-destination-preview small { display: block; }
+.tracking-destination-preview strong { color: var(--admin-navy); font-size: 10px; }
+.tracking-destination-preview small { margin-top: 3px; color: var(--admin-muted); font-size: 8px; }
+.tracking-recipient-fields { grid-column: 1 / -1; padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border: 1px solid #cbdde9; border-radius: 10px; background: #f5f9fc; }
+.tracking-recipient-heading { grid-column: 1 / -1; padding-bottom: 4px; }
+.tracking-recipient-heading strong, .tracking-recipient-heading small { display: block; }
+.tracking-recipient-heading strong { color: var(--admin-navy); font-size: 10px; }
+.tracking-recipient-heading small { margin-top: 3px; color: var(--admin-muted); font-size: 8px; }
+.tracking-form-divider { position: relative; height: 18px; margin-top: 2px; border-bottom: 1px solid #e3e8ec; }
+.tracking-form-divider span { position: absolute; bottom: -4px; left: 0; padding-right: 9px; background: #fff; color: var(--admin-muted); font-size: 7px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .variant-stock-editor { overflow: hidden; border: 1px solid #d6e1e8; border-radius: 11px; background: #f8fafb; }
 .variant-stock-editor > header { padding: 14px 16px; border-bottom: 1px solid #e0e7ec; background: #fff; }
 .variant-stock-editor header strong, .variant-stock-editor header small { display: block; }
@@ -655,6 +668,8 @@ svg { display: block; }
 .tracking-summary strong { margin-top: 4px; color: #253745; font-size: 12px; letter-spacing: .03em; }
 .tracking-summary a { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; color: var(--admin-blue); font-size: 8px; font-weight: 750; text-decoration: none; }
 .tracking-summary a svg { width: 11px; height: 11px; }
+.tracking-summary .tracking-recipient { margin-top: 7px; color: #5e7180; font-size: 8px; line-height: 1.5; }
+.tracking-summary .tracking-recipient b { color: #324959; font-weight: 750; }
 .order-products { padding: 2px 13px; }
 .order-product { min-height: 71px; padding: 10px 0; display: grid; grid-template-columns: 48px minmax(0, 1fr) auto auto; align-items: center; gap: 11px; border-bottom: 1px solid #edf0f2; }
 .order-product:last-child { border-bottom: 0; }
@@ -1155,6 +1170,8 @@ svg { display: block; }
   .settings-nav button { width: auto; white-space: nowrap; }
   .form-grid { grid-template-columns: 1fr; }
   .field--full, .field--wide { grid-column: auto; }
+  .tracking-recipient-fields { grid-column: auto; grid-template-columns: 1fr; }
+  .tracking-recipient-heading, .tracking-recipient-fields .field--full { grid-column: auto; }
   .variant-stock-grid { grid-template-columns: 1fr; }
   .variant-stock-editor > footer { align-items: stretch; flex-direction: column; }
   .variant-stock-editor > footer .button { justify-content: center; }
