@@ -71,6 +71,9 @@ Deno.serve(async (request) => {
     if (orderError || !order) return Response.json({ error: "Bestelling niet gevonden." }, { status: 404, headers })
     if (templateKeys.includes("payment_confirmed") && order.payment_status !== "paid") return Response.json({ error: "De bestelling is nog niet betaald." }, { status: 409, headers })
     if (templateKeys.includes("order_shipped") && !order.tracking_code) return Response.json({ error: "Voeg eerst een trackingcode toe." }, { status: 409, headers })
+    if (templateKeys.includes("order_shipped") && order.postnl?.environment === "sandbox" && order.postnl?.barcode === order.tracking_code) {
+      return Response.json({ success: true, skipped: "sandbox_tracking", results: [] }, { headers })
+    }
 
     const config = await getEmailConfig(db)
     if (!config.enabled) return Response.json({ success: true, skipped: "email_disabled", results: [] }, { headers: { ...headers, "Content-Type": "application/json" } })

@@ -224,7 +224,12 @@ Deno.serve(async (request) => {
     if (environment === "production" && (!config.production_enabled || body.confirm_production !== true)) {
       return Response.json({ error: "Een productiezending vereist de live-schakelaar en een bewuste bevestiging." }, { status: 409, headers })
     }
-    if (environment === "production" && order.payment_status !== "paid") return Response.json({ error: "Een productiezending kan alleen voor een betaalde bestelling worden gemaakt." }, { status: 409, headers })
+    // Physio samples/replacements and free manual orders need no recipient
+    // payment. PostNL charges and explicit production confirmation still apply.
+    const canShipWithoutPayment = order.payment_status === "pending" && (
+      order.order_type === "physio" || (order.source === "admin" && Number(order.total_cents) === 0)
+    )
+    if (environment === "production" && order.payment_status !== "paid" && !canShipWithoutPayment) return Response.json({ error: "Een productiezending vereist een betaalde bestelling, een fysio-order of een gratis handmatige bestelling." }, { status: 409, headers })
     const apiKey = postnlKey(environment)
     if (!apiKey) return Response.json({ error: `De PostNL-${environment === "production" ? "productie" : "sandbox"}sleutel is nog niet veilig ingesteld.` }, { status: 503, headers })
 
