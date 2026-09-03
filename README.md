@@ -147,3 +147,12 @@ De website-assets in `public/media/` zijn lokaal opgeslagen en hebben geen Shopi
 3. Zet daarna de nameservers bij de domeinbeheerder om en controleer of alle mailrecords in Cloudflare staan.
 4. Laat `www` permanent doorsturen naar `https://zolsolutions.nl`.
 5. Controleer homepage, product, checkout, admin, privacy, voorwaarden, sitemap en e-mail voordat Shopify definitief wordt losgekoppeld.
+
+## Bestellingen testen
+
+`npm test` controleert de orderknoppen met fictieve gegevens: aanmaken (ook €0),
+orderregels, import/export, factuur, tracking, labels, notities, tags, statussen,
+archief, retour, terugbetaling en verwijderen. De DOM-tests gebruiken de echte
+admincode met een nagebootste Supabase-client en doen geen netwerkverzoeken.
+De prijs- en voorraadtests voeren de werkelijke SQL-functies uit in een lokale
+PGlite-database. Ze maken geen echte bestellingen, betalingen, e-mails of zendingen.

@@ -256,6 +256,74 @@ function openDialog(title, eyebrow, body) {
   elements.dialog.showModal()
 }
 
+const pendingOrderActions = new WeakSet()
+const orderButtonActions = new Set([
+  'new-order', 'add-order-line', 'remove-order-line', 'open-order', 'back-orders',
+  'add-tracking', 'remove-tracking', 'postnl-label', 'postnl-label-url', 'refund-order',
+  'return-order', 'edit-order-note', 'delete-order-note', 'toggle-archive',
+  'mark-delivered', 'delete-order', 'send-order-email', 'print-invoice',
+  'export-orders', 'import-orders', 'download-order-template',
+])
+
+async function runOrderAction(button, action) {
+  if (button && pendingOrderActions.has(button)) return
+  const originalHtml = button?.innerHTML
+  const wasDisabled = button?.disabled
+  if (button) { pendingOrderActions.add(button); button.disabled = true }
+  try { await action() }
+  catch (error) { toast('Actie mislukt', error.message || 'Probeer het opnieuw.', true) }
+  finally {
+    if (button) {
+      pendingOrderActions.delete(button)
+      if (button.isConnected) { button.innerHTML = originalHtml; button.disabled = wasDisabled }
+    }
+  }
+}
+
+function bindOrderSubmit(form, handler) {
+  form.addEventListener('submit', (event) => {
+    event.preventDefault()
+    if (!form.reportValidity()) return
+    void runOrderAction(form.querySelector('[type="submit"]'), () => handler(event))
+  })
+}
+
+async function dispatchContentClick(event) {
+  const button = event.target.closest('button[data-action]')
+  if (button && orderButtonActions.has(button.dataset.action)) {
+    await runOrderAction(button, () => handleContentClick(event))
+  } else {
+    try { await handleContentClick(event) }
+    catch (error) { toast('Actie mislukt', error.message || 'Probeer het opnieuw.', true) }
+  }
+}
+
+async function updateOrderRecord(orderId, changes) {
+  const result = await supabase.from('orders').update(changes).eq('id', orderId).select('id').maybeSingle()
+  if (!result.error && !result.data) result.error = { message: 'Bestelling niet gevonden of geen toegang om deze bij te werken.' }
+  return result
+}
+
+function refundableOrderAmount(payment) {
+  if (!payment || !['paid', 'partially_refunded'].includes(payment.status)) return 0
+  return Math.max(0, Number(payment.amount_cents || 0) - Number(payment.refunded_cents || 0))
+}
+
+function openOrderWindow(title) {
+  const popup = window.open('about:blank', '_blank')
+  if (popup) {
+    popup.opener = null
+    popup.document.title = title
+    popup.document.body.textContent = 'Even geduld…'
+  }
+  return popup
+}
+
+function showOrderLabel(popup, url) {
+  if (popup && !popup.closed) popup.location.replace(url)
+  else openDialog('Verzendlabel', 'Bestelling', `<p>Het label staat klaar.</p><a class="button button--primary" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Label openen</a>`)
+}
+
 function closeDialog() {
   elements.dialog.close()
   elements.dialog.classList.remove('admin-dialog--wide')
@@ -721,11 +789,18 @@ function ordersTable(orders, showAll = true) {
   </tbody></table></div>${showAll ? `<footer class="table-footer"><span>${orders.length} bestellingen</span><span>Klik op een bestelling om deze te bewerken</span></footer>` : ''}`
 }
 
+const orderFilters = { query: '', status: '', payment: '', archive: 'active' }
+
 function renderOrders() {
   const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
   elements.content.innerHTML = `<div class="page-container">${pageHeader('orders', `<button class="button" data-action="export-orders">Exporteren</button>${canManageOrders ? '<button class="button" data-action="import-orders">CSV importeren</button><button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
-    <section class="panel"><div class="filters"><input type="search" data-filter="orders" placeholder="Zoek op ordernummer, klant of e-mail"><select data-filter-status="orders"><option value="">Alle statussen</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select><select data-filter-payment="orders"><option value="">Elke betaling</option><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="refunded">Terugbetaald</option></select></div><p class="form-hint">Onbetaalde webshop-checkouts verdwijnen na ${escapeHtml(settingsValue('commerce').abandoned_checkout_minutes || 10)} minuten automatisch uit dit overzicht. Zodra een betaling alsnog slaagt, verschijnt de bestelling weer.</p><div id="orders-table">${ordersTable(visibleOrders())}</div></section>
+    <section class="panel"><div class="filters"><input type="search" data-filter="orders" placeholder="Zoek op ordernummer, klant of e-mail"><select data-filter-status="orders" aria-label="Orderstatus filter"><option value="">Alle statussen</option><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select><select data-filter-payment="orders" aria-label="Betaalstatus filter"><option value="">Elke betaling</option><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="refunded">Terugbetaald</option><option value="partially_refunded">Deels terugbetaald</option><option value="failed">Mislukt</option></select><select data-filter-archive="orders" aria-label="Archief"><option value="active">Actieve bestellingen</option><option value="archived">Archief</option><option value="all">Alle bestellingen</option></select></div><p class="form-hint">Onbetaalde webshop-checkouts verdwijnen na ${escapeHtml(settingsValue('commerce').abandoned_checkout_minutes || 10)} minuten automatisch uit dit overzicht. Zodra een betaling alsnog slaagt, verschijnt de bestelling weer.</p><div id="orders-table">${ordersTable(visibleOrders())}</div></section>
   </div>`
+  document.querySelector('[data-filter="orders"]').value = orderFilters.query
+  document.querySelector('[data-filter-status="orders"]').value = orderFilters.status
+  document.querySelector('[data-filter-payment="orders"]').value = orderFilters.payment
+  document.querySelector('[data-filter-archive="orders"]').value = orderFilters.archive
+  filterOrders()
 }
 
 function orderVariantOptions() {
@@ -816,7 +891,7 @@ function newOrderForm() {
     }
     updateManualOrderTotal(form)
   })
-  form.addEventListener('submit', async (event) => {
+  bindOrderSubmit(form, async (event) => {
     event.preventDefault()
     const button = form.querySelector('[type="submit"]')
     const items = [...form.querySelectorAll('.manual-order-line')].map((row) => ({
@@ -862,14 +937,21 @@ function updateManualOrderTotal(form) {
   form.querySelector('#manual-order-total').textContent = formatMoney(total)
 }
 
-function filterOrders() {
-  const query = document.querySelector('[data-filter="orders"]')?.value.toLowerCase() || ''
-  const orderStatus = document.querySelector('[data-filter-status="orders"]')?.value || ''
-  const paymentStatus = document.querySelector('[data-filter-payment="orders"]')?.value || ''
-  const filtered = visibleOrders().filter((order) =>
+function filteredOrders() {
+  const query = orderFilters.query.toLowerCase()
+  return visibleOrders().filter((order) =>
     (!query || [order.order_number, order.external_reference, order.customer_name, order.customer_email].some((value) => String(value || '').toLowerCase().includes(query))) &&
-    (!orderStatus || order.status === orderStatus) && (!paymentStatus || order.payment_status === paymentStatus))
-  document.querySelector('#orders-table').innerHTML = ordersTable(filtered)
+    (!orderFilters.status || order.status === orderFilters.status) &&
+    (!orderFilters.payment || order.payment_status === orderFilters.payment) &&
+    (orderFilters.archive === 'all' || Boolean(order.archived) === (orderFilters.archive === 'archived')))
+}
+
+function filterOrders() {
+  orderFilters.query = document.querySelector('[data-filter="orders"]')?.value || ''
+  orderFilters.status = document.querySelector('[data-filter-status="orders"]')?.value || ''
+  orderFilters.payment = document.querySelector('[data-filter-payment="orders"]')?.value || ''
+  orderFilters.archive = document.querySelector('[data-filter-archive="orders"]')?.value || 'active'
+  document.querySelector('#orders-table').innerHTML = ordersTable(filteredOrders())
 }
 
 function orderTrackingUrl(carrier, code, postalCode = '') {
@@ -933,7 +1015,7 @@ function openOrder(order) {
   const timeline = orderTimeline(order)
   const trackingPostalCode = trackingDestination.type === 'physio' ? trackingDestination.postal_code : address.postal_code
   const trackingUrl = order.tracking_url || orderTrackingUrl(order.tracking_carrier, order.tracking_code, trackingPostalCode)
-  const refundable = payment ? Math.max(0, payment.amount_cents - payment.refunded_cents) : 0
+  const refundable = refundableOrderAmount(payment)
   const [riskLabel, riskClass, riskCopy] = orderRisk(order, payment)
   const discoveryAnswer = checkoutAnswer(order)
   const orderEvent = state.analytics.find((event) => event.event_name === 'order_created' && String(event.metadata?.order_number) === String(order.order_number))
@@ -948,13 +1030,13 @@ function openOrder(order) {
     ? `<section class="order-card customer-card"><header><h2>Fysio</h2></header><strong class="customer-link">${escapeHtml(physio.practice_name)}</strong>${physio.contact_name ? `<span>${escapeHtml(physio.contact_name)}</span>` : ''}<h3>Contactgegevens</h3><a href="mailto:${escapeHtml(physio.email)}">${escapeHtml(physio.email)}</a><h3>Afleveradres</h3><address>${escapeHtml(physio.practice_name)}${physio.contact_name ? `<br>${escapeHtml(physio.contact_name)}` : ''}<br>${escapeHtml(physio.street || '')}<br>${escapeHtml(physio.postal_code || '')} ${escapeHtml(physio.city || '')}<br>${escapeHtml(physio.country === 'NL' ? 'Nederland' : physio.country || '')}</address>${physio.street ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([physio.street, physio.postal_code, physio.city].filter(Boolean).join(' '))}" target="_blank" rel="noreferrer">Kaart weergeven</a>` : ''}</section>`
     : `<section class="order-card customer-card"><header><h2>Klant</h2></header><button class="customer-link" data-action="open-customer" data-id="${order.customer_id}">${escapeHtml(order.customer_name || order.customer_email)}</button><a href="#customers">${customerOrders.length} bestelling${customerOrders.length === 1 ? '' : 'en'}</a><h3>Contactgegevens</h3><a href="mailto:${escapeHtml(order.customer_email)}">${escapeHtml(order.customer_email)}</a>${customer?.phone ? `<a href="tel:${escapeHtml(customer.phone)}">${escapeHtml(customer.phone)}</a>` : ''}<h3>Bezorgadres</h3><address>${escapeHtml(order.customer_name)}<br>${escapeHtml(address.street || '')}<br>${escapeHtml(address.postal_code || '')} ${escapeHtml(address.city || '')}<br>${escapeHtml(address.country === 'NL' ? 'Nederland' : address.country || '')}</address>${address.street ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([address.street, address.postal_code, address.city].filter(Boolean).join(' '))}" target="_blank" rel="noreferrer">Kaart weergeven</a>` : ''}</section>`
   elements.content.innerHTML = `<div class="page-container order-detail-page">
-    <header class="order-detail-header"><div><button class="order-back" type="button" data-action="back-orders"><i data-lucide="arrow-left"></i></button><div><div class="order-title-line"><h1>#${order.order_number}</h1>${isPhysioOrder ? '<span class="status-pill">Fysio</span>' : ''}${statusPill(order.payment_status)}${statusPill(order.fulfillment_status)}${order.archived ? '<span class="status-pill">Gearchiveerd</span>' : ''}</div><p>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit' })} via ${order.source === 'admin' ? 'ZOL Admin' : order.source === 'csv-import' ? `CSV-import${order.external_reference ? ` · ${escapeHtml(order.external_reference)}` : ''}` : 'Webshop'}</p></div></div><div class="order-header-actions">${refundable && canManage ? `<button class="button" data-action="refund-order" data-id="${order.id}"><i data-lucide="rotate-ccw"></i> Terugbetalen</button>` : ''}${order.fulfillment_status !== 'returned' && canManage ? `<button class="button" data-action="return-order" data-id="${order.id}">Retourneren</button>` : ''}<button class="button" data-action="toggle-archive" data-id="${order.id}"><i data-lucide="archive"></i>${order.archived ? 'Uit archief' : 'Archiveren'}</button></div></header>
+    <header class="order-detail-header"><div><button class="order-back" type="button" data-action="back-orders" aria-label="Terug naar bestellingen"><i data-lucide="arrow-left"></i></button><div><div class="order-title-line"><h1>#${order.order_number}</h1>${isPhysioOrder ? '<span class="status-pill">Fysio</span>' : ''}${statusPill(order.payment_status)}${statusPill(order.fulfillment_status)}${order.archived ? '<span class="status-pill">Gearchiveerd</span>' : ''}</div><p>${formatDate(order.created_at, { hour: '2-digit', minute: '2-digit' })} via ${order.source === 'admin' ? 'ZOL Admin' : order.source === 'csv-import' ? `CSV-import${order.external_reference ? ` · ${escapeHtml(order.external_reference)}` : ''}` : 'Webshop'}</p></div></div><div class="order-header-actions">${refundable && canManage ? `<button class="button" data-action="refund-order" data-id="${order.id}"><i data-lucide="rotate-ccw"></i> Terugbetalen</button>` : ''}${order.fulfillment_status !== 'returned' && canManage ? `<button class="button" data-action="return-order" data-id="${order.id}">Retourneren</button>` : ''}<button class="button" data-action="toggle-archive" data-id="${order.id}" ${canManage ? '' : 'disabled'}><i data-lucide="archive"></i>${order.archived ? 'Uit archief' : 'Archiveren'}</button></div></header>
     <div class="order-detail-grid"><main class="order-detail-main">
       <section class="order-card fulfillment-card"><header><div><i data-lucide="truck"></i><div><h2>${prettyStatus(order.fulfillment_status)}</h2><p>${order.shipped_at ? `Verzonden ${formatDate(order.shipped_at, { hour: '2-digit', minute: '2-digit' })}` : 'Klaar voor verwerking'}</p></div></div><span>#${order.order_number}-F1</span></header>
-        ${order.tracking_code ? `<div class="tracking-summary"><div><span>${escapeHtml(order.tracking_carrier || 'Tracking')} · Naar ${trackingDestination.type === 'physio' ? 'fysio' : 'klant'}</span><strong>${escapeHtml(order.tracking_code)}</strong>${trackingDestination.type === 'physio' ? `<small class="tracking-recipient"><b>${escapeHtml(trackingDestinationLabel(trackingDestination))}</b>${trackingDestination.contact_name ? ` · ${escapeHtml(trackingDestination.contact_name)}` : ''}<br>${escapeHtml([trackingDestination.street, trackingDestination.postal_code, trackingDestination.city].filter(Boolean).join(', '))}</small>` : ''}${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" target="_blank" rel="noreferrer">Zending volgen <i data-lucide="external-link"></i></a>` : ''}</div>${order.fulfillment_status === 'delivered' ? statusPill('delivered') : statusPill('shipped')}</div>` : ''}
+        ${order.tracking_code ? `<div class="tracking-summary"><div><span>${escapeHtml(order.tracking_carrier || 'Tracking')} · Naar ${trackingDestination.type === 'physio' ? 'fysio' : 'klant'}</span><strong>${escapeHtml(order.tracking_code)}</strong>${trackingDestination.type === 'physio' ? `<small class="tracking-recipient"><b>${escapeHtml(trackingDestinationLabel(trackingDestination))}</b>${trackingDestination.contact_name ? ` · ${escapeHtml(trackingDestination.contact_name)}` : ''}<br>${escapeHtml([trackingDestination.street, trackingDestination.postal_code, trackingDestination.city].filter(Boolean).join(', '))}</small>` : ''}${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" target="_blank" rel="noreferrer">Zending volgen <i data-lucide="external-link"></i></a>` : ''}</div>${statusPill(order.fulfillment_status)}</div>` : ''}
         <div class="order-products">${itemRows || '<p class="no-order-items">Geen orderregels.</p>'}</div>
         ${postnl.barcode ? `<div class="postnl-shipment"><div><span>PostNL ${postnl.environment === 'production' ? 'productie' : 'sandbox'}</span><strong>Label en barcode aangemaakt</strong>${(postnl.warnings || []).length ? `<small>${escapeHtml(postnl.warnings.join(' · '))}</small>` : ''}</div><button class="button" data-action="postnl-label-url" data-id="${order.id}"><i data-lucide="download"></i> Label openen</button></div>` : ''}
-        <footer><span>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</span><div>${postnl.barcode ? '' : `<button class="button button--primary" data-action="postnl-label" data-id="${order.id}"><i data-lucide="truck"></i> PostNL-label maken</button>`}${order.tracking_code ? `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="pencil"></i> Tracking wijzigen</button>${canManage ? `<button class="button button--danger" data-action="remove-tracking" data-id="${order.id}">Tracking verwijderen</button>` : ''}` : `<button class="button" data-action="add-tracking" data-id="${order.id}"><i data-lucide="plus"></i> Tracking toevoegen</button>`}${order.fulfillment_status === 'shipped' ? `<button class="button" data-action="mark-delivered" data-id="${order.id}"><i data-lucide="check-circle"></i> Markeer bezorgd</button>` : ''}</div></footer>
+        <footer><span>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</span><div>${postnl.barcode ? '' : `<button class="button button--primary" data-action="postnl-label" data-id="${order.id}" ${canManage ? '' : 'disabled'}><i data-lucide="truck"></i> PostNL-label maken</button>`}${order.tracking_code ? `<button class="button" data-action="add-tracking" data-id="${order.id}" ${canManage ? '' : 'disabled'}><i data-lucide="pencil"></i> Tracking wijzigen</button>${canManage ? `<button class="button button--danger" data-action="remove-tracking" data-id="${order.id}">Tracking verwijderen</button>` : ''}` : `<button class="button" data-action="add-tracking" data-id="${order.id}" ${canManage ? '' : 'disabled'}><i data-lucide="plus"></i> Tracking toevoegen</button>`}${order.fulfillment_status === 'shipped' && canManage ? `<button class="button" data-action="mark-delivered" data-id="${order.id}"><i data-lucide="check-circle"></i> Markeer bezorgd</button>` : ''}</div></footer>
       </section>
       <section class="order-card payment-card"><header><div><i data-lucide="credit-card"></i><h2>${prettyStatus(payment?.status || order.payment_status)}</h2></div><span>${escapeHtml(payment?.provider === 'mollie' ? 'Mollie Payments' : 'Handmatig')}</span></header><div class="payment-lines"><p><span>Subtotaal</span><small>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</small><strong>${formatMoney(order.subtotal_cents)}</strong></p>${order.discount_cents ? `<p><span>Korting ${order.discount_code ? `(${escapeHtml(order.discount_code)})` : ''}</span><small></small><strong>− ${formatMoney(order.discount_cents)}</strong></p>` : ''}<p><span>Verzending</span><small>Standaard</small><strong>${order.shipping_cents ? formatMoney(order.shipping_cents) : 'Gratis'}</strong></p><p class="payment-total"><span>Totaal</span><small></small><strong>${formatMoney(order.total_cents)}</strong></p>${payment?.refunded_cents ? `<p class="payment-refund"><span>Terugbetaald</span><small>${prettyStatus(payment.status)}</small><strong>− ${formatMoney(payment.refunded_cents)}</strong></p>` : ''}</div></section>
       <section class="order-timeline"><h2>Tijdlijn</h2><form id="order-note-form" class="timeline-note"><span>${escapeHtml(initials(state.profile.full_name || state.profile.email))}</span><textarea name="body" rows="2" maxlength="2000" placeholder="Een interne opmerking plaatsen…" required></textarea><button class="button button--primary" type="submit">Plaatsen</button></form><p class="timeline-privacy">Alleen jij en andere beheerders kunnen opmerkingen zien.</p><ol>${timeline.map((item) => `<li class="is-${item.type}"><i></i><div><p>${escapeHtml(item.title)}</p><small>${escapeHtml(item.detail)} · ${formatDate(item.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${item.noteId && canManage ? `<button type="button" data-action="delete-order-note" data-id="${item.noteId}" data-order-id="${order.id}" aria-label="Notitie verwijderen">×</button>` : ''}</li>`).join('')}</ol></section>
@@ -965,32 +1047,33 @@ function openOrder(order) {
       ${isPhysioOrder ? '' : `<section class="order-card conversion-card"><header><h2>Conversieoverzicht</h2></header><p><i data-lucide="shopping-bag"></i>Dit is hun ${customerOrders.length === 1 ? '1e' : `${customerOrders.length}e`} bestelling.</p><p><i data-lucide="link"></i>${orderEvent?.metadata?.referrer && orderEvent.metadata.referrer !== 'Direct' ? escapeHtml(orderEvent.metadata.referrer) : 'Sessie was direct naar de winkel'}</p><p><i data-lucide="chart-no-axes-combined"></i>${sessionEvents.length || 1} gemeten gebeurtenis${sessionEvents.length === 1 ? '' : 'sen'}</p></section>`}
       <section class="order-card risk-card"><header><h2>Bestelrisico</h2><span class="risk-label ${riskClass}">${riskLabel}</span></header><div class="risk-meter ${riskClass}"><i></i></div><div class="risk-scale"><span>Laag</span><span>Gemiddeld</span><span>Hoog</span></div><p>${riskCopy}</p></section>
       <section class="order-card tags-card"><header><h2>Tags</h2><i data-lucide="tag"></i></header><form id="order-tags-form"><input name="tags" maxlength="400" value="${escapeHtml((order.tags || []).join(', '))}" placeholder="bijv. club, spoed, VIP" ${canManage ? '' : 'disabled'}><button class="button" type="submit" ${canManage ? '' : 'disabled'}>Opslaan</button></form></section>
-      <section class="order-card status-card"><header><h2>Status beheren</h2></header><form id="order-status-form"><label>Bestelstatus<select name="status" ${canManage ? '' : 'disabled'}><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label><label>Verzendstatus<select name="fulfillment_status" ${canManage ? '' : 'disabled'}><option value="unfulfilled">Niet verzonden</option><option value="processing">In behandeling</option><option value="shipped">Verzonden</option><option value="delivered">Bezorgd</option></select></label><button class="button" type="submit" ${canManage ? '' : 'disabled'}>Status opslaan</button></form><div class="order-secondary-actions"><button class="button" data-action="print-invoice" data-id="${order.id}"><i data-lucide="file-text"></i> Factuur</button>${order.payment_status === 'paid' && !isPhysioOrder ? `<button class="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging</button>` : ''}${canManage ? `<button class="button button--danger" data-action="delete-order" data-id="${order.id}">Verwijderen</button>` : ''}</div></section>
+      <section class="order-card status-card"><header><h2>Status beheren</h2></header><form id="order-status-form"><label>Bestelstatus<select name="status" ${canManage ? '' : 'disabled'}><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select></label><label>Verzendstatus<select name="fulfillment_status" ${canManage ? '' : 'disabled'}><option value="unfulfilled">Niet verzonden</option><option value="processing">In behandeling</option><option value="shipped">Verzonden</option><option value="delivered">Bezorgd</option>${order.fulfillment_status === 'returned' ? '<option value="returned">Retour</option>' : ''}</select></label><button class="button" type="submit" ${canManage ? '' : 'disabled'}>Status opslaan</button></form><div class="order-secondary-actions"><button class="button" data-action="print-invoice" data-id="${order.id}"><i data-lucide="file-text"></i> Factuur</button>${order.payment_status === 'paid' && !isPhysioOrder && canManage ? `<button class="button" data-action="send-order-email" data-id="${order.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>Bevestiging</button>` : ''}${canManage ? `<button class="button button--danger" data-action="delete-order" data-id="${order.id}">Verwijderen</button>` : ''}</div></section>
     </aside></div>
   </div>`
 
   const noteForm = document.querySelector('#order-note-form')
-  noteForm.addEventListener('submit', async (event) => {
+  bindOrderSubmit(noteForm, async (event) => {
     event.preventDefault(); const button = noteForm.querySelector('[type="submit"]'); setBusy(button, true, 'Plaatsen'); const body = noteForm.elements.body.value.trim()
+    if (!body) { toast('Vul een notitie in', 'Alleen spaties is geen notitie.', true); return }
     const { error } = await supabase.from('order_notes').insert({ order_id: order.id, author_id: state.profile.id, author_email: state.profile.email, body })
     if (error) { toast('Notitie plaatsen mislukt', error.message, true); setBusy(button, false, 'Plaatsen'); return }
     await refreshOrderDetail(order.id)
   })
   const tagsForm = document.querySelector('#order-tags-form')
-  tagsForm.addEventListener('submit', async (event) => {
+  bindOrderSubmit(tagsForm, async (event) => {
     event.preventDefault(); const tags = [...new Set(tagsForm.elements.tags.value.split(',').map((tag) => tag.trim()).filter(Boolean))].slice(0, 12).map((tag) => tag.slice(0, 40))
-    const { error } = await supabase.from('orders').update({ tags }).eq('id', order.id)
+    const { error } = await updateOrderRecord(order.id, { tags })
     if (error) { toast('Tags opslaan mislukt', error.message, true); return }
     await recordActivity('Ordertags bijgewerkt', 'order', order.id, { order_number: order.order_number, tags }); toast('Tags opgeslagen'); await refreshOrderDetail(order.id)
   })
   const statusForm = document.querySelector('#order-status-form')
   statusForm.elements.status.value = order.status
-  statusForm.elements.fulfillment_status.value = order.fulfillment_status === 'returned' ? 'delivered' : order.fulfillment_status
-  statusForm.addEventListener('submit', async (event) => {
+  statusForm.elements.fulfillment_status.value = order.fulfillment_status
+  bindOrderSubmit(statusForm, async (event) => {
     event.preventDefault(); const values = Object.fromEntries(new FormData(statusForm)); const changes = { ...values }
     if (values.fulfillment_status === 'shipped' && !order.shipped_at) changes.shipped_at = new Date().toISOString()
     if (values.fulfillment_status === 'delivered' && !order.delivered_at) changes.delivered_at = new Date().toISOString()
-    const { error } = await supabase.from('orders').update(changes).eq('id', order.id)
+    const { error } = await updateOrderRecord(order.id, changes)
     if (error) { toast('Status opslaan mislukt', error.message, true); return }
     await recordActivity('Orderstatus bijgewerkt', 'order', order.id, { order_number: order.order_number, ...values }); toast('Status opgeslagen'); await refreshOrderDetail(order.id)
   })
@@ -1060,12 +1143,13 @@ function trackingForm(order) {
   setDestinationMode()
   refreshIcons()
 
-  form.addEventListener('submit', async (event) => {
+  bindOrderSubmit(form, async (event) => {
     event.preventDefault()
     const button = form.querySelector('[type="submit"]')
     setBusy(button, true, 'Tracking opslaan')
     const values = Object.fromEntries(new FormData(form))
     const code = values.tracking_code.trim()
+    if (!code) { toast('Vul een trackingcode in', '', true); return }
     const carrier = values.tracking_carrier
     const trackingDestination = trackingDestinationFromForm(values)
     const postalCode = trackingDestination.type === 'physio' ? trackingDestination.postal_code : address.postal_code
@@ -1092,7 +1176,7 @@ function trackingForm(order) {
     )
     if (values.notify === 'on') {
       const { data, error: emailError } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'shipping' } })
-      if (emailError || data?.error) toast('Tracking opgeslagen, verzendmail mislukt', await edgeFunctionMessage(emailError, data, 'De e-mail kon niet worden verstuurd.'), true)
+      if (emailError || data?.error || data?.skipped || data?.results?.every((result) => result.status === 'disabled')) toast('Tracking opgeslagen, verzendmail mislukt', await edgeFunctionMessage(emailError, data, 'De e-mail kon niet worden verstuurd.'), true)
       else toast('Tracking en verzendmail verwerkt', code)
     } else toast(trackingDestination.type === 'physio' ? 'Tracking naar fysio opgeslagen' : 'Tracking opgeslagen', code)
     closeDialog(); await refreshOrderDetail(order.id)
@@ -1123,42 +1207,51 @@ function postnlLabelForm(order) {
   const isPhysioOrder = order.order_type === 'physio'
   const canNotifyCustomer = emailEnabled && !isPhysioOrder
   const isProduction = environment === 'production'
-  openDialog('PostNL-label maken', `Bestelling #${order.order_number}`, `<form id="postnl-label-form"><div class="email-connection ${isProduction ? '' : 'is-connected'}"><i>${isProduction ? '!' : '✓'}</i><div><strong>${isProduction ? 'Productie — deze zending wordt echt aangemeld' : 'Veilige sandbox-test'}</strong><small>${isProduction ? 'PostNL kan deze zending factureren. Controleer adres en betaling zorgvuldig.' : 'Er wordt geen echte betaalde zending aangemaakt.'}</small></div></div><div class="form-grid"><label class="field">Pakkettype<input value="${config.shipment_type === 'letterbox' ? 'Brievenbuspakje' : 'Pakket'}" disabled></label><label class="checkbox-field field--full"><input name="notify" type="checkbox" ${emailEnabled && (isPhysioOrder || (canNotifyCustomer && isProduction)) ? 'checked' : ''} ${isPhysioOrder || !emailEnabled ? 'disabled' : ''}> ${isPhysioOrder ? 'Als verzonden markeren en de fysio automatisch mailen' : 'Na het maken als verzonden markeren en de klant mailen'}</label>${isProduction ? '<label class="checkbox-field field--full"><input name="confirm_production" type="checkbox" required> Ik bevestig dat dit een echte productiezending mag worden</label>' : ''}</div>${isPhysioOrder && emailEnabled ? '<p class="form-hint">Na een succesvol label krijgt de fysio automatisch de track-and-trace per e-mail. Het bijbehorende verzendlabel opent voor jullie.</p>' : isPhysioOrder ? '<p class="form-hint">De e-mailkoppeling staat uit. Het label wordt wel gemaakt, maar de fysiomail kan pas na activering worden verstuurd.</p>' : !emailEnabled ? '<p class="form-hint">De trackingcode wordt wel opgeslagen; activeer e-mail eerst om de klant automatisch te informeren.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'}</button></div></form>`)
+  openDialog('PostNL-label maken', `Bestelling #${order.order_number}`, `<form id="postnl-label-form"><div class="email-connection ${isProduction ? '' : 'is-connected'}"><i>${isProduction ? '!' : '✓'}</i><div><strong>${isProduction ? 'Productie — deze zending wordt echt aangemeld' : 'Veilige sandbox-test'}</strong><small>${isProduction ? 'PostNL kan deze zending factureren. Controleer adres en betaling zorgvuldig.' : 'Er wordt geen echte betaalde zending aangemaakt.'}</small></div></div><div class="form-grid"><label class="field">Pakkettype<input value="${config.shipment_type === 'letterbox' ? 'Brievenbuspakje' : 'Pakket'}" disabled></label><label class="checkbox-field field--full"><input name="notify" type="checkbox" ${isProduction && emailEnabled && (isPhysioOrder || canNotifyCustomer) ? 'checked' : ''} ${isPhysioOrder || !emailEnabled || !isProduction ? 'disabled' : ''}> ${isPhysioOrder ? 'Als verzonden markeren en de fysio automatisch mailen' : 'Na het maken als verzonden markeren en de klant mailen'}</label>${isProduction ? '<label class="checkbox-field field--full"><input name="confirm_production" type="checkbox" required> Ik bevestig dat dit een echte productiezending mag worden</label>' : ''}</div>${!isProduction ? '<p class="form-hint">Een sandboxlabel verstuurt geen e-mail en markeert de bestelling niet als verzonden.</p>' : isPhysioOrder && emailEnabled ? '<p class="form-hint">Na een succesvol label krijgt de fysio automatisch de track-and-trace per e-mail. Het bijbehorende verzendlabel opent voor jullie.</p>' : isPhysioOrder ? '<p class="form-hint">De e-mailkoppeling staat uit. Het label wordt wel gemaakt, maar de fysiomail kan pas na activering worden verstuurd.</p>' : !emailEnabled ? '<p class="form-hint">De trackingcode wordt wel opgeslagen; activeer e-mail eerst om de klant automatisch te informeren.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'}</button></div></form>`)
   const form = document.querySelector('#postnl-label-form')
-  form.addEventListener('submit', async (event) => {
+  bindOrderSubmit(form, async (event) => {
     event.preventDefault()
     const button = form.querySelector('[type="submit"]')
     setBusy(button, true, isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken')
-    const { data, error } = await supabase.functions.invoke('postnl-shipment', { body: { action: 'create', order_id: order.id, confirm_production: Boolean(form.elements.confirm_production?.checked) } })
-    if (error || data?.error) { toast('PostNL-label mislukt', await edgeFunctionMessage(error, data, 'Het label kon niet worden gemaakt.'), true); setBusy(button, false, isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'); return }
+    const labelWindow = openOrderWindow('Verzendlabel laden')
+    let result
+    try { result = await supabase.functions.invoke('postnl-shipment', { body: { action: 'create', order_id: order.id, confirm_production: Boolean(form.elements.confirm_production?.checked) } }) }
+    catch (error) { labelWindow?.close(); throw error }
+    const { data, error } = result
+    if (error || data?.error) { labelWindow?.close(); toast('PostNL-label mislukt', await edgeFunctionMessage(error, data, 'Het label kon niet worden gemaakt.'), true); setBusy(button, false, isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'); return }
+    if (labelWindow && data.label_url) showOrderLabel(labelWindow, data.label_url)
     const shouldNotify = (isPhysioOrder && emailEnabled) || form.elements.notify.checked
-    if (isPhysioOrder || form.elements.notify.checked) {
-      const { error: statusError } = await supabase.from('orders').update({ fulfillment_status: 'shipped', shipped_at: new Date().toISOString() }).eq('id', order.id)
+    if (data.environment === 'production' && (isPhysioOrder || form.elements.notify.checked)) {
+      const { error: statusError } = await updateOrderRecord(order.id, { fulfillment_status: 'shipped', shipped_at: new Date().toISOString() })
       if (statusError) toast('Label gemaakt, verzendstatus niet bijgewerkt', statusError.message, true)
       else if (shouldNotify) {
         const { data: emailData, error: emailError } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'shipping' } })
         if (emailError || emailData?.error || emailData?.skipped) toast('Label gemaakt, verzendmail niet verstuurd', await edgeFunctionMessage(emailError, emailData, 'De e-mail kon niet worden verstuurd.'), true)
       }
     }
-    if (data.label_url) window.open(data.label_url, '_blank', 'noopener')
+    if (!data.label_url) { labelWindow?.close(); toast('Label gemaakt', 'Open het label via de knop bij de bestelling.') }
     toast('PostNL-label gemaakt', `${data.barcode} · ${data.environment === 'production' ? 'productie' : 'sandbox'}`)
     closeDialog(); await refreshOrderDetail(order.id)
+    if ((!labelWindow || labelWindow.closed) && data.label_url) showOrderLabel(null, data.label_url)
   })
 }
 
 async function openPostnlLabel(order) {
-  const { data, error } = await supabase.functions.invoke('postnl-shipment', { body: { action: 'label_url', order_id: order.id } })
-  if (error || data?.error || !data?.label_url) { toast('Label openen mislukt', await edgeFunctionMessage(error, data, 'Het label is niet beschikbaar.'), true); return }
-  window.open(data.label_url, '_blank', 'noopener')
+  const popup = openOrderWindow('Verzendlabel laden')
+  try {
+    const { data, error } = await supabase.functions.invoke('postnl-shipment', { body: { action: 'label_url', order_id: order.id } })
+    if (error || data?.error || !data?.label_url) { popup?.close(); toast('Label openen mislukt', await edgeFunctionMessage(error, data, 'Het label is niet beschikbaar.'), true); return }
+    showOrderLabel(popup, data.label_url)
+  } catch (error) { popup?.close(); throw error }
 }
 
 function refundOrderForm(order) {
   const payment = state.payments.find((item) => item.order_id === order.id)
-  const refundable = payment ? Math.max(0, payment.amount_cents - payment.refunded_cents) : 0
+  const refundable = refundableOrderAmount(payment)
   if (!payment || !refundable) { toast('Geen bedrag beschikbaar voor terugbetaling', '', true); return }
   openDialog('Terugbetalen', `Bestelling #${order.order_number}`, `<form id="refund-form"><div class="dialog-summary"><div><span>Betaald</span><strong>${formatMoney(payment.amount_cents)}</strong></div><div><span>Eerder terugbetaald</span><strong>${formatMoney(payment.refunded_cents)}</strong></div><div><span>Beschikbaar</span><strong>${formatMoney(refundable)}</strong></div></div><label class="field">Terug te betalen bedrag (€)<input name="amount" type="number" min="0.01" max="${(refundable / 100).toFixed(2)}" step="0.01" value="${(refundable / 100).toFixed(2)}" required></label><p class="form-hint">Bij een Mollie-betaling wordt de terugbetaling direct bij Mollie aangevraagd. Handmatige betalingen worden administratief geregistreerd.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--danger" type="submit">Terugbetaling uitvoeren</button></div></form>`)
   const form = document.querySelector('#refund-form')
-  form.addEventListener('submit', async (event) => {
+  bindOrderSubmit(form, async (event) => {
     event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Terugbetaling uitvoeren'); const amountCents = Math.round(Number(form.elements.amount.value) * 100)
     const { data, error } = await supabase.functions.invoke('manage-order', { body: { action: 'refund', order_id: order.id, amount_cents: amountCents } })
     if (error || data?.error) { toast('Terugbetaling mislukt', await edgeFunctionMessage(error, data, 'De terugbetaling kon niet worden uitgevoerd.'), true); setBusy(button, false, 'Terugbetaling uitvoeren'); return }
@@ -1169,7 +1262,7 @@ function refundOrderForm(order) {
 function returnOrderForm(order) {
   openDialog('Retour verwerken', `Bestelling #${order.order_number}`, `<form id="return-form"><p class="form-hint">De bestelling wordt als retour gemarkeerd. Je kunt daarna apart een volledige of gedeeltelijke terugbetaling uitvoeren.</p><label class="checkbox-field"><input name="restore_stock" type="checkbox" checked> Producten terugzetten in de voorraad</label><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Retour bevestigen</button></div></form>`)
   const form = document.querySelector('#return-form')
-  form.addEventListener('submit', async (event) => {
+  bindOrderSubmit(form, async (event) => {
     event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true, 'Retour bevestigen')
     const { data, error } = await supabase.rpc('return_admin_order', { p_order_id: order.id, p_restore_stock: form.elements.restore_stock.checked })
     if (error) { toast('Retour verwerken mislukt', error.message, true); setBusy(button, false, 'Retour bevestigen'); return }
@@ -1180,13 +1273,13 @@ function returnOrderForm(order) {
 function editOrderNoteForm(order) {
   openDialog('Ordernotitie bewerken', `Bestelling #${order.order_number}`, `<form id="order-copy-form"><label class="field">Notitie<textarea name="note" maxlength="1000" rows="7" placeholder="Interne informatie over deze bestelling">${escapeHtml(order.note || '')}</textarea></label><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Notitie opslaan</button></div></form>`)
   const form = document.querySelector('#order-copy-form')
-  form.addEventListener('submit', async (event) => { event.preventDefault(); const note = form.elements.note.value.trim(); const { error } = await supabase.from('orders').update({ note }).eq('id', order.id); if (error) { toast('Notitie opslaan mislukt', error.message, true); return } await recordActivity('Ordernotitie bijgewerkt', 'order', order.id, { order_number: order.order_number }); closeDialog(); await refreshOrderDetail(order.id) })
+  bindOrderSubmit(form, async (event) => { event.preventDefault(); const note = form.elements.note.value.trim(); const { error } = await updateOrderRecord(order.id, { note }); if (error) { toast('Notitie opslaan mislukt', error.message, true); return } await recordActivity('Ordernotitie bijgewerkt', 'order', order.id, { order_number: order.order_number }); closeDialog(); await refreshOrderDetail(order.id) })
 }
 
 async function toggleOrderArchive(order) {
   if (!order) return
   const archived = !order.archived
-  const { error } = await supabase.from('orders').update({ archived }).eq('id', order.id)
+  const { error } = await updateOrderRecord(order.id, { archived })
   if (error) { toast('Archiefstatus wijzigen mislukt', error.message, true); return }
   await recordActivity(archived ? 'Bestelling gearchiveerd' : 'Bestelling uit archief gehaald', 'order', order.id, { order_number: order.order_number })
   toast(archived ? 'Bestelling gearchiveerd' : 'Bestelling teruggezet'); await refreshOrderDetail(order.id)
@@ -1194,7 +1287,7 @@ async function toggleOrderArchive(order) {
 
 async function markOrderDelivered(order) {
   if (!order) return
-  const { error } = await supabase.from('orders').update({ fulfillment_status: 'delivered', delivered_at: new Date().toISOString(), status: 'completed' }).eq('id', order.id)
+  const { error } = await updateOrderRecord(order.id, { fulfillment_status: 'delivered', delivered_at: new Date().toISOString(), status: 'completed' })
   if (error) { toast('Bezorgstatus wijzigen mislukt', error.message, true); return }
   await recordActivity('Bestelling als bezorgd gemarkeerd', 'order', order.id, { order_number: order.order_number })
   toast('Bestelling is bezorgd'); await refreshOrderDetail(order.id)
@@ -1212,11 +1305,12 @@ async function deleteOrder(orderId) {
   const order = state.orders.find((item) => item.id === orderId)
   if (!order) return
   const paidWarning = ['paid', 'partially_refunded'].includes(order.payment_status) ? ' Let op: regel eerst een eventuele terugbetaling af.' : ''
-  if (!window.confirm(`Weet je zeker dat je bestelling #${order.order_number} definitief wilt verwijderen? Productvoorraad wordt teruggezet.${paidWarning}`)) return
-  const { data, error } = await supabase.rpc('delete_admin_order', { p_order_id: order.id, p_restore_stock: true })
+  const restoreStock = order.source !== 'csv-import' && !order.stock_restored_at
+  if (!window.confirm(`Weet je zeker dat je bestelling #${order.order_number} definitief wilt verwijderen?${restoreStock ? ' Productvoorraad wordt teruggezet.' : ''}${paidWarning}`)) return
+  const { data, error } = await supabase.rpc('delete_admin_order', { p_order_id: order.id, p_restore_stock: restoreStock })
   if (error) { toast('Bestelling verwijderen mislukt', error.message, true); return }
   await recordActivity('Bestelling verwijderd', 'order', order.id, { order_number: order.order_number, stock_restored: data.stock_restored })
-  toast('Bestelling verwijderd', 'Productvoorraad en klanttotalen zijn bijgewerkt.')
+  toast('Bestelling verwijderd', data.stock_restored ? 'Productvoorraad en klanttotalen zijn bijgewerkt.' : 'De bestelling is uit het overzicht verwijderd.')
   closeDialog(); await refreshCurrentRoute()
 }
 
@@ -2108,7 +2202,10 @@ async function sendOrderEmail(order) {
   if (!order) return
   const { data, error } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'payment_confirmed' } })
   if (error || data?.error) { toast('Bevestiging versturen mislukt', await edgeFunctionMessage(error, data, 'De bevestiging kon niet worden verstuurd.'), true); return }
-  toast('Betaalbevestiging verwerkt', `De klant is geïnformeerd over bestelling #${order.order_number}.`)
+  if (data?.skipped || !data?.results?.length || data.results.every((result) => result.status === 'disabled')) { toast('Bevestiging niet verstuurd', 'De e-mailkoppeling of dit e-mailsjabloon is uitgeschakeld.', true); return }
+  if (data.results.some((result) => result.status === 'failed')) { toast('Bevestiging versturen mislukt', 'Controleer de e-mailkoppeling.', true); return }
+  if (data.results.every((result) => result.status === 'already_sent')) toast('Bevestiging al verstuurd', `Bestelling #${order.order_number} is eerder bevestigd.`)
+  else toast('Betaalbevestiging verstuurd', `De klant is geïnformeerd over bestelling #${order.order_number}.`)
   await refreshOrderDetail(order.id)
 }
 
@@ -3106,10 +3203,10 @@ async function refreshCurrentRoute(option) {
 }
 
 async function exportOrders() {
-  const orders = visibleOrders()
+  const orders = filteredOrders()
   if (!orders.length) { toast('Geen bestellingen om te exporteren'); return }
   const rows = [['Bestelling', 'Extern nummer', 'Datum', 'Klant', 'E-mail', 'Totaal', 'Betaling', 'Verzending', 'Status'], ...orders.map((order) => [order.order_number, order.external_reference || '', order.created_at, order.customer_name, order.customer_email, (order.total_cents / 100).toFixed(2), order.payment_status, order.fulfillment_status, order.status])]
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n')
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/^[=+@-]/, "\'$&").replaceAll('"', '""')}"`).join(',')).join('\n')
   const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a'); link.href = url; link.download = `zol-bestellingen-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
   await recordActivity('Bestellingen geëxporteerd', 'order', '', { count: orders.length }); toast('Export aangemaakt')
@@ -3169,7 +3266,7 @@ function importOrdersForm() {
     }
   })
 
-  form.addEventListener('submit', async (event) => {
+  bindOrderSubmit(form, async (event) => {
     event.preventDefault()
     if (!parsed?.orders.length || parsed.issues.length) return
     setBusy(submit, true, 'Importeren')
@@ -3199,17 +3296,16 @@ async function exportAnalytics() {
 function printInvoice(order) {
   const company = settingsValue('company_profile')
   const address = order.shipping_address || {}
-  const invoice = window.open('', '_blank', 'noopener,noreferrer')
+  const invoice = openOrderWindow(`Factuur ZOL-${order.order_number}`)
   if (!invoice) { toast('Pop-up geblokkeerd', 'Sta pop-ups toe om de factuur te openen.', true); return }
-  invoice.document.write(`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Factuur ZOL-${order.order_number}</title><style>
-    body{max-width:820px;margin:50px auto;padding:0 25px;color:#17212d;font:14px/1.55 Arial,sans-serif}header{display:flex;justify-content:space-between;gap:30px;padding-bottom:28px;border-bottom:3px solid #33669b}.logo{font:bold 34px Arial;color:#33669b}h1{font-size:30px;margin:0}.meta{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin:35px 0}.meta h2{font-size:12px;text-transform:uppercase;color:#33669b}table{width:100%;border-collapse:collapse;margin-top:25px}th,td{padding:12px 8px;border-bottom:1px solid #dfe3e8;text-align:left}th:last-child,td:last-child{text-align:right}.totals{width:310px;margin:25px 0 0 auto}.totals div{display:flex;justify-content:space-between;padding:6px}.totals .total{margin-top:7px;padding-top:12px;border-top:2px solid #17212d;font-size:18px;font-weight:bold}footer{margin-top:65px;padding-top:18px;border-top:1px solid #dfe3e8;color:#68737e;font-size:11px}@media print{body{margin:0}.no-print{display:none}}</style></head><body>
+  invoice.document.write(`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Factuur ZOL-${order.order_number}</title><link rel="stylesheet" href="${window.location.origin}/invoice.css"></head><body><div class="no-print"><button type="button" data-print>Afdrukken / PDF opslaan</button></div>
     <header><div><div class="logo">ZOL</div><strong>${escapeHtml(company.name || 'ZOL Solutions')}</strong></div><div><h1>Factuur</h1><p>Factuurnummer: ZOL-${order.order_number}<br>Factuurdatum: ${formatDate(order.created_at)}</p></div></header>
     <section class="meta"><div><h2>Van</h2><p><strong>${escapeHtml(company.name || 'ZOL Solutions')}</strong><br>${escapeHtml(company.address || '')}<br>${escapeHtml(company.email || 'info@zolsolutions.nl')}<br>${company.kvk ? `KvK: ${escapeHtml(company.kvk)}<br>` : ''}${company.vat_number ? `BTW: ${escapeHtml(company.vat_number)}` : ''}</p></div><div><h2>Factuur aan</h2><p><strong>${escapeHtml(order.customer_name)}</strong><br>${escapeHtml(address.street || '')}<br>${escapeHtml(address.postal_code || '')} ${escapeHtml(address.city || '')}<br>${escapeHtml(order.customer_email)}</p></div></section>
     <table><thead><tr><th>Product</th><th>Aantal</th><th>Prijs</th><th>Totaal</th></tr></thead><tbody>${(order.order_items || []).map((item) => `<tr><td><strong>${escapeHtml(item.product_name)}</strong><br><small>${escapeHtml(item.variant_name)}</small></td><td>${item.quantity}</td><td>${formatMoney(item.unit_price_cents)}</td><td>${formatMoney(item.total_cents)}</td></tr>`).join('')}</tbody></table>
     <div class="totals"><div><span>Subtotaal</span><strong>${formatMoney(order.subtotal_cents)}</strong></div><div><span>Verzending</span><strong>${formatMoney(order.shipping_cents)}</strong></div>${order.discount_cents ? `<div><span>Korting ${order.discount_code ? `(${escapeHtml(order.discount_code)})` : ''}</span><strong>− ${formatMoney(order.discount_cents)}</strong></div>` : ''}<div><span>Inclusief btw</span><strong>${formatMoney(order.tax_cents)}</strong></div><div class="total"><span>Totaal</span><strong>${formatMoney(order.total_cents)}</strong></div></div>
     <footer>Betaalstatus: ${escapeHtml(prettyStatus(order.payment_status))} · Bedankt voor je bestelling bij ZOL Solutions.</footer></body></html>`)
   invoice.document.close()
-  window.setTimeout(() => invoice.print(), 250)
+  invoice.document.querySelector('[data-print]').addEventListener('click', () => invoice.print())
 }
 
 async function handleContentClick(event) {
@@ -3307,7 +3403,7 @@ async function handleContentClick(event) {
   if (action === 'delete-order-note') await deleteOrderNote(id, target.dataset.orderId)
   if (action === 'new-order') newOrderForm()
   if (action === 'delete-order') await deleteOrder(id)
-  if (action === 'add-order-line') { const form = document.querySelector('#new-order-form'); if (form) { const line = form.querySelector('.manual-order-line')?.cloneNode(true); if (line) { line.querySelector('[data-order-variant]').value = ''; line.querySelector('[data-order-quantity]').value = '1'; line.querySelector('[data-order-price]').value = ''; form.querySelector('#manual-order-lines').append(line); updateManualOrderTotal(form) } } }
+  if (action === 'add-order-line') { const form = document.querySelector('#new-order-form'); if (form) { if (form.querySelectorAll('.manual-order-line').length >= 20) { toast('Maximaal twintig orderregels', 'Combineer dezelfde maat in één regel.', true); return } const line = form.querySelector('.manual-order-line')?.cloneNode(true); if (line) { line.querySelector('[data-order-variant]').value = ''; line.querySelector('[data-order-quantity]').value = '1'; line.querySelector('[data-order-price]').value = ''; form.querySelector('#manual-order-lines').append(line); updateManualOrderTotal(form) } } }
   if (action === 'remove-order-line') { const form = document.querySelector('#new-order-form'); const lines = form?.querySelectorAll('.manual-order-line'); if (lines?.length > 1) { target.closest('.manual-order-line')?.remove(); updateManualOrderTotal(form) } else toast('Minimaal één product nodig', '', true) }
   if (action === 'open-customer') customerForm(state.customers.find((item) => item.id === id))
   if (action === 'open-message') await openContactMessage(state.contactMessages.find((item) => item.id === id))
@@ -3343,7 +3439,7 @@ async function handleContentClick(event) {
 }
 
 function handleFilters(event) {
-  if (event.target.matches('[data-filter="orders"], [data-filter-status="orders"], [data-filter-payment="orders"]')) filterOrders()
+  if (event.target.matches('[data-filter="orders"], [data-filter-status="orders"], [data-filter-payment="orders"], [data-filter-archive="orders"]')) filterOrders()
   if (event.target.matches('[data-filter="customers"], [data-filter-marketing="customers"]')) filterCustomers()
   if (event.target.matches('[data-filter="content"], [data-filter-page="content"], [data-filter-type="content"]')) filterContent()
   if (event.target.matches('[data-filter="media"], [data-filter-kind="media"]')) filterMedia()
@@ -3475,8 +3571,8 @@ document.querySelector('#mobile-menu-button').addEventListener('click', () => el
 elements.backdrop.addEventListener('click', () => elements.sidebar.classList.remove('is-open'))
 document.querySelector('#dialog-close').addEventListener('click', closeDialog)
 elements.dialog.addEventListener('click', (event) => { if (event.target === elements.dialog) closeDialog() })
-elements.content.addEventListener('click', handleContentClick)
-elements.dialogBody.addEventListener('click', handleContentClick)
+elements.content.addEventListener('click', dispatchContentClick)
+elements.dialogBody.addEventListener('click', dispatchContentClick)
 elements.content.addEventListener('input', handleFilters)
 elements.content.addEventListener('change', handleFilters)
 elements.content.addEventListener('click', (event) => { const tab = event.target.closest('[data-settings-tab]'); if (tab) renderSettings(tab.dataset.settingsTab) })
