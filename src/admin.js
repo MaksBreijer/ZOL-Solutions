@@ -850,7 +850,7 @@ function newOrderForm() {
       <footer><span>Voorlopig totaal</span><strong id="manual-order-total">€ 0,00</strong></footer>
     </section>
     <label class="field field--full">Interne notitie<textarea name="note" maxlength="1000" placeholder="Optionele notitie voor deze bestelling"></textarea></label>
-    <p class="form-hint">Deze bestelling opslaan verstuurt geen e-mail. Maak daarna het verzendlabel en klik op Verstuur om de ontvanger de Track & Trace te mailen.</p>
+    <p class="form-hint">Deze bestelling opslaan verstuurt geen e-mail. Zodra je daarna een echt verzendlabel maakt, wordt de Track & Trace automatisch naar de ontvanger gemaild.</p>
     <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Bestelling aanmaken</button></div>
   </form>`)
   elements.dialog.classList.add('admin-dialog--wide')
@@ -1192,6 +1192,35 @@ async function removeOrderTracking(order, button) {
   await refreshOrderDetail(order.id)
 }
 
+async function sendShipmentEmail(order) {
+  if (!order?.tracking_code) return false
+  if (order.postnl?.environment === 'sandbox' && order.postnl?.barcode === order.tracking_code) return false
+  if (!settingsValue('email_config').enabled || !order.customer_email) {
+    toast('Verzendmail niet verstuurd', 'Controleer het e-mailadres en activeer de e-mailkoppeling bij Instellingen.', true)
+    return false
+  }
+  try {
+    if (['unfulfilled', 'processing'].includes(order.fulfillment_status)) {
+      const { error } = await updateOrderRecord(order.id, { fulfillment_status: 'shipped', shipped_at: new Date().toISOString() })
+      if (error) { toast('Verzendmail niet verstuurd', error.message, true); return false }
+      order.fulfillment_status = 'shipped'
+    }
+    // The confirmed production-label click (or retry button) is the send action.
+    // Background hooks still cannot send mail on the administrator's behalf.
+    const { data, error } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'shipping', confirm_send: true, tracking_code: order.tracking_code } })
+    const result = data?.results?.find(item => item.kind === 'order_shipped')
+    if (error || data?.error || !['sent', 'already_sent'].includes(result?.status)) {
+      toast('Verzendmail niet verstuurd', await edgeFunctionMessage(error, data, result?.status === 'disabled' ? 'Het verzendsjabloon staat uit. Activeer dit bij E-mails.' : 'Controleer de e-mailinstellingen en probeer opnieuw.'), true)
+      return false
+    }
+    toast(result.status === 'already_sent' ? 'Verzendmail was al verstuurd' : 'Track & Trace verstuurd', order.customer_email)
+    return true
+  } catch (error) {
+    toast('Verzendmail niet verstuurd', error.message || 'Probeer de verzendmail opnieuw. Het label blijft bewaard.', true)
+    return false
+  }
+}
+
 function shipmentEmailForm(order, labelUrl = '') {
   if (!order?.tracking_code) return
   const isSandbox = order.postnl?.environment === 'sandbox' && order.postnl?.barcode === order.tracking_code
@@ -1199,24 +1228,14 @@ function shipmentEmailForm(order, labelUrl = '') {
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
   const recipient = order.customer_email || ''
   const alreadySent = state.emailMessages.some(message => message.dedupe_key === `order_shipped-${order.id}-${order.tracking_code}` && message.status === 'sent')
-  openDialog('Track & Trace versturen', `Bestelling #${order.order_number}`, `<form id="shipment-email-form"><div class="tracking-destination-preview"><div><strong>${escapeHtml(order.customer_name || recipient)}</strong><small>${escapeHtml(recipient)}</small></div></div><p>Trackingcode: <strong>${escapeHtml(order.tracking_code)}</strong></p>${labelUrl ? `<p><a href="${escapeHtml(labelUrl)}" target="_blank" rel="noopener noreferrer">Verzendlabel openen</a></p>` : ''}<p class="form-hint">${alreadySent ? 'De Track & Trace-mail voor deze zending is al verstuurd.' : 'Er is nog geen verzendmail verstuurd. Klik op Verstuur om de klant of fysio nu de Track & Trace te mailen. Het label alleen aanmaken verstuurt geen mail.'}</p>${!emailEnabled ? '<p class="form-hint">Activeer eerst de e-mailkoppeling bij Instellingen.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Sluiten</button><button class="button button--primary" type="submit" ${!emailEnabled || !recipient || alreadySent ? 'disabled' : ''}>${alreadySent ? 'Mail verstuurd' : 'Verstuur'}</button></div></form>`)
+  openDialog('Track & Trace versturen', `Bestelling #${order.order_number}`, `<form id="shipment-email-form"><div class="tracking-destination-preview"><div><strong>${escapeHtml(order.customer_name || recipient)}</strong><small>${escapeHtml(recipient)}</small></div></div><p>Trackingcode: <strong>${escapeHtml(order.tracking_code)}</strong></p>${labelUrl ? `<p><a href="${escapeHtml(labelUrl)}" target="_blank" rel="noopener noreferrer">Verzendlabel openen</a></p>` : ''}<p class="form-hint">${alreadySent ? 'De Track & Trace-mail voor deze zending is al verstuurd.' : 'De verzendmail is nog niet als verstuurd geregistreerd. Gebruik Verstuur om de Track & Trace (opnieuw) te verwerken. Er wordt geen nieuw label gemaakt.'}</p>${!emailEnabled ? '<p class="form-hint">Activeer eerst de e-mailkoppeling bij Instellingen.</p>' : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Sluiten</button><button class="button button--primary" type="submit" ${!emailEnabled || !recipient || alreadySent ? 'disabled' : ''}>${alreadySent ? 'Mail verstuurd' : 'Verstuur'}</button></div></form>`)
   const form = document.querySelector('#shipment-email-form')
   bindOrderSubmit(form, async event => {
     event.preventDefault()
     if (!emailEnabled || !recipient || alreadySent) return
     const button = form.querySelector('[type="submit"]')
     setBusy(button, true, 'Verstuur')
-    if (['unfulfilled', 'processing'].includes(order.fulfillment_status)) {
-      const { error } = await updateOrderRecord(order.id, { fulfillment_status: 'shipped', shipped_at: new Date().toISOString() })
-      if (error) { toast('Versturen mislukt', error.message, true); return }
-    }
-    const { data, error } = await supabase.functions.invoke('order-email', { body: { order_id: order.id, action: 'shipping', confirm_send: true, tracking_code: order.tracking_code } })
-    const result = data?.results?.find(item => item.kind === 'order_shipped')
-    if (error || data?.error || !['sent', 'already_sent'].includes(result?.status)) {
-      toast('Verzendmail niet verstuurd', await edgeFunctionMessage(error, data, result?.status === 'disabled' ? 'Het verzendsjabloon staat uit. Activeer dit bij E-mails.' : 'Controleer de e-mailinstellingen en probeer opnieuw.'), true)
-      return
-    }
-    toast(result.status === 'already_sent' ? 'Verzendmail was al verstuurd' : 'Track & Trace verstuurd', recipient)
+    if (!await sendShipmentEmail(order)) return
     closeDialog(); await refreshOrderDetail(order.id)
   })
 }
@@ -1224,7 +1243,7 @@ function shipmentEmailForm(order, labelUrl = '') {
 function postnlLabelForm(order) {
   const config = settingsValue('postnl_config')
   const isProduction = config.environment === 'production'
-  openDialog('PostNL-label maken', `Bestelling #${order.order_number}`, `<form id="postnl-label-form"><div class="email-connection ${isProduction ? '' : 'is-connected'}"><i>${isProduction ? '!' : '✓'}</i><div><strong>${isProduction ? 'Productie — deze zending wordt echt aangemeld' : 'Veilige sandbox-test'}</strong><small>${isProduction ? 'PostNL kan deze zending factureren. Controleer het adres zorgvuldig.' : 'Er wordt geen echte betaalde zending aangemaakt.'}</small></div></div><div class="form-grid"><label class="field">Pakkettype<input value="${config.shipment_type === 'letterbox' ? 'Brievenbuspakje' : 'Pakket'}" disabled></label>${isProduction ? '<label class="checkbox-field field--full"><input name="confirm_production" type="checkbox" required> Ik bevestig dat dit een echte productiezending mag worden</label>' : ''}</div><p class="form-hint">${isProduction ? 'Het label aanmaken verstuurt nog geen mail. Daarna kun je de ontvanger controleren en op Verstuur klikken om de Track & Trace te mailen.' : 'Een sandboxlabel verstuurt geen e-mail en markeert de bestelling niet als verzonden.'}</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'}</button></div></form>`)
+  openDialog('PostNL-label maken', `Bestelling #${order.order_number}`, `<form id="postnl-label-form"><div class="email-connection ${isProduction ? '' : 'is-connected'}"><i>${isProduction ? '!' : '✓'}</i><div><strong>${isProduction ? 'Productie — deze zending wordt echt aangemeld' : 'Veilige sandbox-test'}</strong><small>${isProduction ? 'PostNL kan deze zending factureren. Controleer het adres zorgvuldig.' : 'Er wordt geen echte betaalde zending aangemaakt.'}</small></div></div><div class="form-grid"><label class="field">Pakkettype<input value="${config.shipment_type === 'letterbox' ? 'Brievenbuspakje' : 'Pakket'}" disabled></label>${isProduction ? '<label class="checkbox-field field--full"><input name="confirm_production" type="checkbox" required> Ik bevestig dat dit een echte productiezending mag worden</label>' : ''}</div><p class="form-hint">${isProduction ? 'Na het succesvol aanmaken van het echte label wordt de Track & Trace automatisch naar de klant of fysio gemaild. Een aparte klik op Verstuur is niet nodig.' : 'Een sandboxlabel verstuurt geen e-mail en markeert de bestelling niet als verzonden.'}</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">${isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'}</button></div></form>`)
   const form = document.querySelector('#postnl-label-form')
   bindOrderSubmit(form, async (event) => {
     event.preventDefault()
@@ -1238,9 +1257,11 @@ function postnlLabelForm(order) {
     if (error || data?.error) { labelWindow?.close(); toast('PostNL-label mislukt', await edgeFunctionMessage(error, data, 'Het label kon niet worden gemaakt.'), true); setBusy(button, false, isProduction ? 'Echt label aanmaken' : 'Sandboxlabel maken'); return }
     if (labelWindow && data.label_url) showOrderLabel(labelWindow, data.label_url)
     if (!data.label_url) labelWindow?.close()
-    toast('PostNL-label gemaakt', 'Er is nog geen verzendmail verstuurd.')
+    toast('PostNL-label gemaakt', data.environment === 'production' ? 'De Track & Trace-mail wordt verwerkt.' : 'Sandbox: er wordt geen mail verstuurd.')
+    const shipmentOrder = { ...order, tracking_code: data.barcode, postnl: { ...order.postnl, barcode: data.barcode, environment: data.environment } }
+    const emailSent = data.environment === 'production' && await sendShipmentEmail(shipmentOrder)
     closeDialog(); await refreshOrderDetail(order.id)
-    if (data.environment === 'production') shipmentEmailForm(state.orders.find(item => item.id === order.id), data.label_url || '')
+    if (data.environment === 'production' && !emailSent) shipmentEmailForm(state.orders.find(item => item.id === order.id) || shipmentOrder, data.label_url || '')
     else if ((!labelWindow || labelWindow.closed) && data.label_url) showOrderLabel(null, data.label_url)
   })
 }

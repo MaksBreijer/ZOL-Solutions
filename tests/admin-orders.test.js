@@ -133,15 +133,13 @@ scenario('PostNL label remains accessible when the browser blocks new windows', 
   assert.equal(h.q('#admin-dialog').open,true); assert.match(h.q('#dialog-body a').href,/label.html/)
 })
 
-scenario('production label submission requires confirmation and offers Verstuur without sending yet', async h => {
+scenario('production label submission requires confirmation and then automatically emails tracking', async h => {
   h.db.settings.find(s=>s.key==='postnl_config').value.environment='production'
   await h.detail(); await h.click('[data-action="postnl-label"]'); await h.submit('#postnl-label-form')
   assert.equal(h.calls.some(c=>c.function==='postnl-shipment'),false)
   h.q('[name="confirm_production"]').checked=true; await h.submit('#postnl-label-form')
-  assert.notEqual(h.db.orders[0].fulfillment_status,'shipped'); assert.equal(h.calls.filter(c=>c.function==='order-email').length,0)
-  assert.equal(h.q('#shipment-email-form [type="submit"]').textContent,'Verstuur')
-  assert.match(h.q('#shipment-email-form').textContent,/customer@example.invalid/)
-  await h.submit('#shipment-email-form')
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,1)
+  assert.equal(h.q('#shipment-email-form'),null,'a second send confirmation is not needed')
   assert.equal(h.db.orders[0].fulfillment_status,'shipped')
   const email = h.calls.find(c=>c.function==='order-email')
   assert.equal(email.body.confirm_send,true); assert.equal(email.body.tracking_code,'TEST-BARCODE')
@@ -149,20 +147,65 @@ scenario('production label submission requires confirmation and offers Verstuur 
   assert.equal(h.q('[data-action="send-tracking-email"]').disabled,true)
 })
 
-scenario('physio label waits for Verstuur and closing then reopening the dialog is safe', async h => {
+scenario('unpaid physio label automatically emails once even when the label form is submitted twice', async h => {
   h.db.settings.find(s=>s.key==='postnl_config').value.environment='production'
   Object.assign(h.db.orders[0],{order_type:'physio',payment_status:'pending',customer_email:'physio@example.invalid',tracking_destination:{type:'physio',practice_name:'Test Praktijk',contact_name:'Test Fysio'}})
   await h.detail(); await h.click('[data-action="postnl-label"]')
-  h.q('[name="confirm_production"]').checked=true; await h.submit('#postnl-label-form')
-  assert.match(h.q('#shipment-email-form').textContent,/physio@example.invalid/)
-  await h.click('#shipment-email-form [data-close-dialog]')
-  assert.equal(h.calls.filter(c=>c.function==='order-email').length,0)
-  await h.detail(); await h.click('[data-action="send-tracking-email"]')
-  const form = h.q('#shipment-email-form')
+  h.q('[name="confirm_production"]').checked=true
+  const form = h.q('#postnl-label-form')
   form.dispatchEvent(new h.window.Event('submit',{bubbles:true,cancelable:true}))
   form.dispatchEvent(new h.window.Event('submit',{bubbles:true,cancelable:true})); await h.flush()
   assert.equal(h.calls.filter(c=>c.function==='order-email').length,1)
+  assert.equal(h.calls.filter(c=>c.function==='postnl-shipment'&&c.body.action==='create').length,1)
+  assert.equal(h.q('#shipment-email-form'),null)
+  assert.match(h.q('#toast-region').textContent,/physio@example.invalid/)
   assert.equal(h.db.orders[0].payment_status,'pending')
+})
+
+scenario('a failed label or cancelled form never sends a tracking email', async h => {
+  h.db.settings.find(s=>s.key==='postnl_config').value.environment='production'
+  await h.detail(); await h.click('[data-action="postnl-label"]'); await h.click('#postnl-label-form [data-close-dialog]')
+  assert.equal(h.calls.filter(c=>c.function).length,0)
+  await h.click('[data-action="postnl-label"]'); h.q('[name="confirm_production"]').checked=true
+  h.respondWith({error:'PostNL niet beschikbaar'}); await h.submit('#postnl-label-form')
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,0)
+  assert.notEqual(h.db.orders[0].fulfillment_status,'shipped')
+})
+
+scenario('an automatic email failure keeps the successful label and offers only a mail retry', async h => {
+  h.db.settings.find(s=>s.key==='postnl_config').value.environment='production'
+  const invoke = h.supabase.functions.invoke; let failEmail = true
+  h.supabase.functions.invoke = async (name, options) => {
+    if (name === 'order-email' && failEmail) { failEmail = false; h.respondWith({error:'Mail tijdelijk onbereikbaar',results:[{kind:'order_shipped',status:'failed'}]}) }
+    return invoke(name, options)
+  }
+  await h.detail(); await h.click('[data-action="postnl-label"]'); h.q('[name="confirm_production"]').checked=true; await h.submit('#postnl-label-form')
+  assert.equal(h.db.orders[0].postnl.barcode,'TEST-BARCODE')
+  assert.match(h.q('#toast-region').textContent,/niet verstuurd/)
+  assert.ok(h.q('#shipment-email-form'))
+  await h.submit('#shipment-email-form')
+  assert.equal(h.calls.filter(c=>c.function==='postnl-shipment').length,1)
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,2)
+  assert.equal(h.q('[data-action="send-tracking-email"]').disabled,true)
+})
+
+scenario('disabled mail or a blocked label popup does not lose a paid label', async h => {
+  h.db.settings.find(s=>s.key==='postnl_config').value.environment='production'
+  h.db.settings.find(s=>s.key==='email_config').value.enabled=false
+  h.window.open=()=>null
+  await h.detail(); await h.click('[data-action="postnl-label"]'); h.q('[name="confirm_production"]').checked=true; await h.submit('#postnl-label-form')
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,0)
+  assert.equal(h.q('#shipment-email-form [type="submit"]').disabled,true)
+  assert.match(h.q('#shipment-email-form a').href,/label.html/)
+  assert.equal(h.calls.filter(c=>c.function==='postnl-shipment').length,1)
+})
+
+scenario('opening a saved label does not automatically send tracking again', async h => {
+  h.db.settings.find(s=>s.key==='postnl_config').value.environment='production'
+  await h.detail(); await h.click('[data-action="postnl-label"]'); h.q('[name="confirm_production"]').checked=true; await h.submit('#postnl-label-form')
+  await h.click('[data-action="postnl-label-url"]')
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,1)
+  assert.equal(h.calls.filter(c=>c.function==='postnl-shipment'&&c.body.action==='create').length,1)
 })
 
 scenario('manual order creation and tracking edits never invoke an email automatically', async h => {
