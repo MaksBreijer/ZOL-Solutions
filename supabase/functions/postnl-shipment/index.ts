@@ -39,6 +39,13 @@ function clean(value: unknown, max = 180) {
   return String(value ?? "").trim().slice(0, max)
 }
 
+function normalizeCountryCode(value: unknown) {
+  // Customer records may contain a display name rather than an ISO code.
+  // Match complete values: truncating Nederland produces NE (Niger).
+  const country = clean(value, 120).replace(/\s+/g, " ").toUpperCase() || "NL"
+  return ["NL", "NLD", "NEDERLAND", "NETHERLANDS", "THE NETHERLANDS"].includes(country) ? "NL" : country
+}
+
 function postnlKey(environment: "sandbox" | "production") {
   return Deno.env.get(environment === "production" ? "POSTNL_PRODUCTION_API_KEY" : "POSTNL_SANDBOX_API_KEY") || ""
 }
@@ -234,7 +241,7 @@ Deno.serve(async (request) => {
     if (!apiKey) return Response.json({ error: `De PostNL-${environment === "production" ? "productie" : "sandbox"}sleutel is nog niet veilig ingesteld.` }, { status: 503, headers })
 
     const address: Json = order.shipping_address || {}
-    if (clean(address.country || "NL", 2).toUpperCase() !== "NL") {
+    if (normalizeCountryCode(address.country) !== "NL") {
       return Response.json({ error: "Deze koppeling is nu veilig ingesteld voor Nederlandse zendingen. Internationale zendingen vereisen aanvullende douane- en productgegevens." }, { status: 409, headers })
     }
     const recipientStreet = splitStreet(address.street)
@@ -252,7 +259,7 @@ Deno.serve(async (request) => {
       Customer: {
         Address: {
           AddressType: "02", City: clean(config.sender_city, 35), CompanyName: clean(config.sender_company || "ZOL Solutions", 35),
-          Countrycode: clean(config.sender_country || "NL", 2).toUpperCase(), HouseNr: clean(config.sender_house_number, 10),
+          Countrycode: normalizeCountryCode(config.sender_country), HouseNr: clean(config.sender_house_number, 10),
           ...(clean(config.sender_house_number_addition, 10) ? { HouseNrExt: clean(config.sender_house_number_addition, 10) } : {}),
           Street: clean(config.sender_street, 95), Zipcode: clean(config.sender_postal_code, 17).replaceAll(" ", "").toUpperCase(),
         },
