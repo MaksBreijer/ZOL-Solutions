@@ -88,7 +88,7 @@ test('manual order RPC queues one created email event for customers and physios 
   }
 })
 
-test('created email handler sends to the customer or physio without requiring payment and deduplicates retries', async () => {
+test('manual orders stay quiet until an authenticated admin confirms tracking; webshop receipts and send deduplication are preserved', async () => {
   const source = readFileSync(new URL('../supabase/functions/order-email/index.ts', import.meta.url), 'utf8')
     .replace(/^import[\s\S]*?from "\.\.\/_shared\/email\.ts"\n/, '')
   for (const type of ['customer','physio']) {
@@ -97,6 +97,7 @@ test('created email handler sends to the customer or physio without requiring pa
       const logs = new Map(), sent = []
       let handler
       const db = {
+        rpc: async () => ({data:true}),
         from(table) {
           let filter
           const query = {
@@ -117,15 +118,14 @@ test('created email handler sends to the customer or physio without requiring pa
         markEmail:async (_db,id,result) => { Object.assign([...logs.values()].find(log => log.id === id),result) },
         sendEmail:async email => { sent.push(email); return {id:`mock-${sent.length}`} },
       })
-      const request = action => new Request('https://example.invalid/order-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:customer,action})})
+      const request = (action, extra = {}, internal = false) => new Request('https://example.invalid/order-email',{method:'POST',headers:{'Content-Type':'application/json',...(internal ? {'x-zol-email-secret':'test-internal'} : {})},body:JSON.stringify({order_id:customer,action,...extra})})
       assert.equal((await handler(request('created'))).status,200)
-      const expected = [[`${type}@example.invalid`,'order_received']]
-      if (orderSource !== 'admin') expected.push(['admin@example.invalid','new_order_admin'])
+      const expected = orderSource === 'admin' ? [] : [[`${type}@example.invalid`,'order_received'],['admin@example.invalid','new_order_admin']]
       assert.deepEqual(sent.map(email => [email.to,email.subject]),expected)
       assert.equal((await handler(request('created'))).status,200)
       assert.equal(sent.length,expected.length,'a retry must not send another confirmation')
       if (status === 'pending') {
-        assert.equal((await handler(request('paid'))).status,409)
+        assert.equal((await handler(request('paid'))).status,orderSource === 'admin' ? 200 : 409)
         assert.equal(sent.length,expected.length,'an unpaid order must never get payment_confirmed')
       }
       order.tracking_code = 'SANDBOX'
@@ -135,19 +135,32 @@ test('created email handler sends to the customer or physio without requiring pa
       order.tracking_code = 'REAL123'
       order.tracking_url = 'https://jouw.postnl.nl/track-and-trace/REAL123-NL-1234AB'
       order.postnl = {environment:'production',barcode:'REAL123'}
-      assert.equal((await handler(request('shipping'))).status,200)
+      const consent = {confirm_send:true,tracking_code:'REAL123'}
+      for (const action of ['shipping','order_shipped']) {
+        assert.equal((await (await handler(request(action))).json()).skipped,'shipping_confirmation_required')
+        assert.equal((await (await handler(request(action,consent,true))).json()).skipped,'shipping_confirmation_required','a database hook cannot consent to sending')
+      }
+      assert.equal(sent.length,expected.length,'saving tracking, creating a label and database hooks do not send')
+      assert.equal((await handler(request('shipping',{...consent,tracking_code:'STALE123'}))).status,409)
+      assert.equal(sent.length,expected.length)
+      assert.equal((await handler(request('shipping',consent))).status,200)
       assert.equal(sent.at(-1).to,`${type}@example.invalid`)
       assert.equal(sent.at(-1).subject,'order_shipped')
       assert.match(sent.at(-1).text,/REAL123/)
       assert.match(sent.at(-1).text,/https:\/\/jouw\.postnl\.nl\/track-and-trace\//)
-      await handler(request('shipping'))
-      assert.equal(sent.length,expected.length + 1,'the database hook and browser call share one shipment dedupe key')
+      await handler(request('shipping',consent))
+      assert.equal(sent.length,expected.length + 1,'repeated explicit clicks share one shipment dedupe key')
       order.payment_status = 'paid'
       assert.equal((await handler(request('paid'))).status,200)
-      assert.equal(sent.at(-1).subject,'payment_confirmed')
-      assert.equal(sent.length,expected.length + 2,'marking paid must not introduce an internal manual-order mail')
+      assert.equal(sent.at(-1).subject,orderSource === 'admin' ? 'order_shipped' : 'payment_confirmed')
+      assert.equal(sent.length,expected.length + (orderSource === 'admin' ? 1 : 2),'marking a manual order paid must not send any confirmation')
       const direct = await (await handler(request('new_order_admin'))).json()
-      assert.equal(direct.results[0].status,orderSource === 'admin' ? 'skipped' : 'already_sent')
+      if (orderSource === 'admin') {
+        assert.equal(direct.skipped,'manual_order_waiting_for_shipping')
+        for (const action of ['created','paid','order_received','payment_confirmed']) {
+          assert.equal((await (await handler(request(action,{},true))).json()).skipped,'manual_order_waiting_for_shipping')
+        }
+      } else assert.equal(direct.results[0].status,'already_sent')
       assert.equal(sent.filter(email => email.to === 'admin@example.invalid').length,orderSource === 'admin' ? 0 : 1)
       assert.equal([...logs.values()].filter(log => log.kind === 'new_order_admin').length,orderSource === 'admin' ? 0 : 1)
     }

@@ -48,7 +48,7 @@ scenario('invoice button produces a printable invoice including zero totals',asy
   h.popups[0].popup.document.querySelector('button').click(); assert.equal(h.popups[0].popup.printed,true)
 })
 scenario('tracking save, edit, remove and delivered actions persist their results',async h=>{
-  await h.detail(); await h.click('[data-action="add-tracking"]'); h.fill('[name="tracking_code"]','TEST123'); h.q('[name="notify"]').checked=false; await h.submit('#tracking-form')
+  await h.detail(); await h.click('[data-action="add-tracking"]'); h.fill('[name="tracking_code"]','TEST123'); await h.submit('#tracking-form')
   assert.equal(h.db.orders[0].tracking_code,'TEST123'); assert.equal(h.db.orders[0].fulfillment_status,'shipped')
   await h.click('[data-action="add-tracking"]'); h.fill('[name="tracking_code"]','TEST456'); await h.submit('#tracking-form'); assert.equal(h.db.orders[0].tracking_code,'TEST456')
   await h.click('[data-action="remove-tracking"]'); assert.equal(h.db.orders[0].tracking_code,''); assert.equal(h.db.orders[0].fulfillment_status,'shipped')
@@ -84,6 +84,7 @@ scenario('delete order returns to the overview',async h=>{
   await h.detail(); await h.click('[data-action="delete-order"]'); assert.equal(h.db.orders.length,0); assert.ok(h.q('#orders-table'))
 })
 scenario('confirmation reports sent, already-sent and disabled results accurately',async h=>{
+  h.db.orders[0].source='zol-webshop'
   await h.detail(); h.respondWith({success:true,skipped:'email_disabled',results:[]}); await h.click('[data-action="send-order-email"]')
   assert.match(h.q('#toast-region').textContent,/niet verstuurd|uitgeschakeld/i)
 })
@@ -132,10 +133,61 @@ scenario('PostNL label remains accessible when the browser blocks new windows', 
   assert.equal(h.q('#admin-dialog').open,true); assert.match(h.q('#dialog-body a').href,/label.html/)
 })
 
-scenario('production label submission requires confirmation and then sends the selected notification', async h => {
+scenario('production label submission requires confirmation and offers Verstuur without sending yet', async h => {
   h.db.settings.find(s=>s.key==='postnl_config').value.environment='production'
   await h.detail(); await h.click('[data-action="postnl-label"]'); await h.submit('#postnl-label-form')
   assert.equal(h.calls.some(c=>c.function==='postnl-shipment'),false)
-  h.q('[name="confirm_production"]').checked=true; h.q('[name="notify"]').checked=true; await h.submit('#postnl-label-form')
-  assert.equal(h.db.orders[0].fulfillment_status,'shipped'); assert.equal(h.calls.filter(c=>c.function==='order-email').length,1)
+  h.q('[name="confirm_production"]').checked=true; await h.submit('#postnl-label-form')
+  assert.notEqual(h.db.orders[0].fulfillment_status,'shipped'); assert.equal(h.calls.filter(c=>c.function==='order-email').length,0)
+  assert.equal(h.q('#shipment-email-form [type="submit"]').textContent,'Verstuur')
+  assert.match(h.q('#shipment-email-form').textContent,/customer@example.invalid/)
+  await h.submit('#shipment-email-form')
+  assert.equal(h.db.orders[0].fulfillment_status,'shipped')
+  const email = h.calls.find(c=>c.function==='order-email')
+  assert.equal(email.body.confirm_send,true); assert.equal(email.body.tracking_code,'TEST-BARCODE')
+  assert.equal(h.q('[data-action="send-tracking-email"]').textContent,'Mail verstuurd')
+  assert.equal(h.q('[data-action="send-tracking-email"]').disabled,true)
+})
+
+scenario('physio label waits for Verstuur and closing then reopening the dialog is safe', async h => {
+  h.db.settings.find(s=>s.key==='postnl_config').value.environment='production'
+  Object.assign(h.db.orders[0],{order_type:'physio',payment_status:'pending',customer_email:'physio@example.invalid',tracking_destination:{type:'physio',practice_name:'Test Praktijk',contact_name:'Test Fysio'}})
+  await h.detail(); await h.click('[data-action="postnl-label"]')
+  h.q('[name="confirm_production"]').checked=true; await h.submit('#postnl-label-form')
+  assert.match(h.q('#shipment-email-form').textContent,/physio@example.invalid/)
+  await h.click('#shipment-email-form [data-close-dialog]')
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,0)
+  await h.detail(); await h.click('[data-action="send-tracking-email"]')
+  const form = h.q('#shipment-email-form')
+  form.dispatchEvent(new h.window.Event('submit',{bubbles:true,cancelable:true}))
+  form.dispatchEvent(new h.window.Event('submit',{bubbles:true,cancelable:true})); await h.flush()
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,1)
+  assert.equal(h.db.orders[0].payment_status,'pending')
+})
+
+scenario('manual order creation and tracking edits never invoke an email automatically', async h => {
+  await h.detail(); assert.equal(h.q('[data-action="send-order-email"]'),null)
+  await h.click('[data-action="add-tracking"]'); h.fill('[name="tracking_code"]','MANUAL123'); await h.submit('#tracking-form')
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,0)
+  await h.click('[data-action="send-tracking-email"]'); await h.submit('#shipment-email-form')
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,1)
+})
+
+scenario('failed or disabled shipping email is not reported as sent and can be retried without another label', async h => {
+  h.db.orders[0].tracking_code='READY123'; await h.detail(); await h.click('[data-action="send-tracking-email"]')
+  h.respondWith({success:true,results:[{kind:'order_shipped',status:'disabled'}]}); await h.submit('#shipment-email-form')
+  assert.match(h.q('#toast-region').textContent,/niet verstuurd/)
+  assert.equal(h.q('#shipment-email-form [type="submit"]').disabled,false)
+  h.respondWith({error:'Provider tijdelijk onbereikbaar',results:[{kind:'order_shipped',status:'failed'}]}); await h.submit('#shipment-email-form')
+  assert.equal(h.q('#shipment-email-form [type="submit"]').disabled,false)
+  await h.submit('#shipment-email-form')
+  assert.equal(h.q('[data-action="send-tracking-email"]').disabled,true)
+  assert.equal(h.calls.filter(c=>c.function==='postnl-shipment').length,0)
+})
+
+scenario('sandbox tracking has no send button and cannot open a send dialog', async h => {
+  Object.assign(h.db.orders[0],{tracking_code:'SANDBOX',postnl:{environment:'sandbox',barcode:'SANDBOX'}})
+  await h.detail(); assert.equal(h.q('[data-action="send-tracking-email"]'),null)
+  h.run('shipmentEmailForm(state.orders[0])'); assert.equal(h.q('#shipment-email-form'),null)
+  assert.equal(h.calls.filter(c=>c.function==='order-email').length,0)
 })

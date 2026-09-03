@@ -61,7 +61,13 @@ export function createOrderFixture() {
     functions: { async invoke(name, { body }) {
       calls.push({ function: name, body }); const failed = checkFailure(); if (failed) return failed
       if (nextFunctionResult) { const data = nextFunctionResult; nextFunctionResult = null; return { data, error: null } }
-      if (name === 'order-email') return { data: { success: true, results: [{ status: 'sent' }] }, error: null }
+      if (name === 'order-email') {
+        const key = `order_shipped-${body.order_id}-${body.tracking_code}`
+        const messages = db.email_messages ||= []
+        const existing = messages.find(message => message.dedupe_key === key)
+        if (body.action === 'shipping' && !existing) messages.push({id:nextId(),order_id:body.order_id,kind:'order_shipped',dedupe_key:key,status:'sent',subject:'Track & Trace',created_at:now,sent_at:now})
+        return { data: { success: true, results: [{kind:body.action === 'shipping' ? 'order_shipped' : 'payment_confirmed', status:existing ? 'already_sent' : 'sent' }] }, error: null }
+      }
       if (name === 'manage-order') { const payment = db.payments.find(p => p.order_id === body.order_id); payment.refunded_cents += body.amount_cents; payment.status = payment.refunded_cents >= payment.amount_cents ? 'refunded' : 'partially_refunded'; db.orders.find(o => o.id === body.order_id).payment_status = payment.status; return { data: { success: true }, error: null } }
       if (name === 'postnl-shipment') { const environment = db.settings.find(s => s.key === 'postnl_config').value.environment; const target = db.orders.find(o => o.id === body.order_id); if (body.action === 'create') { target.postnl = { barcode: 'TEST-BARCODE', environment }; target.tracking_code = 'TEST-BARCODE' } return { data: { label_url: '/tests/label.html', barcode: 'TEST-BARCODE', environment }, error: null } }
       throw new Error(`Unhandled test function: ${name}`)

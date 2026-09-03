@@ -69,10 +69,24 @@ Deno.serve(async (request) => {
       db.from("payments").select("*").eq("order_id", orderId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ])
     if (orderError || !order) return Response.json({ error: "Bestelling niet gevonden." }, { status: 404, headers })
+    // Existing database hooks and older admin tabs may still request these events.
+    // A manual order remains quiet until an admin explicitly sends its tracking.
+    if (order.source === "admin" && templateKeys.every((key) => ["order_received", "payment_confirmed", "new_order_admin"].includes(key))) {
+      return Response.json({ success: true, skipped: "manual_order_waiting_for_shipping", results: [] }, { headers })
+    }
     if (templateKeys.includes("payment_confirmed") && order.payment_status !== "paid") return Response.json({ error: "De bestelling is nog niet betaald." }, { status: 409, headers })
     if (templateKeys.includes("order_shipped") && !order.tracking_code) return Response.json({ error: "Voeg eerst een trackingcode toe." }, { status: 409, headers })
     if (templateKeys.includes("order_shipped") && order.postnl?.environment === "sandbox" && order.postnl?.barcode === order.tracking_code) {
       return Response.json({ success: true, skipped: "sandbox_tracking", results: [] }, { headers })
+    }
+    if (templateKeys.includes("order_shipped")) {
+      // Webhooks cannot consent to sending on the administrator's behalf.
+      if (validInternalSecret || body.confirm_send !== true) {
+        return Response.json({ success: true, skipped: "shipping_confirmation_required", results: [] }, { headers })
+      }
+      if (body.tracking_code !== order.tracking_code) {
+        return Response.json({ error: "De trackingcode is gewijzigd. Open de bestelling opnieuw en controleer de zending voordat je op Verstuur klikt." }, { status: 409, headers })
+      }
     }
 
     const config = await getEmailConfig(db)
@@ -95,12 +109,6 @@ Deno.serve(async (request) => {
 
     const results = []
     for (const key of templateKeys) {
-      // Manual orders still notify the recipient, but not our own new-order inbox.
-      // Apply to created, paid and direct template requests alike.
-      if (key === "new_order_admin" && order.source === "admin") {
-        results.push({ kind: key, status: "skipped", reason: "manual_order" })
-        continue
-      }
       const template = await getEmailTemplate(key, db)
       if (!template.enabled) { results.push({ kind: key, status: "disabled" }); continue }
       const recipient = template.audience === "admin" ? (config.admin_email || "info@zolsolutions.nl") : order.customer_email
