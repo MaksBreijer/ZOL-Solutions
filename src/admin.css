@@ -697,6 +697,17 @@ svg { display: block; }
 .order-note-card header button { width: 25px; height: 25px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #687681; }
 .order-note-card header button:hover { background: var(--admin-blue-soft); color: var(--admin-blue); }
 .order-note-card header button svg { width: 13px; height: 13px; }
+.checkout-answer-card { overflow: hidden; border-color: #b8d8e9; background: linear-gradient(145deg, #eff9ff, #fff); }
+.checkout-answer-card > header { align-items: flex-start; }
+.checkout-answer-card > header div { display: grid; gap: 4px; }
+.checkout-answer-card > header span { color: var(--admin-blue); font-size: 6px; font-weight: 850; letter-spacing: .12em; }
+.checkout-answer-card > header h2 { font-size: 11px; line-height: 1.35; }
+.checkout-answer-card > header > svg { width: 17px; height: 17px; color: var(--admin-blue); }
+.checkout-answer-card > div { margin: 0 14px 14px; padding: 12px; display: grid; gap: 5px; border-radius: 8px; background: #fff; box-shadow: 0 4px 16px rgb(43 111 150 / 9%); }
+.checkout-answer-card > div small { color: #788690; font-size: 7px; }
+.checkout-answer-card > div strong { color: #173f58; font-size: 11px; line-height: 1.35; }
+.checkout-source-pill { display: inline-flex; max-width: 150px; padding: 4px 7px; overflow: hidden; border-radius: 999px; background: #e8f5fc; color: #176798; font-size: 7px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.table-empty-value { color: #9ca6ad; }
 .customer-card { padding-bottom: 14px; }
 .customer-card > header { padding-bottom: 7px; }
 .customer-card > a, .customer-card > button, .customer-card > h3, .customer-card > address { margin-right: 14px; margin-left: 14px; }
