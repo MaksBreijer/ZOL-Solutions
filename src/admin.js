@@ -26,7 +26,8 @@ const adminIcons = {
 
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
 
-const GOOGLE_CALENDAR_URL = 'https://calendar.google.com/calendar/u/0/r'
+const ZOL_CALENDAR_ID = '7d10f76a1ef8cdb5ca15ae46e3ba1e70af731fd60f5fa40abf93c259ea88f0dd@group.calendar.google.com'
+const GOOGLE_CALENDAR_URL = `https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(ZOL_CALENDAR_ID)}`
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
 let calendarRefreshTimer = null
 let calendarShowSetup = false
@@ -535,10 +536,10 @@ function newCalendarEventForm() {
     event.preventDefault()
     const values = new FormData(form)
     try {
-      const url = googleCalendarEventUrl({ title: values.get('title'), start: values.get('start'), end: values.get('end'), location: values.get('location'), description: values.get('description') })
+      const url = googleCalendarEventUrl({ title: values.get('title'), start: values.get('start'), end: values.get('end'), location: values.get('location'), description: values.get('description'), calendarId: ZOL_CALENDAR_ID })
       window.open(url, '_blank', 'noopener')
       closeDialog()
-      toast('Afspraak staat klaar', 'Kies ZOL Teamagenda en druk in Google op Opslaan.')
+      toast('ZOL-afspraak staat klaar', 'Controleer in Google of ZOL Teamagenda is geselecteerd en druk op Opslaan.')
     } catch (error) {
       toast('Controleer de afspraak', error.message, true)
     }

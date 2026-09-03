@@ -79,7 +79,7 @@ function googleDateTime(value) {
   return `${date.getFullYear()}${part(date.getMonth() + 1)}${part(date.getDate())}T${part(date.getHours())}${part(date.getMinutes())}00`
 }
 
-export function googleCalendarEventUrl({ title, start, end, description = '', location = '' }) {
+export function googleCalendarEventUrl({ title, start, end, description = '', location = '', calendarId = '' }) {
   const startDate = start instanceof Date ? start : new Date(start)
   const endDate = end instanceof Date ? end : new Date(end)
   if (!title?.trim()) throw new Error('Vul een titel in.')
@@ -92,5 +92,6 @@ export function googleCalendarEventUrl({ title, start, end, description = '', lo
   })
   if (description.trim()) params.set('details', description.trim())
   if (location.trim()) params.set('location', location.trim())
+  if (calendarId.trim()) params.set('src', calendarId.trim())
   return `https://calendar.google.com/calendar/render?${params}`
 }

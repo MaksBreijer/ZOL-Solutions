@@ -39,6 +39,7 @@ test('builds a prefilled Google Calendar appointment without losing event detail
     end: new Date(2026, 8, 4, 10, 15),
     description: 'Samenwerking bespreken',
     location: 'Amsterdam',
+    calendarId: 'zol-team@group.calendar.google.com',
   }))
   assert.equal(url.origin + url.pathname, 'https://calendar.google.com/calendar/render')
   assert.equal(url.searchParams.get('action'), 'TEMPLATE')
@@ -47,6 +48,7 @@ test('builds a prefilled Google Calendar appointment without losing event detail
   assert.equal(url.searchParams.get('ctz'), 'Europe/Amsterdam')
   assert.equal(url.searchParams.get('details'), 'Samenwerking bespreken')
   assert.equal(url.searchParams.get('location'), 'Amsterdam')
+  assert.equal(url.searchParams.get('src'), 'zol-team@group.calendar.google.com')
 })
 
 test('rejects an appointment that ends before it starts', () => {
