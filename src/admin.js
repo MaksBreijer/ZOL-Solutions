@@ -1,6 +1,6 @@
 import './admin.css'
 import { calculateVatBreakdown, ledgerExcelCsv, matchBankTransactions, parseBankCsv, vatSummary } from './accounting.js'
-import { calendarGridRange, eventsForDay, parseCalendarEvents } from './calendar-feed.js'
+import { calendarGridRange, eventsForDay, googleCalendarEventUrl, parseCalendarEvents } from './calendar-feed.js'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
@@ -518,6 +518,33 @@ function calendarShellMarkup() {
   </section>`
 }
 
+function localDateTimeValue(date) {
+  const part = (number) => String(number).padStart(2, '0')
+  return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}T${part(date.getHours())}:${part(date.getMinutes())}`
+}
+
+function newCalendarEventForm() {
+  const start = new Date()
+  start.setSeconds(0, 0)
+  start.setMinutes(Math.ceil((start.getMinutes() + 1) / 30) * 30)
+  const end = new Date(start.getTime() + 60 * 60 * 1000)
+  openDialog('Nieuwe afspraak', 'ZOL Teamagenda', `<form id="calendar-event-form"><div class="form-grid"><label class="field field--full">Titel<input name="title" maxlength="180" placeholder="Bijv. kennismaking Fysio Noord" required autofocus></label><label class="field">Begint op<input name="start" type="datetime-local" value="${localDateTimeValue(start)}" required></label><label class="field">Eindigt op<input name="end" type="datetime-local" value="${localDateTimeValue(end)}" required></label><label class="field field--full">Locatie <span>optioneel</span><input name="location" maxlength="300" placeholder="Adres, praktijk of online"></label><label class="field field--full">Notities <span>optioneel</span><textarea name="description" rows="5" maxlength="3000" placeholder="Contactpersoon, doel van de afspraak en voorbereiding"></textarea></label></div><p class="form-hint">Google Agenda opent met alles ingevuld. Kies daar de <b>ZOL Teamagenda</b> en druk op Opslaan; daarna verschijnt de afspraak automatisch hier en op jullie telefoons.</p><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit"><i data-lucide="calendar-plus"></i> Doorgaan naar Google</button></div></form>`)
+  refreshIcons()
+  const form = document.querySelector('#calendar-event-form')
+  form.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const values = new FormData(form)
+    try {
+      const url = googleCalendarEventUrl({ title: values.get('title'), start: values.get('start'), end: values.get('end'), location: values.get('location'), description: values.get('description') })
+      window.open(url, '_blank', 'noopener')
+      closeDialog()
+      toast('Afspraak staat klaar', 'Kies ZOL Teamagenda en druk in Google op Opslaan.')
+    } catch (error) {
+      toast('Controleer de afspraak', error.message, true)
+    }
+  })
+}
+
 function renderCalendarGrid(events) {
   const grid = document.querySelector('#calendar-month-grid')
   if (!grid) return
@@ -598,7 +625,7 @@ async function saveCalendarConfig(event) {
 function renderCalendar() {
   const configured = Boolean(settingsValue('calendar_config').private_ics_url)
   elements.content.innerHTML = `<div class="page-container calendar-page">
-    ${pageHeader('calendar', `${configured ? '<button class="button" type="button" data-action="calendar-config"><i data-lucide="settings"></i> Verbinding</button>' : ''}<a class="button button--primary" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Afspraken beheren</a>`)}
+    ${pageHeader('calendar', `${configured ? '<button class="button" type="button" data-action="calendar-config"><i data-lucide="settings"></i> Verbinding</button>' : ''}<a class="button" href="${GOOGLE_CALENDAR_URL}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> Agenda openen</a><button class="button button--primary" type="button" data-action="calendar-new-event"><i data-lucide="calendar-plus"></i> Nieuwe afspraak</button>`)}
     <section class="calendar-intro" aria-label="Zo werkt de ZOL Teamagenda">
       <article class="calendar-intro-card calendar-intro-card--primary">
         <span class="calendar-step-icon"><i data-lucide="calendar-days"></i></span>
@@ -2616,6 +2643,7 @@ async function handleContentClick(event) {
   if (action === 'calendar-refresh') await loadCalendarFeed(true)
   if (action === 'calendar-config') { calendarShowSetup = true; renderCalendar(); refreshIcons() }
   if (action === 'calendar-cancel-config') { calendarShowSetup = false; renderCalendar(); refreshIcons() }
+  if (action === 'calendar-new-event') newCalendarEventForm()
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'export-orders') await exportOrders()

@@ -71,3 +71,26 @@ export function eventsForDay(events, day) {
   end.setDate(start.getDate() + 1)
   return events.filter((event) => overlapsRange(event.start, event.end, start, end))
 }
+
+function googleDateTime(value) {
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) throw new Error('Ongeldige datum of tijd.')
+  const part = (number) => String(number).padStart(2, '0')
+  return `${date.getFullYear()}${part(date.getMonth() + 1)}${part(date.getDate())}T${part(date.getHours())}${part(date.getMinutes())}00`
+}
+
+export function googleCalendarEventUrl({ title, start, end, description = '', location = '' }) {
+  const startDate = start instanceof Date ? start : new Date(start)
+  const endDate = end instanceof Date ? end : new Date(end)
+  if (!title?.trim()) throw new Error('Vul een titel in.')
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) throw new Error('De eindtijd moet na de begintijd liggen.')
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title.trim(),
+    dates: `${googleDateTime(startDate)}/${googleDateTime(endDate)}`,
+    ctz: 'Europe/Amsterdam',
+  })
+  if (description.trim()) params.set('details', description.trim())
+  if (location.trim()) params.set('location', location.trim())
+  return `https://calendar.google.com/calendar/render?${params}`
+}
