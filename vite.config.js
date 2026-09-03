@@ -96,7 +96,6 @@ function seoPlugin() {
               image: [`${siteOrigin}/images/zol-familie.jpg`, `${siteOrigin}/media/product-blue.jpg`, `${siteOrigin}/media/product-detail.jpg`],
               mainEntityOfPage: { '@id': `${canonical}#webpage` },
               brand: { '@type': 'Brand', name: 'ZOL Solutions' },
-              audience: { '@type': 'PeopleAudience', suggestedMinAge: 6, suggestedMaxAge: 18 },
               productGroupID: 'ZOL-3-4',
               variesBy: ['https://schema.org/size'],
               hasVariant: variants.map(([sku, size, querySize]) => ({
