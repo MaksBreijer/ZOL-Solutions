@@ -46,6 +46,7 @@ let partnerFilters = { query: '', type: 'sports_club', status: '', flow: 'todo',
 let partnerSelectedId = ''
 let partnerRefreshTimer = null
 let partnerPulseRunning = false
+let apolloCandidates = new Map()
 const PARTNER_SCAN_PROFILE = 'no-foot-specialists-v3'
 
 const elements = {
@@ -1361,6 +1362,12 @@ function partnerFreshness(lead) {
   return [`${days} dagen geleden — vernieuwen`, 'is-stale']
 }
 
+function apolloEnrichmentLabel(lead) {
+  if (!lead.apollo_enriched_at) return ''
+  const status = lead.email && lead.apollo_email_status ? ` · e-mail ${lead.apollo_email_status}` : ''
+  return `Apollo verrijkt ${formatDate(lead.apollo_enriched_at)}${status}`
+}
+
 function partnerInteraction(leadId, kind, body) {
   return {
     id: crypto.randomUUID(), lead_id: leadId, kind, body,
@@ -1395,7 +1402,8 @@ async function updatePartnerLead(id, patch, activity = 'Partner bijgewerkt', int
   try {
     await savePartnerScout(next, activity, { lead_id: id, partner_name: current.name, ...patch })
     renderPartners(); toast(activity, current.name)
-  } catch (error) { toast('Partner opslaan mislukt', error.message, true) }
+    return true
+  } catch (error) { toast('Partner opslaan mislukt', error.message, true); return false }
 }
 
 function partnerPerformance(lead) {
@@ -1458,7 +1466,7 @@ function partnerDetailMarkup(lead) {
   const draft = partnerMailDraft(lead)
   return `<article class="partner-workbench">
     <header><div><span>${escapeHtml(partnerChannelLabel(lead))} · ${escapeHtml(partnerTypeLabel(lead.type))}</span><h2>${escapeHtml(lead.name)}</h2><p>${[lead.city, lead.region].filter(Boolean).map(escapeHtml).join(' · ') || 'Locatie nog aanvullen'}</p></div><span class="partner-score partner-score--large ${lead.score >= 80 ? 'is-hot' : ''}">${lead.score}<small>/100 MATCH</small></span></header>
-    <div class="partner-detail-actions"><button class="button button--primary" data-action="toggle-partner-mail" data-id="${escapeHtml(lead.id)}"><i data-lucide="mail"></i> Mail opstellen</button><button class="button" data-action="copy-partner-link" data-id="${escapeHtml(lead.id)}"><i data-lucide="link"></i> Partnerlink kopiëren</button>${lead.website ? `<a class="button" href="${escapeHtml(lead.website)}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> ${escapeHtml(websiteHost)}</a>` : ''}</div>
+    <div class="partner-detail-actions"><button class="button button--primary" data-action="toggle-partner-mail" data-id="${escapeHtml(lead.id)}"><i data-lucide="mail"></i> Mail opstellen</button><button class="button" data-action="apollo-search" data-id="${escapeHtml(lead.id)}" ${lead.website ? '' : 'disabled title="Voeg eerst een website toe"'}><i data-lucide="search"></i> Zoek contact met Apollo</button><button class="button" data-action="copy-partner-link" data-id="${escapeHtml(lead.id)}"><i data-lucide="link"></i> Partnerlink kopiëren</button>${lead.website ? `<a class="button" href="${escapeHtml(lead.website)}" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i> ${escapeHtml(websiteHost)}</a>` : ''}</div>
     <section class="partner-revenue-card"><div><small>ECHTE PARTNEROMZET</small><strong>${formatMoney(performance.revenueCents)}</strong><span>${performance.orders} bestellingen · ${performance.clicks} gemeten bezoeken</span></div><div><small>UNIEKE PARTNERCODE</small><code>${escapeHtml(code)}</code><span>Webresultaten worden gemeten; offline verkoop kun je aanvullen</span></div></section>
     <section class="partner-next-action"><i data-lucide="zap"></i><div><small>VOLGENDE BESTE ACTIE</small><strong>${escapeHtml(partnerNextAction(lead))}</strong></div></section>
     <form class="partner-inline-mail" id="partner-inline-mail" data-id="${escapeHtml(lead.id)}" hidden><header><strong>Persoonlijke benadering</strong><button type="button" data-action="toggle-partner-mail">Sluiten</button></header><label>Naar<input name="email" type="email" value="${escapeHtml(lead.email)}" placeholder="Openbaar zakelijk e-mailadres" required></label><label>Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(draft.subject)}" required></label><label>Bericht<textarea name="body" rows="9" maxlength="5000" required>${escapeHtml(draft.body)}</textarea></label><div><button class="button" type="button" data-action="copy-inline-partner-mail">Kopiëren</button><button class="button button--primary" type="submit"><i data-lucide="mail"></i> Open in e-mail</button></div></form>
@@ -1474,7 +1482,7 @@ function partnerDetailMarkup(lead) {
       <label>Handmatige omzet (€)<input name="revenue" type="number" min="0" step="0.01" value="${((lead.revenue_cents || 0) / 100).toFixed(2)}"></label>
       <button class="button button--primary" type="submit">Resultaten opslaan</button>
     </form>
-    <section class="partner-contact-grid"><div><small>Aanspreekpunt</small><strong>${escapeHtml(lead.contact_name || lead.contact_role || 'Nog vinden')}</strong><span>${lead.contact_name && lead.contact_role ? escapeHtml(lead.contact_role) : ''}</span></div><div><small>Zakelijk contact</small>${lead.email ? `<a href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>` : '<strong>Nog geen openbaar e-mailadres</strong>'}${lead.phone ? `<span>${escapeHtml(lead.phone)}</span>` : ''}</div><div><small>Brondatum</small><strong class="partner-freshness ${freshnessClass}"><i></i>${escapeHtml(freshness)}</strong>${lead.source_url ? `<a href="${escapeHtml(lead.source_url)}" target="_blank" rel="noreferrer">Bron bekijken ↗</a>` : ''}</div></section>
+    <section class="partner-contact-grid"><div><small>Aanspreekpunt</small><strong>${escapeHtml(lead.contact_name || lead.contact_role || 'Nog vinden')}</strong><span>${lead.contact_name && lead.contact_role ? escapeHtml(lead.contact_role) : ''}</span></div><div><small>Zakelijk contact</small>${lead.email ? `<a href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>` : '<strong>Nog geen openbaar e-mailadres</strong>'}${lead.phone ? `<span>${escapeHtml(lead.phone)}</span>` : ''}</div><div><small>Broncontrole</small><strong class="partner-freshness ${freshnessClass}"><i></i>${escapeHtml(freshness)}</strong>${lead.source_url ? `<a href="${escapeHtml(lead.source_url)}" target="_blank" rel="noreferrer">Organisatiebron ↗</a>` : ''}${lead.apollo_enriched_at ? `<span class="partner-apollo-source">${escapeHtml(apolloEnrichmentLabel(lead))}</span>` : ''}${lead.apollo_person_url ? `<a href="${escapeHtml(lead.apollo_person_url)}" target="_blank" rel="noreferrer">Apollo-profiel ↗</a>` : ''}</div></section>
     <details class="partner-inline-editor"><summary><i data-lucide="pencil"></i> Contactgegevens en verkoophoek bewerken</summary><form id="partner-inline-edit" data-id="${escapeHtml(lead.id)}"><div class="form-grid"><label class="field">Contactpersoon<input name="contact_name" maxlength="120" value="${escapeHtml(lead.contact_name)}"></label><label class="field">Functie / rol<input name="contact_role" maxlength="120" value="${escapeHtml(lead.contact_role)}"></label><label class="field">Zakelijk e-mailadres<input name="email" type="email" maxlength="200" value="${escapeHtml(lead.email)}"></label><label class="field">Telefoon<input name="phone" maxlength="60" value="${escapeHtml(lead.phone)}"></label><label class="field field--full">Beste openingshoek<textarea name="angle" rows="2" maxlength="500">${escapeHtml(lead.angle)}</textarea></label></div><button class="button" type="submit">Contactgegevens opslaan</button></form></details>
     <section class="partner-notes"><h3>Contactlogboek</h3><form id="partner-note-form" data-id="${escapeHtml(lead.id)}"><textarea name="body" rows="2" maxlength="1000" placeholder="Bijv. Thijn heeft gebeld; LO-coördinator terugbellen op vrijdag…" required></textarea><button class="button" type="submit">Notitie plaatsen</button></form>${interactions.length ? `<ol>${interactions.map((item) => `<li><i></i><div><p>${escapeHtml(item.body)}</p><small>${escapeHtml(item.author)} · ${formatDate(item.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div></li>`).join('')}</ol>` : '<p class="partner-no-notes">Nog geen contactmomenten. De eerste actie komt hier automatisch te staan.</p>'}</section>
   </article>`
@@ -1563,7 +1571,7 @@ function renderPartners() {
       <div class="partner-command-status"><span id="partner-filter-count">${leads.length} van ${state.partnerScout.leads.length} matches</span><span id="partner-sync-state"><i></i> Gedeeld met alle ZOL-beheerders</span><button data-action="refresh-partners"><i data-lucide="refresh-cw"></i> Sync</button></div>
       <div class="partner-command-grid"><div class="partner-lead-list" id="partner-lead-list">${partnerListMarkup(leads)}</div><div class="partner-detail" id="partner-detail">${partnerDetailMarkup(partnerLead())}</div></div>
     </section>
-    <section class="partner-privacy"><i data-lucide="zap"></i><div><strong>Zakelijk en doelgericht</strong><p>ZOL Pulse gebruikt openbare organisatiegegevens uit <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>. Controleer ieder bericht vóór verzending en benader alleen contacten waarvoor het product aantoonbaar relevant is.</p></div></section>
+    <section class="partner-privacy"><i data-lucide="zap"></i><div><strong>Zakelijk en doelgericht</strong><p>ZOL Pulse gebruikt openbare organisatiegegevens uit <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>. Apollo wordt alleen per gekozen lead gebruikt; zoeken is creditvrij en contactverrijking kan credits kosten. Controleer ieder resultaat en bericht vóór gebruik.</p></div></section>
   </div>`
   wirePartnerDetailForms()
   const refreshDays = Number(state.partnerScout.auto_refresh_days) || 7
@@ -1580,6 +1588,64 @@ function filterPartners() {
     priority: document.querySelector('[data-filter-priority="partners"]')?.value || '',
   }
   renderPartnerPanels()
+}
+
+function apolloCandidateMarkup(candidate, leadId) {
+  const availability = candidate.has_email ? 'Zakelijke e-mail beschikbaar' : 'Geen e-mailindicatie'
+  return `<article class="apollo-candidate">
+    <div><strong>${escapeHtml(candidate.name || 'Onbekend contact')}</strong><span>${escapeHtml(candidate.title || 'Functie niet vermeld')}</span><small>${escapeHtml(candidate.organization || '')}</small></div>
+    <div><em class="${candidate.has_email ? 'is-available' : ''}">${escapeHtml(availability)}</em><button class="button button--primary" type="button" data-action="apollo-enrich" data-id="${escapeHtml(leadId)}" data-person-id="${escapeHtml(candidate.id)}">Contact ophalen</button></div>
+  </article>`
+}
+
+async function searchApolloContacts(lead, button) {
+  if (!lead?.website) { toast('Website nodig', 'Voeg eerst de website van deze organisatie toe.', true); return }
+  const label = button?.textContent?.trim() || 'Zoek contact met Apollo'
+  setBusy(button, true, label)
+  try {
+    const { data, error } = await supabase.functions.invoke('apollo-enrichment', { body: { action: 'search', lead: { name: lead.name, type: lead.type, website: lead.website, city: lead.city, contact_role: lead.contact_role } } })
+    if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Apollo kon geen contacten zoeken.'))
+    const candidates = Array.isArray(data?.candidates) ? data.candidates : []
+    apolloCandidates = new Map(candidates.map((candidate) => [candidate.id, candidate]))
+    if (!candidates.length) {
+      openDialog('Geen Apollo-contact gevonden', lead.name, `<section class="partner-dialog-intro"><i data-lucide="search"></i><div><strong>Geen passende beslisser op ${escapeHtml(data?.domain || 'dit domein')}</strong><p>Probeer het contact handmatig via de organisatie­website. Er zijn geen Apollo-contactcredits gebruikt.</p></div></section><div class="form-actions"><button class="button button--primary" type="button" data-close-dialog>Sluiten</button></div>`)
+      refreshIcons(); return
+    }
+    openDialog('Apollo-contact kiezen', lead.name, `<section class="partner-dialog-intro"><i data-lucide="search"></i><div><strong>${candidates.length} mogelijke beslisser${candidates.length === 1 ? '' : 's'} op ${escapeHtml(data.domain || 'het organisatiedomein')}</strong><p>De zoekstap gebruikt geen credits. Controleer naam en functie; “Contact ophalen” kan Apollo-credits gebruiken en vraagt alleen zakelijke gegevens op.</p></div></section><div class="apollo-candidates">${candidates.map((candidate) => apolloCandidateMarkup(candidate, lead.id)).join('')}</div><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button></div>`)
+    refreshIcons()
+  } catch (error) { toast('Apollo zoeken mislukt', error.message, true) }
+  finally { if (button?.isConnected) setBusy(button, false, label) }
+}
+
+async function enrichApolloContact(lead, personId, button) {
+  const candidate = apolloCandidates.get(personId)
+  if (!lead || !candidate) { toast('Apollo-contact verlopen', 'Zoek het contact opnieuw.', true); return }
+  if (!window.confirm(`Apollo kan credits gebruiken om ${candidate.name || 'dit contact'} te verrijken. Doorgaan?`)) return
+  const label = button?.textContent?.trim() || 'Contact ophalen'
+  setBusy(button, true, label)
+  try {
+    const { data, error } = await supabase.functions.invoke('apollo-enrichment', { body: { action: 'enrich', person_id: personId } })
+    if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Apollo kon dit contact niet verrijken.'))
+    const contact = data?.contact || {}
+    const name = String(contact.name || '').trim()
+    if (!name) throw new Error('Apollo gaf geen betrouwbaar contact terug.')
+    const patch = {
+      contact_name: name,
+      contact_role: contact.title || lead.contact_role,
+      email: contact.email || lead.email,
+      phone: contact.phone || lead.phone,
+      status: ['new', 'research'].includes(lead.status) ? 'qualified' : lead.status,
+      apollo_contact_id: contact.id || personId,
+      apollo_person_url: contact.linkedin_url || '',
+      apollo_email_status: contact.email_status || '',
+      apollo_match_confidence: contact.match_confidence || '',
+      apollo_enriched_at: contact.enriched_at || new Date().toISOString(),
+    }
+    const detail = [patch.contact_role, patch.email || 'geen zakelijk e-mailadres gevonden'].filter(Boolean).join(' · ')
+    const saved = await updatePartnerLead(lead.id, patch, 'Partnercontact via Apollo verrijkt', { kind: 'apollo', body: `Apollo-contact gekozen: ${name}${detail ? ` · ${detail}` : ''}.` })
+    if (saved) { closeDialog(); apolloCandidates = new Map() }
+  } catch (error) { toast('Apollo verrijken mislukt', error.message, true) }
+  finally { if (button?.isConnected) setBusy(button, false, label) }
 }
 
 async function fetchOverpass(query) {
@@ -3358,6 +3424,8 @@ async function handleContentClick(event) {
   if (action === 'refresh') await refreshCurrentRoute()
   if (action === 'refresh-live') await refreshCurrentRoute()
   if (action === 'open-partner') { partnerSelectedId = id; renderPartnerPanels() }
+  if (action === 'apollo-search') await searchApolloContacts(partnerLead(id), target)
+  if (action === 'apollo-enrich') await enrichApolloContact(partnerLead(id), target.dataset.personId, target)
   if (action === 'toggle-partner-mail') { const form = document.querySelector('#partner-inline-mail'); if (form) { form.hidden = !form.hidden; if (!form.hidden) form.querySelector('input')?.focus() } }
   if (action === 'copy-partner-link') { const lead = partnerLead(id); if (lead) { try { await navigator.clipboard.writeText(partnerTrackingUrl(lead)); toast('Partnerlink gekopieerd', `${partnerCode(lead)} staat klaar voor QR, nieuwsbrief of WhatsApp.`) } catch { toast('Kopiëren lukt niet', 'Kopieer de link handmatig uit het partnerblok.', true) } } }
   if (action === 'copy-inline-partner-mail') { const form = document.querySelector('#partner-inline-mail'); if (form) { const values = Object.fromEntries(new FormData(form)); try { await navigator.clipboard.writeText(`${values.subject}\n\n${values.body}`); toast('Mailconcept gekopieerd') } catch { toast('Kopiëren lukt niet', 'Selecteer de tekst en kopieer hem handmatig.', true) } } }

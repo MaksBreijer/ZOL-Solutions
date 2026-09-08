@@ -121,6 +121,9 @@ export function normalizePartnerScoutState(value = {}) {
     revenue_cents: Math.max(0, Math.min(1000000000, Math.round(Number(lead.revenue_cents) || 0))),
     activation_at: clean(lead.activation_at), activation_type: clean(lead.activation_type),
     source_provider: clean(lead.source_provider), source_url: clean(lead.source_url), external_id: clean(lead.external_id),
+    apollo_contact_id: clean(lead.apollo_contact_id), apollo_person_url: clean(lead.apollo_person_url),
+    apollo_email_status: clean(lead.apollo_email_status), apollo_match_confidence: clean(lead.apollo_match_confidence),
+    apollo_enriched_at: clean(lead.apollo_enriched_at),
     last_verified_at: clean(lead.last_verified_at), estimated_units: Math.max(0, Math.min(10000, Number(lead.estimated_units) || 0)),
     created_at: clean(lead.created_at) || now(), updated_at: clean(lead.updated_at) || now(),
   }))

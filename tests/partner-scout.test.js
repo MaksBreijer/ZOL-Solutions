@@ -81,3 +81,15 @@ test('excludes foot specialists from imported and stored partner leads', () => {
   assert.deepEqual(stored.leads.map((lead) => lead.id), ['keep'])
   assert.deepEqual(stored.interactions.map((item) => item.id), ['a'])
 })
+
+test('preserves Apollo provenance on normalized partner contacts', () => {
+  const stored = normalizePartnerScoutState({ leads: [{
+    id: 'apollo-lead', name: 'Testfysio', type: 'physio',
+    apollo_contact_id: 'person-123', apollo_person_url: 'https://linkedin.com/in/test',
+    apollo_email_status: 'verified', apollo_match_confidence: 'high', apollo_enriched_at: '2026-09-08T10:00:00Z',
+  }] })
+  assert.equal(stored.leads[0].apollo_contact_id, 'person-123')
+  assert.equal(stored.leads[0].apollo_email_status, 'verified')
+  assert.equal(stored.leads[0].apollo_match_confidence, 'high')
+  assert.equal(stored.leads[0].apollo_enriched_at, '2026-09-08T10:00:00Z')
+})
