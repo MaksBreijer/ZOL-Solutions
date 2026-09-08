@@ -68,6 +68,7 @@ test('checkout offers a separate optional news opt-in and stores explicit consen
   assert.doesNotMatch(html, /name="marketing_opt_in"[^>]*required/)
   assert.match(html, /op de hoogte van het laatste ZOL-nieuws/)
   assert.match(html, /afmelden kan altijd met één klik/)
+  assert.match(html, /class="checkout-consent-reminder" aria-hidden="true">!<\/span>/)
   assert.match(client, /customer\.marketing_opt_in = customer\.marketing_opt_in === 'on'/)
   assert.match(edgeFunction, /customer\.marketing_opt_in = customer\.marketing_opt_in === true/)
   assert.match(migration, /marketing_opt_in_source/)
