@@ -123,6 +123,18 @@ body {
   line-height: 1.55;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 img,
 video {
   display: block;
@@ -2508,9 +2520,15 @@ a.media-chip:focus-visible {
   opacity: 0.65;
 }
 
-.size-selector input:disabled + span {
-  cursor: not-allowed;
-  opacity: 0.35;
+.size-selector label.is-unavailable span {
+  border-style: dashed;
+  opacity: 0.48;
+}
+
+.size-selector label.is-unavailable:hover span,
+.size-selector label.is-unavailable input:focus-visible + span,
+.size-selector label.is-unavailable input:checked + span {
+  opacity: 1;
 }
 
 .stock-status.is-available {
@@ -2543,6 +2561,113 @@ a.media-chip:focus-visible {
   border-radius: 50%;
   background: currentColor;
   content: "";
+}
+
+.stock-alert-form[hidden] {
+  display: none;
+}
+
+.stock-alert-form {
+  margin: -8px 0 24px;
+  padding: 18px;
+  border: 1px solid #cadce9;
+  border-radius: 14px;
+  background: #f2f7fa;
+}
+
+.stock-alert-copy strong,
+.stock-alert-copy span {
+  display: block;
+}
+
+.stock-alert-copy strong {
+  color: var(--blue-deep);
+  font-size: 15px;
+}
+
+.stock-alert-copy span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.stock-alert-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 13px;
+  gap: 8px;
+}
+
+.stock-alert-fields input[type="email"] {
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--blue-deep);
+  font: inherit;
+}
+
+.stock-alert-fields input[type="email"]:focus {
+  border-color: var(--blue);
+  outline: 3px solid rgba(51, 102, 155, 0.14);
+}
+
+.stock-alert-fields .button {
+  min-height: 46px;
+  padding-inline: 17px;
+  white-space: nowrap;
+}
+
+.stock-alert-form > small {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.stock-alert-form > small a {
+  color: var(--blue);
+  text-underline-offset: 2px;
+}
+
+.stock-alert-honeypot {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.stock-alert-message {
+  min-height: 0;
+  margin: 10px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.stock-alert-message:empty {
+  display: none;
+}
+
+.stock-alert-message.is-success {
+  color: #25724f;
+}
+
+.stock-alert-message.is-error {
+  color: #a13e2b;
+}
+
+.stock-alert-form.is-success .stock-alert-fields,
+.stock-alert-form.is-success > small {
+  display: none;
 }
 
 .bundle-selector {
@@ -4190,6 +4315,14 @@ a.media-chip:focus-visible {
 
   .size-selector {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .stock-alert-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-alert-fields .button {
+    width: 100%;
   }
 
   .product-actions {

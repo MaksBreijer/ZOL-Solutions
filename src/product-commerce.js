@@ -18,6 +18,9 @@ async function initializeProductCommerce() {
   const bundlePriceTwo = purchase.querySelector('[data-bundle-price="2"]')
   const bundleOriginal = purchase.querySelector('[data-bundle-original]')
   const stockStatus = purchase.querySelector('[data-stock-status]')
+  const stockAlertForm = purchase.querySelector('[data-stock-alert]')
+  const stockAlertTitle = purchase.querySelector('[data-stock-alert-title]')
+  const stockAlertMessage = purchase.querySelector('[data-stock-alert-message]')
   const paymentSupport = purchase.querySelector('[data-payment-support]')
   let product = null
   let productLoadPromise = null
@@ -123,15 +126,31 @@ async function initializeProductCommerce() {
 
     if (addButton) addButton.disabled = !available
     if (buyButton) buyButton.disabled = !available
+
+    if (stockAlertForm) {
+      const shouldShowAlert = Boolean(variant && stock < 1)
+      const previousVariantId = stockAlertForm.dataset.variantId || ''
+      stockAlertForm.hidden = !shouldShowAlert
+      stockAlertForm.dataset.variantId = shouldShowAlert ? variant.id : ''
+      if (stockAlertTitle && shouldShowAlert) stockAlertTitle.textContent = `Ontvang een seintje voor maat ${variant.shoe_size || variant.size}`
+      if (previousVariantId !== stockAlertForm.dataset.variantId) {
+        stockAlertForm.classList.remove('is-success')
+        if (stockAlertMessage) {
+          stockAlertMessage.textContent = ''
+          stockAlertMessage.className = 'stock-alert-message'
+        }
+      }
+    }
   }
 
   function renderVariantSelector(preferredVariantId = '') {
     const variants = (product?.product_variants || []).filter((variant) => variant.active).sort((a, b) => a.sort_order - b.sort_order)
-    const preferred = variants.find((variant) => variant.id === preferredVariantId && variant.stock > 0)
-    const selected = preferred || variants.find((variant) => variant.stock > 0)
+    const preferred = variants.find((variant) => variant.id === preferredVariantId)
+    const selected = preferred || variants.find((variant) => variant.stock > 0) || variants[0]
     selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant) => {
       const stock = Math.max(0, Number(variant.stock) || 0)
-      return `<label><input type="radio" name="size" value="${variant.id}" ${variant.id === selected?.id ? 'checked' : ''} ${stock < 1 ? 'disabled' : ''}><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`
+      const unavailable = stock < 1
+      return `<label class="${unavailable ? 'is-unavailable' : ''}" title="${unavailable ? `Maat ${variant.shoe_size || variant.size} is uitverkocht — kies deze maat voor een voorraadmelding` : ''}"><input type="radio" name="size" value="${variant.id}" ${variant.id === selected?.id ? 'checked' : ''} aria-label="Maat ${variant.size}, schoenmaat ${variant.shoe_size}${unavailable ? ', uitverkocht' : ''}"><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`
     }).join('')}`
     renderBundlePrices()
     renderStockState()
@@ -167,14 +186,14 @@ async function initializeProductCommerce() {
           const requestedSize = new URLSearchParams(window.location.search).get('maat')?.replace('-', '/') || ''
           const requestedVariant = (product.product_variants || []).find((variant) => variant.shoe_size === requestedSize)
           const selected = renderVariantSelector(requestedVariant?.id)
-          void loadPaymentSupport(selected)
+          if (selected?.stock > 0) void loadPaymentSupport(selected)
 
           const inventoryChannel = supabase.channel(`product-inventory-${product.id}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'product_variants', filter: `product_id=eq.${product.id}` }, ({ new: updatedVariant }) => {
               const selectedId = selector.querySelector('input[name="size"]:checked')?.value || ''
               product.product_variants = (product.product_variants || []).map((variant) => variant.id === updatedVariant.id ? { ...variant, ...updatedVariant } : variant)
               const selectedAfterUpdate = renderVariantSelector(selectedId)
-              if (selectedAfterUpdate?.id !== selectedId) void loadPaymentSupport(selectedAfterUpdate)
+              if (selectedAfterUpdate?.stock > 0 && (selectedAfterUpdate.id !== selectedId || updatedVariant.id === selectedAfterUpdate.id)) void loadPaymentSupport(selectedAfterUpdate)
             })
             .subscribe()
           window.addEventListener('pagehide', () => { void supabase.removeChannel(inventoryChannel) }, { once: true })
@@ -252,7 +271,65 @@ async function initializeProductCommerce() {
   selector?.addEventListener('change', () => {
     renderStockState()
     renderBundlePrices()
-    void loadPaymentSupport(selectedVariant())
+    const variant = selectedVariant()
+    if (variant?.stock > 0) void loadPaymentSupport(variant)
+  })
+  stockAlertForm?.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const variant = selectedVariant()
+    const emailInput = stockAlertForm.elements.email
+    const button = stockAlertForm.querySelector('[type="submit"]')
+    const email = String(emailInput?.value || '').trim().toLowerCase()
+    if (!variant || variant.stock > 0) {
+      if (stockAlertMessage) {
+        stockAlertMessage.textContent = 'Deze maat is inmiddels weer op voorraad.'
+        stockAlertMessage.className = 'stock-alert-message is-success'
+      }
+      renderStockState()
+      return
+    }
+    if (!emailInput?.checkValidity()) {
+      emailInput?.focus()
+      if (stockAlertMessage) {
+        stockAlertMessage.textContent = 'Vul een geldig e-mailadres in.'
+        stockAlertMessage.className = 'stock-alert-message is-error'
+      }
+      return
+    }
+
+    button.disabled = true
+    button.textContent = 'Aanmelden…'
+    if (stockAlertMessage) {
+      stockAlertMessage.textContent = ''
+      stockAlertMessage.className = 'stock-alert-message'
+    }
+    const { data, error } = await supabase.functions.invoke('stock-alert', {
+      body: {
+        email,
+        variant_id: variant.id,
+        source: 'product_page',
+        company: String(stockAlertForm.elements.company?.value || ''),
+      },
+    })
+    button.disabled = false
+    button.textContent = 'Laat het mij weten'
+    if (error || data?.error) {
+      if (stockAlertMessage) {
+        stockAlertMessage.textContent = data?.error || 'Aanmelden lukt nu niet. Probeer het straks opnieuw.'
+        stockAlertMessage.className = 'stock-alert-message is-error'
+      }
+      trackEvent('stock_alert_error', { variant_id: variant.id, item_variant: variant.shoe_size || variant.size })
+      return
+    }
+
+    stockAlertForm.classList.add('is-success')
+    if (stockAlertMessage) {
+      stockAlertMessage.textContent = data?.already_subscribed
+        ? 'Je staat al op de lijst voor deze maat. We laten het weten zodra hij er weer is.'
+        : 'Gelukt! We mailen je één keer zodra deze maat weer op voorraad is.'
+      stockAlertMessage.className = 'stock-alert-message is-success'
+    }
+    trackEvent('stock_alert_subscribed', { variant_id: variant.id, item_variant: variant.shoe_size || variant.size })
   })
   selectBundle(bundleInputs.find((input) => input.checked))
   renderBundlePrices()

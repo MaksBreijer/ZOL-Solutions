@@ -99,6 +99,20 @@
             <label><input type="radio" name="size" value="53757641326929" data-size="42/43" /><span>42/43</span></label>
           </fieldset>
           <p class="stock-status" data-stock-status aria-live="polite">Voorraad wordt gecontroleerd…</p>
+          <form class="stock-alert-form" data-stock-alert hidden novalidate>
+            <div class="stock-alert-copy">
+              <strong data-stock-alert-title>Ontvang een seintje</strong>
+              <span>We sturen één e-mail zodra deze maat weer op voorraad is.</span>
+            </div>
+            <div class="stock-alert-fields">
+              <label class="visually-hidden" for="stock-alert-email">E-mailadres</label>
+              <input id="stock-alert-email" name="email" type="email" maxlength="254" autocomplete="email" inputmode="email" placeholder="jouw@email.nl" required />
+              <input class="stock-alert-honeypot" name="company" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+              <button class="button button--primary" type="submit">Laat het mij weten</button>
+            </div>
+            <small>Alleen voor deze voorraadmelding, geen nieuwsbrief. Lees ons <a href="/privacy/">privacybeleid</a>.</small>
+            <p class="stock-alert-message" data-stock-alert-message role="status" aria-live="polite"></p>
+          </form>
 
           <fieldset class="bundle-selector">
             <legend>Kies je aantal</legend>
