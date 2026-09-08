@@ -78,3 +78,11 @@ test('the Google tag is created on consent and records a page view without ad co
     globalThis.document = originalDocument
   }
 })
+
+test('the content security policy permits the Google tag and analytics collection endpoints', async () => {
+  const headers = await readFile(new URL('../public/_headers', import.meta.url), 'utf8')
+
+  assert.match(headers, /script-src[^;]+https:\/\/www\.googletagmanager\.com/)
+  assert.match(headers, /connect-src[^;]+https:\/\/www\.google-analytics\.com/)
+  assert.match(headers, /connect-src[^;]+https:\/\/region1\.google-analytics\.com/)
+})
