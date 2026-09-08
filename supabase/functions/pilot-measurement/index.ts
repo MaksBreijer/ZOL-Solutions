@@ -4,6 +4,7 @@ import {
   logEmail, markEmail, renderTemplate, requireAdmin, sendEmail,
 } from "../_shared/email.ts"
 import { timepoints as pilotTimepoints } from "../_shared/pilot-questions.js"
+import { painInvitationEligible } from "../_shared/pain-invitation.js"
 
 type Question = {
   key: string
@@ -211,6 +212,7 @@ type PainConfig = {
   enabled?: boolean
   test_mode?: boolean
   automatic_sending?: boolean
+  invitation_delay_days_after_delivery?: number
   allowed_emails?: string[]
   excluded_emails?: string[]
   additional_invitation_emails?: string[]
@@ -400,15 +402,20 @@ async function sendConsentInvite(db: ReturnType<typeof adminClient>, customer: C
 
 async function eligibleOrderCustomers(db: ReturnType<typeof adminClient>, config: PainConfig) {
   const { data, error } = await db.from("orders")
-    .select("id,customer_id,created_at,customers!inner(id,email,first_name,last_name)")
-    .in("payment_status", ["paid", "partially_refunded", "refunded"])
+    .select("id,customer_id,created_at,fulfillment_status,delivered_at,customers!inner(id,email,first_name,last_name)")
+    .eq("order_type", "customer")
+    .eq("source", "zol-webshop")
+    .eq("payment_status", "paid")
     .order("created_at", { ascending: false })
     .limit(5000)
   if (error) throw error
   const unique = new Map<string, { customer: CustomerRow; orderId: string | null }>()
+  const customersWithNewerOrders = new Set<string>()
   for (const order of data || []) {
     const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers
-    if (!customer?.id || !customer.email || unique.has(customer.id) || !emailAllowed(config, customer.email)) continue
+    if (!customer?.id || customersWithNewerOrders.has(customer.id)) continue
+    customersWithNewerOrders.add(customer.id)
+    if (!customer.email || !painInvitationEligible(order, config) || !emailAllowed(config, customer.email)) continue
     unique.set(customer.id, { customer, orderId: order.id })
   }
   const additionalEmails = [...new Set((config.additional_invitation_emails || [])

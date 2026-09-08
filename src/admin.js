@@ -1824,7 +1824,7 @@ function emailPreviewDocument(template) {
   const automaticDetails = template.template_key === 'marketing_product_update'
     ? `<div style="margin-top:28px;padding-top:18px;border-top:1px solid #e4e9ee;color:#738496;font-size:11px;line-height:1.6">Ontvangers kunnen zich vanuit iedere productmail direct afmelden.</div>`
     : `<div style="margin:20px 0;padding:16px;border-radius:11px;background:#f3f6f8;color:#53677a;font-size:12px">Bestelgegevens, bedragen of tracking worden hier automatisch toegevoegd wanneer deze mail wordt verstuurd.</div>`
-  return `<!doctype html><html lang="nl"><meta name="viewport" content="width=device-width"><body style="margin:0;padding:22px 10px;background:#eef1f4;font-family:Arial,sans-serif"><table width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:auto;overflow:hidden;border-radius:18px;background:white"><tr><td style="padding:30px 34px;background:#102b4a;color:white"><img src="${escapeHtml(logoUrl)}" width="96" alt="ZOL Solutions" style="display:block;filter:brightness(0) invert(1)"><p style="margin:22px 0 7px;color:#9fc4e8;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase">${escapeHtml(fillEmailVariables(template.eyebrow_template))}</p><h1 style="margin:0;font-size:31px;line-height:1.08">${escapeHtml(fillEmailVariables(template.title_template))}</h1><p style="margin:14px 0 0;color:#dfeaf4;font-size:14px;line-height:1.6">${escapeHtml(fillEmailVariables(template.intro_template))}</p></td></tr><tr><td style="padding:30px 34px">${body}${automaticDetails}${label ? `<a href="${escapeHtml(url)}" style="display:inline-block;margin-top:18px;padding:13px 19px;border-radius:8px;background:#33669b;color:white;font-size:13px;font-weight:700;text-decoration:none">${escapeHtml(label)} →</a>` : ''}</td></tr><tr><td style="padding:20px 34px;border-top:1px solid #e4e9ee;color:#66798c;font-size:11px;line-height:1.6">ZOL Solutions · Zachter landen. Beter sporten.</td></tr></table></body></html>`
+  return `<!doctype html><html lang="nl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="viewport" content="width=device-width"></head><body style="margin:0;padding:22px 10px;background:#eef1f4;font-family:Arial,sans-serif"><table width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:auto;overflow:hidden;border-radius:18px;background:white"><tr><td style="padding:30px 34px;background:#102b4a;color:white"><img src="${escapeHtml(logoUrl)}" width="96" alt="ZOL Solutions" style="display:block;filter:brightness(0) invert(1)"><p style="margin:22px 0 7px;color:#9fc4e8;font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase">${escapeHtml(fillEmailVariables(template.eyebrow_template))}</p><h1 style="margin:0;font-size:31px;line-height:1.08">${escapeHtml(fillEmailVariables(template.title_template))}</h1><p style="margin:14px 0 0;color:#dfeaf4;font-size:14px;line-height:1.6">${escapeHtml(fillEmailVariables(template.intro_template))}</p></td></tr><tr><td style="padding:30px 34px">${body}${automaticDetails}${label ? `<a href="${escapeHtml(url)}" style="display:inline-block;margin-top:18px;padding:13px 19px;border-radius:8px;background:#33669b;color:white;font-size:13px;font-weight:700;text-decoration:none">${escapeHtml(label)} &rarr;</a>` : ''}</td></tr><tr><td style="padding:20px 34px;border-top:1px solid #e4e9ee;color:#66798c;font-size:11px;line-height:1.6">ZOL Solutions &middot; Zachter landen. Beter sporten.</td></tr></table></body></html>`
 }
 
 function renderEmails() {
@@ -2013,6 +2013,7 @@ function renderPilot() {
   const allowedEmails = Array.isArray(config.allowed_emails) ? config.allowed_emails : ['thijn@zolsolutions.nl', 'maks@zolsolutions.nl']
   const excludedEmails = Array.isArray(config.excluded_emails) ? config.excluded_emails : []
   const additionalInvitationEmails = Array.isArray(config.additional_invitation_emails) ? config.additional_invitation_emails : []
+  const invitationDelayDays = Math.min(30, Math.max(1, Number(config.invitation_delay_days_after_delivery || 7)))
   const testMode = config.test_mode !== false
   const eligibleCustomers = state.customers.filter((customer) => {
     const email = String(customer.email).trim().toLowerCase()
@@ -2044,7 +2045,8 @@ function renderPilot() {
         <h2>Instellingen</h2>
         <label class="checkbox-field"><input name="test_mode" type="checkbox" ${testMode ? 'checked' : ''}> Alleen adressen uit de interne testlijst</label>
         <label class="checkbox-field"><input name="enabled" type="checkbox" ${config.enabled ? 'checked' : ''}> Pijnvragenlijsten activeren</label>
-        <label class="checkbox-field"><input name="automatic_sending" type="checkbox" ${config.automatic_sending ? 'checked' : ''}> Nieuwe betaalde bestellers automatisch uitnodigen en geplande vragenlijsten versturen</label>
+        <label class="checkbox-field"><input name="automatic_sending" type="checkbox" ${config.automatic_sending ? 'checked' : ''}> Bezorgde bestellers automatisch uitnodigen en geplande vragenlijsten versturen</label>
+        <label class="field">Uitnodiging na bezorging<input name="invitation_delay_days_after_delivery" type="number" min="1" max="30" step="1" value="${invitationDelayDays}"><small>Aantal kalenderdagen nadat PostNL de bestelling als bezorgd heeft gemarkeerd.</small></label>
         <label class="field">Interne testadressen<textarea name="allowed_emails" rows="3">${escapeHtml(allowedEmails.join('\n'))}</textarea><small>Eén e-mailadres per regel. In de teststand blokkeert de server alle andere adressen.</small></label>
         <label class="field">Uitgesloten adressen<textarea name="excluded_emails" rows="3">${escapeHtml(excludedEmails.join('\n'))}</textarea><small>Deze klanten worden nooit automatisch of via “Bestellers uitnodigen” benaderd.</small></label>
         <label class="field">Extra ontvangers<textarea name="additional_invitation_emails" rows="2">${escapeHtml(additionalInvitationEmails.join('\n'))}</textarea><small>Ook zonder betaalde bestelling zichtbaar in de selectielijst.</small></label>
@@ -2076,6 +2078,7 @@ function renderPilot() {
       enabled: form.elements.enabled.checked,
       test_mode: form.elements.test_mode.checked,
       automatic_sending: form.elements.automatic_sending.checked,
+      invitation_delay_days_after_delivery: Math.min(30, Math.max(1, Number(form.elements.invitation_delay_days_after_delivery.value || 7))),
       allowed_emails: form.elements.allowed_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
       excluded_emails: form.elements.excluded_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
       additional_invitation_emails: form.elements.additional_invitation_emails.value.split(/[\n,;]/).map((email) => email.trim().toLowerCase()).filter(Boolean),
@@ -2084,7 +2087,7 @@ function renderPilot() {
     const { error } = await supabase.from('settings').upsert({ key: 'pilot_measurements', category: 'pilot', label: 'Pijnvragenlijsten', value: next, is_public: false })
     if (error) { toast('Instellingen opslaan mislukt', error.message, true); return }
     await recordActivity('Instellingen pijnvragenlijsten bijgewerkt', 'settings', 'pilot_measurements', { enabled: next.enabled, test_mode: next.test_mode, automatic_sending: next.automatic_sending })
-    toast('Instellingen opgeslagen', next.test_mode ? 'Alleen interne testadressen zijn toegestaan.' : next.automatic_sending ? 'Nieuwe bestellers worden automatisch uitgenodigd; vervolgvragen worden op tijd verstuurd.' : 'De vragenlijsten zijn live, maar verzending blijft handmatig.')
+    toast('Instellingen opgeslagen', next.test_mode ? 'Alleen interne testadressen zijn toegestaan.' : next.automatic_sending ? `Bestellers worden ${next.invitation_delay_days_after_delivery} dagen na bezorging uitgenodigd; vervolgvragen worden op tijd verstuurd.` : 'De vragenlijsten zijn live, maar verzending blijft handmatig.')
     await refreshCurrentRoute()
   })
 
