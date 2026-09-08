@@ -1928,8 +1928,15 @@ function painOrderCustomers() {
   const config = settingsValue('pilot_measurements')
   const excluded = new Set((config.excluded_emails || []).map((email) => String(email).trim().toLowerCase()))
   const additional = new Set((config.additional_invitation_emails || []).map((email) => String(email).trim().toLowerCase()))
-  const paidCustomerIds = new Set(state.orders
-    .filter((order) => ['paid', 'partially_refunded', 'refunded'].includes(order.payment_status))
+  const invitationDelayDays = Math.min(30, Math.max(1, Number(config.invitation_delay_days_after_delivery || 7)))
+  const deliveryCutoff = Date.now() - invitationDelayDays * 86_400_000
+  const newestPaidWebshopOrders = new Map()
+  state.orders.filter((order) => order.order_type === 'customer' && order.source === 'zol-webshop' && order.payment_status === 'paid').forEach((order) => {
+    const current = newestPaidWebshopOrders.get(order.customer_id)
+    if (!current || Date.parse(order.created_at) > Date.parse(current.created_at)) newestPaidWebshopOrders.set(order.customer_id, order)
+  })
+  const eligibleCustomerIds = new Set([...newestPaidWebshopOrders.values()]
+    .filter((order) => order.fulfillment_status === 'delivered' && order.delivered_at && Date.parse(order.delivered_at) <= deliveryCutoff)
     .map((order) => order.customer_id))
   const enrollments = new Map(state.pilotEnrollments.map((item) => [item.customer_id, item]))
   const consentInvites = new Map(state.pilotConsentInvites.map((item) => [item.customer_id, item]))
@@ -1937,7 +1944,7 @@ function painOrderCustomers() {
   return state.customers
     .filter((customer) => {
       const email = String(customer.email).trim().toLowerCase()
-      return (paidCustomerIds.has(customer.id) || additional.has(email)) && !excluded.has(email)
+      return (eligibleCustomerIds.has(customer.id) || additional.has(email)) && !excluded.has(email)
     })
     .map((customer) => {
       const enrollment = enrollments.get(customer.id)
@@ -1961,7 +1968,7 @@ function renderPainCustomerSelection(customers) {
 
   return `<section class="panel pilot-customer-picker" id="pain-customer-picker">
     <header class="panel-header"><div><h2>Bestellers uitnodigen</h2><p>Vink één of meerdere klanten aan. Al uitgenodigde klanten blijven zichtbaar, maar kunnen niet opnieuw worden geselecteerd.</p></div><div class="pilot-selection-buttons"><button type="button" data-action="select-all-pain-customers" ${ready.length ? '' : 'disabled'}>Alles selecteren</button><button type="button" data-action="clear-pain-customers" ${state.pilotCustomerSelection.size ? '' : 'disabled'}>Wis selectie</button></div></header>
-    ${rows ? `<div class="table-scroll"><table class="data-table pilot-customer-table"><thead><tr><th></th><th>Klant</th><th>E-mail</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen betaalde bestellers', 'Zodra een bestelling betaald is, verschijnt de klant hier.', '✉')}
+    ${rows ? `<div class="table-scroll"><table class="data-table pilot-customer-table"><thead><tr><th></th><th>Klant</th><th>E-mail</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog niemand klaar voor een uitnodiging', 'Een klant verschijnt hier zodra de nieuwste betaalde webshopbestelling lang genoeg als bezorgd staat.', '✉')}
     <footer class="pilot-customer-actions"><span data-pain-selection-count>${state.pilotCustomerSelection.size} geselecteerd · ${ready.length} nog uit te nodigen</span><button class="button button--primary" type="button" data-action="invite-order-customers" ${state.pilotCustomerSelection.size ? '' : 'disabled'}>Geselecteerde klanten uitnodigen</button></footer>
   </section>`
 }
