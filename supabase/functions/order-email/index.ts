@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import {
-  adminClient, corsHeaders, emailShell, escapeHtml, getEmailConfig, getEmailTemplate,
+  adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, getEmailTemplate,
   logEmail, markEmail, money, renderTemplate, requireAdmin, safeEmailUrl, sendEmail,
   templateParagraphs,
 } from "../_shared/email.ts"
@@ -22,22 +22,22 @@ function addressLine(address: Record<string, string> = {}) {
 }
 
 function itemTable(order: OrderRow) {
-  const rows = (order.order_items || []).map((item: Record<string, unknown>) => `<tr><td style="padding:13px 0;border-bottom:1px solid #e7ebef"><strong style="color:#102b4a">${escapeHtml(item.product_name)}</strong><br><span style="color:#6b7b8b;font-size:12px">${escapeHtml(item.variant_name)} · ${item.quantity} × ${money(Number(item.unit_price_cents), order.currency)}</span></td><td align="right" style="padding:13px 0;border-bottom:1px solid #e7ebef;font-weight:700">${money(Number(item.total_cents), order.currency)}</td></tr>`).join("")
+  const rows = (order.order_items || []).map((item: Record<string, unknown>) => `<tr><td style="padding:13px 0;border-bottom:1px solid #e7ebef"><strong style="color:#102b4a">${escapeEmailHtml(item.product_name)}</strong><br><span style="color:#6b7b8b;font-size:12px">${escapeEmailHtml(item.variant_name)} &middot; ${item.quantity} &times; ${escapeEmailHtml(money(Number(item.unit_price_cents), order.currency))}</span></td><td align="right" style="padding:13px 0;border-bottom:1px solid #e7ebef;font-weight:700">${escapeEmailHtml(money(Number(item.total_cents), order.currency))}</td></tr>`).join("")
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:6px 0 24px;font-size:14px">${rows}</table>`
 }
 
 function totalsTable(order: OrderRow) {
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;font-size:14px;color:#445b70"><tr><td style="padding:7px 0">Subtotaal</td><td align="right">${money(order.subtotal_cents, order.currency)}</td></tr>${order.discount_cents ? `<tr><td style="padding:7px 0">Korting${order.discount_code ? ` (${escapeHtml(order.discount_code)})` : ""}</td><td align="right">− ${money(order.discount_cents, order.currency)}</td></tr>` : ""}<tr><td style="padding:7px 0">Verzending</td><td align="right">${order.shipping_cents ? money(order.shipping_cents, order.currency) : "Gratis"}</td></tr><tr><td style="padding:14px 0 0;border-top:2px solid #102b4a;color:#102b4a;font-size:17px;font-weight:700">Totaal</td><td align="right" style="padding:14px 0 0;border-top:2px solid #102b4a;color:#102b4a;font-size:17px;font-weight:700">${money(order.total_cents, order.currency)}</td></tr></table>`
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;font-size:14px;color:#445b70"><tr><td style="padding:7px 0">Subtotaal</td><td align="right">${escapeEmailHtml(money(order.subtotal_cents, order.currency))}</td></tr>${order.discount_cents ? `<tr><td style="padding:7px 0">Korting${order.discount_code ? ` (${escapeEmailHtml(order.discount_code)})` : ""}</td><td align="right">&minus; ${escapeEmailHtml(money(order.discount_cents, order.currency))}</td></tr>` : ""}<tr><td style="padding:7px 0">Verzending</td><td align="right">${order.shipping_cents ? escapeEmailHtml(money(order.shipping_cents, order.currency)) : "Gratis"}</td></tr><tr><td style="padding:14px 0 0;border-top:2px solid #102b4a;color:#102b4a;font-size:17px;font-weight:700">Totaal</td><td align="right" style="padding:14px 0 0;border-top:2px solid #102b4a;color:#102b4a;font-size:17px;font-weight:700">${escapeEmailHtml(money(order.total_cents, order.currency))}</td></tr></table>`
 }
 
 function detailBlock(key: string, order: OrderRow, variables: Record<string, unknown>) {
   if (["order_received", "payment_confirmed", "new_order_admin"].includes(key)) {
-    const customer = key === "new_order_admin" ? `<div style="margin:0 0 22px;padding:18px;border-radius:12px;background:#f3f6f8;color:#445b70;font-size:13px;line-height:1.7"><strong style="color:#102b4a">${escapeHtml(order.customer_name || order.customer_email)}</strong><br><a href="mailto:${escapeHtml(order.customer_email)}" style="color:#33669b">${escapeHtml(order.customer_email)}</a><br>${escapeHtml(addressLine(order.shipping_address || {}))}</div>` : ""
-    const address = key !== "new_order_admin" ? `<div style="margin-top:4px;padding:18px;border-radius:12px;background:#f3f6f8;color:#445b70;font-size:13px;line-height:1.65"><strong style="color:#102b4a">Bezorgadres</strong><br>${escapeHtml(addressLine(order.shipping_address || {}))}</div>` : ""
+    const customer = key === "new_order_admin" ? `<div style="margin:0 0 22px;padding:18px;border-radius:12px;background:#f3f6f8;color:#445b70;font-size:13px;line-height:1.7"><strong style="color:#102b4a">${escapeEmailHtml(order.customer_name || order.customer_email)}</strong><br><a href="mailto:${escapeEmailHtml(order.customer_email)}" style="color:#33669b">${escapeEmailHtml(order.customer_email)}</a><br>${escapeEmailHtml(addressLine(order.shipping_address || {}))}</div>` : ""
+    const address = key !== "new_order_admin" ? `<div style="margin-top:4px;padding:18px;border-radius:12px;background:#f3f6f8;color:#445b70;font-size:13px;line-height:1.65"><strong style="color:#102b4a">Bezorgadres</strong><br>${escapeEmailHtml(addressLine(order.shipping_address || {}))}</div>` : ""
     return `${customer}${itemTable(order)}${totalsTable(order)}${address}`
   }
-  if (key === "order_shipped") return `<div style="margin:4px 0 22px;padding:18px;border-radius:12px;background:#f3f6f8"><span style="display:block;color:#6b7b8b;font-size:11px">Trackingcode · ${escapeHtml(variables.carrier)}</span><strong style="display:block;margin-top:6px;color:#102b4a;font-size:20px;letter-spacing:.04em">${escapeHtml(variables.tracking_code)}</strong></div>`
-  if (key === "refund_confirmed") return `<div style="margin:4px 0 22px;padding:18px;border-radius:12px;background:#edf6f1"><span style="display:block;color:#577263;font-size:11px">Terugbetaald bedrag</span><strong style="display:block;margin-top:6px;color:#17603d;font-size:25px">${escapeHtml(variables.refund_amount)}</strong><span style="display:block;margin-top:7px;color:#577263;font-size:12px">Totaal terugbetaald: ${escapeHtml(variables.refunded_total)}</span></div>`
+  if (key === "order_shipped") return `<div style="margin:4px 0 22px;padding:18px;border-radius:12px;background:#f3f6f8"><span style="display:block;color:#6b7b8b;font-size:11px">Trackingcode &middot; ${escapeEmailHtml(variables.carrier)}</span><strong style="display:block;margin-top:6px;color:#102b4a;font-size:20px;letter-spacing:.04em">${escapeEmailHtml(variables.tracking_code)}</strong></div>`
+  if (key === "refund_confirmed") return `<div style="margin:4px 0 22px;padding:18px;border-radius:12px;background:#edf6f1"><span style="display:block;color:#577263;font-size:11px">Terugbetaald bedrag</span><strong style="display:block;margin-top:6px;color:#17603d;font-size:25px">${escapeEmailHtml(variables.refund_amount)}</strong><span style="display:block;margin-top:7px;color:#577263;font-size:12px">Totaal terugbetaald: ${escapeEmailHtml(variables.refunded_total)}</span></div>`
   return ""
 }
 

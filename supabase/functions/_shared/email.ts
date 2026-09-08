@@ -37,6 +37,14 @@ export function escapeHtml(value: unknown) {
     .replaceAll("'", "&#039;")
 }
 
+// Keep transactional email HTML ASCII-only. Some older Microsoft mail clients
+// have been observed to decode an otherwise valid UTF-8 MIME part as a legacy
+// charset, which turns characters such as €, × and → into mojibake.
+// Numeric HTML entities render identically without depending on that decoding.
+export function escapeEmailHtml(value: unknown) {
+  return escapeHtml(value).replace(/[^\x00-\x7F]/gu, (character) => `&#${character.codePointAt(0)};`)
+}
+
 export function money(cents: number, currency = "EUR") {
   return new Intl.NumberFormat("nl-NL", { style: "currency", currency }).format(Number(cents || 0) / 100)
 }
@@ -87,7 +95,7 @@ export function renderTemplate(value: string, variables: Record<string, unknown>
 
 export function templateParagraphs(value: string, variables: Record<string, unknown>) {
   return renderTemplate(value, variables).split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
-    .map((paragraph) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
+    .map((paragraph) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
 }
 
 export function safeEmailUrl(value: string, fallback: string) {
@@ -101,18 +109,18 @@ export function emailShell(content: string, options: { eyebrow: string; title: s
   const websiteUrl = options.websiteUrl || "https://zolsolutions.nl"
   const logoUrl = safeEmailUrl(options.logoUrl || `${websiteUrl.replace(/\/$/, "")}/media/zol-logo.png`, `${websiteUrl.replace(/\/$/, "")}/media/zol-logo.png`)
   const buttonUrl = options.buttonLabel && options.buttonUrl ? safeEmailUrl(options.buttonUrl, websiteUrl) : ""
-  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  return `<!doctype html><html lang="nl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
   <body style="margin:0;background:#f3f5f7;color:#10233b;font-family:Arial,Helvetica,sans-serif">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f7"><tr><td align="center" style="padding:32px 12px">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;overflow:hidden;border-radius:22px;background:#ffffff;box-shadow:0 18px 50px rgba(16,35,59,.09)">
         <tr><td style="padding:34px 38px;background:#102b4a;color:#ffffff">
-          <a href="${escapeHtml(websiteUrl)}" style="display:inline-block;color:#ffffff;text-decoration:none"><img src="${escapeHtml(logoUrl)}" width="104" alt="ZOL Solutions" style="display:block;width:104px;max-width:100%;height:auto;filter:brightness(0) invert(1)"></a>
-          <p style="margin:24px 0 8px;color:#9fc4e8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">${escapeHtml(options.eyebrow)}</p>
-          <h1 style="margin:0;max-width:560px;font-size:34px;line-height:1.08;letter-spacing:-1px">${escapeHtml(options.title)}</h1>
-          ${options.intro ? `<p style="margin:16px 0 0;color:#dfeaf4;font-size:15px;line-height:1.65">${escapeHtml(options.intro)}</p>` : ""}
+          <a href="${escapeEmailHtml(websiteUrl)}" style="display:inline-block;color:#ffffff;text-decoration:none"><img src="${escapeEmailHtml(logoUrl)}" width="104" alt="ZOL Solutions" style="display:block;width:104px;max-width:100%;height:auto;filter:brightness(0) invert(1)"></a>
+          <p style="margin:24px 0 8px;color:#9fc4e8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">${escapeEmailHtml(options.eyebrow)}</p>
+          <h1 style="margin:0;max-width:560px;font-size:34px;line-height:1.08;letter-spacing:-1px">${escapeEmailHtml(options.title)}</h1>
+          ${options.intro ? `<p style="margin:16px 0 0;color:#dfeaf4;font-size:15px;line-height:1.65">${escapeEmailHtml(options.intro)}</p>` : ""}
         </td></tr>
-        <tr><td style="padding:34px 38px">${content}${buttonUrl ? `<a href="${escapeHtml(buttonUrl)}" style="display:inline-block;margin-top:8px;padding:14px 21px;border-radius:9px;background:#33669b;color:#fff;font-size:13px;font-weight:700;text-decoration:none">${escapeHtml(options.buttonLabel)} →</a>` : ""}</td></tr>
-        <tr><td style="padding:22px 38px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">ZOL Solutions · Zachter landen. Beter sporten.<br><a href="${escapeHtml(websiteUrl)}" style="color:#33669b">${escapeHtml(websiteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
+        <tr><td style="padding:34px 38px">${content}${buttonUrl ? `<a href="${escapeEmailHtml(buttonUrl)}" style="display:inline-block;margin-top:8px;padding:14px 21px;border-radius:9px;background:#33669b;color:#fff;font-size:13px;font-weight:700;text-decoration:none">${escapeEmailHtml(options.buttonLabel)} &rarr;</a>` : ""}</td></tr>
+        <tr><td style="padding:22px 38px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">ZOL Solutions &middot; Zachter landen. Beter sporten.<br><a href="${escapeEmailHtml(websiteUrl)}" style="color:#33669b">${escapeEmailHtml(websiteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
       </table>
     </td></tr></table>
   </body></html>`

@@ -113,7 +113,7 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
         getEmailConfig:async () => ({enabled:true,admin_email:'admin@example.invalid'}),
         getEmailTemplate:async key => ({enabled:true,audience:key === 'new_order_admin' ? 'admin' : 'customer',subject_template:key}),
         renderTemplate:value => value || '', templateParagraphs:() => '', emailShell:html => html,
-        escapeHtml:value => String(value || ''), money:value => String(value), safeEmailUrl:value => value,
+        escapeEmailHtml:value => String(value || ''), money:value => String(value), safeEmailUrl:value => value,
         logEmail:async (_db,payload) => { const log = {...payload,id:logs.size + 1,status:'queued'}; logs.set(payload.dedupe_key,log); return log },
         markEmail:async (_db,id,result) => { Object.assign([...logs.values()].find(log => log.id === id),result) },
         sendEmail:async email => { sent.push(email); return {id:`mock-${sent.length}`} },
