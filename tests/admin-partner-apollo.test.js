@@ -41,8 +41,15 @@ scenario('enriches a reviewed Apollo candidate and records provenance', async h 
   assert.ok(h.db.activity_log.some(item => item.action === 'Partnercontact via Apollo verrijkt'))
 })
 
-scenario('keeps Apollo unavailable for leads without a website', async h => {
+scenario('searches Apollo by organization name when a lead has no website', async h => {
   await openPartnerScout(h)
   h.run("state.partnerScout.leads[0].website = ''; renderPartners()")
-  assert.equal(h.q('[data-action="apollo-search"]').disabled, true)
+  h.respondWith({ success: true, organization: 'Test Fysiotherapie', organization_lookup_credits: 1, candidates: [] })
+  assert.equal(h.q('[data-action="apollo-search"]').disabled, false)
+  await h.click('[data-action="apollo-search"]')
+  const call = h.calls.find(item => item.function === 'apollo-enrichment')
+  assert.equal(call.body.action, 'search')
+  assert.equal(call.body.lead.website, '')
+  assert.equal(call.body.lead.name, 'Test Fysiotherapie')
+  assert.match(h.q('#dialog-body').textContent, /1 Apollo-credit/)
 })

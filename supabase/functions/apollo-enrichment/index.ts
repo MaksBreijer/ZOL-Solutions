@@ -71,6 +71,29 @@ function websiteDomain(value: unknown) {
   }
 }
 
+function normalizedName(value: unknown) {
+  return clean(value, 180)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(bv|b\.v\.|vereniging|stichting|club)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+function organizationScore(organization: Json, leadName: string, city: string) {
+  const wanted = normalizedName(leadName)
+  const found = normalizedName(organization.name)
+  if (!wanted || !found) return 0
+  const wantedWords = new Set(wanted.split(" ").filter((word) => word.length > 2))
+  const foundWords = new Set(found.split(" ").filter((word) => word.length > 2))
+  const overlap = [...wantedWords].filter((word) => foundWords.has(word)).length
+  const nameScore = wanted === found ? 20 : overlap / Math.max(1, wantedWords.size) * 12
+  const foundCity = normalizedName(organization.city || organization.raw_address || organization.formatted_address)
+  const cityScore = city && foundCity.includes(normalizedName(city)) ? 4 : 0
+  return nameScore + cityScore
+}
+
 function apolloError(status: number) {
   if (status === 401) return "Apollo heeft de API-sleutel geweigerd."
   if (status === 403) return "Het Apollo-abonnement of de API-sleutel geeft geen toegang tot deze functie."
@@ -142,13 +165,33 @@ Deno.serve(async (request) => {
     if (!apiKey) return Response.json({ error: "Apollo is nog niet geactiveerd. Stel eerst APOLLO_API_KEY veilig in." }, { status: 503, headers: jsonHeaders })
 
     if (action === "search") {
-      const domain = websiteDomain(body.lead?.website)
-      if (!domain) return Response.json({ error: "Voeg eerst een geldige website aan deze partner toe." }, { status: 400, headers: jsonHeaders })
+      let domain = websiteDomain(body.lead?.website)
+      let organizationId = ""
+      let organizationName = clean(body.lead?.name, 180)
+      let organizationLookupCredits = 0
+      if (!domain) {
+        if (!organizationName) return Response.json({ error: "Een organisatienaam of website is vereist." }, { status: 400, headers: jsonHeaders })
+        const organizationParams = new URLSearchParams({ q_organization_name: organizationName, page: "1", per_page: "5" })
+        const organizationResult = await apolloRequest("/mixed_companies/search", organizationParams, apiKey)
+        organizationLookupCredits = 1
+        const organizations = Array.isArray(organizationResult.organizations) ? organizationResult.organizations : []
+        const city = clean(body.lead?.city, 100)
+        const organization = organizations
+          .filter((item: Json) => clean(item.id, 80) && clean(item.name, 180))
+          .sort((a: Json, b: Json) => organizationScore(b, organizationName, city) - organizationScore(a, organizationName, city))[0]
+        if (!organization || organizationScore(organization, organizationName, city) < 6) {
+          return Response.json({ success: true, domain: "", organization: organizationName, organization_lookup_credits: organizationLookupCredits, candidates: [] }, { headers: jsonHeaders })
+        }
+        organizationId = clean(organization.id, 80)
+        organizationName = clean(organization.name, 180)
+        domain = websiteDomain(organization.primary_domain || organization.website_url)
+      }
       const type = clean(body.lead?.type, 30)
       const titles = roleTitles[type] || roleTitles.other
       const buildSearch = (includeTitles: boolean) => {
         const params = new URLSearchParams({ include_similar_titles: "true", page: "1", per_page: "10" })
-        params.append("q_organization_domains_list[]", domain)
+        if (organizationId) params.append("organization_ids[]", organizationId)
+        else params.append("q_organization_domains_list[]", domain)
         for (const seniority of ["owner", "founder", "partner", "head", "director", "manager"]) params.append("person_seniorities[]", seniority)
         if (includeTitles) for (const title of titles) params.append("person_titles[]", title)
         return params
@@ -160,7 +203,7 @@ Deno.serve(async (request) => {
         .sort((a: Json, b: Json) => candidateScore(b, titles) - candidateScore(a, titles))
         .slice(0, 8)
         .map(candidate)
-      return Response.json({ success: true, domain, candidates }, { headers: jsonHeaders })
+      return Response.json({ success: true, domain, organization: organizationName, organization_lookup_credits: organizationLookupCredits, candidates }, { headers: jsonHeaders })
     }
 
     if (action === "enrich") {
