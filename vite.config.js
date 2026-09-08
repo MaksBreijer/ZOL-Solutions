@@ -164,7 +164,6 @@ export default defineConfig({
         growingHeelPain: resolve(import.meta.dirname, 'kennisbank/groeipijn-in-de-hiel/index.html'),
         heelPainAfterSports: resolve(import.meta.dirname, 'kennisbank/kind-pijn-aan-hiel-na-sporten/index.html'),
         severSportsShoes: resolve(import.meta.dirname, 'kennisbank/sportschoenen-bij-ziekte-van-sever/index.html'),
-        heelPainPhysio: resolve(import.meta.dirname, 'kennisbank/wanneer-naar-fysio-hielpijn-kind/index.html'),
         sportsWithSever: resolve(import.meta.dirname, 'kennisbank/sporten-met-ziekte-van-sever/index.html'),
         severExercises: resolve(import.meta.dirname, 'kennisbank/oefeningen-bij-ziekte-van-sever/index.html'),
         severInsoles: resolve(import.meta.dirname, 'kennisbank/inlegzolen-bij-ziekte-van-sever/index.html'),

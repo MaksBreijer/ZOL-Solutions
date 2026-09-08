@@ -37,7 +37,6 @@ test('growth and new knowledge routes are listed in the sitemap', async () => {
   for (const route of [
     '/hielpijn-kind-sport/',
     '/kennisbank/sportschoenen-bij-ziekte-van-sever/',
-    '/kennisbank/wanneer-naar-fysio-hielpijn-kind/',
   ]) assert.match(sitemap, new RegExp(`<loc>https://zolsolutions\\.nl${route.replaceAll('/', '\\/')}</loc>`))
 })
 
