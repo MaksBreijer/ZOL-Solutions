@@ -5227,12 +5227,24 @@ blockquote {
 }
 
 .campaign-product-image {
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: 28px;
   background: #e8f0f5;
 }
 
-.campaign-product-image img { width: 100%; display: block; }
+.campaign-product-image picture {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.campaign-product-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
 .campaign-product-copy ul { margin: 28px 0; padding: 0; list-style: none; }
 .campaign-product-copy li { padding: 12px 0 12px 28px; border-bottom: 1px solid var(--line); color: var(--blue-deep); font-weight: 700; }
 .campaign-product-copy li::before { margin-left: -28px; margin-right: 12px; color: var(--orange); content: '✓'; }
