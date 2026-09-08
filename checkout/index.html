@@ -35,7 +35,8 @@
             <div class="checkout-fields">
               <label>Voornaam<input name="first_name" autocomplete="given-name" required></label><label>Achternaam<input name="last_name" autocomplete="family-name" required></label>
               <label>E-mailadres<input name="email" type="email" autocomplete="email" required></label><label>Telefoon<input name="phone" type="tel" autocomplete="tel"></label>
-              <label class="wide">Straat en huisnummer<input name="street" autocomplete="street-address" required></label><label>Postcode<input name="postal_code" autocomplete="postal-code" required></label><label>Plaats<input name="city" autocomplete="address-level2" required></label>
+              <label>Land<select name="country" autocomplete="country" required><option value="NL">Nederland</option><option value="BE">België</option></select></label><label class="delivery-promise">Verwachte levering<output id="delivery-promise">Nederland · 1–2 werkdagen</output></label>
+              <label class="wide">Straat en huisnummer<input name="street" autocomplete="street-address" required></label><label>Postcode<input name="postal_code" autocomplete="postal-code" inputmode="text" maxlength="7" pattern="[1-9][0-9]{3}\s?[A-Za-z]{2}" placeholder="1234 AB" required></label><label>Plaats<input name="city" autocomplete="address-level2" required></label>
               <div class="wide discount-code-field"><label for="discount-code">Kortingscode <span>optioneel</span></label><div class="discount-code-control"><input id="discount-code" name="discount_code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" placeholder="Vul je kortingscode in"><button id="apply-discount" type="button">Toepassen</button></div><small id="discount-status" aria-live="polite"></small></div>
             </div>
             <fieldset class="payment-methods" id="payment-methods">

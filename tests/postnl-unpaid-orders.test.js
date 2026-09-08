@@ -95,12 +95,25 @@ test('Dutch country display names and ISO codes produce NL labels without modify
   }
 })
 
-test('foreign and malformed country values never become Dutch by truncation',async () => {
-  for (const country of ['BE','België','Belgium','DE','Germany','NE','Niger','NZ','NL-invalid','Nederlandse Antillen','Netherlands Antilles']) {
+test('Belgian country names use the standard Belgian product and tracking codes',async () => {
+  for (const country of ['BE','België','Belgie','Belgium']) {
+    const h = harness({shipping_address:{street:'Teststraat 1',postal_code:'1000',city:'Brussel',country}})
+    const response = await h.create()
+    assert.equal(response.status,200,country)
+    const payload = JSON.parse(h.requests[1].options.body)
+    assert.equal(payload.Shipments[0].Addresses[0].Countrycode,'BE')
+    assert.equal(payload.Shipments[0].ProductCodeDelivery,'4946')
+    assert.match(h.order.tracking_url,/-BE-1000$/)
+    assert.equal(h.order.postnl.destination_country,'BE')
+  }
+})
+
+test('unsupported and malformed country values never become Dutch by truncation',async () => {
+  for (const country of ['DE','Germany','NE','Niger','NZ','NL-invalid','Nederlandse Antillen','Netherlands Antilles']) {
     const h = harness({shipping_address:{street:'Teststraat 1',postal_code:'1234AB',city:'Teststad',country}})
     const response = await h.create()
     assert.equal(response.status,409,country)
-    assert.match((await response.json()).error,/Nederlandse zendingen/)
+    assert.match((await response.json()).error,/Nederland en België/)
     assert.equal(h.requests.length,0,'no barcode or paid shipment may be requested')
     assert.equal(h.updates.length,0)
   }

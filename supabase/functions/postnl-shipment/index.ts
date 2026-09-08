@@ -43,7 +43,9 @@ function normalizeCountryCode(value: unknown) {
   // Customer records may contain a display name rather than an ISO code.
   // Match complete values: truncating Nederland produces NE (Niger).
   const country = clean(value, 120).replace(/\s+/g, " ").toUpperCase() || "NL"
-  return ["NL", "NLD", "NEDERLAND", "NETHERLANDS", "THE NETHERLANDS"].includes(country) ? "NL" : country
+  if (["NL", "NLD", "NEDERLAND", "NETHERLANDS", "THE NETHERLANDS"].includes(country)) return "NL"
+  if (["BE", "BEL", "BELGIË", "BELGIE", "BELGIUM"].includes(country)) return "BE"
+  return country
 }
 
 function postnlKey(environment: "sandbox" | "production") {
@@ -241,8 +243,9 @@ Deno.serve(async (request) => {
     if (!apiKey) return Response.json({ error: `De PostNL-${environment === "production" ? "productie" : "sandbox"}sleutel is nog niet veilig ingesteld.` }, { status: 503, headers })
 
     const address: Json = order.shipping_address || {}
-    if (normalizeCountryCode(address.country) !== "NL") {
-      return Response.json({ error: "Deze koppeling is nu veilig ingesteld voor Nederlandse zendingen. Internationale zendingen vereisen aanvullende douane- en productgegevens." }, { status: 409, headers })
+    const recipientCountry = normalizeCountryCode(address.country)
+    if (!["NL", "BE"].includes(recipientCountry)) {
+      return Response.json({ error: "Deze koppeling ondersteunt op dit moment alleen zendingen naar Nederland en België." }, { status: 409, headers })
     }
     const recipientStreet = splitStreet(address.street)
     const isPhysioOrder = order.order_type === "physio"
@@ -262,7 +265,9 @@ Deno.serve(async (request) => {
     }
     const barcode = barcodeResult.barcode
     const weight = Math.max(1, Math.min(23000, Number.parseInt(clean(config.default_weight_grams, 8), 10) || 500))
-    const productCode = clean(config.product_code || (config.shipment_type === "letterbox" ? "2928" : "3085"), 4)
+    const productCode = recipientCountry === "BE"
+      ? clean(config.belgium_product_code || "4946", 4)
+      : clean(config.product_code || (config.shipment_type === "letterbox" ? "2928" : "3085"), 4)
     const payload: Json = {
       Customer: {
         Address: {
@@ -278,7 +283,7 @@ Deno.serve(async (request) => {
       Message: { MessageID: clean(order.order_number, 10), MessageTimeStamp: postnlTimestamp(), Printertype: "GraphicFile|PDF" },
       Shipments: [{
         Addresses: [{
-          AddressType: "01", City: clean(address.city, 35), Countrycode: "NL", FirstName: recipientName.firstName.slice(0, 35),
+          AddressType: "01", City: clean(address.city, 35), Countrycode: recipientCountry, FirstName: recipientName.firstName.slice(0, 35),
           ...(companyName ? { CompanyName: companyName } : {}),
           HouseNr: recipientStreet.houseNumber, ...(recipientStreet.houseNumberAddition ? { HouseNrExt: recipientStreet.houseNumberAddition } : {}),
           Name: recipientName.lastName.slice(0, 35), Street: recipientStreet.street.slice(0, 95),
@@ -313,11 +318,12 @@ Deno.serve(async (request) => {
     const postnl = {
       environment, barcode: responseBarcode, label_path: labelPath, output_type: "pdf", trace_id: "",
       shipment_reference: `ZOL-${order.order_number}`, product_code: clean(item.ProductCodeDelivery || productCode, 4), weight_grams: weight,
+      destination_country: recipientCountry,
       warnings: postnlWarnings(result),
       created_at: createdAt, created_by: profile.id,
     }
     const postal = clean(address.postal_code, 17).replaceAll(" ", "").toUpperCase()
-    const trackingUrl = `https://jouw.postnl.nl/track-and-trace/${encodeURIComponent(responseBarcode)}-NL-${encodeURIComponent(postal)}`
+    const trackingUrl = `https://jouw.postnl.nl/track-and-trace/${encodeURIComponent(responseBarcode)}-${recipientCountry}-${encodeURIComponent(postal)}`
     const { error: updateError } = await db.from("orders").update({
       postnl, tracking_code: responseBarcode, tracking_carrier: "PostNL", tracking_url: trackingUrl,
       fulfillment_status: order.fulfillment_status === "unfulfilled" ? "processing" : order.fulfillment_status,

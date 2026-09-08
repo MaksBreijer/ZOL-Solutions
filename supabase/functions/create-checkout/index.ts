@@ -45,12 +45,31 @@ function moneyValue(cents: number) {
   return (cents / 100).toFixed(2)
 }
 
-async function listPaymentMethods(mollieKey: string, amountCents: number) {
+function checkoutCountry(value: unknown) {
+  const country = String(value || "NL").trim().toUpperCase()
+  if (!['NL', 'BE'].includes(country)) throw new Error("We bezorgen op dit moment alleen in Nederland en België.")
+  return country
+}
+
+function validateCustomer(customer: Record<string, unknown>) {
+  const country = checkoutCountry(customer.country)
+  const email = String(customer.email || "").trim().toLowerCase()
+  const postalCode = String(customer.postal_code || "").trim().toUpperCase()
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Vul een geldig e-mailadres in.")
+  if (![customer.first_name, customer.last_name, customer.street, customer.city].every((value) => String(value || "").trim())) {
+    throw new Error("Vul je naam en volledige bezorgadres in.")
+  }
+  if (country === 'NL' && !/^[1-9][0-9]{3}\s?[A-Z]{2}$/.test(postalCode)) throw new Error("Vul een geldige Nederlandse postcode in.")
+  if (country === 'BE' && !/^[1-9][0-9]{3}$/.test(postalCode)) throw new Error("Vul een geldige Belgische postcode van vier cijfers in.")
+  return { country, email }
+}
+
+async function listPaymentMethods(mollieKey: string, amountCents: number, country = 'NL') {
   if (!mollieKey) return []
   const query = new URLSearchParams({
-    locale: "nl_NL",
+    locale: country === 'BE' ? "nl_BE" : "nl_NL",
     sequenceType: "oneoff",
-    billingCountry: "NL",
+    billingCountry: country,
     includeWallets: "applepay",
     "amount[value]": moneyValue(amountCents),
     "amount[currency]": "EUR",
@@ -222,16 +241,19 @@ Deno.serve(async (request) => {
     })).filter((item: { variant_id: string }) => /^[0-9a-f-]{36}$/i.test(item.variant_id))
     if (normalizedItems.length !== items.length) return Response.json({ error: "Een productvariant is ongeldig." }, { status: 400, headers })
 
+    const country = checkoutCountry(body.action === "quote" ? body.country : body.customer?.country)
+
     if (body.action === "quote") {
       const { data: quote, error: quoteError } = await db.rpc("quote_checkout_order", {
         p_items: normalizedItems,
         p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
+        p_country: country,
       })
       if (quoteError) return Response.json({ error: quoteError.message }, { status: 400, headers })
       let paymentMethods: Array<{ id: string, description: string, image: string }> = []
       if (commerce.mollie_enabled && mollieKey) {
         try {
-          paymentMethods = await listPaymentMethods(mollieKey, Number(quote.total_cents || 0))
+          paymentMethods = await listPaymentMethods(mollieKey, Number(quote.total_cents || 0), country)
         } catch {
           // Mollie's hosted checkout remains the fallback when the method list is unavailable.
         }
@@ -241,8 +263,8 @@ Deno.serve(async (request) => {
 
     const customer = body.customer || {}
     const discoveryNote = checkoutDiscoveryNote(body.discovery || {})
-    const email = String(customer.email || "").trim().toLowerCase()
-    if (!/^\S+@\S+\.\S+$/.test(email)) return Response.json({ error: "Vul een geldig e-mailadres in." }, { status: 400, headers })
+    const { country: customerCountry } = validateCustomer(customer)
+    customer.country = customerCountry
 
     if (commerce.mollie_enabled && !mollieKey) return Response.json({ error: "Online betalen is tijdelijk niet beschikbaar. Probeer het later opnieuw." }, { status: 503, headers })
 
@@ -251,9 +273,10 @@ Deno.serve(async (request) => {
       const { data: methodQuote, error: methodQuoteError } = await db.rpc("quote_checkout_order", {
         p_items: normalizedItems,
         p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
+        p_country: customerCountry,
       })
       if (methodQuoteError) return Response.json({ error: methodQuoteError.message }, { status: 400, headers })
-      const availableMethods = await listPaymentMethods(mollieKey, Number(methodQuote.total_cents || 0))
+      const availableMethods = await listPaymentMethods(mollieKey, Number(methodQuote.total_cents || 0), customerCountry)
       if (!availableMethods.some((method) => method.id === selectedMethod)) {
         return Response.json({ error: "Kies een beschikbare betaalmethode." }, { status: 400, headers })
       }
@@ -311,7 +334,7 @@ Deno.serve(async (request) => {
     }, { headers: { ...headers, "Content-Type": "application/json" } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Afrekenen is niet gelukt."
-    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres|terechtgekomen/i.test(message) ? 400 : 500
+    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres|terechtgekomen|bezorgadres|postcode|Nederland|België/i.test(message) ? 400 : 500
     return Response.json({ error: message }, { status, headers })
   }
 })

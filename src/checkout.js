@@ -16,7 +16,9 @@ const discountButton = document.querySelector('#apply-discount')
 const discountStatus = document.querySelector('#discount-status')
 const paymentMethodsElement = document.querySelector('#payment-methods')
 const paymentMethodOptions = document.querySelector('#payment-method-options')
-let commerce = { shipping_cents: 0, free_shipping_threshold_cents: 0, tax_rate: 21, mollie_enabled: true }
+const deliveryPromise = document.querySelector('#delivery-promise')
+const postalCodeInput = form.elements.postal_code
+let commerce = { shipping_cents: 0, belgium_shipping_cents: 495, free_shipping_threshold_cents: 0, tax_rate: 21, mollie_enabled: true }
 const returnParams = new URLSearchParams(window.location.search)
 const returnOrderId = returnParams.get('ref')
 const returnToken = returnParams.get('token')
@@ -25,6 +27,7 @@ const linkedPartnerCode = getPartnerAttributionCode()
 let currentQuote = null
 let quotedCart = ''
 let quotedCode = null
+let quotedCountry = null
 let quoteRequest = 0
 let submitInFlight = false
 
@@ -93,14 +96,31 @@ function discountCode() {
   return String(discountInput.value || '').trim().toUpperCase().slice(0, 40)
 }
 
+function selectedCountry() {
+  return form.elements.country.value === 'BE' ? 'BE' : 'NL'
+}
+
+function updateCountryFields({ quote = false } = {}) {
+  const country = selectedCountry()
+  const belgium = country === 'BE'
+  postalCodeInput.pattern = belgium ? '[1-9][0-9]{3}' : '[1-9][0-9]{3}\\s?[A-Za-z]{2}'
+  postalCodeInput.placeholder = belgium ? '1000' : '1234 AB'
+  postalCodeInput.maxLength = belgium ? 4 : 7
+  deliveryPromise.textContent = belgium ? 'België · 2–4 werkdagen' : 'Nederland · 1–2 werkdagen'
+  currentQuote = null; quotedCart = ''; quotedCode = null; quotedCountry = null
+  renderSummary(getCart())
+  if (quote && getCart().length) void requestQuote({ code: discountCode(), announce: false })
+}
+
 function cartSignature(cart = getCart()) {
   return cart.map((item) => `${item.variant_id}:${item.quantity}`).sort().join('|')
 }
 
-function localTotals(cart) {
+function localTotals(cart, country = selectedCountry()) {
   const subtotalCents = cart.reduce((sum, item) => sum + item.price_cents * item.quantity, 0)
   const threshold = Number(commerce.free_shipping_threshold_cents || 0)
-  const shippingCents = threshold > 0 && subtotalCents >= threshold ? 0 : Number(commerce.shipping_cents || 0)
+  const baseShippingCents = country === 'BE' ? Number(commerce.belgium_shipping_cents ?? 495) : Number(commerce.shipping_cents || 0)
+  const shippingCents = threshold > 0 && subtotalCents >= threshold ? 0 : baseShippingCents
   const taxRate = Number(commerce.tax_rate || 21)
   return {
     subtotal_cents: subtotalCents,
@@ -201,8 +221,9 @@ async function functionErrorMessage(error, data, fallback) {
 
 function renderSummary(cart) {
   const code = discountCode()
-  const hasCurrentQuote = currentQuote && quotedCart === cartSignature(cart) && quotedCode === code
-  const totals = hasCurrentQuote ? currentQuote : localTotals(cart)
+  const country = selectedCountry()
+  const hasCurrentQuote = currentQuote && quotedCart === cartSignature(cart) && quotedCode === code && quotedCountry === country
+  const totals = hasCurrentQuote ? currentQuote : localTotals(cart, country)
   const discountLabel = totals.discount_code
     ? `Korting (${totals.discount_code})`
     : totals.automatic && totals.discount_title ? `Automatische korting` : 'Korting'
@@ -222,13 +243,13 @@ async function requestQuote({ code = discountCode(), announce = true } = {}) {
   discountButton.textContent = 'Controleren…'
   if (announce) setDiscountStatus(normalizedCode ? 'Kortingscode controleren…' : 'Prijs opnieuw berekenen…')
   const { data, error } = await supabase.functions.invoke('create-checkout', {
-    body: { action: 'quote', discount_code: normalizedCode, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) },
+    body: { action: 'quote', country: selectedCountry(), discount_code: normalizedCode, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) },
   })
   if (requestId !== quoteRequest) return false
   discountButton.disabled = false
   discountButton.textContent = 'Toepassen'
   if (error || data?.error) {
-    currentQuote = null; quotedCart = ''; quotedCode = null
+    currentQuote = null; quotedCart = ''; quotedCode = null; quotedCountry = null
     renderSummary(cart)
     renderPaymentMethods([])
     setDiscountStatus(await functionErrorMessage(error, data, 'De kortingscode kon niet worden gecontroleerd.'), 'error')
@@ -237,6 +258,7 @@ async function requestQuote({ code = discountCode(), announce = true } = {}) {
   currentQuote = data
   quotedCart = cartSignature(cart)
   quotedCode = normalizedCode
+  quotedCountry = selectedCountry()
   renderPaymentMethods(data.payment_methods || [])
   renderSummary(cart)
   if (data.discount_title) {
@@ -330,10 +352,17 @@ discountInput.addEventListener('input', () => {
   const upper = discountInput.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40)
   if (discountInput.value !== upper) discountInput.value = upper
   if (quotedCode !== discountCode()) {
-    currentQuote = null; quotedCart = ''; quotedCode = null
+    currentQuote = null; quotedCart = ''; quotedCode = null; quotedCountry = null
     renderSummary(getCart())
     setDiscountStatus(discountCode() ? 'Klik op toepassen om je code te controleren.' : '')
   }
+})
+form.elements.country.addEventListener('change', () => updateCountryFields({ quote: true }))
+postalCodeInput.addEventListener('input', () => {
+  const normalized = selectedCountry() === 'BE'
+    ? postalCodeInput.value.replace(/\D/g, '').slice(0, 4)
+    : postalCodeInput.value.toUpperCase().replace(/[^0-9A-Z ]/g, '').slice(0, 7)
+  if (postalCodeInput.value !== normalized) postalCodeInput.value = normalized
 })
 discountInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') { event.preventDefault(); void requestQuote() }
@@ -343,6 +372,7 @@ function checkoutValidationMessage(invalid) {
   if (invalid?.name === 'discovery_source') return 'Geef aan hoe je bij ZOL Solutions bent terechtgekomen.'
   if (invalid?.name === 'terms_accepted') return 'Vink eerst aan dat je akkoord gaat met de voorwaarden en het privacybeleid.'
   if (invalid?.type === 'email') return 'Vul een geldig e-mailadres in.'
+  if (invalid?.name === 'postal_code') return selectedCountry() === 'BE' ? 'Vul een geldige Belgische postcode van vier cijfers in.' : 'Vul een geldige Nederlandse postcode in, bijvoorbeeld 1234 AB.'
   return 'Controleer de gemarkeerde velden en vul alle verplichte gegevens in.'
 }
 
@@ -388,12 +418,12 @@ form.addEventListener('submit', async (event) => {
     const discountCode = String(customer.discount_code || '').trim().toUpperCase()
     delete customer.discount_code
     delete customer.terms_accepted
-    const quoteIsCurrent = currentQuote && quotedCart === cartSignature(cart) && quotedCode === discountCode
+    const quoteIsCurrent = currentQuote && quotedCart === cartSignature(cart) && quotedCode === discountCode && quotedCountry === selectedCountry()
     if (!quoteIsCurrent && !await requestQuote({ code: discountCode, announce: false })) throw new Error(discountCode ? 'Controleer eerst de kortingscode hierboven.' : 'De actuele prijs kon niet worden gecontroleerd. Probeer het opnieuw.')
     const sessionId = getSessionId()
     const paymentMethod = String(customer.payment_method || '')
     delete customer.payment_method
-    trackEvent('checkout_submit', { payment_method: paymentMethod })
+    trackEvent('checkout_submit', { payment_method: paymentMethod, country: customer.country })
     const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discovery, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
     if (error || data?.error) throw new Error(await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'))
     if (data.checkout_url) { window.location.assign(data.checkout_url); return }
@@ -421,6 +451,7 @@ async function initializeCheckout() {
   if (returnOrderId && returnToken) await renderPaymentReturn()
   else {
     if (linkedDiscountCode) discountInput.value = linkedDiscountCode
+    updateCountryFields()
     render()
     if (getCart().length) await requestQuote({ code: linkedDiscountCode, announce: Boolean(linkedDiscountCode) })
   }
