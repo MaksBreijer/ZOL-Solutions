@@ -5083,6 +5083,213 @@ blockquote {
   border-right: 0;
 }
 
+/* Growth pages: paid-social landing, partner acquisition and video watch page. */
+.growth-hero,
+.watch-hero {
+  width: min(1320px, calc(100% - 44px));
+  margin: 0 auto;
+  padding: clamp(150px, 15vw, 220px) 0 clamp(70px, 8vw, 120px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr);
+  align-items: center;
+  gap: clamp(42px, 7vw, 100px);
+}
+
+.growth-hero-copy h1,
+.watch-copy h1 {
+  max-width: 800px;
+  margin: 16px 0 24px;
+  color: var(--blue-deep);
+  font: 700 clamp(58px, 7.2vw, 108px)/.88 var(--heading);
+  letter-spacing: -.045em;
+  text-transform: uppercase;
+}
+
+.growth-hero-copy h1 em,
+.watch-copy h1 em,
+.growth-section-heading h2 em,
+.growth-audience h2 em,
+.campaign-product-copy h2 em,
+.watch-explainer h2 em {
+  color: var(--orange);
+  font-family: var(--serif);
+  font-weight: 400;
+  text-transform: none;
+}
+
+.growth-hero-copy > p:not(.section-index),
+.watch-copy > p:not(.section-index) {
+  max-width: 680px;
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(18px, 1.8vw, 23px);
+  line-height: 1.62;
+}
+
+.growth-visual {
+  position: relative;
+  min-height: 610px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 30px;
+  background: var(--blue-deep);
+}
+
+.growth-visual::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 54%, rgba(7, 29, 51, .75));
+  content: '';
+}
+
+.growth-visual img {
+  width: 100%;
+  height: 100%;
+  min-height: 610px;
+  object-fit: cover;
+}
+
+.growth-visual figcaption {
+  position: absolute;
+  z-index: 1;
+  right: 28px;
+  bottom: 26px;
+  left: 28px;
+  color: #fff;
+  font: 700 22px/1 var(--heading);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.campaign-proof {
+  margin-top: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  color: var(--blue-deep);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.campaign-proof a { color: var(--blue-deep); }
+
+.growth-section-heading {
+  max-width: 900px;
+  margin-bottom: 46px;
+}
+
+.growth-section-heading h2,
+.growth-audience h2,
+.campaign-product-copy h2,
+.watch-explainer h2 {
+  margin: 14px 0 0;
+  color: var(--blue-deep);
+  font: 700 clamp(45px, 6vw, 78px)/.94 var(--heading);
+  letter-spacing: -.035em;
+  text-transform: uppercase;
+}
+
+.growth-step-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.growth-step-grid article {
+  min-height: 270px;
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+}
+
+.growth-step-grid article > span {
+  color: var(--orange);
+  font: 700 14px/1 var(--heading);
+  letter-spacing: .1em;
+}
+
+.growth-step-grid h3 {
+  margin: 70px 0 12px;
+  color: var(--blue-deep);
+  font: 700 34px/.98 var(--heading);
+  text-transform: uppercase;
+}
+
+.growth-step-grid p { margin: 0; color: var(--muted); line-height: 1.6; }
+
+.medical-note {
+  margin: 28px 0 0;
+  padding: 18px 22px;
+  border-left: 3px solid var(--orange);
+  background: #fff8f2;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.campaign-product {
+  display: grid;
+  grid-template-columns: minmax(320px, .9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: clamp(48px, 8vw, 110px);
+}
+
+.campaign-product-image {
+  overflow: hidden;
+  border-radius: 28px;
+  background: #e8f0f5;
+}
+
+.campaign-product-image img { width: 100%; display: block; }
+.campaign-product-copy ul { margin: 28px 0; padding: 0; list-style: none; }
+.campaign-product-copy li { padding: 12px 0 12px 28px; border-bottom: 1px solid var(--line); color: var(--blue-deep); font-weight: 700; }
+.campaign-product-copy li::before { margin-left: -28px; margin-right: 12px; color: var(--orange); content: '✓'; }
+.campaign-price { margin: 0 0 24px; display: block; color: var(--blue-deep); font: 700 42px/1 var(--heading); }
+.campaign-price small { font: 600 14px/1 var(--body); }
+.campaign-final-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; }
+.button--ghost-light { border: 1px solid rgba(255,255,255,.45); color: #fff; background: transparent; }
+
+.growth-hero--partner { background: radial-gradient(circle at 76% 24%, rgba(83, 151, 203, .22), transparent 28rem); }
+.growth-proof-card { padding: clamp(32px, 5vw, 58px); border-radius: 28px; background: var(--blue-deep); color: #fff; box-shadow: 0 30px 80px rgba(16,43,74,.18); }
+.growth-proof-card span { color: #99c9ed; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.growth-proof-card strong { margin: 24px 0; display: block; color: var(--orange-light); font: 700 clamp(32px,4vw,52px)/1 var(--heading); overflow-wrap: anywhere; }
+.growth-proof-card p { margin: 0; color: rgba(255,255,255,.72); font-size: 18px; line-height: 1.6; }
+.growth-audience { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(45px,8vw,110px); align-items: start; }
+.growth-audience ul { margin: 0; padding: 0; border-top: 1px solid var(--line); list-style: none; }
+.growth-audience li { padding: 20px 0; border-bottom: 1px solid var(--line); color: var(--blue-deep); font-weight: 750; }
+
+.watch-hero { grid-template-columns: minmax(0,.8fr) minmax(480px,1.2fr); }
+.watch-player { overflow: hidden; border-radius: 28px; background: #071d33; box-shadow: 0 28px 70px rgba(16,43,74,.2); }
+.watch-player video { width: 100%; aspect-ratio: 16/9; display: block; object-fit: cover; }
+.watch-explainer { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(46px,8vw,110px); }
+.watch-notes { color: var(--muted); font-size: 18px; line-height: 1.7; }
+.watch-notes ul { margin: 28px 0; padding-left: 22px; }
+.watch-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; }
+
+@media (max-width: 900px) {
+  .growth-hero,
+  .watch-hero,
+  .campaign-product,
+  .growth-audience,
+  .watch-explainer { grid-template-columns: 1fr; }
+  .growth-visual { min-height: 470px; }
+  .growth-visual img { min-height: 470px; }
+  .growth-step-grid { grid-template-columns: 1fr; }
+  .growth-step-grid article { min-height: auto; }
+  .growth-step-grid h3 { margin-top: 44px; }
+}
+
+@media (max-width: 640px) {
+  .growth-hero,
+  .watch-hero { width: min(100% - 32px, 1320px); padding-top: 130px; }
+  .growth-hero-copy h1,
+  .watch-copy h1 { font-size: clamp(48px, 15vw, 72px); }
+  .growth-visual,
+  .growth-visual img { min-height: 380px; }
+  .watch-hero { gap: 34px; }
+  .campaign-final-actions .button { width: 100%; }
+}
+
 .problem.section {
   padding-bottom: clamp(78px, 8vw, 112px);
 }

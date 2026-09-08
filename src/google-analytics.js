@@ -5,9 +5,14 @@ const disableKey = `ga-disable-${GOOGLE_ANALYTICS_MEASUREMENT_ID}`
 let initialized = false
 let enabled = false
 
-function googleTag(...args) {
+function googleTag() {
   window.dataLayer = window.dataLayer || []
-  window.dataLayer.push(args)
+  // Houd exact dezelfde commandovorm aan als Google's officiële gtag-snippet.
+  window.dataLayer.push(arguments)
+}
+
+function debugMode() {
+  return new URLSearchParams(window.location.search).get('ga_debug') === '1'
 }
 
 function deleteAnalyticsCookies() {
@@ -53,6 +58,7 @@ export function enableGoogleAnalytics() {
       send_page_view: false,
       allow_google_signals: false,
       allow_ad_personalization_signals: false,
+      debug_mode: debugMode(),
     })
     initialized = true
   }
@@ -93,9 +99,11 @@ function ecommerceParameters(metadata = {}) {
 
 export function trackGoogleAnalyticsEvent(eventName, metadata = {}) {
   if (!enabled || typeof window.gtag !== 'function') return
+  const diagnostics = debugMode() ? { debug_mode: true } : {}
 
   if (eventName === 'page_view') {
     window.gtag('event', 'page_view', {
+      ...diagnostics,
       page_title: document.title,
       page_location: window.location.href,
       page_path: `${window.location.pathname}${window.location.search}`,
@@ -104,17 +112,18 @@ export function trackGoogleAnalyticsEvent(eventName, metadata = {}) {
   }
 
   if (eventName === 'product_view') {
-    window.gtag('event', 'view_item', ecommerceParameters(metadata))
+    window.gtag('event', 'view_item', { ...diagnostics, ...ecommerceParameters(metadata) })
     return
   }
 
   if (eventName === 'add_to_cart' || eventName === 'begin_checkout') {
-    window.gtag('event', eventName, ecommerceParameters(metadata))
+    window.gtag('event', eventName, { ...diagnostics, ...ecommerceParameters(metadata) })
     return
   }
 
   if (eventName === 'payment_method_selected') {
     window.gtag('event', 'add_payment_info', {
+      ...diagnostics,
       payment_type: metadata.method || '',
       ...ecommerceParameters(metadata),
     })
@@ -123,6 +132,7 @@ export function trackGoogleAnalyticsEvent(eventName, metadata = {}) {
 
   if (eventName === 'partner_order_paid') {
     window.gtag('event', 'purchase', {
+      ...diagnostics,
       transaction_id: String(metadata.order_number || ''),
       shipping: Number(metadata.shipping_cents || 0) / 100,
       tax: Number(metadata.tax_cents || 0) / 100,
@@ -133,6 +143,16 @@ export function trackGoogleAnalyticsEvent(eventName, metadata = {}) {
   }
 
   if (eventName === 'contact_submit') {
-    window.gtag('event', 'generate_lead', { lead_source: metadata.topic || 'contact' })
+    window.gtag('event', 'generate_lead', { ...diagnostics, lead_source: metadata.topic || 'contact' })
+    return
+  }
+
+  if (eventName === 'cta_click') {
+    window.gtag('event', 'select_content', {
+      ...diagnostics,
+      content_type: 'website_cta',
+      item_id: String(metadata.label || 'cta').slice(0, 100),
+      link_url: String(metadata.destination || '').slice(0, 300),
+    })
   }
 }

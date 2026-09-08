@@ -111,6 +111,12 @@ async function edgeFunctionFailure(error, data, fallback) {
 }
 
 if (contactForm) {
+  const requestedTopic = new URLSearchParams(window.location.search).get('topic')
+  const topicField = contactForm.elements.topic
+  if (requestedTopic && topicField && [...topicField.options].some((option) => option.value === requestedTopic)) {
+    topicField.value = requestedTopic
+  }
+
   contactForm.addEventListener('submit', async (event) => {
     event.preventDefault()
     const formStatus = contactForm.querySelector('.form-status')

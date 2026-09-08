@@ -78,14 +78,19 @@ function seoPlugin() {
           const website = { '@type': 'WebSite', '@id': `${siteOrigin}/#website`, url: `${siteOrigin}/`, name: 'ZOL Solutions', inLanguage: 'nl-NL', publisher: { '@id': `${siteOrigin}/#organization` } }
           const graph = [organization, website]
           if (route === '/') graph.push({ '@type': 'WebPage', '@id': `${canonical}#webpage`, url: canonical, name: title, description, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: { '@id': `${siteOrigin}/#organization` } })
+          else if (route === '/video/ziekte-van-sever-uitleg/') {
+            graph.push({ '@type': 'WebPage', '@id': `${canonical}#webpage`, url: canonical, name: title, description, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, primaryImageOfPage: { '@id': `${canonical}#thumbnail` }, video: { '@id': `${canonical}#video` } })
+            graph.push({ '@type': 'ImageObject', '@id': `${canonical}#thumbnail`, url: `${siteOrigin}/media/zol-hero-poster.jpg`, width: 1280, height: 720 })
+            graph.push({ '@type': 'VideoObject', '@id': `${canonical}#video`, name: 'Hielpijn bij een sportend kind herkennen', description: 'Korte video voor ouders over het sportmoment waarop hielpijn bij een kind zichtbaar kan worden.', thumbnailUrl: [`${siteOrigin}/media/zol-hero-poster.jpg`], uploadDate: '2026-04-02T09:00:00+02:00', duration: 'PT5S', contentUrl: `${siteOrigin}/media/zol-hero.mp4`, mainEntityOfPage: { '@id': `${canonical}#webpage` }, inLanguage: 'nl-NL', isFamilyFriendly: true })
+          }
           else if (route === '/product/') {
             const returnPolicy = { '@type': 'MerchantReturnPolicy', applicableCountry: 'NL', returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow', merchantReturnDays: 14, returnMethod: 'https://schema.org/ReturnByMail', returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility' }
             const variants = [
-              ['ZOL-XS-3435', '34/35', '34-35'],
-              ['ZOL-S-3637', '36/37', '36-37'],
-              ['ZOL-M-3839', '38/39', '38-39'],
-              ['ZOL-L-4041', '40/41', '40-41'],
-              ['ZOL-XL-4243', '42/43', '42-43'],
+              ['ZOL-XS-3435', '34/35', '34-35', 'OutOfStock'],
+              ['ZOL-S-3637', '36/37', '36-37', 'InStock'],
+              ['ZOL-M-3839', '38/39', '38-39', 'InStock'],
+              ['ZOL-L-4041', '40/41', '40-41', 'InStock'],
+              ['ZOL-XL-4243', '42/43', '42-43', 'InStock'],
             ]
             graph.push({
               '@type': 'ProductGroup',
@@ -96,15 +101,18 @@ function seoPlugin() {
               image: [`${siteOrigin}/images/zol-familie.jpg`, `${siteOrigin}/media/product-blue.jpg`, `${siteOrigin}/media/product-detail.jpg`],
               mainEntityOfPage: { '@id': `${canonical}#webpage` },
               brand: { '@type': 'Brand', name: 'ZOL Solutions' },
+              color: 'Blauw',
+              audience: { '@type': 'PeopleAudience', suggestedMinAge: 5, suggestedMaxAge: 16 },
+              category: { '@type': 'CategoryCode', inCodeSet: 'https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt', codeValue: '2801' },
               productGroupID: 'ZOL-3-4',
               variesBy: ['https://schema.org/size'],
-              hasVariant: variants.map(([sku, size, querySize]) => ({
+              hasVariant: variants.map(([sku, size, querySize, availability]) => ({
                 '@type': 'Product',
                 name: `ZOL 3/4 inlegzolen – maat ${size}`,
                 sku,
                 size,
                 image: `${siteOrigin}/images/zol-familie.jpg`,
-                offers: { '@type': 'Offer', url: `${canonical}?maat=${querySize}`, priceCurrency: 'EUR', price: '99.95', availability: 'https://schema.org/InStock', itemCondition: 'https://schema.org/NewCondition', seller: { '@id': `${siteOrigin}/#organization` }, hasMerchantReturnPolicy: returnPolicy },
+                offers: { '@type': 'Offer', url: `${canonical}?maat=${querySize}`, priceCurrency: 'EUR', price: '99.95', availability: `https://schema.org/${availability}`, itemCondition: 'https://schema.org/NewCondition', seller: { '@id': `${siteOrigin}/#organization` }, hasMerchantReturnPolicy: returnPolicy },
               })),
             })
           }
@@ -160,6 +168,8 @@ export default defineConfig({
         severFootball: resolve(import.meta.dirname, 'kennisbank/ziekte-van-sever-voetbal/index.html'),
         growingHeelPain: resolve(import.meta.dirname, 'kennisbank/groeipijn-in-de-hiel/index.html'),
         heelPainAfterSports: resolve(import.meta.dirname, 'kennisbank/kind-pijn-aan-hiel-na-sporten/index.html'),
+        severSportsShoes: resolve(import.meta.dirname, 'kennisbank/sportschoenen-bij-ziekte-van-sever/index.html'),
+        heelPainPhysio: resolve(import.meta.dirname, 'kennisbank/wanneer-naar-fysio-hielpijn-kind/index.html'),
         sportsWithSever: resolve(import.meta.dirname, 'kennisbank/sporten-met-ziekte-van-sever/index.html'),
         severExercises: resolve(import.meta.dirname, 'kennisbank/oefeningen-bij-ziekte-van-sever/index.html'),
         severInsoles: resolve(import.meta.dirname, 'kennisbank/inlegzolen-bij-ziekte-van-sever/index.html'),
@@ -169,6 +179,9 @@ export default defineConfig({
         terms: resolve(import.meta.dirname, 'algemene-voorwaarden/index.html'),
         unsubscribe: resolve(import.meta.dirname, 'uitschrijven/index.html'),
         measurement: resolve(import.meta.dirname, 'meting/index.html'),
+        campaignHeelPain: resolve(import.meta.dirname, 'hielpijn-kind-sport/index.html'),
+        partners: resolve(import.meta.dirname, 'partners/index.html'),
+        severVideo: resolve(import.meta.dirname, 'video/ziekte-van-sever-uitleg/index.html'),
         admin: resolve(import.meta.dirname, 'admin/index.html'),
         adminAlias: resolve(import.meta.dirname, 'zolsolutions/admin/index.html'),
       },

@@ -15,6 +15,8 @@ test('Google Analytics only loads after analytics consent and keeps advertising 
   assert.match(analytics, /analytics_storage: analyticsStorage/)
   assert.match(analytics, /ad_storage: 'denied'/)
   assert.match(analytics, /allow_google_signals: false/)
+  assert.match(analytics, /window\.dataLayer\.push\(arguments\)/)
+  assert.match(analytics, /debug_mode: debugMode\(\)/)
   assert.match(runtime, /if \(!hasAnalyticsConsent\(\)\) return/)
   assert.match(runtime, /enableGoogleAnalytics\(\)/)
   assert.match(runtime, /disableGoogleAnalytics\(\)/)
@@ -65,13 +67,13 @@ test('the Google tag is created on consent and records a page view without ad co
 
     assert.equal(appendedScripts.length, 1)
     assert.match(appendedScripts[0].src, /G-QGJTSYHRH1/)
-    assert.deepEqual(windowMock.dataLayer[0].slice(0, 2), ['consent', 'default'])
+    assert.deepEqual([...windowMock.dataLayer[0]].slice(0, 2), ['consent', 'default'])
     assert.equal(windowMock.dataLayer[0][2].ad_storage, 'denied')
     assert.ok(windowMock.dataLayer.some((entry) => entry[0] === 'event' && entry[1] === 'page_view'))
 
     analytics.disableGoogleAnalytics()
     assert.equal(windowMock['ga-disable-G-QGJTSYHRH1'], true)
-    assert.deepEqual(windowMock.dataLayer.at(-1).slice(0, 2), ['consent', 'update'])
+    assert.deepEqual([...windowMock.dataLayer.at(-1)].slice(0, 2), ['consent', 'update'])
     assert.equal(windowMock.dataLayer.at(-1)[2].analytics_storage, 'denied')
   } finally {
     globalThis.window = originalWindow
