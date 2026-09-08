@@ -290,7 +290,7 @@ svg { display: block; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(290px, .78fr); gap: 16px; }
 .chart-wrap { min-height: 260px; padding: 20px 18px 16px; }
 .chart { height: 205px; display: flex; align-items: end; gap: 8px; border-bottom: 1px solid #dfe4e8; background: repeating-linear-gradient(to top, transparent 0, transparent 49px, #edf0f3 50px); }
-.chart-column { min-width: 10px; height: 100%; flex: 1; display: grid; align-content: end; justify-items: center; gap: 6px; }
+.chart-column { position: relative; min-width: 10px; height: 100%; flex: 1; display: grid; align-content: end; justify-items: center; gap: 6px; outline: none; }
 .chart-column .dashboard-bar-svg { width: min(31px, 70%); height: 170px; display: block; overflow: visible; }
 .chart-column .dashboard-bar-svg rect { fill: var(--admin-blue); }
 .chart-column small { height: 20px; color: #82909b; font-size: 8px; text-transform: capitalize; }
@@ -784,7 +784,7 @@ svg { display: block; }
 .report-card > header strong { margin-top: 6px; font-size: 19px; letter-spacing: -.025em; }
 .report-card > header small { color: var(--admin-muted); font-size: 8px; }
 .report-bars { height: 155px; margin-top: 16px; padding-top: 10px; display: flex; align-items: flex-end; gap: 3px; border-top: 1px solid #edf0f2; background: repeating-linear-gradient(to bottom, transparent 0 37px, #edf0f2 38px); }
-.report-bar { position: relative; height: 100%; min-width: 2px; flex: 1; display: flex; align-items: flex-end; }
+.report-bar { position: relative; height: 100%; min-width: 2px; flex: 1; display: flex; align-items: flex-end; outline: none; }
 .report-bar-svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .report-bar-svg rect { fill: var(--admin-blue); opacity: .82; transition: opacity .15s, fill .15s; }
 .report-bar:hover .report-bar-svg rect { fill: var(--admin-orange); opacity: 1; }
@@ -801,11 +801,20 @@ svg { display: block; }
 .donut-wrap p strong { font-size: 14px; }
 .donut-wrap p small { margin-top: 5px; color: var(--admin-muted); font-size: 8px; }
 .conversion-funnel { margin-top: 14px; display: grid; gap: 9px; }
-.conversion-funnel > div { display: grid; grid-template-columns: 83px minmax(50px, 1fr) 28px; align-items: center; gap: 8px; font-size: 8px; }
+.conversion-funnel > div { position: relative; display: grid; grid-template-columns: 83px minmax(50px, 1fr) 28px; align-items: center; gap: 8px; outline: none; font-size: 8px; }
 .conversion-funnel span { overflow: hidden; color: #586672; text-overflow: ellipsis; white-space: nowrap; }
 .funnel-meter { width: 100%; height: 17px; display: block; overflow: visible; }
 .funnel-meter rect { fill: var(--admin-blue); }
 .conversion-funnel b { text-align: right; }
+.chart-column::after, .report-bar::after, .conversion-funnel > div::after { position: absolute; z-index: 8; content: attr(data-chart-tooltip); padding: 5px 7px; border-radius: 5px; background: #102b4a; box-shadow: 0 4px 12px rgb(16 43 74 / 20%); color: #fff; font-size: 7px; font-style: normal; font-weight: 700; line-height: 1.25; opacity: 0; pointer-events: none; white-space: nowrap; transition: opacity .12s, transform .12s; }
+.chart-column::after, .report-bar::after { top: 5px; left: 50%; transform: translate(-50%, -3px); }
+.chart-column:hover::after, .chart-column:focus-visible::after, .report-bar:hover::after, .report-bar:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+.chart-column:first-child::after, .report-bar:first-child::after { left: 0; transform: translate(0, -3px); }
+.chart-column:first-child:hover::after, .chart-column:first-child:focus-visible::after, .report-bar:first-child:hover::after, .report-bar:first-child:focus-visible::after { transform: translate(0, 0); }
+.chart-column:last-child::after, .report-bar:last-child::after { right: 0; left: auto; transform: translate(0, -3px); }
+.chart-column:last-child:hover::after, .chart-column:last-child:focus-visible::after, .report-bar:last-child:hover::after, .report-bar:last-child:focus-visible::after { transform: translate(0, 0); }
+.conversion-funnel > div::after { top: 50%; right: 35px; transform: translateY(-50%); }
+.conversion-funnel > div:hover::after, .conversion-funnel > div:focus-visible::after { opacity: 1; }
 .live-now { min-height: 33px; padding: 0 11px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #bcdccc; border-radius: 8px; background: #eff9f3; color: var(--admin-green); font-size: 9px; font-weight: 750; }
 .live-now i { width: 7px; height: 7px; border-radius: 50%; background: #36b579; animation: live-pulse 1.6s infinite; }
 .live-layout { min-height: calc(100vh - 170px); display: grid; grid-template-columns: minmax(390px, .82fr) minmax(520px, 1.5fr); gap: 12px; }

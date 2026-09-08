@@ -24,8 +24,13 @@ test('analytics charts render without CSP-blocked inline styles', async () => {
     const bars = [...h.window.document.querySelectorAll('.report-bar-svg rect')]
     assert.ok(bars.length > 0)
     assert.ok(bars.some((bar) => Number(bar.getAttribute('height')) === 100))
+    const interactiveBars = [...h.window.document.querySelectorAll('.report-bar[data-chart-tooltip]')]
+    assert.ok(interactiveBars.length > 0)
+    assert.ok(interactiveBars.some((bar) => /€|99/.test(bar.dataset.chartTooltip)))
+    assert.ok(interactiveBars.every((bar) => bar.tabIndex === 0 && bar.getAttribute('aria-label')))
     assert.equal(h.run(`analyticsSeries(30, state.analytics, state.orders).at(-1).sessions`), 1)
     assert.equal(h.run(`analyticsSeries(30, state.analytics, state.orders).at(-1).revenue`), 9995)
+    assert.match(h.q('.conversion-funnel [data-chart-tooltip]').dataset.chartTooltip, /Sessies: 1/)
     assert.ok(h.q('.funnel-meter rect'))
     assert.ok(h.q('.report-donut'))
   } finally {

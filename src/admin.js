@@ -582,7 +582,7 @@ function renderDashboard() {
     <div class="dashboard-grid">
       <div>
         <section class="panel"><header class="panel-header"><div><h2>Omzet afgelopen 7 dagen</h2><p>Alle betaalde bestellingen</p></div><strong>${formatMoney(revenueSince(startWeek))}</strong></header>
-          <div class="chart-wrap"><div class="chart">${lastSevenDays.map((day) => `<div class="chart-column" title="${formatMoney(day.value)}">${verticalBarSvg(day.value, maxRevenue, 'dashboard-bar-svg')}<small>${day.label}</small></div>`).join('')}</div></div>
+          <div class="chart-wrap"><div class="chart">${lastSevenDays.map((day) => { const detail = `${day.label}: ${formatMoney(day.value)}`; return `<div class="chart-column" tabindex="0" role="img" aria-label="${escapeHtml(detail)}" data-chart-tooltip="${escapeHtml(detail)}">${verticalBarSvg(day.value, maxRevenue, 'dashboard-bar-svg')}<small>${day.label}</small></div>` }).join('')}</div></div>
         </section>
         <section class="panel"><header class="panel-header"><div><h2>Recente bestellingen</h2><p>De laatste vijf orders</p></div><a href="#orders">Alles bekijken →</a></header>${ordersTable(orders.slice(0, 5), false)}</section>
       </div>
@@ -2957,7 +2957,7 @@ const comparisonMarkup = (current, previous) => {
 
 function barSeriesMarkup(values, formatter = (value) => value) {
   const max = Math.max(...values.map((item) => item.value), 1)
-  return `<div class="report-bars">${values.map((item) => `<div class="report-bar" title="${escapeHtml(item.label)}: ${escapeHtml(formatter(item.value))}">${verticalBarSvg(item.value, max, 'report-bar-svg')}<small>${escapeHtml(item.short || item.label)}</small></div>`).join('')}</div>`
+  return `<div class="report-bars">${values.map((item) => { const detail = `${item.label}: ${formatter(item.value)}`; return `<div class="report-bar" tabindex="0" role="img" aria-label="${escapeHtml(detail)}" data-chart-tooltip="${escapeHtml(detail)}">${verticalBarSvg(item.value, max, 'report-bar-svg')}<small>${escapeHtml(item.short || item.label)}</small></div>` }).join('')}</div>`
 }
 
 function verticalBarSvg(value, max, className) {
@@ -3034,7 +3034,7 @@ function renderAnalytics() {
       <article class="report-card"><header><div><span>Gemiddelde bestelwaarde</span><strong>${formatMoney(averageOrder)}</strong></div></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.averageOrder })), formatMoney)}</article>
       <article class="report-card"><header><div><span>Totale omzet per product</span><strong>${Object.keys(productRevenue).length} producten</strong></div></header><ul class="rank-list">${Object.entries(productRevenue).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${formatMoney(value)}</b></li>`).join('') || '<li class="no-data">Nog geen betaalde productomzet.</li>'}</ul></article>
       <article class="report-card report-card--wide"><header><div><span>Sessies in de loop van de tijd</span><strong>${sessions}</strong></div><small>${pageViews.length} paginaweergaven</small></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.sessions })))}</article>
-      <article class="report-card"><header><div><span>Conversietrechter</span><strong>${percent(completed, sessions)}</strong></div></header><div class="conversion-funnel">${[['Sessies', sessions], ['Product bekeken', productViews], ['Winkelwagen', carts], ['Checkout', checkouts], ['Bestelling', completed]].map(([label, value]) => `<div><span>${escapeHtml(label)}</span>${horizontalMeterSvg(value, maxFunnel)}<b>${value}</b></div>`).join('')}</div></article>
+      <article class="report-card"><header><div><span>Conversietrechter</span><strong>${percent(completed, sessions)}</strong></div></header><div class="conversion-funnel">${[['Sessies', sessions], ['Product bekeken', productViews], ['Winkelwagen', carts], ['Checkout', checkouts], ['Bestelling', completed]].map(([label, value]) => { const detail = `${label}: ${value} (${percent(value, maxFunnel)})`; return `<div tabindex="0" role="img" aria-label="${escapeHtml(detail)}" data-chart-tooltip="${escapeHtml(detail)}"><span>${escapeHtml(label)}</span>${horizontalMeterSvg(value, maxFunnel)}<b>${value}</b></div>` }).join('')}</div></article>
       <article class="report-card"><header><div><span>Sessies per apparaattype</span><strong>${sessions}</strong></div></header><ul class="rank-list">${devices.map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value} · ${percent(value, pageViews.length)}</b></li>`).join('') || '<li class="no-data">Nog geen apparaatgegevens.</li>'}</ul></article>
       <article class="report-card"><header><div><span>Sessies per landingspagina</span><strong>${pages.length} pagina's</strong></div></header><ul class="rank-list">${pages.slice(0, 7).map(([page, value]) => `<li><span>${escapeHtml(page)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen paginaweergaven.</li>'}</ul></article>
       <article class="report-card"><header><div><span>Sessies per verwijzer</span><strong>${referrers.length} bronnen</strong></div></header><ul class="rank-list">${referrers.slice(0, 7).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen verwijzers.</li>'}</ul></article>
