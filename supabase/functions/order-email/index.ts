@@ -10,6 +10,7 @@ type OrderRow = Record<string, any>
 const actionTemplates: Record<string, string[]> = {
   created: ["order_received", "new_order_admin"],
   paid: ["payment_confirmed", "new_order_admin"],
+  delayed: ["order_delayed"],
   shipping: ["order_shipped"],
   delivered: ["order_delivered"],
   returned: ["order_returned"],
@@ -31,7 +32,7 @@ function totalsTable(order: OrderRow) {
 }
 
 function detailBlock(key: string, order: OrderRow, variables: Record<string, unknown>) {
-  if (["order_received", "payment_confirmed", "new_order_admin"].includes(key)) {
+  if (["order_received", "payment_confirmed", "order_delayed", "new_order_admin"].includes(key)) {
     const customer = key === "new_order_admin" ? `<div style="margin:0 0 22px;padding:18px;border-radius:12px;background:#f3f6f8;color:#445b70;font-size:13px;line-height:1.7"><strong style="color:#102b4a">${escapeEmailHtml(order.customer_name || order.customer_email)}</strong><br><a href="mailto:${escapeEmailHtml(order.customer_email)}" style="color:#33669b">${escapeEmailHtml(order.customer_email)}</a><br>${escapeEmailHtml(addressLine(order.shipping_address || {}))}</div>` : ""
     const address = key !== "new_order_admin" ? `<div style="margin-top:4px;padding:18px;border-radius:12px;background:#f3f6f8;color:#445b70;font-size:13px;line-height:1.65"><strong style="color:#102b4a">Bezorgadres</strong><br>${escapeEmailHtml(addressLine(order.shipping_address || {}))}</div>` : ""
     return `${customer}${itemTable(order)}${totalsTable(order)}${address}`
@@ -61,7 +62,7 @@ Deno.serve(async (request) => {
     const orderId = String(body.order_id || "")
     const action = String(body.action || "paid")
     if (!/^[0-9a-f-]{36}$/i.test(orderId)) return Response.json({ error: "Bestelling ontbreekt." }, { status: 400, headers })
-    const templateKeys = actionTemplates[action] || (["order_received", "payment_confirmed", "order_shipped", "order_delivered", "order_returned", "order_cancelled", "refund_confirmed", "new_order_admin"].includes(action) ? [action] : [])
+    const templateKeys = actionTemplates[action] || (["order_received", "payment_confirmed", "order_delayed", "order_shipped", "order_delivered", "order_returned", "order_cancelled", "refund_confirmed", "new_order_admin"].includes(action) ? [action] : [])
     if (!templateKeys.length) return Response.json({ error: "Onbekend e-mailmoment." }, { status: 400, headers })
 
     const [{ data: order, error: orderError }, { data: payment }] = await Promise.all([
@@ -71,7 +72,7 @@ Deno.serve(async (request) => {
     if (orderError || !order) return Response.json({ error: "Bestelling niet gevonden." }, { status: 404, headers })
     // Existing database hooks and older admin tabs may still request these events.
     // A manual order remains quiet until an admin explicitly sends its tracking.
-    if (order.source === "admin" && templateKeys.every((key) => ["order_received", "payment_confirmed", "new_order_admin"].includes(key))) {
+    if (order.source === "admin" && templateKeys.every((key) => ["order_received", "payment_confirmed", "order_delayed", "new_order_admin"].includes(key))) {
       return Response.json({ success: true, skipped: "manual_order_waiting_for_shipping", results: [] }, { headers })
     }
     if (templateKeys.includes("payment_confirmed") && order.payment_status !== "paid") return Response.json({ error: "De bestelling is nog niet betaald." }, { status: 409, headers })

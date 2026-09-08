@@ -163,6 +163,16 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
       } else assert.equal(direct.results[0].status,'already_sent')
       assert.equal(sent.filter(email => email.to === 'admin@example.invalid').length,orderSource === 'admin' ? 0 : 1)
       assert.equal([...logs.values()].filter(log => log.kind === 'new_order_admin').length,orderSource === 'admin' ? 0 : 1)
+      const delayed = await (await handler(request('delayed',{},true))).json()
+      if (orderSource === 'admin') {
+        assert.equal(delayed.skipped,'manual_order_waiting_for_shipping')
+      } else {
+        assert.equal(delayed.results[0].status,'sent')
+        assert.equal(sent.at(-1).to,`${type}@example.invalid`)
+        assert.equal(sent.at(-1).subject,'order_delayed')
+        await handler(request('order_delayed',{},true))
+        assert.equal(sent.filter(email => email.subject === 'order_delayed').length,1,'the delayed notice is sent only once')
+      }
     }
   }
 })
