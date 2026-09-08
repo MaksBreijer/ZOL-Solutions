@@ -582,7 +582,7 @@ function renderDashboard() {
     <div class="dashboard-grid">
       <div>
         <section class="panel"><header class="panel-header"><div><h2>Omzet afgelopen 7 dagen</h2><p>Alle betaalde bestellingen</p></div><strong>${formatMoney(revenueSince(startWeek))}</strong></header>
-          <div class="chart-wrap"><div class="chart">${lastSevenDays.map((day) => `<div class="chart-column" title="${formatMoney(day.value)}"><i style="height:${Math.max(3, (day.value / maxRevenue) * 170)}px"></i><small>${day.label}</small></div>`).join('')}</div></div>
+          <div class="chart-wrap"><div class="chart">${lastSevenDays.map((day) => `<div class="chart-column" title="${formatMoney(day.value)}">${verticalBarSvg(day.value, maxRevenue, 'dashboard-bar-svg')}<small>${day.label}</small></div>`).join('')}</div></div>
         </section>
         <section class="panel"><header class="panel-header"><div><h2>Recente bestellingen</h2><p>De laatste vijf orders</p></div><a href="#orders">Alles bekijken →</a></header>${ordersTable(orders.slice(0, 5), false)}</section>
       </div>
@@ -2935,7 +2935,10 @@ function paymentForm(payment) {
   })
 }
 
-const dayKey = (date) => new Date(date).toISOString().slice(0, 10)
+const dayKey = (value) => {
+  const date = new Date(value)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 const percent = (value, total) => total ? `${((value / total) * 100).toFixed(1)}%` : '0%'
 let analyticsDays = 30
 let analyticsCompare = true
@@ -2954,7 +2957,18 @@ const comparisonMarkup = (current, previous) => {
 
 function barSeriesMarkup(values, formatter = (value) => value) {
   const max = Math.max(...values.map((item) => item.value), 1)
-  return `<div class="report-bars">${values.map((item) => `<div class="report-bar" title="${escapeHtml(item.label)}: ${escapeHtml(formatter(item.value))}"><i style="height:${Math.max(3, (item.value / max) * 100)}%"></i><small>${escapeHtml(item.short || item.label)}</small></div>`).join('')}</div>`
+  return `<div class="report-bars">${values.map((item) => `<div class="report-bar" title="${escapeHtml(item.label)}: ${escapeHtml(formatter(item.value))}">${verticalBarSvg(item.value, max, 'report-bar-svg')}<small>${escapeHtml(item.short || item.label)}</small></div>`).join('')}</div>`
+}
+
+function verticalBarSvg(value, max, className) {
+  const ratio = Math.max(0, Math.min(1, Number(value || 0) / Math.max(Number(max || 0), 1)))
+  const height = Math.max(2, ratio * 100)
+  return `<svg class="${className}" viewBox="0 0 10 100" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="${(100 - height).toFixed(2)}" width="10" height="${height.toFixed(2)}" rx="1.5"></rect></svg>`
+}
+
+function horizontalMeterSvg(value, max) {
+  const width = Math.max(8, Math.min(100, (Number(value || 0) / Math.max(Number(max || 0), 1)) * 100))
+  return `<svg class="funnel-meter" viewBox="0 0 100 17" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="0" width="${width.toFixed(2)}" height="17" rx="4"></rect></svg>`
 }
 
 function analyticsSeries(days, events, orders) {
@@ -3016,11 +3030,11 @@ function renderAnalytics() {
     <section class="analytics-report-grid">
       <article class="report-card report-card--wide"><header><div><span>Totale omzet in de loop van de tijd</span><strong>${formatMoney(revenue)}</strong></div><small>${analyticsDays} dagen</small></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.revenue })), formatMoney)}</article>
       <article class="report-card"><header><div><span>Uitsplitsing totale omzet</span><strong>${formatMoney(revenue)}</strong></div></header><ul class="report-breakdown"><li><span>Bruto-omzet</span><b>${formatMoney(paidOrders.reduce((sum, order) => sum + order.subtotal_cents, 0))}</b></li><li><span>Kortingen</span><b>− ${formatMoney(paidOrders.reduce((sum, order) => sum + (order.discount_cents || 0), 0))}</b></li><li><span>Verzendkosten</span><b>${formatMoney(paidOrders.reduce((sum, order) => sum + order.shipping_cents, 0))}</b></li><li><span>Netto-omzet</span><b>${formatMoney(revenue)}</b></li></ul></article>
-      <article class="report-card"><header><div><span>Omzet per verkoopkanaal</span><strong>Webshop</strong></div></header><div class="donut-wrap"><div class="report-donut" style="--part:100"></div><p><strong>${formatMoney(revenue)}</strong><small>100% ZOL-webshop</small></p></div></article>
+      <article class="report-card"><header><div><span>Omzet per verkoopkanaal</span><strong>Webshop</strong></div></header><div class="donut-wrap"><div class="report-donut"></div><p><strong>${formatMoney(revenue)}</strong><small>100% ZOL-webshop</small></p></div></article>
       <article class="report-card"><header><div><span>Gemiddelde bestelwaarde</span><strong>${formatMoney(averageOrder)}</strong></div></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.averageOrder })), formatMoney)}</article>
       <article class="report-card"><header><div><span>Totale omzet per product</span><strong>${Object.keys(productRevenue).length} producten</strong></div></header><ul class="rank-list">${Object.entries(productRevenue).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${formatMoney(value)}</b></li>`).join('') || '<li class="no-data">Nog geen betaalde productomzet.</li>'}</ul></article>
       <article class="report-card report-card--wide"><header><div><span>Sessies in de loop van de tijd</span><strong>${sessions}</strong></div><small>${pageViews.length} paginaweergaven</small></header>${barSeriesMarkup(series.map((day) => ({ ...day, value: day.sessions })))}</article>
-      <article class="report-card"><header><div><span>Conversietrechter</span><strong>${percent(completed, sessions)}</strong></div></header><div class="conversion-funnel">${[['Sessies', sessions], ['Product bekeken', productViews], ['Winkelwagen', carts], ['Checkout', checkouts], ['Bestelling', completed]].map(([label, value]) => `<div style="--width:${Math.max(8, (value / maxFunnel) * 100)}%"><span>${escapeHtml(label)}</span><i></i><b>${value}</b></div>`).join('')}</div></article>
+      <article class="report-card"><header><div><span>Conversietrechter</span><strong>${percent(completed, sessions)}</strong></div></header><div class="conversion-funnel">${[['Sessies', sessions], ['Product bekeken', productViews], ['Winkelwagen', carts], ['Checkout', checkouts], ['Bestelling', completed]].map(([label, value]) => `<div><span>${escapeHtml(label)}</span>${horizontalMeterSvg(value, maxFunnel)}<b>${value}</b></div>`).join('')}</div></article>
       <article class="report-card"><header><div><span>Sessies per apparaattype</span><strong>${sessions}</strong></div></header><ul class="rank-list">${devices.map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value} · ${percent(value, pageViews.length)}</b></li>`).join('') || '<li class="no-data">Nog geen apparaatgegevens.</li>'}</ul></article>
       <article class="report-card"><header><div><span>Sessies per landingspagina</span><strong>${pages.length} pagina's</strong></div></header><ul class="rank-list">${pages.slice(0, 7).map(([page, value]) => `<li><span>${escapeHtml(page)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen paginaweergaven.</li>'}</ul></article>
       <article class="report-card"><header><div><span>Sessies per verwijzer</span><strong>${referrers.length} bronnen</strong></div></header><ul class="rank-list">${referrers.slice(0, 7).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen verwijzers.</li>'}</ul></article>

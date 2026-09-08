@@ -291,7 +291,8 @@ svg { display: block; }
 .chart-wrap { min-height: 260px; padding: 20px 18px 16px; }
 .chart { height: 205px; display: flex; align-items: end; gap: 8px; border-bottom: 1px solid #dfe4e8; background: repeating-linear-gradient(to top, transparent 0, transparent 49px, #edf0f3 50px); }
 .chart-column { min-width: 10px; height: 100%; flex: 1; display: grid; align-content: end; justify-items: center; gap: 6px; }
-.chart-column i { width: min(31px, 70%); min-height: 3px; border-radius: 5px 5px 0 0; background: linear-gradient(#4f91c3, var(--admin-blue)); }
+.chart-column .dashboard-bar-svg { width: min(31px, 70%); height: 170px; display: block; overflow: visible; }
+.chart-column .dashboard-bar-svg rect { fill: var(--admin-blue); }
 .chart-column small { height: 20px; color: #82909b; font-size: 8px; text-transform: capitalize; }
 .activity-list { margin: 0; padding: 2px 16px; list-style: none; }
 .activity-list li { padding: 13px 0; display: grid; grid-template-columns: 28px 1fr; gap: 10px; border-bottom: 1px solid #edf0f2; }
@@ -784,8 +785,9 @@ svg { display: block; }
 .report-card > header small { color: var(--admin-muted); font-size: 8px; }
 .report-bars { height: 155px; margin-top: 16px; padding-top: 10px; display: flex; align-items: flex-end; gap: 3px; border-top: 1px solid #edf0f2; background: repeating-linear-gradient(to bottom, transparent 0 37px, #edf0f2 38px); }
 .report-bar { position: relative; height: 100%; min-width: 2px; flex: 1; display: flex; align-items: flex-end; }
-.report-bar i { width: 100%; min-height: 3px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #42a9db, var(--admin-blue)); opacity: .82; transition: opacity .15s; }
-.report-bar:hover i { opacity: 1; background: var(--admin-orange); }
+.report-bar-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.report-bar-svg rect { fill: var(--admin-blue); opacity: .82; transition: opacity .15s, fill .15s; }
+.report-bar:hover .report-bar-svg rect { fill: var(--admin-orange); opacity: 1; }
 .report-bar small { position: absolute; right: 50%; bottom: -17px; color: #83909a; font-size: 6px; transform: translateX(50%); white-space: nowrap; }
 .report-breakdown, .rank-list { margin: 13px 0 0; padding: 0; list-style: none; }
 .report-breakdown li, .rank-list li { min-height: 30px; padding: 7px 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #edf0f2; font-size: 8px; }
@@ -794,14 +796,15 @@ svg { display: block; }
 .report-breakdown b, .rank-list b { color: #34414d; font-size: 8px; white-space: nowrap; }
 .rank-list .no-data { justify-content: center; color: var(--admin-muted); text-align: center; }
 .donut-wrap { height: 155px; display: flex; align-items: center; justify-content: center; gap: 18px; }
-.report-donut { width: 98px; height: 98px; flex: 0 0 auto; border-radius: 50%; background: conic-gradient(var(--admin-blue) calc(var(--part) * 1%), #e9edf0 0); -webkit-mask: radial-gradient(circle, transparent 48%, #000 50%); mask: radial-gradient(circle, transparent 48%, #000 50%); }
+.report-donut { width: 98px; height: 98px; flex: 0 0 auto; border-radius: 50%; background: var(--admin-blue); -webkit-mask: radial-gradient(circle, transparent 48%, #000 50%); mask: radial-gradient(circle, transparent 48%, #000 50%); }
 .donut-wrap p strong, .donut-wrap p small { display: block; }
 .donut-wrap p strong { font-size: 14px; }
 .donut-wrap p small { margin-top: 5px; color: var(--admin-muted); font-size: 8px; }
 .conversion-funnel { margin-top: 14px; display: grid; gap: 9px; }
 .conversion-funnel > div { display: grid; grid-template-columns: 83px minmax(50px, 1fr) 28px; align-items: center; gap: 8px; font-size: 8px; }
 .conversion-funnel span { overflow: hidden; color: #586672; text-overflow: ellipsis; white-space: nowrap; }
-.conversion-funnel i { width: var(--width); height: 17px; border-radius: 4px; background: linear-gradient(90deg, var(--admin-blue), #57b5db); }
+.funnel-meter { width: 100%; height: 17px; display: block; overflow: visible; }
+.funnel-meter rect { fill: var(--admin-blue); }
 .conversion-funnel b { text-align: right; }
 .live-now { min-height: 33px; padding: 0 11px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #bcdccc; border-radius: 8px; background: #eff9f3; color: var(--admin-green); font-size: 9px; font-weight: 750; }
 .live-now i { width: 7px; height: 7px; border-radius: 50%; background: #36b579; animation: live-pulse 1.6s infinite; }
