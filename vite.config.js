@@ -78,11 +78,6 @@ function seoPlugin() {
           const website = { '@type': 'WebSite', '@id': `${siteOrigin}/#website`, url: `${siteOrigin}/`, name: 'ZOL Solutions', inLanguage: 'nl-NL', publisher: { '@id': `${siteOrigin}/#organization` } }
           const graph = [organization, website]
           if (route === '/') graph.push({ '@type': 'WebPage', '@id': `${canonical}#webpage`, url: canonical, name: title, description, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: { '@id': `${siteOrigin}/#organization` } })
-          else if (route === '/video/ziekte-van-sever-uitleg/') {
-            graph.push({ '@type': 'WebPage', '@id': `${canonical}#webpage`, url: canonical, name: title, description, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, primaryImageOfPage: { '@id': `${canonical}#thumbnail` }, video: { '@id': `${canonical}#video` } })
-            graph.push({ '@type': 'ImageObject', '@id': `${canonical}#thumbnail`, url: `${siteOrigin}/media/zol-hero-poster.jpg`, width: 1280, height: 720 })
-            graph.push({ '@type': 'VideoObject', '@id': `${canonical}#video`, name: 'Hielpijn bij een sportend kind herkennen', description: 'Korte video voor ouders over het sportmoment waarop hielpijn bij een kind zichtbaar kan worden.', thumbnailUrl: [`${siteOrigin}/media/zol-hero-poster.jpg`], uploadDate: '2026-04-02T09:00:00+02:00', duration: 'PT5S', contentUrl: `${siteOrigin}/media/zol-hero.mp4`, mainEntityOfPage: { '@id': `${canonical}#webpage` }, inLanguage: 'nl-NL', isFamilyFriendly: true })
-          }
           else if (route === '/product/') {
             const returnPolicy = { '@type': 'MerchantReturnPolicy', applicableCountry: 'NL', returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow', merchantReturnDays: 14, returnMethod: 'https://schema.org/ReturnByMail', returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility' }
             const variants = [
@@ -180,7 +175,6 @@ export default defineConfig({
         unsubscribe: resolve(import.meta.dirname, 'uitschrijven/index.html'),
         measurement: resolve(import.meta.dirname, 'meting/index.html'),
         campaignHeelPain: resolve(import.meta.dirname, 'hielpijn-kind-sport/index.html'),
-        severVideo: resolve(import.meta.dirname, 'video/ziekte-van-sever-uitleg/index.html'),
         admin: resolve(import.meta.dirname, 'admin/index.html'),
         adminAlias: resolve(import.meta.dirname, 'zolsolutions/admin/index.html'),
       },

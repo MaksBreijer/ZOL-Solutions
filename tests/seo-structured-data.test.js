@@ -22,22 +22,6 @@ test('product structured data includes complete variant and audience details', a
   assert.equal(productGroup.hasVariant[0].offers.availability, 'https://schema.org/OutOfStock')
 })
 
-test('dedicated video watch page emits indexable VideoObject data', async () => {
-  const filename = new URL('../video/ziekte-van-sever-uitleg/index.html', import.meta.url).pathname
-  const html = await readFile(filename, 'utf8')
-  const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
-  const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
-  const jsonLd = transformed.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)?.[1]
-  const graph = JSON.parse(jsonLd)['@graph']
-  const video = graph.find((item) => item['@type'] === 'VideoObject')
-
-  assert.ok(video, 'expected VideoObject structured data')
-  assert.equal(video.contentUrl, 'https://zolsolutions.nl/media/zol-hero.mp4')
-  assert.equal(video.thumbnailUrl[0], 'https://zolsolutions.nl/media/zol-hero-poster.jpg')
-  assert.equal(video.duration, 'PT5S')
-  assert.match(html, /<video controls/)
-})
-
 test('shopping feed includes Google category and variant attributes', async () => {
   const feed = await readFile(new URL('../public/google-product-feed.xml', import.meta.url), 'utf8')
 
@@ -52,7 +36,6 @@ test('growth and new knowledge routes are listed in the sitemap', async () => {
 
   for (const route of [
     '/hielpijn-kind-sport/',
-    '/video/ziekte-van-sever-uitleg/',
     '/kennisbank/sportschoenen-bij-ziekte-van-sever/',
     '/kennisbank/wanneer-naar-fysio-hielpijn-kind/',
   ]) assert.match(sitemap, new RegExp(`<loc>https://zolsolutions\\.nl${route.replaceAll('/', '\\/')}</loc>`))

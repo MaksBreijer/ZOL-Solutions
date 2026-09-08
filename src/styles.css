@@ -5083,9 +5083,8 @@ blockquote {
   border-right: 0;
 }
 
-/* Growth pages: paid-social landing and video watch page. */
-.growth-hero,
-.watch-hero {
+/* Growth page: paid-social landing. */
+.growth-hero {
   width: min(1320px, calc(100% - 44px));
   margin: 0 auto;
   padding: clamp(150px, 15vw, 220px) 0 clamp(70px, 8vw, 120px);
@@ -5095,8 +5094,7 @@ blockquote {
   gap: clamp(42px, 7vw, 100px);
 }
 
-.growth-hero-copy h1,
-.watch-copy h1 {
+.growth-hero-copy h1 {
   max-width: 800px;
   margin: 16px 0 24px;
   color: var(--blue-deep);
@@ -5106,18 +5104,15 @@ blockquote {
 }
 
 .growth-hero-copy h1 em,
-.watch-copy h1 em,
 .growth-section-heading h2 em,
-.campaign-product-copy h2 em,
-.watch-explainer h2 em {
+.campaign-product-copy h2 em {
   color: var(--orange);
   font-family: var(--serif);
   font-weight: 400;
   text-transform: none;
 }
 
-.growth-hero-copy > p:not(.section-index),
-.watch-copy > p:not(.section-index) {
+.growth-hero-copy > p:not(.section-index) {
   max-width: 680px;
   margin: 0;
   color: var(--muted);
@@ -5178,8 +5173,7 @@ blockquote {
 }
 
 .growth-section-heading h2,
-.campaign-product-copy h2,
-.watch-explainer h2 {
+.campaign-product-copy h2 {
   margin: 14px 0 0;
   color: var(--blue-deep);
   font: 700 clamp(45px, 6vw, 78px)/.94 var(--heading);
@@ -5247,30 +5241,17 @@ blockquote {
 .campaign-final-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; }
 .button--ghost-light { border: 1px solid rgba(255,255,255,.45); color: #fff; background: transparent; }
 
-.watch-hero { grid-template-columns: minmax(0,.8fr) minmax(480px,1.2fr); }
-.watch-player { overflow: hidden; border-radius: 28px; background: #071d33; box-shadow: 0 28px 70px rgba(16,43,74,.2); }
-.watch-player video { width: 100%; aspect-ratio: 16/9; display: block; object-fit: cover; }
-.watch-explainer { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(46px,8vw,110px); }
-.watch-notes { color: var(--muted); font-size: 18px; line-height: 1.7; }
-.watch-notes ul { margin: 28px 0; padding-left: 22px; }
-.watch-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; }
-
 @media (max-width: 900px) {
   .growth-hero,
-  .watch-hero,
-  .campaign-product,
-  .watch-explainer { grid-template-columns: 1fr; }
+  .campaign-product { grid-template-columns: 1fr; }
   .growth-step-grid { grid-template-columns: 1fr; }
   .growth-step-grid article { min-height: auto; }
   .growth-step-grid h3 { margin-top: 44px; }
 }
 
 @media (max-width: 640px) {
-  .growth-hero,
-  .watch-hero { width: min(100% - 32px, 1320px); padding-top: 130px; }
-  .growth-hero-copy h1,
-  .watch-copy h1 { font-size: clamp(48px, 15vw, 72px); }
-  .watch-hero { gap: 34px; }
+  .growth-hero { width: min(100% - 32px, 1320px); padding-top: 130px; }
+  .growth-hero-copy h1 { font-size: clamp(48px, 15vw, 72px); }
   .campaign-final-actions .button { width: 100%; }
 }
 
