@@ -5083,7 +5083,7 @@ blockquote {
   border-right: 0;
 }
 
-/* Growth pages: paid-social landing, partner acquisition and video watch page. */
+/* Growth pages: paid-social landing and video watch page. */
 .growth-hero,
 .watch-hero {
   width: min(1320px, calc(100% - 44px));
@@ -5108,7 +5108,6 @@ blockquote {
 .growth-hero-copy h1 em,
 .watch-copy h1 em,
 .growth-section-heading h2 em,
-.growth-audience h2 em,
 .campaign-product-copy h2 em,
 .watch-explainer h2 em {
   color: var(--orange);
@@ -5179,7 +5178,6 @@ blockquote {
 }
 
 .growth-section-heading h2,
-.growth-audience h2,
 .campaign-product-copy h2,
 .watch-explainer h2 {
   margin: 14px 0 0;
@@ -5249,15 +5247,6 @@ blockquote {
 .campaign-final-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; }
 .button--ghost-light { border: 1px solid rgba(255,255,255,.45); color: #fff; background: transparent; }
 
-.growth-hero--partner { background: radial-gradient(circle at 76% 24%, rgba(83, 151, 203, .22), transparent 28rem); }
-.growth-proof-card { padding: clamp(32px, 5vw, 58px); border-radius: 28px; background: var(--blue-deep); color: #fff; box-shadow: 0 30px 80px rgba(16,43,74,.18); }
-.growth-proof-card span { color: #99c9ed; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.growth-proof-card strong { margin: 24px 0; display: block; color: var(--orange-light); font: 700 clamp(32px,4vw,52px)/1 var(--heading); overflow-wrap: anywhere; }
-.growth-proof-card p { margin: 0; color: rgba(255,255,255,.72); font-size: 18px; line-height: 1.6; }
-.growth-audience { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(45px,8vw,110px); align-items: start; }
-.growth-audience ul { margin: 0; padding: 0; border-top: 1px solid var(--line); list-style: none; }
-.growth-audience li { padding: 20px 0; border-bottom: 1px solid var(--line); color: var(--blue-deep); font-weight: 750; }
-
 .watch-hero { grid-template-columns: minmax(0,.8fr) minmax(480px,1.2fr); }
 .watch-player { overflow: hidden; border-radius: 28px; background: #071d33; box-shadow: 0 28px 70px rgba(16,43,74,.2); }
 .watch-player video { width: 100%; aspect-ratio: 16/9; display: block; object-fit: cover; }
@@ -5270,7 +5259,6 @@ blockquote {
   .growth-hero,
   .watch-hero,
   .campaign-product,
-  .growth-audience,
   .watch-explainer { grid-template-columns: 1fr; }
   .growth-step-grid { grid-template-columns: 1fr; }
   .growth-step-grid article { min-height: auto; }

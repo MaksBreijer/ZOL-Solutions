@@ -180,7 +180,6 @@ export default defineConfig({
         unsubscribe: resolve(import.meta.dirname, 'uitschrijven/index.html'),
         measurement: resolve(import.meta.dirname, 'meting/index.html'),
         campaignHeelPain: resolve(import.meta.dirname, 'hielpijn-kind-sport/index.html'),
-        partners: resolve(import.meta.dirname, 'partners/index.html'),
         severVideo: resolve(import.meta.dirname, 'video/ziekte-van-sever-uitleg/index.html'),
         admin: resolve(import.meta.dirname, 'admin/index.html'),
         adminAlias: resolve(import.meta.dirname, 'zolsolutions/admin/index.html'),

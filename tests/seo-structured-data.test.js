@@ -52,7 +52,6 @@ test('growth and new knowledge routes are listed in the sitemap', async () => {
 
   for (const route of [
     '/hielpijn-kind-sport/',
-    '/partners/',
     '/video/ziekte-van-sever-uitleg/',
     '/kennisbank/sportschoenen-bij-ziekte-van-sever/',
     '/kennisbank/wanneer-naar-fysio-hielpijn-kind/',
