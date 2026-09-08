@@ -19,3 +19,11 @@ test('product structured data omits unsupported audience age values', async () =
   assert.equal(productGroup.hasVariant.length, 5)
   assert.equal(productGroup.hasVariant[0].offers.price, '99.95')
 })
+
+test('legacy high-intent Shopify URLs redirect to the current knowledge pages', async () => {
+  const redirects = await readFile(new URL('../public/_redirects', import.meta.url), 'utf8')
+
+  assert.match(redirects, /^\/pages\/mijn-kind-heeft-hielpijn \/kennisbank\/hielpijn-bij-kinderen\/ 301$/m)
+  assert.match(redirects, /^\/en\/pages\/mijn-kind-heeft-hielpijn \/kennisbank\/hielpijn-bij-kinderen\/ 301$/m)
+  assert.match(redirects, /^\/en\/blogs\/news \/kennisbank\/ 301$/m)
+})

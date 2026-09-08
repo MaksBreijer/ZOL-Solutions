@@ -1,4 +1,5 @@
 import { hasAnalyticsConsent } from './cookie-consent.js'
+import { disableGoogleAnalytics, enableGoogleAnalytics, trackGoogleAnalyticsEvent } from './google-analytics.js'
 import { insertPublic, selectPublic } from './public-api.js'
 
 if (window.location.hostname === 'zol-solutions.pages.dev') {
@@ -41,6 +42,7 @@ export function getSessionId() {
 
 export async function trackEvent(eventName, metadata = {}) {
   if (!hasAnalyticsConsent()) return
+  trackGoogleAnalyticsEvent(eventName, metadata)
   try {
     const search = new URLSearchParams(window.location.search)
     const attribution = Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
@@ -148,7 +150,9 @@ loadCms().catch(() => {})
 
 let initialViewsTracked = false
 function trackInitialViews() {
-  if (!hasAnalyticsConsent() || initialViewsTracked) return
+  if (!hasAnalyticsConsent()) return
+  enableGoogleAnalytics()
+  if (initialViewsTracked) return
   initialViewsTracked = true
   trackEvent('page_view', { page: pageName })
   if (pageName === 'product') trackEvent('product_view', { slug: 'zol-inlegzolen' })
@@ -157,6 +161,7 @@ function trackInitialViews() {
 trackInitialViews()
 window.addEventListener('zol:cookie-consent', ({ detail }) => {
   if (detail?.choice === 'accepted') trackInitialViews()
+  if (detail?.choice === 'necessary') disableGoogleAnalytics()
 })
 
 document.addEventListener('click', (event) => {

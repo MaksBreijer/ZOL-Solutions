@@ -68,7 +68,26 @@ const paymentMethodPresentation = {
   klarna: { label: 'Klarna', detail: 'Betaal met Klarna', mark: 'Klarna' },
 }
 
-if (!returnOrderId) trackEvent('begin_checkout', { page: '/checkout/' })
+function analyticsItems(cart = getCart()) {
+  return cart.map((item) => ({
+    product_id: item.product_id,
+    variant_id: item.variant_id,
+    item_name: item.product_name,
+    item_variant: item.shoe_size || item.variant_name,
+    sku: item.sku,
+    price_cents: item.price_cents,
+    quantity: item.quantity,
+  }))
+}
+
+if (!returnOrderId) {
+  const cart = getCart()
+  trackEvent('begin_checkout', {
+    currency: 'EUR',
+    value: cart.reduce((sum, item) => sum + item.price_cents * item.quantity, 0) / 100,
+    items: analyticsItems(cart),
+  })
+}
 
 function discountCode() {
   return String(discountInput.value || '').trim().toUpperCase().slice(0, 40)
@@ -257,8 +276,18 @@ async function renderPaymentReturn() {
   const successful = ['paid', 'authorized'].includes(status)
   const processing = ['open', 'pending'].includes(status)
   const retryable = ['failed', 'cancelled', 'expired'].includes(status)
+  const purchasedCart = getCart()
+  if (successful) trackEvent('partner_order_paid', {
+    partner_code: getPartnerAttributionCode(),
+    order_number: data.order_number,
+    total_cents: Number(data.total_cents) || 0,
+    shipping_cents: Number(data.shipping_cents) || 0,
+    tax_cents: Number(data.tax_cents) || 0,
+    discount_code: data.discount_code || '',
+    currency: 'EUR',
+    items: analyticsItems(purchasedCart),
+  })
   if (successful || processing) clearCart()
-  if (successful) trackEvent('partner_order_paid', { partner_code: getPartnerAttributionCode(), order_number: data.order_number, total_cents: Number(data.total_cents) || 0 })
 
   const title = successful ? 'Betaling gelukt' : processing ? 'Betaling wordt verwerkt' : retryable ? 'Betaling niet afgerond' : 'Bestelling ontvangen'
   const message = successful

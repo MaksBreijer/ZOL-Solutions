@@ -227,7 +227,17 @@ async function initializeProductCommerce() {
       return
     }
     addToCart(item)
-    trackEvent('add_to_cart', { product_id: item.product_id, variant_id: item.variant_id, quantity: item.quantity })
+    trackEvent('add_to_cart', {
+      product_id: item.product_id,
+      variant_id: item.variant_id,
+      item_name: item.product_name,
+      item_variant: item.shoe_size || item.variant_name,
+      sku: item.sku,
+      price_cents: item.price_cents,
+      quantity: item.quantity,
+      currency: 'EUR',
+      value: (item.price_cents * item.quantity) / 100,
+    })
     if (direct) window.location.assign('/checkout/')
     else {
       addButton.textContent = 'Toegevoegd ✓'
