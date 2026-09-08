@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from "jsr:@supabase/supabase-js@2.112.3"
+import { apolloPersonId, buildPeopleSearch } from "./apollo-helpers.js"
 
 type Json = Record<string, any>
 
@@ -104,7 +105,7 @@ function apolloError(status: number) {
 async function apolloRequest(path: string, search: URLSearchParams, apiKey: string) {
   const response = await fetch(`${APOLLO_BASE_URL}${path}?${search}`, {
     method: "POST",
-    headers: { "Accept": "application/json", "x-api-key": apiKey },
+    headers: { "Accept": "application/json", "Content-Type": "application/json", "Cache-Control": "no-cache", "x-api-key": apiKey },
   })
   const result = await response.json().catch(() => ({}))
   if (!response.ok) {
@@ -123,7 +124,7 @@ function candidateScore(person: Json, titles: string[]) {
 function candidate(person: Json) {
   const lastName = clean(person.last_name_obfuscated || person.last_name, 100)
   return {
-    id: clean(person.id, 80),
+    id: apolloPersonId(person),
     name: [clean(person.first_name, 100), lastName].filter(Boolean).join(" "),
     title: clean(person.title, 160),
     organization: clean(person.organization?.name, 180),
@@ -188,18 +189,12 @@ Deno.serve(async (request) => {
       }
       const type = clean(body.lead?.type, 30)
       const titles = roleTitles[type] || roleTitles.other
-      const buildSearch = (includeTitles: boolean) => {
-        const params = new URLSearchParams({ include_similar_titles: "true", page: "1", per_page: "10" })
-        if (organizationId) params.append("organization_ids[]", organizationId)
-        else params.append("q_organization_domains_list[]", domain)
-        for (const seniority of ["owner", "founder", "partner", "head", "director", "manager"]) params.append("person_seniorities[]", seniority)
-        if (includeTitles) for (const title of titles) params.append("person_titles[]", title)
-        return params
-      }
-      let result = await apolloRequest("/mixed_people/api_search", buildSearch(true), apiKey)
-      if (!Array.isArray(result.people) || !result.people.length) result = await apolloRequest("/mixed_people/api_search", buildSearch(false), apiKey)
+      const search = (includeTitles: boolean, includeSeniorities: boolean) => buildPeopleSearch({ domain, organizationId, titles, includeTitles, includeSeniorities })
+      let result = await apolloRequest("/mixed_people/api_search", search(true, true), apiKey)
+      if (!Array.isArray(result.people) || !result.people.length) result = await apolloRequest("/mixed_people/api_search", search(false, true), apiKey)
+      if (!Array.isArray(result.people) || !result.people.length) result = await apolloRequest("/mixed_people/api_search", search(false, false), apiKey)
       const candidates = (Array.isArray(result.people) ? result.people : [])
-        .filter((person: Json) => clean(person.id, 80))
+        .filter((person: Json) => apolloPersonId(person))
         .sort((a: Json, b: Json) => candidateScore(b, titles) - candidateScore(a, titles))
         .slice(0, 8)
         .map(candidate)
