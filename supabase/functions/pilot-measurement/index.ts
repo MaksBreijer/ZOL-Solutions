@@ -207,7 +207,7 @@ async function loadAdminReport(
 }
 
 type AdminActor = { id: string; email: string; role: string }
-type CustomerRow = { id: string; email: string; first_name?: string; last_name?: string }
+type CustomerRow = { id: string; email: string; first_name?: string; last_name?: string; pain_evaluation_opt_in?: boolean }
 type PainConfig = {
   enabled?: boolean
   test_mode?: boolean
@@ -402,7 +402,7 @@ async function sendConsentInvite(db: ReturnType<typeof adminClient>, customer: C
 
 async function eligibleOrderCustomers(db: ReturnType<typeof adminClient>, config: PainConfig) {
   const { data, error } = await db.from("orders")
-    .select("id,customer_id,created_at,fulfillment_status,delivered_at,customers!inner(id,email,first_name,last_name)")
+    .select("id,customer_id,created_at,fulfillment_status,delivered_at,customers!inner(id,email,first_name,last_name,pain_evaluation_opt_in)")
     .eq("order_type", "customer")
     .eq("source", "zol-webshop")
     .eq("payment_status", "paid")
@@ -415,7 +415,7 @@ async function eligibleOrderCustomers(db: ReturnType<typeof adminClient>, config
     const customer = Array.isArray(order.customers) ? order.customers[0] : order.customers
     if (!customer?.id || customersWithNewerOrders.has(customer.id)) continue
     customersWithNewerOrders.add(customer.id)
-    if (!customer.email || !painInvitationEligible(order, config) || !emailAllowed(config, customer.email)) continue
+    if (!customer.email || customer.pain_evaluation_opt_in !== true || !painInvitationEligible(order, config) || !emailAllowed(config, customer.email)) continue
     unique.set(customer.id, { customer, orderId: order.id })
   }
   const additionalEmails = [...new Set((config.additional_invitation_emails || [])

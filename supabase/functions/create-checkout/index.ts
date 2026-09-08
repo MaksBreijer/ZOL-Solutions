@@ -265,7 +265,7 @@ Deno.serve(async (request) => {
     const discoveryNote = checkoutDiscoveryNote(body.discovery || {})
     const { country: customerCountry } = validateCustomer(customer)
     customer.country = customerCountry
-    customer.marketing_opt_in = customer.marketing_opt_in === true
+    customer.pain_evaluation_opt_in = customer.pain_evaluation_opt_in === true
 
     if (commerce.mollie_enabled && !mollieKey) return Response.json({ error: "Online betalen is tijdelijk niet beschikbaar. Probeer het later opnieuw." }, { status: 503, headers })
 

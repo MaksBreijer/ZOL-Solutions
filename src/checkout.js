@@ -418,7 +418,7 @@ form.addEventListener('submit', async (event) => {
     const discountCode = String(customer.discount_code || '').trim().toUpperCase()
     delete customer.discount_code
     delete customer.terms_accepted
-    customer.marketing_opt_in = customer.marketing_opt_in === 'on'
+    customer.pain_evaluation_opt_in = customer.pain_evaluation_opt_in === 'on'
     const quoteIsCurrent = currentQuote && quotedCart === cartSignature(cart) && quotedCode === discountCode && quotedCountry === selectedCountry()
     if (!quoteIsCurrent && !await requestQuote({ code: discountCode, announce: false })) throw new Error(discountCode ? 'Controleer eerst de kortingscode hierboven.' : 'De actuele prijs kon niet worden gecontroleerd. Probeer het opnieuw.')
     const sessionId = getSessionId()

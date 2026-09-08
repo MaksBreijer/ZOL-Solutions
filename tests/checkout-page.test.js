@@ -33,12 +33,13 @@ test('checkout asks for the discovery source and stores it outside customer data
 })
 
 test('checkout supports Belgium with its own shipping quote and address rules', async () => {
-  const [html, client, edgeFunction, postnl, migration] = await Promise.all([
+  const [html, client, edgeFunction, postnl, migration, countryFix] = await Promise.all([
     readFile(new URL('../checkout/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../src/checkout.js', import.meta.url), 'utf8'),
     readFile(new URL('../supabase/functions/create-checkout/index.ts', import.meta.url), 'utf8'),
     readFile(new URL('../supabase/functions/postnl-shipment/index.ts', import.meta.url), 'utf8'),
     readFile(new URL('../supabase/migrations/20260908183000_add_belgium_checkout.sql', import.meta.url), 'utf8'),
+    readFile(new URL('../supabase/migrations/20260908185443_fix_checkout_country_initializer.sql', import.meta.url), 'utf8'),
   ])
 
   assert.match(html, /<option value="BE">België<\/option>/)
@@ -54,23 +55,26 @@ test('checkout supports Belgium with its own shipping quote and address rules', 
   assert.match(migration, /'belgium_shipping_cents', 495/)
   assert.match(migration, /create function public\.quote_checkout_order\(/)
   assert.match(migration, /'country', v_country/)
+  assert.match(countryFix, /p_customer ->> ''country'', ''NL''/)
 })
 
-test('checkout offers a separate optional news opt-in and stores explicit consent', async () => {
-  const [html, client, edgeFunction, migration] = await Promise.all([
+test('checkout offers a separate optional pain evaluation invitation and stores that choice', async () => {
+  const [html, client, edgeFunction, painFunction, migration] = await Promise.all([
     readFile(new URL('../checkout/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../src/checkout.js', import.meta.url), 'utf8'),
     readFile(new URL('../supabase/functions/create-checkout/index.ts', import.meta.url), 'utf8'),
-    readFile(new URL('../supabase/migrations/20260908201500_add_checkout_marketing_opt_in.sql', import.meta.url), 'utf8'),
+    readFile(new URL('../supabase/functions/pilot-measurement/index.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../supabase/migrations/20260908184954_add_checkout_pain_evaluation_opt_in.sql', import.meta.url), 'utf8'),
   ])
 
-  assert.match(html, /name="marketing_opt_in" type="checkbox"/)
-  assert.doesNotMatch(html, /name="marketing_opt_in"[^>]*required/)
-  assert.match(html, /op de hoogte van het laatste ZOL-nieuws/)
-  assert.match(html, /afmelden kan altijd met één klik/)
+  assert.match(html, /name="pain_evaluation_opt_in" type="checkbox"/)
+  assert.doesNotMatch(html, /name="pain_evaluation_opt_in"[^>]*required/)
+  assert.match(html, /korte evaluaties over hoe het met de hielpijn gaat/)
+  assert.doesNotMatch(html, /producttip/)
   assert.match(html, /class="checkout-consent-reminder" aria-hidden="true">!<\/span>/)
-  assert.match(client, /customer\.marketing_opt_in = customer\.marketing_opt_in === 'on'/)
-  assert.match(edgeFunction, /customer\.marketing_opt_in = customer\.marketing_opt_in === true/)
-  assert.match(migration, /marketing_opt_in_source/)
-  assert.match(migration, /checkout/)
+  assert.match(client, /customer\.pain_evaluation_opt_in = customer\.pain_evaluation_opt_in === 'on'/)
+  assert.match(edgeFunction, /customer\.pain_evaluation_opt_in = customer\.pain_evaluation_opt_in === true/)
+  assert.match(painFunction, /customer\.pain_evaluation_opt_in !== true/)
+  assert.match(migration, /pain_evaluation_opt_in_source/)
+  assert.match(migration, /checkout_pain_evaluation/)
 })
