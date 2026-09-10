@@ -117,6 +117,7 @@ const routeMeta = {
   content: ['Website CMS', 'Bewerk teksten, knoppen, beelden, video en SEO zonder code.'],
   media: ['Mediabibliotheek', 'Eén centrale plek voor afbeeldingen, video en iconen.'],
   payments: ['Financiën', 'Verkoop, kosten, bank, btw en grootboek voor de ZOL VOF.'],
+  marketing: ['Marketing', 'Volg advertentieverkeer, conversies en omzet van Meta en Google.'],
   analytics: ['Analytics', 'Verkeer, omzet, winkelgedrag en conversie in één rapport.'],
   live: ['Live View', 'Bekijk live bezoekers, winkelgedrag en bestellingen.'],
   activity: ['Activiteiten', 'Recente wijzigingen door beheerders.'],
@@ -2985,6 +2986,92 @@ function analyticsSeries(days, events, orders) {
   }).map((day) => ({ ...day, averageOrder: day.orderCount ? day.revenue / day.orderCount : 0 }))
 }
 
+const MARKETING_LINKS = {
+  meta: 'https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=2036716406977754&business_id=1538545430558355',
+  googleAds: 'https://ads.google.com/aw/campaigns?ocid=8324599427',
+  analytics: 'https://analytics.google.com/analytics/web/',
+  searchConsole: 'https://search.google.com/search-console?resource_id=sc-domain%3Azolsolutions.nl',
+}
+
+function marketingSessionAttribution(events) {
+  return events.reduce((sessions, event) => {
+    if (!event.session_id) return sessions
+    const current = sessions.get(event.session_id) || { source: '', medium: '', campaign: '', gclid: '', fbclid: '', referrer: '' }
+    const metadata = event.metadata || {}
+    const pageSearch = String(event.page || '').split('?')[1] || ''
+    const query = new URLSearchParams(pageSearch)
+    sessions.set(event.session_id, {
+      source: current.source || String(metadata.utm_source || query.get('utm_source') || '').toLowerCase(),
+      medium: current.medium || String(metadata.utm_medium || query.get('utm_medium') || '').toLowerCase(),
+      campaign: current.campaign || String(metadata.utm_campaign || query.get('utm_campaign') || ''),
+      gclid: current.gclid || String(metadata.gclid || query.get('gclid') || ''),
+      fbclid: current.fbclid || String(metadata.fbclid || query.get('fbclid') || ''),
+      referrer: current.referrer || String(metadata.referrer || '').toLowerCase(),
+    })
+    return sessions
+  }, new Map())
+}
+
+function marketingChannel(attribution = {}) {
+  const source = attribution.source || ''
+  const medium = attribution.medium || ''
+  const campaign = String(attribution.campaign || '').toLowerCase()
+  const referrer = attribution.referrer || ''
+  if (attribution.fbclid || ['meta', 'facebook', 'instagram', 'fb', 'ig'].some((value) => source.includes(value)) || campaign.includes('zol_test')) return 'meta'
+  if (attribution.gclid || source.includes('google') && ['cpc', 'paid', 'ppc'].some((value) => medium.includes(value))) return 'google_ads'
+  if (source.includes('google') || referrer.includes('google.')) return 'google_organic'
+  return 'other'
+}
+
+function marketingChannelStats(events, channel) {
+  const attribution = marketingSessionAttribution(events)
+  const sessionIds = new Set([...attribution].filter(([, value]) => marketingChannel(value) === channel).map(([sessionId]) => sessionId))
+  const channelEvents = events.filter((event) => sessionIds.has(event.session_id))
+  const orders = channelEvents.filter((event) => event.event_name === 'order_created')
+  const orderNumbers = new Set(orders.map((event) => String(event.metadata?.order_number || '')).filter(Boolean))
+  const paidOrders = state.orders.filter((order) => order.payment_status === 'paid' && orderNumbers.has(String(order.order_number)))
+  return {
+    sessions: sessionIds.size,
+    productViews: channelEvents.filter((event) => event.event_name === 'product_view').length,
+    carts: channelEvents.filter((event) => event.event_name === 'add_to_cart').length,
+    checkouts: channelEvents.filter((event) => event.event_name === 'begin_checkout').length,
+    orders: orders.length,
+    revenue: paidOrders.reduce((sum, order) => sum + order.total_cents, 0),
+  }
+}
+
+function marketingChannelCard({ name, label, stats, budget, dates, url, channelClass }) {
+  return `<article class="marketing-channel-card ${channelClass}">
+    <header><div><span>${escapeHtml(label)}</span><h2>${escapeHtml(name)}</h2></div><a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">Open dashboard <i data-lucide="external-link"></i></a></header>
+    <div class="marketing-channel-kpis"><div><span>Bezoekers</span><strong>${stats.sessions}</strong></div><div><span>Bestellingen</span><strong>${stats.orders}</strong></div><div><span>Conversie</span><strong>${percent(stats.orders, stats.sessions)}</strong></div><div><span>Omzet</span><strong>${formatMoney(stats.revenue)}</strong></div></div>
+    <div class="marketing-funnel"><span>Product bekeken ${horizontalMeterSvg(stats.productViews, Math.max(stats.sessions, 1))}<strong>${stats.productViews}</strong></span><span>Winkelwagen ${horizontalMeterSvg(stats.carts, Math.max(stats.sessions, 1))}<strong>${stats.carts}</strong></span><span>Checkout ${horizontalMeterSvg(stats.checkouts, Math.max(stats.sessions, 1))}<strong>${stats.checkouts}</strong></span></div>
+    <footer><span><b>${escapeHtml(budget)}</b> ingesteld budget</span><span>${escapeHtml(dates)}</span><small>Advertentiestatus en actuele kosten staan in het advertentieplatform.</small></footer>
+  </article>`
+}
+
+function renderMarketing() {
+  const events = analyticsWindow(state.analytics, analyticsDays)
+  const meta = marketingChannelStats(events, 'meta')
+  const googleAds = marketingChannelStats(events, 'google_ads')
+  const organic = marketingChannelStats(events, 'google_organic')
+  const paid = { sessions: meta.sessions + googleAds.sessions, orders: meta.orders + googleAds.orders, revenue: meta.revenue + googleAds.revenue }
+  const campaigns = [...marketingSessionAttribution(events).values()].map((item) => item.campaign).filter(Boolean)
+  elements.content.innerHTML = `<div class="page-container marketing-page">
+    ${pageHeader('marketing', '<button class="button button--primary" data-action="refresh"><i data-lucide="refresh-cw"></i> Vernieuwen</button>')}
+    <div class="analytics-toolbar"><div class="analytics-period" role="group" aria-label="Marketingperiode"><i data-lucide="calendar-days"></i>${[7, 30, 90].map((days) => `<button type="button" data-action="marketing-range" data-days="${days}" class="${analyticsDays === days ? 'is-active' : ''}">${days} dagen</button>`).join('')}</div><span>Websitegegevens · EUR €</span></div>
+    <section class="marketing-summary" aria-label="Advertentieresultaten"><article><span>Betaalde bezoekers</span><strong>${paid.sessions}</strong><small>Meta + Google Ads</small></article><article><span>Bestellingen uit ads</span><strong>${paid.orders}</strong><small>${percent(paid.orders, paid.sessions)} conversie</small></article><article><span>Omzet uit ads</span><strong>${formatMoney(paid.revenue)}</strong><small>Betaalde bestellingen</small></article><article><span>Gemeten campagnes</span><strong>${new Set(campaigns).size}</strong><small>Via UTM of klik-ID</small></article></section>
+    <section class="marketing-channel-grid">
+      ${marketingChannelCard({ name: 'Meta Ads', label: 'Facebook + Instagram', stats: meta, budget: '€ 50 totaal', dates: '10–20 september 2026', url: MARKETING_LINKS.meta, channelClass: 'is-meta' })}
+      ${marketingChannelCard({ name: 'Google Ads', label: 'Google Zoeken', stats: googleAds, budget: '€ 50 totaal', dates: '10 september–10 oktober 2026', url: MARKETING_LINKS.googleAds, channelClass: 'is-google' })}
+    </section>
+    <section class="marketing-tools">
+      <article><span class="marketing-tool-icon is-analytics"><i data-lucide="chart-no-axes-combined"></i></span><div><h3>Google Analytics</h3><p>Controleer acquisitie, gedrag en aankopen. Zoek op <b>meta / paid_social</b> en campagne <b>zol_test</b>.</p></div><a class="button" href="${MARKETING_LINKS.analytics}" target="_blank" rel="noreferrer">Open Analytics <i data-lucide="external-link"></i></a></article>
+      <article><span class="marketing-tool-icon is-search"><i data-lucide="search"></i></span><div><h3>Google Search Console</h3><p>${organic.sessions} organische Google-sessies gemeten. Bekijk zoekwoorden, vertoningen en gemiddelde positie in Search Console.</p></div><a class="button" href="${MARKETING_LINKS.searchConsole}" target="_blank" rel="noreferrer">Open Search Console <i data-lucide="external-link"></i></a></article>
+    </section>
+    <p class="marketing-note"><b>Wat je hier ziet:</b> websitebezoekers en bestellingen die ZOL zelf meet. Bereik, vertoningen, advertentieklikken en besteed bedrag controleer je via de knoppen naar Meta en Google Ads.</p>
+  </div>`
+}
+
 function renderAnalytics() {
   const events = analyticsWindow(state.analytics, analyticsDays)
   const periodOrders = analyticsWindow(state.orders, analyticsDays)
@@ -3310,7 +3397,7 @@ function renderRoute(route = currentRoute(), option) {
   if (route !== 'partners') stopPartnerUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
   if (route === 'calendar' && !calendarRefreshTimer) startCalendarUpdates()
@@ -3483,6 +3570,7 @@ async function handleContentClick(event) {
   if (action === 'download-customer-template') downloadCustomerImportTemplate()
   if (action === 'export-analytics') await exportAnalytics()
   if (action === 'analytics-range') { analyticsDays = Number(target.dataset.days) || 30; renderAnalytics() }
+  if (action === 'marketing-range') { analyticsDays = Number(target.dataset.days) || 30; renderMarketing() }
   if (action === 'toggle-analytics-compare') { analyticsCompare = !analyticsCompare; renderAnalytics() }
   if (action === 'print-invoice') printInvoice(state.orders.find((item) => item.id === id))
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))

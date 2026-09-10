@@ -37,3 +37,32 @@ test('analytics charts render without CSP-blocked inline styles', async () => {
     h.close()
   }
 })
+
+test('marketing dashboard separates Meta, Google Ads and organic sessions', async () => {
+  const h = await adminHarness()
+  try {
+    const now = new Date().toISOString()
+    h.run(`
+      state.analytics = [
+        { event_name: 'page_view', session_id: 'meta-1', page: '/product/?utm_source=meta&utm_medium=paid_social&utm_campaign=zol_test', metadata: { utm_source: 'meta', utm_medium: 'paid_social', utm_campaign: 'zol_test' }, created_at: '${now}' },
+        { event_name: 'product_view', session_id: 'meta-1', page: '/product/', metadata: {}, created_at: '${now}' },
+        { event_name: 'order_created', session_id: 'meta-1', page: '/checkout/', metadata: { order_number: 'ZOL-1001' }, created_at: '${now}' },
+        { event_name: 'page_view', session_id: 'google-ad-1', page: '/product/?gclid=google-click', metadata: {}, created_at: '${now}' },
+        { event_name: 'page_view', session_id: 'google-organic-1', page: '/', metadata: { referrer: 'https://www.google.nl/' }, created_at: '${now}' }
+      ];
+      state.orders = [{ order_number: 'ZOL-1001', payment_status: 'paid', total_cents: 9995, created_at: '${now}' }];
+      renderMarketing();
+    `)
+
+    assert.equal(h.window.document.querySelectorAll('.marketing-page [style]').length, 0)
+    assert.equal(h.run(`marketingChannelStats(state.analytics, 'meta').sessions`), 1)
+    assert.equal(h.run(`marketingChannelStats(state.analytics, 'meta').orders`), 1)
+    assert.equal(h.run(`marketingChannelStats(state.analytics, 'meta').revenue`), 9995)
+    assert.equal(h.run(`marketingChannelStats(state.analytics, 'google_ads').sessions`), 1)
+    assert.equal(h.run(`marketingChannelStats(state.analytics, 'google_organic').sessions`), 1)
+    assert.match(h.q('.marketing-summary').textContent, /€\s*99,95/)
+    assert.equal(h.window.document.querySelectorAll('.marketing-channel-card').length, 2)
+  } finally {
+    h.close()
+  }
+})

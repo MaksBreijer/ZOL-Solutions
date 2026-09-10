@@ -45,9 +45,14 @@ export async function trackEvent(eventName, metadata = {}) {
   trackGoogleAnalyticsEvent(eventName, metadata)
   try {
     const search = new URLSearchParams(window.location.search)
-    const attribution = Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']
+    const incomingAttribution = Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'fbclid']
       .map((key) => [key, search.get(key)])
       .filter(([, value]) => value))
+    let attribution = incomingAttribution
+    try {
+      if (Object.keys(incomingAttribution).length) sessionStorage.setItem('zol_marketing_attribution', JSON.stringify(incomingAttribution))
+      else attribution = JSON.parse(sessionStorage.getItem('zol_marketing_attribution') || '{}')
+    } catch { /* Meting blijft werken wanneer sessionStorage is geblokkeerd. */ }
     const partnerCode = getPartnerAttributionCode()
     const { error } = await insertPublic('analytics_events', {
       session_id: getSessionId(),
