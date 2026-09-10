@@ -1,0 +1,71 @@
+.product-page {background:#fafbfc;}
+.product-detail-hero{padding-top:80px;padding-bottom:52px;grid-template-columns:minmax(0,1fr) minmax(0,.94fr);gap:64px;}
+.product-gallery{display:grid;grid-template-columns:1fr;gap:12px;position:sticky;top:110px;}
+.product-gallery-main{min-height:0;height:590px;border-radius:24px;}
+.product-gallery-main img{height:100%;width:100%;object-fit:cover;}
+.product-gallery-secondary{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.product-gallery-secondary img,.product-gallery-secondary picture:first-child img,.product-gallery-secondary picture:last-child img{width:100%;height:185px;object-fit:cover;border-radius:16px;}
+.product-gallery-label{border:1px solid #ffffff66;background:#102b4ae6;color:white;backdrop-filter:blur(12px);border-radius:12px;}
+.product-gallery-label span{color:#b8d7f2;font-size:14px;}
+.product-gallery-label strong{font-size:23px;}
+.product-purchase{position:static;padding:0;}
+.product-purchase .breadcrumb{display:none;}
+.product-purchase .section-index{margin:0 0 18px;font-size:14px;letter-spacing:.1em;}
+.product-purchase h1{font-size:clamp(48px,4.8vw,70px);line-height:.98;}
+.product-purchase h1 em{font-size:.92em;}
+.product-subtitle{font-size:19px;margin:16px 0 8px;font-weight:600;color:var(--blue-deep);}
+.product-rating{font-size:15px;margin-top:0;}
+.product-price{font-size:40px;margin:18px 0 0;}
+.product-price span{font-size:14px;}
+.product-summary{font-size:18px;line-height:1.55;margin-top:14px;}
+.purchase-benefits{margin-top:18px;padding:16px 0;gap:7px;}
+.purchase-benefits li{font-size:16px;}
+.size-selector{margin-top:22px;}
+.size-selector legend,.bundle-selector legend{font-size:17px;}
+.size-selector legend a{font-size:15px;}
+.stock-status{font-size:14px;}
+.bundle-selector{margin-bottom:18px;gap:10px;}
+.bundle-option{padding:14px 16px;}
+.bundle-copy strong{font-size:18px;}
+.bundle-copy small,.bundle-copy em{font-size:14px;}
+.bundle-badge{font-size:12px;}
+.product-actions{display:flex;flex-direction:column-reverse;gap:9px;}
+.product-actions .button{min-height:54px;font-size:18px;}
+.product-actions .button--outline{min-height:42px;background:transparent;border-color:var(--line);}
+.checkout-note{font-size:14px;}
+.purchase-assurance{gap:18px;}
+.purchase-assurance a{font-size:15px;color:var(--blue-deep);text-underline-offset:3px;}
+.product-payment-support{font-size:14px;}
+.product-jump-links{width:min(1280px,calc(100% - 48px));margin:auto;display:flex;gap:32px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:22px 0;justify-content:center;}
+.product-jump-links a{color:var(--blue-deep);font-size:17px;font-weight:600;text-decoration:none;}
+.product-jump-links a:hover{text-decoration:underline;text-underline-offset:5px;}
+.product-fit,.product-parent-reviews{display:grid;grid-template-columns:.85fr 1.15fr;gap:70px;padding-top:84px;padding-bottom:84px;}
+.product-fit h2,.product-parent-reviews h2{font:700 clamp(44px,5vw,70px)/1 var(--heading);letter-spacing:-.03em;color:var(--blue-deep);text-transform:uppercase;margin:0;}
+.product-fit h2 em,.product-parent-reviews h2 em{font-family:var(--serif);font-weight:400;text-transform:none;color:var(--blue);}
+.fit-intro{font-size:24px;line-height:1.4;margin:0 0 20px;color:var(--blue-deep);}
+.product-fit-copy ul{padding-left:20px;font-size:18px;line-height:1.7;}
+.fit-note{font-size:16px;line-height:1.6;color:var(--muted);margin-top:24px;}
+.product-storyline{padding-top:64px;padding-bottom:64px;border-radius:24px;background:#eaf1f7;padding-left:40px;padding-right:40px;}
+.product-story-heading h2{font-size:clamp(40px,4.5vw,64px);}
+.product-in-use-copy>p:not(.section-index){font-size:19px;line-height:1.6;max-width:500px;}
+.product-parent-reviews{border-top:1px solid var(--line);}
+.product-parent-reviews a{display:inline-block;margin-top:24px;color:var(--blue);font-size:17px;}
+.product-parent-reviews figure{margin:0;padding:32px;background:white;border:1px solid var(--line);border-radius:20px;}
+.product-parent-reviews figure>span{color:var(--blue);letter-spacing:4px;font-size:20px;}
+.product-parent-reviews blockquote{font:400 29px/1.4 var(--serif);margin:20px 0;color:var(--blue-deep);}
+.product-parent-reviews figcaption{font-size:16px;font-weight:600;}
+.product-parent-reviews figure p{font-size:14px;color:var(--muted);}
+.product-last-question{display:block;margin-top:24px;color:white;font-size:17px;text-underline-offset:5px;}
+#bestellen,#voor-je-kind,#pasvorm,#maatadvies,#ervaringen{scroll-margin-top:120px;}
+.preview-ribbon{position:relative;z-index:9999;padding:9px 20px;background:#102b4a;color:#fff;text-align:center;font:600 14px/1.4 var(--body);letter-spacing:.05em;}
+.preview-ribbon span{margin-left:20px;font-weight:400;letter-spacing:0;color:#c8ddec;}
+.preview-toast{position:fixed;z-index:10000;left:50%;bottom:80px;transform:translateX(-50%);width:min(480px,calc(100% - 32px));border:1px solid #b4cadd;border-radius:14px;background:white;padding:22px;box-shadow:0 15px 60px #102b4a33;color:#102b4a;font:500 18px/1.5 var(--body);}
+.preview-toast button{display:block;margin-top:12px;padding:8px 16px;border:0;border-radius:8px;background:#102b4a;color:white;font:inherit;cursor:pointer;}
+@media(max-width:1000px){.product-detail-hero{gap:32px;}.product-gallery-main{height:480px;}.product-gallery-secondary img,.product-gallery-secondary picture:first-child img,.product-gallery-secondary picture:last-child img{height:150px;}.product-fit,.product-parent-reviews{gap:30px;}}
+@media(max-width:760px){.preview-ribbon{font-size:12px;}.preview-ribbon span{display:block;margin-left:0;}.product-detail-hero{padding-top:32px;grid-template-columns:1fr;gap:28px;width:calc(100% - 32px);}.product-gallery{position:static;grid-template-columns:minmax(0,1fr) 92px;gap:8px;}.product-gallery-main{height:310px;border-radius:16px;}.product-gallery-secondary{grid-template-columns:1fr;gap:8px;}.product-gallery-secondary img,.product-gallery-secondary picture:first-child img,.product-gallery-secondary picture:last-child img{height:151px;border-radius:12px;}.product-gallery-label{left:10px;right:10px;bottom:10px;padding:10px;}.product-gallery-label span{font-size:12px;}.product-gallery-label strong{font-size:17px;}.product-purchase h1{font-size:51px;}.product-purchase .section-index{font-size:13px;margin-bottom:12px;}.product-jump-links{width:calc(100% - 32px);gap:18px;justify-content:flex-start;overflow:auto;white-space:nowrap;}.product-jump-links a{font-size:15px;}.product-fit,.product-parent-reviews{grid-template-columns:1fr;gap:28px;padding-top:52px;padding-bottom:52px;}.product-storyline{padding:34px 22px;}.product-parent-reviews blockquote{font-size:24px;}.product-parent-reviews figure{padding:24px;}.fit-intro{font-size:22px;}.product-subtitle{font-size:18px;}}
+.product-purchase h1{font-size:clamp(46px,4.4vw,64px);line-height:1.05;}
+.product-purchase h1 em{font-size:.72em;letter-spacing:-.04em;white-space:nowrap;}
+.product-gallery-label{display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
+@media(max-width:760px){.product-purchase h1{font-size:48px;}.product-purchase h1 em{white-space:normal;}.product-gallery-label{gap:2px;}}
+
+.size-request{margin-top:28px;padding:24px;border:1px solid var(--line);border-radius:16px;background:#eaf1f7;}.size-request h3{margin:0 0 10px;font:700 26px/1.15 var(--heading);color:var(--blue-deep);}.size-request p{margin:0 0 14px;font-size:17px;line-height:1.5;}
