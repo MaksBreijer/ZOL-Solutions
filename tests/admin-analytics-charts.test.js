@@ -62,11 +62,16 @@ test('marketing dashboard separates Meta, Google Ads and organic sessions', asyn
     assert.equal(h.run(`marketingChannelStats(state.analytics, 'google_organic').sessions`), 1)
     assert.match(h.q('.marketing-attribution-audit').textContent, /€\s*99,95/)
     assert.match(h.q('.marketing-attribution-audit').textContent, /geen officiële advertentieklikken/)
-    assert.match(h.q('.marketing-data-notice').textContent, /nog niet gekoppeld/)
+    assert.match(h.q('.marketing-data-notice').textContent, /Nog niet alle officiële advertentiecijfers zijn gekoppeld/)
     assert.equal(h.window.document.querySelectorAll('.marketing-channel-card').length, 2)
     assert.equal(h.window.document.querySelectorAll('.marketing-platform-status').length, 2)
     assert.equal(h.window.document.querySelectorAll('.marketing-channel-card .marketing-channel-kpis strong').length, 8)
     assert.ok([...h.window.document.querySelectorAll('.marketing-channel-card .marketing-channel-kpis strong')].every((node) => node.textContent === '—'))
+
+    h.run(`state.adPlatformStats = { days: 30, meta: { connected: true, metrics: { clicks: 12, impressions: 345, spend_cents: 678, conversions: 2 } }, google_ads: { connected: true, metrics: { clicks: 4, impressions: 90, spend_cents: 123, conversions: 1 } } }; renderMarketing();`)
+    assert.equal(h.window.document.querySelectorAll('.marketing-platform-status.is-connected').length, 2)
+    assert.match(h.window.document.querySelector('.marketing-channel-card.is-meta').textContent, /€\s*6,78/)
+    assert.match(h.window.document.querySelector('.marketing-channel-card.is-google').textContent, /90/)
   } finally {
     h.close()
   }

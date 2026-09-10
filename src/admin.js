@@ -23,7 +23,7 @@ import {
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
   ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
   Menu, Monitor, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw, Smartphone,
-  Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, UserCog, UserPlus, Users, Zap,
+  Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, Unplug, UserCog, UserPlus, Users, Zap,
   createIcons,
 } from 'lucide'
 
@@ -32,7 +32,7 @@ const adminIcons = {
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
   ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
   Menu, Monitor, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw, Smartphone,
-  Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, UserCog, UserPlus, Users, Zap,
+  Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, Unplug, UserCog, UserPlus, Users, Zap,
 }
 
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
@@ -83,6 +83,8 @@ const state = {
   settings: [],
   activity: [],
   analytics: [],
+  adPlatformStats: null,
+  adPlatformStatsLoading: false,
   profiles: [],
   allowedEmails: [],
   emailMessages: [],
@@ -3040,11 +3042,19 @@ function marketingChannelStats(events, channel) {
   }
 }
 
-function marketingChannelCard({ name, label, budget, dates, url, channelClass }) {
+function marketingChannelCard({ name, label, budget, dates, url, channelClass, platform }) {
+  const connected = Boolean(platform?.connected && platform.metrics)
+  const loading = state.adPlatformStatsLoading && !platform
+  const metrics = platform?.metrics || {}
+  const status = loading
+    ? '<i data-lucide="refresh-cw"></i><span><b>Platformdata laden…</b>De officiële cijfers worden opgehaald.</span>'
+    : connected
+      ? `<i data-lucide="check-circle"></i><span><b>Live gekoppeld</b>Bijgewerkt via de officiële ${escapeHtml(name)} API.</span>`
+      : `<i data-lucide="unplug"></i><span><b>Platformdata niet gekoppeld</b>Open ${escapeHtml(name)} voor de actuele resultaten.</span>`
   return `<article class="marketing-channel-card ${channelClass}">
     <header><div><span>${escapeHtml(label)}</span><h2>${escapeHtml(name)}</h2></div><a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">Open dashboard <i data-lucide="external-link"></i></a></header>
-    <p class="marketing-platform-status"><i data-lucide="unplug"></i><span><b>Platformdata niet gekoppeld</b> Open ${escapeHtml(name)} voor de actuele resultaten.</span></p>
-    <div class="marketing-channel-kpis" aria-label="Niet gekoppelde platformcijfers"><div><span>Klikken</span><strong>—</strong></div><div><span>Vertoningen</span><strong>—</strong></div><div><span>Besteed</span><strong>—</strong></div><div><span>Conversies</span><strong>—</strong></div></div>
+    <p class="marketing-platform-status ${connected ? 'is-connected' : ''}">${status}</p>
+    <div class="marketing-channel-kpis" aria-label="${connected ? 'Officiële platformcijfers' : 'Niet gekoppelde platformcijfers'}"><div><span>Klikken</span><strong>${connected ? Number(metrics.clicks || 0).toLocaleString('nl-NL') : loading ? '…' : '—'}</strong></div><div><span>Vertoningen</span><strong>${connected ? Number(metrics.impressions || 0).toLocaleString('nl-NL') : loading ? '…' : '—'}</strong></div><div><span>Besteed</span><strong>${connected ? formatMoney(metrics.spend_cents) : loading ? '…' : '—'}</strong></div><div><span>Conversies</span><strong>${connected ? Number(metrics.conversions || 0).toLocaleString('nl-NL', { maximumFractionDigits: 1 }) : loading ? '…' : '—'}</strong></div></div>
     <footer><span><b>${escapeHtml(budget)}</b> ingesteld budget</span><span>${escapeHtml(dates)}</span><small>Deze velden blijven leeg totdat de officiële advertentie-API veilig is gekoppeld.</small></footer>
   </article>`
 }
@@ -3059,10 +3069,10 @@ function renderMarketing() {
   elements.content.innerHTML = `<div class="page-container marketing-page">
     ${pageHeader('marketing', '<button class="button button--primary" data-action="refresh"><i data-lucide="refresh-cw"></i> Vernieuwen</button>')}
     <div class="analytics-toolbar"><div class="analytics-period" role="group" aria-label="Marketingperiode"><i data-lucide="calendar-days"></i>${[7, 30, 90].map((days) => `<button type="button" data-action="marketing-range" data-days="${days}" class="${analyticsDays === days ? 'is-active' : ''}">${days} dagen</button>`).join('')}</div><span>Websitegegevens · EUR €</span></div>
-    <section class="marketing-data-notice"><i data-lucide="unplug"></i><div><strong>Officiële advertentiecijfers zijn nog niet gekoppeld</strong><p>Klikken, vertoningen, kosten en platformconversies staan daarom bewust leeg. Gebruik de knoppen naar Meta Ads en Google Ads voor de actuele cijfers.</p></div></section>
+    <section class="marketing-data-notice"><i data-lucide="${state.adPlatformStats?.meta?.connected || state.adPlatformStats?.google_ads?.connected ? 'check-circle' : 'unplug'}"></i><div><strong>${state.adPlatformStats?.meta?.connected && state.adPlatformStats?.google_ads?.connected ? 'Officiële advertentiecijfers zijn live gekoppeld' : 'Nog niet alle officiële advertentiecijfers zijn gekoppeld'}</strong><p>Een gekoppeld platform toont klikken, vertoningen, kosten en conversies rechtstreeks uit de officiële API. Niet-gekoppelde velden blijven bewust leeg.</p></div></section>
     <section class="marketing-channel-grid">
-      ${marketingChannelCard({ name: 'Meta Ads', label: 'Facebook + Instagram', budget: '€ 50 totaal', dates: '10–20 september 2026', url: MARKETING_LINKS.meta, channelClass: 'is-meta' })}
-      ${marketingChannelCard({ name: 'Google Ads', label: 'Google Zoeken', budget: '€ 50 totaal', dates: '10 september–10 oktober 2026', url: MARKETING_LINKS.googleAds, channelClass: 'is-google' })}
+      ${marketingChannelCard({ name: 'Meta Ads', label: 'Facebook + Instagram', budget: '€ 50 totaal', dates: '10–20 september 2026', url: MARKETING_LINKS.meta, channelClass: 'is-meta', platform: state.adPlatformStats?.meta })}
+      ${marketingChannelCard({ name: 'Google Ads', label: 'Google Zoeken', budget: '€ 50 totaal', dates: '10 september–10 oktober 2026', url: MARKETING_LINKS.googleAds, channelClass: 'is-google', platform: state.adPlatformStats?.google_ads })}
     </section>
     <section class="marketing-attribution-audit" aria-labelledby="marketing-attribution-heading"><header><div><span>Websitecontrole</span><h2 id="marketing-attribution-heading">Herkende advertentielabels</h2></div><p>Deze signalen komen van UTM-, gclid- en fbclid-labels op zolsolutions.nl. Tests en advertentiepreviews kunnen meetellen; het zijn geen officiële advertentieklikken.</p></header>
       <section class="marketing-summary"><article><span>Alle gemarkeerde sitesessies</span><strong>${paid.sessions}</strong><small>Meta- en Google-labels samen</small></article><article><span>Meta-labels op de website</span><strong>${meta.sessions}</strong><small>Inclusief mogelijke previews en tests</small></article><article><span>Google Ads-labels op de website</span><strong>${googleAds.sessions}</strong><small>Inclusief mogelijke previews en tests</small></article><article><span>Bestellingen uit gemarkeerde sessies</span><strong>${paid.orders}</strong><small>${formatMoney(paid.revenue)} betaalde omzet</small></article></section>
@@ -3074,6 +3084,17 @@ function renderMarketing() {
     </section>
     <p class="marketing-note"><b>Voor echte live cijfers in deze admin</b> is een beveiligde serverkoppeling met de Google Ads API en Meta Marketing API nodig. Tot die koppeling er is, toont deze pagina geen geschatte platformresultaten.</p>
   </div>`
+}
+
+async function loadMarketingPlatformStats(force = false) {
+  if (state.adPlatformStatsLoading) return
+  if (!force && state.adPlatformStats?.days === analyticsDays) return
+  state.adPlatformStatsLoading = true
+  if (currentRoute() === 'marketing') { renderMarketing(); refreshIcons() }
+  const { data, error } = await supabase.functions.invoke('ad-platform-stats', { body: { days: analyticsDays } })
+  state.adPlatformStatsLoading = false
+  state.adPlatformStats = error || data?.error ? { days: analyticsDays, meta: null, google_ads: null, error: true } : data
+  if (currentRoute() === 'marketing') { renderMarketing(); refreshIcons() }
 }
 
 function renderAnalytics() {
@@ -3461,6 +3482,7 @@ function renderRoute(route = currentRoute(), option) {
   elements.sidebar.classList.remove('is-open')
   const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
+  if (route === 'marketing') void loadMarketingPlatformStats()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
   if (route === 'calendar' && !calendarRefreshTimer) startCalendarUpdates()
   if (route === 'partners' && !partnerRefreshTimer) startPartnerUpdates()
@@ -3599,7 +3621,7 @@ async function handleContentClick(event) {
   if (action === 'calendar-cancel-config') { calendarShowSetup = false; renderCalendar(); refreshIcons() }
   if (action === 'calendar-new-event') newCalendarEventForm()
   if (action === 'calendar-iphone') subscribeCalendarOnIphone()
-  if (action === 'refresh') await refreshCurrentRoute()
+  if (action === 'refresh') { if (currentRoute() === 'marketing') state.adPlatformStats = null; await refreshCurrentRoute() }
   if (action === 'refresh-live') { stopLiveUpdates(); await refreshCurrentRoute() }
   if (action === 'open-partner') { partnerSelectedId = id; renderPartnerPanels() }
   if (action === 'apollo-search') await searchApolloContacts(partnerLead(id), target)
@@ -3632,7 +3654,7 @@ async function handleContentClick(event) {
   if (action === 'download-customer-template') downloadCustomerImportTemplate()
   if (action === 'export-analytics') await exportAnalytics()
   if (action === 'analytics-range') { analyticsDays = Number(target.dataset.days) || 30; renderAnalytics() }
-  if (action === 'marketing-range') { analyticsDays = Number(target.dataset.days) || 30; renderMarketing() }
+  if (action === 'marketing-range') { analyticsDays = Number(target.dataset.days) || 30; state.adPlatformStats = null; renderMarketing(); void loadMarketingPlatformStats() }
   if (action === 'toggle-analytics-compare') { analyticsCompare = !analyticsCompare; renderAnalytics() }
   if (action === 'print-invoice') printInvoice(state.orders.find((item) => item.id === id))
   if (action === 'open-order') openOrder(state.orders.find((item) => item.id === id))
