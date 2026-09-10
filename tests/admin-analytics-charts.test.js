@@ -60,10 +60,13 @@ test('marketing dashboard separates Meta, Google Ads and organic sessions', asyn
     assert.equal(h.run(`marketingChannelStats(state.analytics, 'meta').revenue`), 9995)
     assert.equal(h.run(`marketingChannelStats(state.analytics, 'google_ads').sessions`), 1)
     assert.equal(h.run(`marketingChannelStats(state.analytics, 'google_organic').sessions`), 1)
-    assert.match(h.q('.marketing-summary').textContent, /€\s*99,95/)
-    assert.match(h.q('.marketing-data-notice').textContent, /Testlinks en advertentiepreviews/)
-    assert.match(h.q('.marketing-data-notice').textContent, /geen advertentieplatformdata/)
+    assert.match(h.q('.marketing-attribution-audit').textContent, /€\s*99,95/)
+    assert.match(h.q('.marketing-attribution-audit').textContent, /geen officiële advertentieklikken/)
+    assert.match(h.q('.marketing-data-notice').textContent, /nog niet gekoppeld/)
     assert.equal(h.window.document.querySelectorAll('.marketing-channel-card').length, 2)
+    assert.equal(h.window.document.querySelectorAll('.marketing-platform-status').length, 2)
+    assert.equal(h.window.document.querySelectorAll('.marketing-channel-card .marketing-channel-kpis strong').length, 8)
+    assert.ok([...h.window.document.querySelectorAll('.marketing-channel-card .marketing-channel-kpis strong')].every((node) => node.textContent === '—'))
   } finally {
     h.close()
   }

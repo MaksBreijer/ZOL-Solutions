@@ -791,6 +791,9 @@ svg { display: block; }
 .marketing-channel-card h2 { margin: 4px 0 0; font-size: 18px; }
 .marketing-channel-card > header a { display: inline-flex; align-items: center; gap: 5px; color: var(--admin-blue-dark); font-size: 9px; font-weight: 750; }
 .marketing-channel-card > header svg { width: 13px; height: 13px; }
+.marketing-platform-status { margin: 17px 0 0; padding: 11px 12px; display: flex; align-items: center; gap: 9px; border-radius: 9px; background: #fff6df; color: #6f5113; font-size: 8px; line-height: 1.45; }
+.marketing-platform-status > svg { width: 15px; height: 15px; flex: 0 0 15px; }
+.marketing-platform-status b { display: block; font-size: 9px; }
 .marketing-channel-kpis { margin-top: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .marketing-channel-kpis div { padding: 11px; border-radius: 9px; background: #f5f7f8; }
 .marketing-channel-kpis span, .marketing-channel-kpis strong { display: block; }
@@ -805,6 +808,13 @@ svg { display: block; }
 .marketing-funnel strong { text-align: right; }
 .marketing-channel-card > footer { margin-top: 17px; padding-top: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; border-top: 1px solid #edf0f2; color: #52606c; font-size: 8px; }
 .marketing-channel-card > footer small { width: 100%; color: var(--admin-muted); }
+.marketing-attribution-audit { margin-top: 12px; padding: 18px; border: 1px solid var(--admin-line); border-radius: 12px; background: #f8fafb; }
+.marketing-attribution-audit > header { margin-bottom: 13px; display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.marketing-attribution-audit > header span { color: var(--admin-muted); font-size: 8px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; }
+.marketing-attribution-audit > header h2 { margin: 3px 0 0; font-size: 14px; }
+.marketing-attribution-audit > header p { max-width: 520px; margin: 0; color: var(--admin-muted); font-size: 8px; line-height: 1.5; }
+.marketing-attribution-audit .marketing-summary { margin-bottom: 0; }
+.marketing-attribution-caption { margin: 10px 0 0; color: var(--admin-muted); font-size: 8px; }
 .marketing-tools { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .marketing-tools article { padding: 17px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px; border: 1px solid var(--admin-line); border-radius: 12px; background: #fff; }
 .marketing-tools h3 { margin: 0; font-size: 11px; }

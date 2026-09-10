@@ -3040,12 +3040,12 @@ function marketingChannelStats(events, channel) {
   }
 }
 
-function marketingChannelCard({ name, label, stats, budget, dates, url, channelClass }) {
+function marketingChannelCard({ name, label, budget, dates, url, channelClass }) {
   return `<article class="marketing-channel-card ${channelClass}">
     <header><div><span>${escapeHtml(label)}</span><h2>${escapeHtml(name)}</h2></div><a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">Open dashboard <i data-lucide="external-link"></i></a></header>
-    <div class="marketing-channel-kpis"><div><span>Gemarkeerde sitesessies</span><strong>${stats.sessions}</strong></div><div><span>Bestellingen</span><strong>${stats.orders}</strong></div><div><span>Websiteconversie</span><strong>${percent(stats.orders, stats.sessions)}</strong></div><div><span>Omzet</span><strong>${formatMoney(stats.revenue)}</strong></div></div>
-    <div class="marketing-funnel"><span>Product bekeken ${horizontalMeterSvg(stats.productViews, Math.max(stats.sessions, 1))}<strong>${stats.productViews}</strong></span><span>Winkelwagen ${horizontalMeterSvg(stats.carts, Math.max(stats.sessions, 1))}<strong>${stats.carts}</strong></span><span>Checkout ${horizontalMeterSvg(stats.checkouts, Math.max(stats.sessions, 1))}<strong>${stats.checkouts}</strong></span></div>
-    <footer><span><b>${escapeHtml(budget)}</b> ingesteld budget</span><span>${escapeHtml(dates)}</span><small>Dit zijn website-tags, inclusief tests en previews. Officiële klikken, vertoningen en kosten staan in het advertentieplatform.</small></footer>
+    <p class="marketing-platform-status"><i data-lucide="unplug"></i><span><b>Platformdata niet gekoppeld</b> Open ${escapeHtml(name)} voor de actuele resultaten.</span></p>
+    <div class="marketing-channel-kpis" aria-label="Niet gekoppelde platformcijfers"><div><span>Klikken</span><strong>—</strong></div><div><span>Vertoningen</span><strong>—</strong></div><div><span>Besteed</span><strong>—</strong></div><div><span>Conversies</span><strong>—</strong></div></div>
+    <footer><span><b>${escapeHtml(budget)}</b> ingesteld budget</span><span>${escapeHtml(dates)}</span><small>Deze velden blijven leeg totdat de officiële advertentie-API veilig is gekoppeld.</small></footer>
   </article>`
 }
 
@@ -3059,17 +3059,20 @@ function renderMarketing() {
   elements.content.innerHTML = `<div class="page-container marketing-page">
     ${pageHeader('marketing', '<button class="button button--primary" data-action="refresh"><i data-lucide="refresh-cw"></i> Vernieuwen</button>')}
     <div class="analytics-toolbar"><div class="analytics-period" role="group" aria-label="Marketingperiode"><i data-lucide="calendar-days"></i>${[7, 30, 90].map((days) => `<button type="button" data-action="marketing-range" data-days="${days}" class="${analyticsDays === days ? 'is-active' : ''}">${days} dagen</button>`).join('')}</div><span>Websitegegevens · EUR €</span></div>
-    <section class="marketing-data-notice"><i data-lucide="info"></i><div><strong>Website-attributie — geen advertentieplatformdata</strong><p>Deze pagina herkent UTM-, gclid- en fbclid-labels op de website. Testlinks en advertentiepreviews tellen daardoor mee. Gebruik Meta Ads en Google Ads voor officiële klikken, vertoningen en kosten.</p></div></section>
-    <section class="marketing-summary" aria-label="Advertentiesignalen"><article><span>Gemarkeerde sitesessies</span><strong>${paid.sessions}</strong><small>Inclusief mogelijke previews en tests</small></article><article><span>Bestellingen uit gemarkeerde sessies</span><strong>${paid.orders}</strong><small>${percent(paid.orders, paid.sessions)} websiteconversie</small></article><article><span>Toegeschreven omzet</span><strong>${formatMoney(paid.revenue)}</strong><small>Betaalde bestellingen</small></article><article><span>Herkende campagnelabels</span><strong>${new Set(campaigns).size}</strong><small>Geen officieel campagneaantal</small></article></section>
+    <section class="marketing-data-notice"><i data-lucide="unplug"></i><div><strong>Officiële advertentiecijfers zijn nog niet gekoppeld</strong><p>Klikken, vertoningen, kosten en platformconversies staan daarom bewust leeg. Gebruik de knoppen naar Meta Ads en Google Ads voor de actuele cijfers.</p></div></section>
     <section class="marketing-channel-grid">
-      ${marketingChannelCard({ name: 'Meta Ads', label: 'Facebook + Instagram', stats: meta, budget: '€ 50 totaal', dates: '10–20 september 2026', url: MARKETING_LINKS.meta, channelClass: 'is-meta' })}
-      ${marketingChannelCard({ name: 'Google Ads', label: 'Google Zoeken', stats: googleAds, budget: '€ 50 totaal', dates: '10 september–10 oktober 2026', url: MARKETING_LINKS.googleAds, channelClass: 'is-google' })}
+      ${marketingChannelCard({ name: 'Meta Ads', label: 'Facebook + Instagram', budget: '€ 50 totaal', dates: '10–20 september 2026', url: MARKETING_LINKS.meta, channelClass: 'is-meta' })}
+      ${marketingChannelCard({ name: 'Google Ads', label: 'Google Zoeken', budget: '€ 50 totaal', dates: '10 september–10 oktober 2026', url: MARKETING_LINKS.googleAds, channelClass: 'is-google' })}
+    </section>
+    <section class="marketing-attribution-audit" aria-labelledby="marketing-attribution-heading"><header><div><span>Websitecontrole</span><h2 id="marketing-attribution-heading">Herkende advertentielabels</h2></div><p>Deze signalen komen van UTM-, gclid- en fbclid-labels op zolsolutions.nl. Tests en advertentiepreviews kunnen meetellen; het zijn geen officiële advertentieklikken.</p></header>
+      <section class="marketing-summary"><article><span>Alle gemarkeerde sitesessies</span><strong>${paid.sessions}</strong><small>Meta- en Google-labels samen</small></article><article><span>Meta-labels op de website</span><strong>${meta.sessions}</strong><small>Inclusief mogelijke previews en tests</small></article><article><span>Google Ads-labels op de website</span><strong>${googleAds.sessions}</strong><small>Inclusief mogelijke previews en tests</small></article><article><span>Bestellingen uit gemarkeerde sessies</span><strong>${paid.orders}</strong><small>${formatMoney(paid.revenue)} betaalde omzet</small></article></section>
+      <p class="marketing-attribution-caption">${new Set(campaigns).size} campagnelabels herkend. Dit aantal zegt niets over het aantal actieve campagnes.</p>
     </section>
     <section class="marketing-tools">
       <article><span class="marketing-tool-icon is-analytics"><i data-lucide="chart-no-axes-combined"></i></span><div><h3>Google Analytics</h3><p>Controleer acquisitie, gedrag en aankopen. Zoek op <b>meta / paid_social</b> en campagne <b>zol_test</b>.</p></div><a class="button" href="${MARKETING_LINKS.analytics}" target="_blank" rel="noreferrer">Open Analytics <i data-lucide="external-link"></i></a></article>
       <article><span class="marketing-tool-icon is-search"><i data-lucide="search"></i></span><div><h3>Google Search Console</h3><p>${organic.sessions} organische Google-sessies gemeten. Bekijk zoekwoorden, vertoningen en gemiddelde positie in Search Console.</p></div><a class="button" href="${MARKETING_LINKS.searchConsole}" target="_blank" rel="noreferrer">Open Search Console <i data-lucide="external-link"></i></a></article>
     </section>
-    <p class="marketing-note"><b>Officiële advertentieresultaten:</b> bereik, vertoningen, goedkeuringsstatus, advertentieklikken en besteed bedrag controleer je via de knoppen naar Meta en Google Ads.</p>
+    <p class="marketing-note"><b>Voor echte live cijfers in deze admin</b> is een beveiligde serverkoppeling met de Google Ads API en Meta Marketing API nodig. Tot die koppeling er is, toont deze pagina geen geschatte platformresultaten.</p>
   </div>`
 }
 
