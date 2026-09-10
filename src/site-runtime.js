@@ -1,6 +1,7 @@
 import { hasAnalyticsConsent } from './cookie-consent.js'
 import { disableGoogleAnalytics, enableGoogleAnalytics, trackGoogleAnalyticsEvent } from './google-analytics.js'
 import { insertPublic, selectPublic } from './public-api.js'
+import { supabase } from './supabase-client.js'
 
 if (window.location.hostname === 'zol-solutions.pages.dev') {
   window.location.replace(`https://zolsolutions.nl${window.location.pathname}${window.location.search}${window.location.hash}`)
@@ -154,9 +155,51 @@ async function loadCms() {
 loadCms().catch(() => {})
 
 let initialViewsTracked = false
+let visitorPresenceChannel = null
+let visitorPresenceSubscribed = false
+
+function visitorSource() {
+  try {
+    const attribution = JSON.parse(sessionStorage.getItem('zol_marketing_attribution') || '{}')
+    if (attribution.fbclid || /meta|facebook|instagram|fb|ig/i.test(attribution.utm_source || '')) return 'Meta'
+    if (attribution.gclid || /google/i.test(attribution.utm_source || '')) return 'Google'
+  } catch { /* Bron is optioneel. */ }
+  return document.referrer ? 'Verwijzer' : 'Direct'
+}
+
+function visitorPresencePayload() {
+  return {
+    role: 'visitor', session_id: getSessionId(), page: window.location.pathname,
+    device: window.innerWidth < 768 ? 'Mobiel' : window.innerWidth < 1100 ? 'Tablet' : 'Desktop',
+    source: visitorSource(), online_at: new Date().toISOString(),
+  }
+}
+
+function startVisitorPresence() {
+  if (!hasAnalyticsConsent() || document.hidden) return
+  if (visitorPresenceChannel) {
+    if (visitorPresenceSubscribed) void visitorPresenceChannel.track(visitorPresencePayload())
+    return
+  }
+  visitorPresenceChannel = supabase.channel('zol-live-visitors', { config: { presence: { key: getSessionId() } } })
+  visitorPresenceChannel.subscribe(async (status) => {
+    visitorPresenceSubscribed = status === 'SUBSCRIBED'
+    if (visitorPresenceSubscribed) await visitorPresenceChannel?.track(visitorPresencePayload())
+    if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) visitorPresenceSubscribed = false
+  })
+}
+
+async function stopVisitorPresence(removeChannel = true) {
+  if (!visitorPresenceChannel) return
+  if (visitorPresenceSubscribed) await visitorPresenceChannel.untrack()
+  visitorPresenceSubscribed = false
+  if (removeChannel) { await supabase.removeChannel(visitorPresenceChannel); visitorPresenceChannel = null }
+}
+
 function trackInitialViews() {
   if (!hasAnalyticsConsent()) return
   enableGoogleAnalytics()
+  startVisitorPresence()
   if (initialViewsTracked) return
   initialViewsTracked = true
   trackEvent('page_view', { page: pageName })
@@ -166,8 +209,13 @@ function trackInitialViews() {
 trackInitialViews()
 window.addEventListener('zol:cookie-consent', ({ detail }) => {
   if (detail?.choice === 'accepted') trackInitialViews()
-  if (detail?.choice === 'necessary') disableGoogleAnalytics()
+  if (detail?.choice === 'necessary') { disableGoogleAnalytics(); void stopVisitorPresence() }
 })
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) void stopVisitorPresence(false)
+  else startVisitorPresence()
+})
+window.addEventListener('pagehide', () => { void stopVisitorPresence() }, { once: true })
 
 document.addEventListener('click', (event) => {
   const target = event.target.closest('a, button')

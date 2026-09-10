@@ -22,7 +22,7 @@ import {
   Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
   ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
-  Menu, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw,
+  Menu, Monitor, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw, Smartphone,
   Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, UserCog, UserPlus, Users, Zap,
   createIcons,
 } from 'lucide'
@@ -31,7 +31,7 @@ const adminIcons = {
   Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
   ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
-  Menu, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw,
+  Menu, Monitor, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw, Smartphone,
   Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, UserCog, UserPlus, Users, Zap,
 }
 
@@ -3133,9 +3133,36 @@ function renderAnalytics() {
 
 let liveRefreshTimer = null
 let liveChannel = null
+let liveVisitors = []
+let liveOrdersToday = []
+let liveRealtimeStatus = 'connecting'
+let liveLastUpdatedAt = null
 
-function liveLocation(event) {
-  return event.metadata?.city || event.metadata?.country || 'Locatie niet gedeeld'
+function livePageLabel(path = '/') {
+  if (path === '/') return 'Home'
+  if (path.startsWith('/product')) return 'Productpagina'
+  if (path.startsWith('/checkout')) return 'Afrekenen'
+  if (path.startsWith('/kennisbank')) return 'Kennisbank'
+  if (path.startsWith('/contact')) return 'Contact'
+  return path.replace(/^\//, '').replace(/\/$/, '').replaceAll('-', ' ') || 'Home'
+}
+
+function syncLiveVisitors() {
+  if (!liveChannel) { liveVisitors = []; return }
+  const presences = Object.values(liveChannel.presenceState()).flat().filter((presence) => presence.role === 'visitor' && presence.session_id)
+  liveVisitors = [...presences.reduce((unique, visitor) => unique.set(visitor.session_id, visitor), new Map()).values()]
+}
+
+function liveConnectionMarkup() {
+  const connected = liveRealtimeStatus === 'SUBSCRIBED'
+  const failed = ['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(liveRealtimeStatus)
+  const label = connected ? 'Realtime verbonden' : failed ? 'Verbinding herstellen' : 'Realtime verbinden…'
+  return `<span class="live-now ${connected ? '' : failed ? 'is-error' : 'is-connecting'}"><i></i>${label}</span>`
+}
+
+function liveVisitorRows() {
+  if (!liveVisitors.length) return '<li class="live-empty"><span>Nu geen bezoekers met analytics-toestemming online.</span></li>'
+  return liveVisitors.slice(0, 8).map((visitor) => `<li><i data-lucide="${visitor.device === 'Mobiel' ? 'smartphone' : 'monitor'}"></i><span><b>${escapeHtml(livePageLabel(visitor.page))}</b><small>${escapeHtml(visitor.source || 'Direct')} · ${escapeHtml(visitor.device || 'Onbekend')}</small></span><em>nu online</em></li>`).join('')
 }
 
 function renderLive() {
@@ -3143,24 +3170,24 @@ function renderLive() {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const recent = state.analytics.filter((event) => now - new Date(event.created_at).getTime() <= 5 * 60 * 1000)
   const todayEvents = state.analytics.filter((event) => new Date(event.created_at) >= today)
-  const activeSessions = new Set(recent.map((event) => event.session_id)).size
+  const activeSessions = liveVisitors.length
   const sessionsToday = new Set(todayEvents.filter((event) => event.event_name === 'page_view').map((event) => event.session_id)).size
-  const todayOrders = state.orders.filter((order) => new Date(order.created_at) >= today)
+  const todayOrders = liveOrdersToday.length ? liveOrdersToday : state.orders.filter((order) => new Date(order.created_at) >= today)
   const todayRevenue = todayOrders.filter((order) => order.payment_status === 'paid').reduce((sum, order) => sum + order.total_cents, 0)
   const carts = new Set(recent.filter((event) => event.event_name === 'add_to_cart').map((event) => event.session_id)).size
   const checkouts = new Set(recent.filter((event) => event.event_name === 'begin_checkout').map((event) => event.session_id)).size
   const purchases = recent.filter((event) => event.event_name === 'order_created').length
-  const locations = Object.entries(todayEvents.reduce((result, event) => { const name = liveLocation(event); result[name] = (result[name] || 0) + 1; return result }, {})).sort((a, b) => b[1] - a[1])
-  const dots = [...new Set(recent.map((event) => event.session_id))].slice(0, 16).map((session, index) => { const seed = [...session].reduce((sum, char) => sum + char.charCodeAt(0), 0); return `<i class="globe-visitor" style="--x:${18 + ((seed * 17 + index * 13) % 64)}%;--y:${19 + ((seed * 29 + index * 7) % 62)}%;--delay:${index * -.17}s"></i>` }).join('')
+  const dots = liveVisitors.slice(0, 16).map((visitor, index) => `<i class="globe-visitor globe-visitor--${index % 16}" title="${escapeHtml(`${livePageLabel(visitor.page)} · ${visitor.device || 'Onbekend'}`)}"></i>`).join('')
+  const updated = liveLastUpdatedAt ? `Bijgewerkt ${liveLastUpdatedAt.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Gegevens laden…'
   elements.content.innerHTML = `<div class="page-container live-page">
-    ${pageHeader('live', '<span class="live-now"><i></i>Live</span><button class="button" data-action="refresh-live"><i data-lucide="refresh-cw"></i> Nu verversen</button>')}
+    ${pageHeader('live', `${liveConnectionMarkup()}<button class="button" data-action="refresh-live"><i data-lucide="refresh-cw"></i> Nu verversen</button>`)}
     <div class="live-layout">
       <section class="live-insights">
-        <div class="live-kpis"><article><span>Bezoekers op dit moment</span><strong>${activeSessions}</strong><small>Laatste 5 minuten</small></article><article><span>Totale omzet vandaag</span><strong>${formatMoney(todayRevenue)}</strong><small>${todayOrders.length} bestellingen</small></article><article><span>Sessies vandaag</span><strong>${sessionsToday}</strong><small>Unieke browsers</small></article><article><span>Bestellingen vandaag</span><strong>${todayOrders.length}</strong><small>Alle statussen</small></article></div>
+        <div class="live-kpis"><article><span>Bezoekers op dit moment</span><strong>${activeSessions}</strong><small>Werkelijk verbonden · met toestemming</small></article><article><span>Totale omzet vandaag</span><strong>${formatMoney(todayRevenue)}</strong><small>${todayOrders.length} bestellingen</small></article><article><span>Sessies vandaag</span><strong>${sessionsToday}</strong><small>Unieke browsers met toestemming</small></article><article><span>Bestellingen vandaag</span><strong>${todayOrders.length}</strong><small>Alle statussen</small></article></div>
         <article class="live-panel"><header><span>Klantgedrag</span><small>Laatste 5 minuten</small></header><div class="live-funnel"><div><strong>${carts}</strong><span>Actieve winkelwagens</span></div><div><strong>${checkouts}</strong><span>Bij de checkout</span></div><div><strong>${purchases}</strong><span>Aankoop voltooid</span></div></div></article>
-        <article class="live-panel live-locations"><header><span>Sessies per locatie</span><small>Vandaag</small></header><ul>${locations.slice(0, 7).map(([name, value]) => `<li><i data-lucide="map-pin"></i><span>${escapeHtml(name)}</span><b>${value}</b></li>`).join('') || '<li><span>Nog geen locatiegegevens beschikbaar.</span></li>'}</ul></article>
+        <article class="live-panel live-locations"><header><span>Bezoekers nu online</span><small>${escapeHtml(updated)}</small></header><ul>${liveVisitorRows()}</ul></article>
       </section>
-      <section class="live-map" aria-label="Live bezoekerskaart"><div class="live-map-search"><i data-lucide="search"></i><span>Wereldwijd overzicht</span></div><div class="zol-globe"><div class="globe-grid"></div>${dots}<strong>ZOL</strong></div><div class="map-legend"><span><i></i>${activeSessions} bezoekers op dit moment</span><span><b></b>${purchases} bestellingen</span></div></section>
+      <section class="live-map" aria-label="Live verbonden bezoekers"><div class="live-map-search"><i data-lucide="radio-tower"></i><span>Realtime verbonden bezoekers</span></div><div class="zol-globe"><div class="globe-grid"></div>${dots}<strong>ZOL</strong></div><div class="map-legend"><span><i></i>${activeSessions} nu online</span><span><b></b>${purchases} aankoopacties in 5 min.</span></div></section>
     </div>
   </div>`
   refreshIcons()
@@ -3171,18 +3198,44 @@ function stopLiveUpdates() {
   liveRefreshTimer = null
   if (liveChannel) supabase.removeChannel(liveChannel)
   liveChannel = null
+  liveVisitors = []
+  liveRealtimeStatus = 'connecting'
+}
+
+async function refreshLiveDatabaseData() {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const [eventsResult, ordersResult] = await Promise.all([
+    supabase.from('analytics_events').select('*').order('created_at', { ascending: false }).limit(5000),
+    supabase.from('orders').select('id,created_at,payment_status,total_cents').gte('created_at', today.toISOString()).order('created_at', { ascending: false }),
+  ])
+  if (eventsResult.error) throw eventsResult.error
+  if (ordersResult.error) throw ordersResult.error
+  state.analytics = eventsResult.data || []
+  liveOrdersToday = ordersResult.data || []
+  liveLastUpdatedAt = new Date()
 }
 
 function startLiveUpdates() {
   stopLiveUpdates()
-  liveChannel = supabase.channel('zol-admin-live').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'analytics_events' }, ({ new: event }) => {
-    state.analytics.unshift(event)
-    if (currentRoute() === 'live') renderLive()
-  }).subscribe()
+  liveRealtimeStatus = 'connecting'
+  liveChannel = supabase.channel('zol-live-visitors')
+    .on('presence', { event: 'sync' }, () => {
+      syncLiveVisitors(); liveLastUpdatedAt = new Date()
+      if (currentRoute() === 'live') renderLive()
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'analytics_events' }, ({ new: event }) => {
+      if (!state.analytics.some((item) => item.id === event.id)) state.analytics.unshift(event)
+      liveLastUpdatedAt = new Date()
+      if (currentRoute() === 'live') renderLive()
+    })
+    .subscribe((status) => {
+      liveRealtimeStatus = status
+      if (currentRoute() === 'live') renderLive()
+    })
   liveRefreshTimer = window.setInterval(async () => {
     if (currentRoute() !== 'live') return
-    const { data } = await supabase.from('analytics_events').select('*').order('created_at', { ascending: false }).limit(5000)
-    if (data) { state.analytics = data; renderLive() }
+    try { await refreshLiveDatabaseData(); renderLive() }
+    catch { liveRealtimeStatus = 'CHANNEL_ERROR'; renderLive() }
   }, 15000)
 }
 
@@ -3539,7 +3592,7 @@ async function handleContentClick(event) {
   if (action === 'calendar-new-event') newCalendarEventForm()
   if (action === 'calendar-iphone') subscribeCalendarOnIphone()
   if (action === 'refresh') await refreshCurrentRoute()
-  if (action === 'refresh-live') await refreshCurrentRoute()
+  if (action === 'refresh-live') { stopLiveUpdates(); await refreshCurrentRoute() }
   if (action === 'open-partner') { partnerSelectedId = id; renderPartnerPanels() }
   if (action === 'apollo-search') await searchApolloContacts(partnerLead(id), target)
   if (action === 'apollo-enrich') await enrichApolloContact(partnerLead(id), target.dataset.personId, target)
