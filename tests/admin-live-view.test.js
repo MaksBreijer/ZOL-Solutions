@@ -6,7 +6,7 @@ test('Live View counts only connected consented visitors and renders real page d
   const h = await adminHarness()
   try {
     h.run(`
-      liveChannel = {
+      livePresenceChannel = {
         presenceState: () => ({
           one: [{ role: 'visitor', session_id: 'visitor-1', page: '/product/', device: 'Mobiel', source: 'Meta' }],
           duplicate: [{ role: 'visitor', session_id: 'visitor-1', page: '/product/', device: 'Mobiel', source: 'Meta' }],
@@ -31,4 +31,3 @@ test('Live View counts only connected consented visitors and renders real page d
     h.close()
   }
 })
-

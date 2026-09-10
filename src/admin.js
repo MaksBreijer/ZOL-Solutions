@@ -3132,7 +3132,8 @@ function renderAnalytics() {
 }
 
 let liveRefreshTimer = null
-let liveChannel = null
+let livePresenceChannel = null
+let liveAnalyticsChannel = null
 let liveVisitors = []
 let liveOrdersToday = []
 let liveRealtimeStatus = 'connecting'
@@ -3148,8 +3149,8 @@ function livePageLabel(path = '/') {
 }
 
 function syncLiveVisitors() {
-  if (!liveChannel) { liveVisitors = []; return }
-  const presences = Object.values(liveChannel.presenceState()).flat().filter((presence) => presence.role === 'visitor' && presence.session_id)
+  if (!livePresenceChannel) { liveVisitors = []; return }
+  const presences = Object.values(livePresenceChannel.presenceState()).flat().filter((presence) => presence.role === 'visitor' && presence.session_id)
   liveVisitors = [...presences.reduce((unique, visitor) => unique.set(visitor.session_id, visitor), new Map()).values()]
 }
 
@@ -3196,8 +3197,10 @@ function renderLive() {
 function stopLiveUpdates() {
   if (liveRefreshTimer) window.clearInterval(liveRefreshTimer)
   liveRefreshTimer = null
-  if (liveChannel) supabase.removeChannel(liveChannel)
-  liveChannel = null
+  if (livePresenceChannel) void supabase.removeChannel(livePresenceChannel)
+  if (liveAnalyticsChannel) void supabase.removeChannel(liveAnalyticsChannel)
+  livePresenceChannel = null
+  liveAnalyticsChannel = null
   liveVisitors = []
   liveRealtimeStatus = 'connecting'
 }
@@ -3218,20 +3221,22 @@ async function refreshLiveDatabaseData() {
 function startLiveUpdates() {
   stopLiveUpdates()
   liveRealtimeStatus = 'connecting'
-  liveChannel = supabase.channel('zol-live-visitors')
+  livePresenceChannel = supabase.channel('zol-live-visitors')
     .on('presence', { event: 'sync' }, () => {
       syncLiveVisitors(); liveLastUpdatedAt = new Date()
-      if (currentRoute() === 'live') renderLive()
-    })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'analytics_events' }, ({ new: event }) => {
-      if (!state.analytics.some((item) => item.id === event.id)) state.analytics.unshift(event)
-      liveLastUpdatedAt = new Date()
       if (currentRoute() === 'live') renderLive()
     })
     .subscribe((status) => {
       liveRealtimeStatus = status
       if (currentRoute() === 'live') renderLive()
     })
+  liveAnalyticsChannel = supabase.channel(`zol-live-events-${state.session?.user?.id || 'admin'}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'analytics_events' }, ({ new: event }) => {
+      if (!state.analytics.some((item) => item.id === event.id)) state.analytics.unshift(event)
+      liveLastUpdatedAt = new Date()
+      if (currentRoute() === 'live') renderLive()
+    })
+    .subscribe()
   liveRefreshTimer = window.setInterval(async () => {
     if (currentRoute() !== 'live') return
     try { await refreshLiveDatabaseData(); renderLive() }
