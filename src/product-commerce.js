@@ -147,7 +147,7 @@ async function initializeProductCommerce() {
     const variants = (product?.product_variants || []).filter((variant) => variant.active).sort((a, b) => a.sort_order - b.sort_order)
     const preferred = variants.find((variant) => variant.id === preferredVariantId)
     const selected = preferred || variants.find((variant) => variant.stock > 0) || variants[0]
-    selector.innerHTML = `<legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>${variants.map((variant) => {
+    selector.innerHTML = `<legend>1. Kies de schoenmaat <a href="#maatadvies">Welke maat past?</a></legend>${variants.map((variant) => {
       const stock = Math.max(0, Number(variant.stock) || 0)
       const unavailable = stock < 1
       return `<label class="${unavailable ? 'is-unavailable' : ''}" title="${unavailable ? `Maat ${variant.shoe_size || variant.size} is uitverkocht — kies deze maat voor een voorraadmelding` : ''}"><input type="radio" name="size" value="${variant.id}" ${variant.id === selected?.id ? 'checked' : ''} aria-label="Maat ${variant.size}, schoenmaat ${variant.shoe_size}${unavailable ? ', uitverkocht' : ''}"><span>${variant.size}<small>${variant.shoe_size}</small></span></label>`
