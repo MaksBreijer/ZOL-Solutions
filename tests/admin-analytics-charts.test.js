@@ -61,6 +61,7 @@ test('marketing dashboard separates Meta, Google Ads and organic sessions', asyn
     assert.equal(h.run(`marketingChannelStats(state.analytics, 'google_ads').sessions`), 1)
     assert.equal(h.run(`marketingChannelStats(state.analytics, 'google_organic').sessions`), 1)
     assert.match(h.q('.marketing-summary').textContent, /€\s*99,95/)
+    assert.match(h.q('.marketing-data-notice').textContent, /tests en advertentiepreviews/)
     assert.equal(h.window.document.querySelectorAll('.marketing-channel-card').length, 2)
   } finally {
     h.close()

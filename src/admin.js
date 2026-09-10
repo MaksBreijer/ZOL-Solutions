@@ -21,7 +21,7 @@ import { formatDate, formatMoney, supabase } from './supabase-client.js'
 import {
   Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
-  ExternalLink, FileText, History, House, Images, Link, LogOut, Mail, MapPin,
+  ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
   Menu, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw,
   Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, UserCog, UserPlus, Users, Zap,
   createIcons,
@@ -30,7 +30,7 @@ import {
 const adminIcons = {
   Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
-  ExternalLink, FileText, History, House, Images, Link, LogOut, Mail, MapPin,
+  ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
   Menu, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw,
   Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, UserCog, UserPlus, Users, Zap,
 }
@@ -3059,7 +3059,8 @@ function renderMarketing() {
   elements.content.innerHTML = `<div class="page-container marketing-page">
     ${pageHeader('marketing', '<button class="button button--primary" data-action="refresh"><i data-lucide="refresh-cw"></i> Vernieuwen</button>')}
     <div class="analytics-toolbar"><div class="analytics-period" role="group" aria-label="Marketingperiode"><i data-lucide="calendar-days"></i>${[7, 30, 90].map((days) => `<button type="button" data-action="marketing-range" data-days="${days}" class="${analyticsDays === days ? 'is-active' : ''}">${days} dagen</button>`).join('')}</div><span>Websitegegevens · EUR €</span></div>
-    <section class="marketing-summary" aria-label="Advertentieresultaten"><article><span>Betaalde bezoekers</span><strong>${paid.sessions}</strong><small>Meta + Google Ads</small></article><article><span>Bestellingen uit ads</span><strong>${paid.orders}</strong><small>${percent(paid.orders, paid.sessions)} conversie</small></article><article><span>Omzet uit ads</span><strong>${formatMoney(paid.revenue)}</strong><small>Betaalde bestellingen</small></article><article><span>Gemeten campagnes</span><strong>${new Set(campaigns).size}</strong><small>Via UTM of klik-ID</small></article></section>
+    <section class="marketing-data-notice"><i data-lucide="info"></i><div><strong>Live websitegegevens</strong><p>Een bezoek met UTM, gclid of fbclid verschijnt direct. Ook eigen tests en advertentiepreviews kunnen hierin staan. Meta en Google Ads blijven leidend voor officiële klikken en kosten.</p></div></section>
+    <section class="marketing-summary" aria-label="Advertentiesignalen"><article><span>Bezoeken via advertentielink</span><strong>${paid.sessions}</strong><small>Inclusief mogelijke previews/tests</small></article><article><span>Bestellingen na advertentielink</span><strong>${paid.orders}</strong><small>${percent(paid.orders, paid.sessions)} websiteconversie</small></article><article><span>Toegeschreven omzet</span><strong>${formatMoney(paid.revenue)}</strong><small>Betaalde bestellingen</small></article><article><span>Gemeten campagnes</span><strong>${new Set(campaigns).size}</strong><small>Via UTM of klik-ID</small></article></section>
     <section class="marketing-channel-grid">
       ${marketingChannelCard({ name: 'Meta Ads', label: 'Facebook + Instagram', stats: meta, budget: '€ 50 totaal', dates: '10–20 september 2026', url: MARKETING_LINKS.meta, channelClass: 'is-meta' })}
       ${marketingChannelCard({ name: 'Google Ads', label: 'Google Zoeken', stats: googleAds, budget: '€ 50 totaal', dates: '10 september–10 oktober 2026', url: MARKETING_LINKS.googleAds, channelClass: 'is-google' })}
@@ -3068,7 +3069,7 @@ function renderMarketing() {
       <article><span class="marketing-tool-icon is-analytics"><i data-lucide="chart-no-axes-combined"></i></span><div><h3>Google Analytics</h3><p>Controleer acquisitie, gedrag en aankopen. Zoek op <b>meta / paid_social</b> en campagne <b>zol_test</b>.</p></div><a class="button" href="${MARKETING_LINKS.analytics}" target="_blank" rel="noreferrer">Open Analytics <i data-lucide="external-link"></i></a></article>
       <article><span class="marketing-tool-icon is-search"><i data-lucide="search"></i></span><div><h3>Google Search Console</h3><p>${organic.sessions} organische Google-sessies gemeten. Bekijk zoekwoorden, vertoningen en gemiddelde positie in Search Console.</p></div><a class="button" href="${MARKETING_LINKS.searchConsole}" target="_blank" rel="noreferrer">Open Search Console <i data-lucide="external-link"></i></a></article>
     </section>
-    <p class="marketing-note"><b>Wat je hier ziet:</b> websitebezoekers en bestellingen die ZOL zelf meet. Bereik, vertoningen, advertentieklikken en besteed bedrag controleer je via de knoppen naar Meta en Google Ads.</p>
+    <p class="marketing-note"><b>Officiële advertentieresultaten:</b> bereik, vertoningen, goedkeuringsstatus, advertentieklikken en besteed bedrag controleer je via de knoppen naar Meta en Google Ads.</p>
   </div>`
 }
 

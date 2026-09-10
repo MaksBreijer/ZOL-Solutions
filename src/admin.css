@@ -778,6 +778,10 @@ svg { display: block; }
 .marketing-summary span { color: #52606c; font-size: 9px; font-weight: 700; }
 .marketing-summary strong { margin-top: 7px; color: var(--admin-ink); font-size: 22px; letter-spacing: -.03em; }
 .marketing-summary small { margin-top: 5px; color: var(--admin-muted); font-size: 8px; }
+.marketing-data-notice { margin-bottom: 12px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 11px; border: 1px solid #b8d5e7; border-radius: 11px; background: #edf7fc; color: #264d68; }
+.marketing-data-notice > svg { width: 18px; height: 18px; flex: 0 0 18px; }
+.marketing-data-notice strong { font-size: 9px; }
+.marketing-data-notice p { margin: 4px 0 0; font-size: 8px; line-height: 1.5; }
 .marketing-channel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .marketing-channel-card { padding: 20px; border: 1px solid var(--admin-line); border-top: 4px solid var(--admin-blue); border-radius: 13px; background: #fff; box-shadow: 0 2px 5px rgb(22 38 54 / 5%); }
 .marketing-channel-card.is-meta { border-top-color: #1877f2; }
