@@ -87,4 +87,5 @@ test('the content security policy permits the Google tag and analytics collectio
   assert.match(headers, /script-src[^;]+https:\/\/www\.googletagmanager\.com/)
   assert.match(headers, /connect-src[^;]+https:\/\/www\.google-analytics\.com/)
   assert.match(headers, /connect-src[^;]+https:\/\/region1\.google-analytics\.com/)
+  assert.match(headers, /connect-src[^;]+wss:\/\/\*\.supabase\.co/)
 })
