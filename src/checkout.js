@@ -49,6 +49,7 @@ function updateDiscoveryDetails({ focus = false } = {}) {
   const isOther = form.elements.discovery_source.value === 'other'
   discoveryDetails.hidden = !isOther
   discoveryDetailsInput.disabled = !isOther
+  discoveryDetailsInput.required = isOther
   form.elements.discovery_source.forEach((option) => option.setAttribute('aria-expanded', String(isOther && option.value === 'other')))
   if (!isOther) discoveryDetailsInput.value = ''
   if (isOther && focus) requestAnimationFrame(() => discoveryDetailsInput.focus())
@@ -370,6 +371,7 @@ discountInput.addEventListener('keydown', (event) => {
 
 function checkoutValidationMessage(invalid) {
   if (invalid?.name === 'discovery_source') return 'Geef aan hoe je bij ZOL Solutions bent terechtgekomen.'
+  if (invalid?.name === 'discovery_details') return 'Vertel hoe je ons hebt gevonden om verder te gaan.'
   if (invalid?.name === 'terms_accepted') return 'Vink eerst aan dat je akkoord gaat met de voorwaarden en het privacybeleid.'
   if (invalid?.type === 'email') return 'Vul een geldig e-mailadres in.'
   if (invalid?.name === 'postal_code') return selectedCountry() === 'BE' ? 'Vul een geldige Belgische postcode van vier cijfers in.' : 'Vul een geldige Nederlandse postcode in, bijvoorbeeld 1234 AB.'

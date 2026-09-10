@@ -30,7 +30,7 @@
                 <label><input type="radio" name="discovery_source" value="other" aria-controls="discovery-details"><span>Anders</span></label>
               </div>
               <p class="discovery-error" id="discovery-error" role="alert" hidden>Kies één antwoord om verder te gaan.</p>
-              <label class="discovery-details" id="discovery-details" for="discovery-details-input" hidden><span>Vertel hoe je ons hebt gevonden <em>optioneel</em></span><input id="discovery-details-input" name="discovery_details" maxlength="120" autocomplete="off" disabled placeholder="Bijvoorbeeld via een evenement of advertentie"></label>
+              <label class="discovery-details" id="discovery-details" for="discovery-details-input" hidden><span>Vertel hoe je ons hebt gevonden <em>verplicht</em></span><input id="discovery-details-input" name="discovery_details" maxlength="120" pattern=".*\S.*" autocomplete="off" disabled placeholder="Bijvoorbeeld via een evenement of advertentie"></label>
             </fieldset>
             <div class="checkout-fields">
               <label>Voornaam<input name="first_name" autocomplete="given-name" required></label><label>Achternaam<input name="last_name" autocomplete="family-name" required></label>
