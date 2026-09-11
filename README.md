@@ -156,3 +156,21 @@ archief, retour, terugbetaling en verwijderen. De DOM-tests gebruiken de echte
 admincode met een nagebootste Supabase-client en doen geen netwerkverzoeken.
 De prijs- en voorraadtests voeren de werkelijke SQL-functies uit in een lokale
 PGlite-database. Ze maken geen echte bestellingen, betalingen, e-mails of zendingen.
+
+## Nederlands en Engels
+
+De openbare website heeft een NL/EN-keuze. `src/language.js` start een onafhankelijke
+presentatielaag; `src/english.json` bevat de vertaling van vaste teksten en
+`src/english-dynamic.js` de dynamische voorraad-, formulier- en afrekenmeldingen.
+Bij nieuwe Nederlandse teksten hoort een Engelse vertaling in deze bestanden.
+
+De voorkeur staat in `zol_language` en kan worden gedeeld via `?lang=en` of
+`?lang=nl`. Wisselen gebeurt zonder herladen: invoervelden, winkelwagengegevens,
+betaalmethoden en API-payloads blijven behouden. Alleen zichtbare teksten en
+tekstuele toegankelijkheidsattributen worden vertaald. Onbekende CMS-teksten
+blijven in het Nederlands staan totdat een gecontroleerde vertaling is toegevoegd.
+
+Admin, persoonlijke pijnvragenlijsten, transactionele e-mails en de externe
+Mollie-betaalomgeving vallen buiten deze websitevertaling. Prijzen en voorraad
+worden nog steeds door dezelfde serverfuncties gecontroleerd. `npm test` bevat een
+checkouttest met nagebootste services die identieke NL/EN-betaalverzoeken verifieert.
