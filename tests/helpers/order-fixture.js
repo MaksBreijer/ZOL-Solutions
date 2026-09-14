@@ -5,7 +5,7 @@ export function createOrderFixture() {
   const now = new Date().toISOString()
   const customer = { id: ids.customer, email: 'customer@example.invalid', first_name: 'Test', last_name: 'Klant', address: { street: 'Teststraat 1', postal_code: '1234AB', city: 'Teststad', country: 'NL' }, tags: [], total_orders: 1, total_spent_cents: 9995 }
   const product = { id: ids.product, name: 'Testproduct', price_cents: 9995, active: true, images: [], product_variants: [{ id: ids.variant, title: 'M', stock: 10, active: true, price_cents: null }, { id: ids.secondVariant, title: 'L', stock: 10, active: true, price_cents: 7995 }] }
-  const order = { id: ids.order, order_number: 9001, created_at: now, customer_id: customer.id, customer_email: customer.email, customer_name: 'Test Klant', shipping_address: customer.address, order_type: 'customer', source: 'admin', status: 'open', payment_status: 'paid', fulfillment_status: 'unfulfilled', subtotal_cents: 9995, total_cents: 9995, shipping_cents: 0, tax_cents: 1735, currency: 'EUR', tags: [], note: '', archived: false, tracking_code: '', tracking_destination: { type: 'customer' }, order_items: [{ product_id: product.id, variant_id: ids.variant, product_name: product.name, variant_name: 'M', quantity: 1, unit_price_cents: 9995, total_cents: 9995, products: { images: [] } }] }
+  const order = { id: ids.order, order_number: 9001, created_at: now, updated_at: now, customer_id: customer.id, customer_email: customer.email, customer_name: 'Test Klant', shipping_address: customer.address, order_type: 'customer', source: 'admin', status: 'open', payment_status: 'paid', fulfillment_status: 'unfulfilled', subtotal_cents: 9995, total_cents: 9995, shipping_cents: 0, tax_cents: 1735, currency: 'EUR', tags: [], note: '', archived: false, tracking_code: '', tracking_destination: { type: 'customer' }, order_items: [{ id: '10000000-0000-4000-8000-000000000007', product_id: product.id, variant_id: ids.variant, product_name: product.name, variant_name: 'M', quantity: 1, unit_price_cents: 9995, total_cents: 9995, products: { images: [] } }] }
   const profile = { id: ids.user, full_name: 'Test Beheerder', email: 'admin@example.invalid', role: 'owner', active: true }
   const db = { orders: [order], customers: [customer], products: [product], payments: [{ id: nextId(), order_id: order.id, provider: 'manual', status: 'paid', amount_cents: 9995, refunded_cents: 0, currency: 'EUR', created_at: now }], admin_profiles: [profile], settings: [{ key: 'email_config', value: { enabled: true } }, { key: 'postnl_config', value: { enabled: true, environment: 'sandbox' } }], order_notes: [], activity_log: [] }
   const calls = []
@@ -52,6 +52,15 @@ export function createOrderFixture() {
         const created = { ...order, id: nextId(), order_number: 9000 + serial, order_type: args.p_order_type, customer_id: args.p_customer_id, status: args.p_status, payment_status: args.p_payment_status, fulfillment_status: args.p_fulfillment_status, order_items: items, subtotal_cents: subtotal, shipping_cents: args.p_shipping_cents, total_cents: subtotal + args.p_shipping_cents }
         if (args.p_order_type === 'physio') Object.assign(created, { customer_name: args.p_physio.practice_name, customer_email: args.p_physio.email, shipping_address: args.p_physio, tracking_destination: { ...args.p_physio, type: 'physio' } })
         db.orders.unshift(created); return { data: { order_id: created.id, order_number: created.order_number }, error: null }
+      }
+      if (name === 'update_admin_order_amount') {
+        const target = db.orders.find(o => o.id === args.p_order_id)
+        target.order_items.forEach(item => { item.unit_price_cents = args.p_items.find(row => row.id === item.id).unit_price_cents; item.total_cents = item.quantity * item.unit_price_cents })
+        target.subtotal_cents = target.order_items.reduce((sum, item) => sum + item.total_cents, 0)
+        target.shipping_cents = args.p_shipping_cents; target.discount_cents = args.p_discount_cents
+        target.total_cents = target.subtotal_cents + target.shipping_cents - target.discount_cents
+        db.payments.find(p => p.order_id === target.id).amount_cents = target.total_cents
+        return { data: { order_id: target.id, total_cents: target.total_cents }, error: null }
       }
       if (name === 'return_admin_order') { Object.assign(db.orders.find(o => o.id === args.p_order_id), { fulfillment_status: 'returned', status: 'completed', returned_at: now }); return { data: { stock_restored: args.p_restore_stock ? 1 : 0 }, error: null } }
       if (name === 'delete_admin_order') { db.orders = db.orders.filter(o => o.id !== args.p_order_id); return { data: { stock_restored: true }, error: null } }

@@ -264,7 +264,7 @@ const pendingOrderActions = new WeakSet()
 const orderButtonActions = new Set([
   'new-order', 'add-order-line', 'remove-order-line', 'open-order', 'back-orders',
   'add-tracking', 'remove-tracking', 'postnl-label', 'postnl-label-url', 'refund-order',
-  'return-order', 'edit-order-note', 'delete-order-note', 'toggle-archive',
+  'return-order', 'edit-order-amount', 'edit-order-note', 'delete-order-note', 'toggle-archive',
   'mark-delivered', 'delete-order', 'send-order-email', 'send-tracking-email', 'print-invoice',
   'export-orders', 'import-orders', 'download-order-template',
 ])
@@ -999,6 +999,56 @@ async function refreshOrderDetail(orderId) {
   if (order) openOrder(order); else renderOrders()
 }
 
+function orderAmountEditBlock(order) {
+  const payments = state.payments.filter(item => item.order_id === order.id)
+  if (order.source !== 'admin') return 'Bedragen wijzigen kan bij handmatig aangemaakte bestellingen.'
+  if (order.status === 'cancelled' || order.fulfillment_status === 'returned') return 'Deze bestelling is geannuleerd of geretourneerd.'
+  if (!['pending', 'failed'].includes(order.payment_status) || payments.some(item => !['open', 'pending', 'failed', 'cancelled', 'expired'].includes(item.status) || item.refunded_cents > 0)) return 'Deze bestelling heeft al een betaling of terugbetaling. Gebruik daarvoor een terugbetaling of boekhoudkundige correctie.'
+  if (payments.length !== 1 || payments[0].provider !== 'manual' || payments[0].provider_payment_id) return 'De gekoppelde betaling kan niet handmatig worden aangepast.'
+  if (!order.order_items?.length) return 'Deze bestelling heeft geen artikelregels.'
+  return ''
+}
+
+function editOrderAmountForm(order) {
+  if (!order || !['owner', 'admin'].includes(state.profile?.role)) return
+  const blocked = orderAmountEditBlock(order)
+  if (blocked) { toast('Bedrag niet aanpasbaar', blocked, true); return }
+  const items = order.order_items
+  openDialog('Bedrag wijzigen', `Bestelling #${order.order_number}`, `<form id="order-amount-form">
+    <p class="form-hint">Pas de prijzen inclusief btw aan. Het openstaande bedrag wordt bijgewerkt.</p>
+    <div class="form-grid">${items.map((item, index) => `<label class="field field--full">${escapeHtml(item.product_name)} · ${escapeHtml(item.variant_name || '')} · ${item.quantity} × stukprijs (€)<input data-amount-price="${index}" type="number" min="0" max="10000" step="0.01" value="${(item.unit_price_cents / 100).toFixed(2)}" required></label>`).join('')}
+    <label class="field">Verzendkosten (€)<input name="shipping" type="number" min="0" max="10000" step="0.01" value="${(order.shipping_cents / 100).toFixed(2)}" required></label>
+    <label class="field">Korting op artikelen (€)<input name="discount" type="number" min="0" step="0.01" value="${((order.discount_cents || 0) / 100).toFixed(2)}" required></label>
+    <label class="field field--full">Reden voor wijziging<input name="reason" maxlength="300" placeholder="Bijvoorbeeld: gratis vervanging" required></label></div>
+    <p class="form-hint">Huidig totaal: ${formatMoney(order.total_cents)}</p><p><strong>Nieuw totaal: <output id="order-amount-preview" aria-live="polite"></output></strong></p>
+    <div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Bedrag opslaan</button></div></form>`)
+  const form = document.querySelector('#order-amount-form')
+  const cents = input => input.value.trim() === '' ? NaN : Math.round(Number(input.value) * 100)
+  const values = () => {
+    const prices = [...form.querySelectorAll('[data-amount-price]')].map(input => cents(input))
+    const subtotal = prices.reduce((sum, price, index) => sum + price * items[index].quantity, 0)
+    return { prices, subtotal, shipping: cents(form.elements.shipping), discount: cents(form.elements.discount) }
+  }
+  const preview = () => {
+    const { subtotal, shipping, discount } = values()
+    form.elements.discount.setCustomValidity(discount > subtotal ? 'De korting mag niet hoger zijn dan het subtotaal.' : '')
+    form.querySelector('output').textContent = Number.isFinite(subtotal + shipping - discount) && discount <= subtotal ? formatMoney(subtotal + shipping - discount) : '—'
+  }
+  form.addEventListener('input', preview); preview()
+  bindOrderSubmit(form, async () => {
+    const { prices, shipping, discount } = values()
+    const reason = form.elements.reason.value.trim()
+    if (!reason) { toast('Vul een reden in', '', true); return }
+    const { error } = await supabase.rpc('update_admin_order_amount', {
+      p_order_id: order.id, p_expected_updated_at: order.updated_at,
+      p_items: items.map((item, index) => ({ id: item.id, unit_price_cents: prices[index] })),
+      p_shipping_cents: shipping, p_discount_cents: discount, p_reason: reason,
+    })
+    if (error) { toast('Bedrag opslaan mislukt', error.message, true); return }
+    closeDialog(); await refreshOrderDetail(order.id); toast('Bedrag bijgewerkt')
+  })
+}
+
 function openOrder(order) {
   if (!order) return
   const canManage = ['owner', 'admin'].includes(state.profile?.role)
@@ -1048,7 +1098,7 @@ function openOrder(order) {
         ${postnl.barcode ? `<div class="postnl-shipment"><div><span>PostNL ${postnl.environment === 'production' ? 'productie' : 'sandbox'}</span><strong>Label en barcode aangemaakt</strong>${(postnl.warnings || []).length ? `<small>${escapeHtml(postnl.warnings.join(' · '))}</small>` : ''}</div><button class="button" data-action="postnl-label-url" data-id="${order.id}"><i data-lucide="download"></i> Label openen</button></div>` : ''}
         <footer><span>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</span><div>${trackingEmailReady && canManage ? `<button class="button button--primary" data-action="send-tracking-email" data-id="${order.id}" ${!emailEnabled || trackingEmailSent ? 'disabled' : ''} title="${trackingEmailSent ? 'De Track & Trace-mail is al verstuurd' : emailEnabled ? 'Track & Trace per e-mail versturen' : 'Activeer eerst de e-mailkoppeling'}">${trackingEmailSent ? 'Mail verstuurd' : 'Verstuur'}</button>` : ''}${postnl.barcode ? '' : `<button class="button button--primary" data-action="postnl-label" data-id="${order.id}" ${canManage ? '' : 'disabled'}><i data-lucide="truck"></i> PostNL-label maken</button>`}${order.tracking_code ? `<button class="button" data-action="add-tracking" data-id="${order.id}" ${canManage ? '' : 'disabled'}><i data-lucide="pencil"></i> Tracking wijzigen</button>${canManage ? `<button class="button button--danger" data-action="remove-tracking" data-id="${order.id}">Tracking verwijderen</button>` : ''}` : `<button class="button" data-action="add-tracking" data-id="${order.id}" ${canManage ? '' : 'disabled'}><i data-lucide="plus"></i> Tracking toevoegen</button>`}${order.fulfillment_status === 'shipped' && canManage ? `<button class="button" data-action="mark-delivered" data-id="${order.id}"><i data-lucide="check-circle"></i> Markeer bezorgd</button>` : ''}</div></footer>
       </section>
-      <section class="order-card payment-card"><header><div><i data-lucide="credit-card"></i><h2>${prettyStatus(payment?.status || order.payment_status)}</h2></div><span>${escapeHtml(payment?.provider === 'mollie' ? 'Mollie Payments' : 'Handmatig')}</span></header><div class="payment-lines"><p><span>Subtotaal</span><small>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</small><strong>${formatMoney(order.subtotal_cents)}</strong></p>${order.discount_cents ? `<p><span>Korting ${order.discount_code ? `(${escapeHtml(order.discount_code)})` : ''}</span><small></small><strong>− ${formatMoney(order.discount_cents)}</strong></p>` : ''}<p><span>Verzending</span><small>Standaard</small><strong>${order.shipping_cents ? formatMoney(order.shipping_cents) : 'Gratis'}</strong></p><p class="payment-total"><span>Totaal</span><small></small><strong>${formatMoney(order.total_cents)}</strong></p>${payment?.refunded_cents ? `<p class="payment-refund"><span>Terugbetaald</span><small>${prettyStatus(payment.status)}</small><strong>− ${formatMoney(payment.refunded_cents)}</strong></p>` : ''}</div></section>
+      <section class="order-card payment-card"><header><div><i data-lucide="credit-card"></i><h2>${prettyStatus(payment?.status || order.payment_status)}</h2></div><div><span>${escapeHtml(payment?.provider === 'mollie' ? 'Mollie Payments' : 'Handmatig')}</span>${canManage ? `<button class="button" data-action="edit-order-amount" data-id="${order.id}" ${orderAmountEditBlock(order) ? `disabled title="${escapeHtml(orderAmountEditBlock(order))}"` : ''}><i data-lucide="pencil"></i> Bedrag wijzigen</button>` : ''}</div></header><div class="payment-lines"><p><span>Subtotaal</span><small>${itemCount} artikel${itemCount === 1 ? '' : 'en'}</small><strong>${formatMoney(order.subtotal_cents)}</strong></p>${order.discount_cents ? `<p><span>Korting ${order.discount_code ? `(${escapeHtml(order.discount_code)})` : ''}</span><small></small><strong>− ${formatMoney(order.discount_cents)}</strong></p>` : ''}<p><span>Verzending</span><small>Standaard</small><strong>${order.shipping_cents ? formatMoney(order.shipping_cents) : 'Gratis'}</strong></p><p class="payment-total"><span>Totaal</span><small></small><strong>${formatMoney(order.total_cents)}</strong></p>${payment?.refunded_cents ? `<p class="payment-refund"><span>Terugbetaald</span><small>${prettyStatus(payment.status)}</small><strong>− ${formatMoney(payment.refunded_cents)}</strong></p>` : ''}</div></section>
       <section class="order-timeline"><h2>Tijdlijn</h2><form id="order-note-form" class="timeline-note"><span>${escapeHtml(initials(state.profile.full_name || state.profile.email))}</span><textarea name="body" rows="2" maxlength="2000" placeholder="Een interne opmerking plaatsen…" required></textarea><button class="button button--primary" type="submit">Plaatsen</button></form><p class="timeline-privacy">Alleen jij en andere beheerders kunnen opmerkingen zien.</p><ol>${timeline.map((item) => `<li class="is-${item.type}"><i></i><div><p>${escapeHtml(item.title)}</p><small>${escapeHtml(item.detail)} · ${formatDate(item.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${item.noteId && canManage ? `<button type="button" data-action="delete-order-note" data-id="${item.noteId}" data-order-id="${order.id}" aria-label="Notitie verwijderen">×</button>` : ''}</li>`).join('')}</ol></section>
     </main><aside class="order-detail-side">
       ${order.source === 'zol-webshop' ? `<section class="order-card checkout-answer-card"><header><div><span>CHECKOUTANTWOORD</span><h2>Hoe kwam deze klant bij ZOL?</h2></div><i data-lucide="file-text"></i></header><div><small>Antwoord van de klant</small><strong>${escapeHtml(discoveryAnswer || 'Geen antwoord opgeslagen')}</strong></div></section>` : ''}
@@ -3696,6 +3746,7 @@ async function handleContentClick(event) {
   if (action === 'invite-order-customers') await inviteOrderCustomers(target)
   if (action === 'mark-delivered') await markOrderDelivered(state.orders.find((item) => item.id === id))
   if (action === 'toggle-archive') await toggleOrderArchive(state.orders.find((item) => item.id === id))
+  if (action === 'edit-order-amount') editOrderAmountForm(state.orders.find((item) => item.id === id))
   if (action === 'refund-order') refundOrderForm(state.orders.find((item) => item.id === id))
   if (action === 'return-order') returnOrderForm(state.orders.find((item) => item.id === id))
   if (action === 'edit-order-note') editOrderNoteForm(state.orders.find((item) => item.id === id))
