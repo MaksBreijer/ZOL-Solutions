@@ -134,6 +134,20 @@ function seoPlugin() {
           }
           else graph.push({ '@type': isKnowledgeIndex ? 'CollectionPage' : route === '/contact/' ? 'ContactPage' : route === '/over-ons/' ? 'AboutPage' : 'WebPage', '@id': `${canonical}#webpage`, name: title, description, url: canonical, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: route === '/over-ons/' ? { '@id': `${siteOrigin}/#organization` } : undefined })
 
+          if (route === '/hielpijn-kind/') {
+            graph.push({
+              '@type': 'FAQPage',
+              '@id': `${canonical}#faq`,
+              mainEntity: [
+                ['Wat te doen bij hielpijn van mijn kind?', 'Bij hielpijn bij een kind, vaak overbelasting of klachten die kunnen passen bij de Ziekte van Sever, kan het helpen om de belasting tijdelijk te verminderen en de hiel te ontlasten. Demping en ondersteuning in de schoen kunnen helpen de impact tijdens lopen, rennen en springen te beperken.'],
+                ['Wat is de ziekte van Sever?', 'De Ziekte van Sever, ook calcaneale apofysitis genoemd, is irritatie rond de groeizone van de hiel. De klacht komt vooral voor bij actieve kinderen in de groei en kan worden versterkt door herhaald rennen, springen en sporten op harde ondergronden.'],
+                ['Kan mijn kind blijven sporten met hielpijn?', 'Dat hangt af van de ernst en oorzaak van de klacht. Pas de sportbelasting aan wanneer pijn tijdens of na het sporten toeneemt. Bij aanhoudende, hevige, nachtelijke of onverklaarbare pijn is beoordeling door een zorgprofessional verstandig.'],
+                ['Hoe helpen ZOL-inlegzolen bij hielpijn?', 'ZOL-inlegzolen combineren gerichte demping, een stevige hielkuip en ondersteuning van hiel en achtervoet. Ze zijn ontworpen als ondersteunend comfortproduct voor sportende kinderen en passen door het 3/4-ontwerp in veel sportschoenen.'],
+                ['Wanneer moet ik professionele hulp inschakelen?', "Neem contact op met een huisarts, podotherapeut of andere gekwalificeerde zorgprofessional bij pijn die aanhoudt, toeneemt, 's nachts optreedt, na een ongeluk ontstaat of niet duidelijk samenhangt met sportbelasting."],
+              ].map(([name, text]) => ({ '@type': 'Question', name, acceptedAnswer: { '@type': 'Answer', text } })),
+            })
+          }
+
           if (route !== '/') {
             const items = [{ '@type': 'ListItem', position: 1, name: 'Home', item: `${siteOrigin}/` }]
             if (route.startsWith('/kennisbank/')) items.push({ '@type': 'ListItem', position: 2, name: 'Kennisbank', item: `${siteOrigin}/kennisbank/` })
