@@ -1,8 +1,47 @@
 User-agent: *
 Allow: /
-Disallow: /admin/
-Disallow: /checkout/
-Disallow: /zolsolutions/admin/
-Disallow: /uitschrijven/
+
+# Explicit access for major search, answer-engine, and AI training crawlers.
+User-agent: Googlebot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: MicrosoftPreview
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
 
 Sitemap: https://zolsolutions.nl/sitemap.xml

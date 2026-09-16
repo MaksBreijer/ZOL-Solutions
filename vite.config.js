@@ -63,6 +63,7 @@ function seoPlugin() {
           additions.push(`<link rel="alternate" hreflang="nl-NL" href="${canonical}">`, `<link rel="alternate" hreflang="x-default" href="${canonical}">`)
           additions.push('<link rel="preload" href="/fonts/barlow-semi-condensed-400.woff2" as="font" type="font/woff2" crossorigin>', '<link rel="preload" href="/fonts/barlow-condensed-700.woff2" as="font" type="font/woff2" crossorigin>')
           if (!/name=["']robots["']/i.test(html)) additions.push('<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">')
+          if (!/name=["']googlebot["']/i.test(html)) additions.push('<meta name="googlebot" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">')
           if (!/property=["']og:title["']/i.test(html)) additions.push(`<meta property="og:title" content="${safeTitle}">`)
           if (!/property=["']og:description["']/i.test(html)) additions.push(`<meta property="og:description" content="${safeDescription}">`)
           if (!/property=["']og:type["']/i.test(html)) additions.push(`<meta property="og:type" content="${isArticle ? 'article' : 'website'}">`)
@@ -77,7 +78,21 @@ function seoPlugin() {
           const organization = { '@type': 'Organization', '@id': `${siteOrigin}/#organization`, name: 'ZOL Solutions', url: `${siteOrigin}/`, logo: { '@type': 'ImageObject', url: `${siteOrigin}/favicon-512.png`, width: 512, height: 512 }, email: 'info@zolsolutions.nl', contactPoint: { '@type': 'ContactPoint', email: 'info@zolsolutions.nl', contactType: 'customer service', availableLanguage: ['Dutch', 'English'] }, foundingDate: '2026', foundingLocation: { '@type': 'Place', name: 'Amsterdam, Nederland' }, founder: [{ '@type': 'Person', name: 'Maks Breijer' }, { '@type': 'Person', name: 'Thijn Koelemij' }], address: { '@type': 'PostalAddress', addressLocality: 'Amsterdam', addressCountry: 'NL' }, areaServed: { '@type': 'Country', name: 'Nederland' }, sameAs: ['https://www.instagram.com/zolsolutions/', 'https://www.linkedin.com/company/zolsolutions/', 'https://maps.google.com/?cid=654808623137506283'] }
           const website = { '@type': 'WebSite', '@id': `${siteOrigin}/#website`, url: `${siteOrigin}/`, name: 'ZOL Solutions', inLanguage: 'nl-NL', publisher: { '@id': `${siteOrigin}/#organization` } }
           const graph = [organization, website]
-          if (route === '/') graph.push({ '@type': 'WebPage', '@id': `${canonical}#webpage`, url: canonical, name: title, description, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: { '@id': `${siteOrigin}/#organization` } })
+          if (route === '/') {
+            graph.push({ '@type': 'WebPage', '@id': `${canonical}#webpage`, url: canonical, name: title, description, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: { '@id': `${siteOrigin}/#organization` } })
+            graph.push({
+              '@type': 'FAQPage',
+              '@id': `${canonical}#faq`,
+              mainEntity: [{
+                '@type': 'Question',
+                name: 'Wat te doen bij hielpijn van mijn kind?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Bij hielpijn bij een kind (vaak de ziekte van Sever of overbelasting) is het belangrijk om de hiel direct te ontlasten en schokken te dempen. De inlegzolen van ZolSolutions bieden precies de juiste ondersteuning en pasvorm om de pijn te verlichten, zodat je kind weer pijnvrij kan sporten en spelen.',
+                },
+              }],
+            })
+          }
           else if (route === '/product/') {
             const returnPolicy = { '@type': 'MerchantReturnPolicy', applicableCountry: 'NL', returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow', merchantReturnDays: 14, returnMethod: 'https://schema.org/ReturnByMail', returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility' }
             const variants = [
@@ -91,19 +106,20 @@ function seoPlugin() {
               '@type': 'ProductGroup',
               '@id': `${canonical}#product`,
               name: 'ZOL 3/4 inlegzolen',
-              description,
+              description: 'ZOL 3/4 inlegzolen met gerichte demping, hielondersteuning en een stevige hielkuip voor sportende kinderen met hielpijn en klachten die kunnen passen bij de ziekte van Sever.',
               url: canonical,
               image: [`${siteOrigin}/images/zol-familie.jpg`, `${siteOrigin}/media/product-blue.jpg`, `${siteOrigin}/media/product-detail.jpg`],
               mainEntityOfPage: { '@id': `${canonical}#webpage` },
               brand: { '@type': 'Brand', name: 'ZOL Solutions' },
               color: 'Blauw',
-              audience: { '@type': 'PeopleAudience', suggestedMinAge: 5, suggestedMaxAge: 16 },
+              audience: { '@type': 'PeopleAudience', suggestedMinAge: 5, suggestedMaxAge: 16, audienceType: 'Sportende kinderen met hielpijn of klachten die kunnen passen bij de ziekte van Sever' },
               category: { '@type': 'CategoryCode', inCodeSet: 'https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt', codeValue: '2801' },
               productGroupID: 'ZOL-3-4',
               variesBy: ['https://schema.org/size'],
               hasVariant: variants.map(([sku, size, querySize, availability]) => ({
                 '@type': 'Product',
                 name: `ZOL 3/4 inlegzolen – maat ${size}`,
+                description: 'ZOL 3/4 inlegzolen voor sportende kinderen met hielpijn en klachten die kunnen passen bij de ziekte van Sever.',
                 sku,
                 size,
                 image: `${siteOrigin}/images/zol-familie.jpg`,
@@ -174,6 +190,7 @@ export default defineConfig({
         unsubscribe: resolve(import.meta.dirname, 'uitschrijven/index.html'),
         measurement: resolve(import.meta.dirname, 'meting/index.html'),
         campaignHeelPain: resolve(import.meta.dirname, 'hielpijn-kind-sport/index.html'),
+        heelPainChild: resolve(import.meta.dirname, 'hielpijn-kind/index.html'),
         admin: resolve(import.meta.dirname, 'admin/index.html'),
         adminAlias: resolve(import.meta.dirname, 'zolsolutions/admin/index.html'),
       },
