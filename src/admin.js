@@ -3166,7 +3166,8 @@ function renderAnalytics() {
   const ctaClicks = events.filter((event) => event.event_name === 'cta_click').length
   const contactSubmits = events.filter((event) => event.event_name === 'contact_submit').length
   const paymentSelections = events.filter((event) => event.event_name === 'payment_method_selected').length
-  const checkoutErrors = events.filter((event) => event.event_name === 'checkout_error').length
+  const checkoutErrors = events.filter((event) => event.event_name === 'checkout_error' && event.metadata?.stage === 'create_checkout').length
+  const checkoutValidationErrors = events.filter((event) => event.event_name === 'checkout_validation_error' || (event.event_name === 'checkout_error' && event.metadata?.stage === 'validation')).length
   const revenue = paidOrders.reduce((sum, order) => sum + order.total_cents, 0)
   const previousRevenue = previousPaidOrders.reduce((sum, order) => sum + order.total_cents, 0)
   const averageOrder = paidOrders.length ? revenue / paidOrders.length : 0
@@ -3200,7 +3201,7 @@ function renderAnalytics() {
       <article class="report-card"><header><div><span>Sessies per apparaattype</span><strong>${sessions}</strong></div></header><ul class="rank-list">${devices.map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value} · ${percent(value, pageViews.length)}</b></li>`).join('') || '<li class="no-data">Nog geen apparaatgegevens.</li>'}</ul></article>
       <article class="report-card"><header><div><span>Sessies per landingspagina</span><strong>${pages.length} pagina's</strong></div></header><ul class="rank-list">${pages.slice(0, 7).map(([page, value]) => `<li><span>${escapeHtml(page)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen paginaweergaven.</li>'}</ul></article>
       <article class="report-card"><header><div><span>Sessies per verwijzer</span><strong>${referrers.length} bronnen</strong></div></header><ul class="rank-list">${referrers.slice(0, 7).map(([name, value]) => `<li><span>${escapeHtml(name)}</span><b>${value}</b></li>`).join('') || '<li class="no-data">Nog geen verwijzers.</li>'}</ul></article>
-      <article class="report-card"><header><div><span>Interacties</span><strong>${ctaClicks + contactSubmits}</strong></div></header><ul class="rank-list"><li><span>CTA-klikken</span><b>${ctaClicks}</b></li><li><span>Contactformulieren</span><b>${contactSubmits}</b></li><li><span>Betaalmethode gekozen</span><b>${paymentSelections}</b></li><li><span>Checkoutfouten</span><b>${checkoutErrors}</b></li></ul></article>
+      <article class="report-card"><header><div><span>Interacties</span><strong>${ctaClicks + contactSubmits}</strong></div></header><ul class="rank-list"><li><span>CTA-klikken</span><b>${ctaClicks}</b></li><li><span>Contactformulieren</span><b>${contactSubmits}</b></li><li><span>Betaalmethode gekozen</span><b>${paymentSelections}</b></li><li><span>Technische checkoutfouten</span><b>${checkoutErrors}</b></li><li><span>Invoer opnieuw gecontroleerd</span><b>${checkoutValidationErrors}</b></li></ul></article>
     </section>
   </div>`
 }

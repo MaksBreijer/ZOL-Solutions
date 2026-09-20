@@ -390,7 +390,7 @@ function validateCheckoutForm(status) {
   status.classList.add('is-error')
   invalid.focus()
   ;(isDiscovery ? discoveryFieldset : invalid).scrollIntoView({ block: 'center', behavior: 'smooth' })
-  trackEvent('checkout_error', { stage: 'validation', field: invalid.name || invalid.type })
+  trackEvent('checkout_validation_error', { field: invalid.name || invalid.type })
   return false
 }
 

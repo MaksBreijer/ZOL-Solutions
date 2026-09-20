@@ -38,6 +38,28 @@ test('analytics charts render without CSP-blocked inline styles', async () => {
   }
 })
 
+test('analytics separates validation prompts from technical checkout failures', async () => {
+  const h = await adminHarness()
+  try {
+    const now = new Date().toISOString()
+    h.run(`
+      state.analytics = [
+        { event_name: 'checkout_validation_error', session_id: 'validation', page: '/checkout/', metadata: { field: 'email' }, created_at: '${now}' },
+        { event_name: 'checkout_error', session_id: 'legacy-validation', page: '/checkout/', metadata: { stage: 'validation' }, created_at: '${now}' },
+        { event_name: 'checkout_error', session_id: 'technical', page: '/checkout/', metadata: { stage: 'create_checkout' }, created_at: '${now}' }
+      ];
+      state.orders = [];
+      renderAnalytics();
+    `)
+
+    const interactions = h.q('.analytics-report-grid .report-card:last-child').textContent
+    assert.match(interactions, /Technische checkoutfouten1/)
+    assert.match(interactions, /Invoer opnieuw gecontroleerd2/)
+  } finally {
+    h.close()
+  }
+})
+
 test('marketing dashboard separates Meta, Google Ads and organic sessions', async () => {
   const h = await adminHarness()
   try {

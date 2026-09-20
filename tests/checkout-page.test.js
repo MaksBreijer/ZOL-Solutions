@@ -32,6 +32,14 @@ test('checkout asks for the discovery source and stores it outside customer data
   assert.match(edgeFunction, /Zorgprofessional of sportclub/)
 })
 
+test('checkout measures incomplete forms separately from technical payment failures', async () => {
+  const client = await readFile(new URL('../src/checkout.js', import.meta.url), 'utf8')
+
+  assert.match(client, /trackEvent\('checkout_validation_error', \{ field: invalid\.name \|\| invalid\.type \}\)/)
+  assert.match(client, /trackEvent\('checkout_error', \{ stage: 'create_checkout'/)
+  assert.doesNotMatch(client, /trackEvent\('checkout_error', \{ stage: 'validation'/)
+})
+
 test('checkout supports Belgium with its own shipping quote and address rules', async () => {
   const [html, client, edgeFunction, postnl, migration, countryFix] = await Promise.all([
     readFile(new URL('../checkout/index.html', import.meta.url), 'utf8'),
