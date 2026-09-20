@@ -8,6 +8,7 @@
 /products/zol-inlegzolen-voor-kinderen-met-hielpijn /product/ 301
 /products/zol-inlegzolen-voor-kinderen-met-de-ziekte-van-sever /product/ 301
 /products/proefpakket /product/ 301
+/products/zolen /product/ 301
 /collections/all /product/ 301
 /collections/zakelijk-assortiment /contact/ 301
 /blogs/news/uitgelegd-voettypes-en-enkelstanden /kennisbank/voettypes-en-enkelstanden/ 301
@@ -32,6 +33,7 @@
 /en/products/zol-inlegzolen-voor-kinderen-met-hielpijn /product/ 301
 /en/products/proefpakket /product/ 301
 /en/collections/all /product/ 301
+/en/collections/zakelijk-assortiment /contact/ 301
 /en/blogs/news/uitgelegd-voettypes-en-enkelstanden /kennisbank/voettypes-en-enkelstanden/ 301
 /en/blogs/news/blog-hielpijn-bij-hockey-of-voetbal-alles-over-de-ziekte-van-sever /kennisbank/ziekte-van-sever/ 301
 /en/blogs/news/topsport-begint-bij-de-basis-je-voeten /kennisbank/hielpijn-tijdens-sporten/ 301
@@ -46,6 +48,8 @@
 /en/pages/data-sharing-opt-out /privacy/ 301
 /en/cart /checkout/ 301
 /en / 301
+/en/ / 301
+/en/policies/legal-notice /algemene-voorwaarden/ 301
 /zolsolutions/admin /admin/index.html 200
 /zolsolutions/admin/ /admin/index.html 200
 /zolsolutions/admin/* /admin/index.html 200
