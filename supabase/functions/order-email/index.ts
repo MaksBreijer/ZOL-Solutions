@@ -131,7 +131,10 @@ Deno.serve(async (request) => {
       const text = [renderTemplate(template.title_template, variables), renderTemplate(template.intro_template, variables), renderTemplate(template.body_template, variables), key === "order_shipped" ? `Trackingcode: ${order.tracking_code}\n${trackingUrl}` : "", key === "refund_confirmed" ? `Terugbetaald: ${money(refundAmountCents, order.currency)}` : "", buttonLabel && buttonUrl ? `${buttonLabel}: ${buttonUrl}` : ""].filter(Boolean).join("\n\n")
       const log = existing || await logEmail(db, { kind: key, recipient_email: recipient, subject, body_preview: text.slice(0, 280), order_id: order.id, customer_id: order.customer_id, dedupe_key: dedupe })
       try {
-        const sent = await sendEmail({ to: recipient, subject, html, text, idempotencyKey: dedupe, config })
+        // Trustpilot's Automatic Feedback Service receives only the delivery confirmation,
+        // so invitations are based on fulfilled orders rather than on a checkout or payment.
+        const trustpilotBcc = key === "order_delivered" ? Deno.env.get("TRUSTPILOT_AFS_EMAIL")?.trim() : ""
+        const sent = await sendEmail({ to: recipient, bcc: trustpilotBcc || undefined, subject, html, text, idempotencyKey: dedupe, config })
         await markEmail(db, log.id, { status: "sent", providerId: sent.id })
         results.push({ kind: key, status: "sent" })
       } catch (sendError) {

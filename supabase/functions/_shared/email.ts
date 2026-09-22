@@ -128,6 +128,7 @@ export function emailShell(content: string, options: { eyebrow: string; title: s
 
 export async function sendEmail(input: {
   to: string | string[]
+  bcc?: string | string[]
   subject: string
   html: string
   text: string
@@ -149,6 +150,7 @@ export async function sendEmail(input: {
     body: JSON.stringify({
       from: `${fromName} <${fromEmail}>`,
       to: input.to,
+      ...(input.bcc ? { bcc: input.bcc } : {}),
       subject: input.subject,
       html: input.html,
       text: input.text,
