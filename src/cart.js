@@ -39,6 +39,16 @@ export function addToCart(item) {
   return saveCart(cart)
 }
 
+// "Buy now" should honor the quantity currently selected on the product page,
+// rather than adding that quantity on top of an item already in the cart.
+export function setCartItem(item) {
+  const cart = getCart()
+  const existing = cart.find((entry) => entry.variant_id === item.variant_id)
+  if (existing) Object.assign(existing, item)
+  else cart.push(item)
+  return saveCart(cart)
+}
+
 export function updateCartItem(variantId, quantity) {
   const cart = getCart()
   const item = cart.find((entry) => entry.variant_id === variantId)

@@ -1,4 +1,4 @@
-import { addToCart, bindCartCounters } from './cart.js'
+import { addToCart, bindCartCounters, setCartItem } from './cart.js'
 import { formatMoney, supabase } from './supabase-client.js'
 import { trackEvent } from './site-runtime.js'
 
@@ -245,7 +245,11 @@ async function initializeProductCommerce() {
       trackEvent('product_add_blocked', { reason: 'no_available_variant', direct })
       return
     }
-    addToCart(item)
+    // Keep "In winkelwagen" additive, but make "Direct afrekenen" idempotent.
+    // A customer who already added this size must not receive another pair when
+    // they use the checkout CTA.
+    if (direct) setCartItem(item)
+    else addToCart(item)
     trackEvent('add_to_cart', {
       product_id: item.product_id,
       variant_id: item.variant_id,
