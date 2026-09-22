@@ -21,7 +21,7 @@ const discoveryLabels = new Map([
 
 function checkoutDiscoveryNote(value: Record<string, unknown> = {}) {
   const source = discoveryLabels.get(String(value.source || ""))
-  if (!source) throw new Error("Geef aan hoe je bij ZOL Solutions bent terechtgekomen.")
+  if (!source) return null
   const details = String(value.details || "").trim().replace(/\s+/g, " ").slice(0, 120)
   return `Gevonden via: ${details && ["Anders", "Zorgprofessional of sportclub"].includes(source) ? `${source} — ${details}` : source}`
 }
