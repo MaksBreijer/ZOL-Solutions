@@ -2932,6 +2932,56 @@ a.media-chip:focus-visible {
   gap: 10px;
 }
 
+.product-review-proof {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--orange);
+  background: #fff;
+}
+
+.product-review-proof > a {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--blue-deep);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.product-review-proof > a > span {
+  color: var(--orange);
+  letter-spacing: 0.08em;
+}
+
+.product-review-proof > a small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.product-review-proof blockquote {
+  margin: 12px 0 8px;
+  color: var(--blue-deep);
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.22;
+}
+
+.product-review-proof p {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.product-review-proof p span::before {
+  content: "·";
+  margin-right: 8px;
+}
+
 .size-selector input:checked + span {
   width: 60px;
   min-height: 60px;
@@ -2947,12 +2997,13 @@ a.media-chip:focus-visible {
 }
 
 .purchase-assurance {
-  display: flex;
+  display: grid;
   margin-top: 24px;
-  justify-content: space-between;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   color: var(--muted);
   font-size: 12px;
+  text-align: center;
 }
 
 .product-payment-support {
@@ -4393,6 +4444,12 @@ a.media-chip:focus-visible {
 
   .product-actions {
     grid-template-columns: 1fr;
+  }
+
+  .purchase-assurance {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    text-align: left;
   }
 
   .product-payment-support {
