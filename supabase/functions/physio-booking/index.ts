@@ -105,9 +105,17 @@ async function notify(db: ReturnType<typeof adminClient>, booking: Record<string
   const addToCalendar = `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: "TEMPLATE", text: `ZOL · 10 min met ${booking.practice_name}`, dates, ctz: TIME_ZONE, details: `${booking.contact_name} · ${booking.email} · ${booking.phone}\n${booking.message}`, location: "Telefonisch", src: CALENDAR_ID })}`
   const text = `Nieuwe afspraak met ${booking.practice_name}\n\nWie bellen: ${booking.contact_name}\n06-nummer: ${booking.phone}\nE-mail: ${booking.email}\nWanneer: ${start} (10 minuten)\nVraag: ${booking.message || "Niet ingevuld"}\n\nVoeg deze afspraak toe aan de ZOL Teamagenda: ${addToCalendar}`
   const guestText = `Hoi ${booking.contact_name},\n\nLeuk dat je even met ons wilt bellen. We hebben 10 minuten voor ${booking.practice_name} gereserveerd op ${start}. We bellen je op ${booking.phone}.\n\n${booking.message ? `Jouw vraag: ${booking.message}\n\n` : ""}Tot dan!\nMaks & Thijn\nZOL Solutions\ninfo@zolsolutions.nl`
+  const guestCalendar = `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: "TEMPLATE", text: "10 minuten bellen met ZOL Solutions", dates, details: `ZOL Solutions belt je op ${booking.phone}.`, location: "Telefonisch" })}`
+  const outlookCalendar = `https://outlook.live.com/calendar/0/deeplink/compose?${new URLSearchParams({ path: "/calendar/action/compose", rru: "addevent", subject: "10 minuten bellen met ZOL Solutions", startdt: booking.start_at, enddt: booking.end_at, body: `ZOL Solutions belt je op ${booking.phone}.`, location: "Telefonisch" })}`
+  const icsEscape = (value: string) => value.replaceAll("\\", "\\\\").replaceAll("\n", "\\n").replaceAll(",", "\\,").replaceAll(";", "\\;")
+  const icsDate = (value: string) => value.replace(/[-:]/g, "").replace(/\.\d{3}/, "")
+  const invite = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ZOL Solutions//Kennismaking//NL", "METHOD:PUBLISH", "BEGIN:VEVENT", `UID:${booking.id}@zolsolutions.nl`, `DTSTAMP:${icsDate(new Date().toISOString())}`, `DTSTART:${icsDate(booking.start_at)}`, `DTEND:${icsDate(booking.end_at)}`, "SUMMARY:10 minuten bellen met ZOL Solutions", `DESCRIPTION:${icsEscape(`ZOL Solutions belt je op ${booking.phone}.`)}`, "LOCATION:Telefonisch", "BEGIN:VALARM", "TRIGGER:-PT30M", "ACTION:DISPLAY", "DESCRIPTION:Gesprek met ZOL Solutions over 30 minuten", "END:VALARM", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n")
+  const attachment = { filename: "zol-kennismaking.ics", content: btoa(String.fromCharCode(...new TextEncoder().encode(invite))), content_type: "text/calendar; charset=utf-8" }
+  const guestCalendarText = `${guestText}\n\nZet het gesprek in je agenda:\nGoogle Agenda: ${guestCalendar}\nOutlook: ${outlookCalendar}\nOf open de bijgevoegde agenda-uitnodiging (.ics).`
+  const guestCalendarHtml = `<p style="white-space:pre-wrap;line-height:1.7">${escapeEmailHtml(guestText)}</p><p style="margin:24px 0 10px;font-weight:700">Zet het gesprek in je agenda</p><p style="line-height:1.8"><a href="${escapeEmailHtml(guestCalendar)}" style="color:#33669b">Google Agenda</a> &nbsp;·&nbsp; <a href="${escapeEmailHtml(outlookCalendar)}" style="color:#33669b">Outlook</a></p><p style="color:#66798c;font-size:13px">Je kunt ook de bijgevoegde agenda-uitnodiging (.ics) openen. Die bevat een herinnering 30 minuten vooraf.</p>`
   const items = [
     { kind: "physio_booking_admin", to: config.admin_email || "info@zolsolutions.nl", subject, text, html: emailShell(`<p style="white-space:pre-wrap;line-height:1.7">${escapeEmailHtml(text)}</p>`, { eyebrow: "Nieuwe afspraak", title: "10 minuten met een praktijk" }), column: "admin_notified_at" },
-    { kind: "physio_booking_guest", to: booking.email, subject: `Afgesproken: ${start} met ZOL`, text: guestText, html: emailShell(`<p style="white-space:pre-wrap;line-height:1.7">${escapeEmailHtml(guestText)}</p>`, { eyebrow: "Tot snel", title: "We bellen je binnenkort" }), column: "guest_notified_at" },
+    { kind: "physio_booking_guest", to: booking.email, subject: `Afgesproken: ${start} met ZOL`, text: guestCalendarText, html: emailShell(guestCalendarHtml, { eyebrow: "Tot snel", title: "We bellen je binnenkort" }), column: "guest_notified_at" },
   ]
   const errors: string[] = []
   for (const item of items) {
@@ -116,7 +124,7 @@ async function notify(db: ReturnType<typeof adminClient>, booking: Record<string
     try {
       const log = await logEmail(db, { kind: item.kind, recipient_email: item.to, subject: item.subject, body_preview: item.text.slice(0, 500), dedupe_key: dedupeKey })
       logId = log.id
-      const result = await sendEmail({ to: item.to, subject: item.subject, html: item.html, text: item.text, replyTo: item.kind === "physio_booking_admin" ? booking.email : undefined, idempotencyKey: dedupeKey, config })
+      const result = await sendEmail({ to: item.to, subject: item.subject, html: item.html, text: item.text, replyTo: item.kind === "physio_booking_admin" ? booking.email : undefined, idempotencyKey: dedupeKey, attachments: item.kind === "physio_booking_guest" ? [attachment] : undefined, config })
       await markEmail(db, log.id, { status: "sent", providerId: result.id })
       await db.from("physio_bookings").update({ [item.column]: new Date().toISOString() }).eq("id", booking.id)
     } catch (error) {
@@ -165,7 +173,7 @@ Deno.serve(async (request) => {
     if (insertError || !booking) throw insertError || new Error("Reserveren mislukt")
     await db.from("physio_bookings").update({ status: "confirmed" }).eq("id", booking.id)
     const emailErrors = await notify(db, { ...booking, id: booking.id })
-    return Response.json({ success: true, start: slot.start, notification_warning: emailErrors.length > 0 }, { headers })
+    return Response.json({ success: true, start: slot.start, end: slot.end, notification_warning: emailErrors.length > 0 }, { headers })
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Boeken is nu niet mogelijk." }, { status: 503, headers })
   }

@@ -28,5 +28,6 @@
 .booking-honeypot { position: absolute; left: -9999px; }
 #booking-success p { line-height: 1.6; }
 #booking-success .button { margin-top: 18px; }
+.booking-calendar-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 @media (max-width: 860px) { .booking-page main.booking-main { grid-template-columns: 1fr; padding-top: 118px; } .booking-people { max-width: 360px; } }
 @media (max-width: 520px) { .booking-fields { grid-template-columns: 1fr; } .booking-card { padding: 20px; } }

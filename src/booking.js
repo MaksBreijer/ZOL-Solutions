@@ -66,6 +66,11 @@ form.addEventListener('submit', async (event) => {
   document.querySelector('#booking-form-wrap').hidden = true
   document.querySelector('#booking-success').hidden = false
   document.querySelector('#booking-success-time').textContent = formatDate(data.start, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  const end = data.end || new Date(new Date(data.start).getTime() + 10 * 60_000).toISOString()
+  const details = `ZOL Solutions belt je op ${values.phone}.`
+  const dates = `${data.start.replace(/[-:]/g, '').replace(/\.\d{3}/, '')}/${end.replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`
+  document.querySelector('#booking-google-calendar').href = `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: 'TEMPLATE', text: '10 minuten bellen met ZOL Solutions', dates, details, location: 'Telefonisch' })}`
+  document.querySelector('#booking-outlook-calendar').href = `https://outlook.live.com/calendar/0/deeplink/compose?${new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: '10 minuten bellen met ZOL Solutions', startdt: data.start, enddt: end, body: details, location: 'Telefonisch' })}`
   if (data.notification_warning) document.querySelector('#booking-success').append(' Er is een probleem met de e-mailbevestiging; je afspraak staat wel in onze agenda.')
 })
 

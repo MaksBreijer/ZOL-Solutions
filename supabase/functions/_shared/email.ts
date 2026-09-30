@@ -134,6 +134,7 @@ export async function sendEmail(input: {
   text: string
   replyTo?: string
   idempotencyKey?: string
+  attachments?: { filename: string; content: string; content_type?: string }[]
   config: EmailConfig
 }) {
   const apiKey = Deno.env.get("RESEND_API_KEY")
@@ -154,6 +155,7 @@ export async function sendEmail(input: {
       subject: input.subject,
       html: input.html,
       text: input.text,
+      ...(input.attachments?.length ? { attachments: input.attachments } : {}),
       reply_to: input.replyTo || input.config.reply_to || fromEmail,
     }),
   })
