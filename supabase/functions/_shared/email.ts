@@ -105,22 +105,23 @@ export function safeEmailUrl(value: string, fallback: string) {
   } catch { return fallback }
 }
 
-export function emailShell(content: string, options: { eyebrow: string; title: string; intro?: string; websiteUrl?: string; logoUrl?: string; buttonLabel?: string; buttonUrl?: string }) {
+export function emailShell(content: string, options: { eyebrow: string; title: string; intro?: string; websiteUrl?: string; logoUrl?: string; buttonLabel?: string; buttonUrl?: string; compact?: boolean }) {
   const websiteUrl = options.websiteUrl || "https://zolsolutions.nl"
   const logoUrl = safeEmailUrl(options.logoUrl || `${websiteUrl.replace(/\/$/, "")}/media/zol-logo.png`, `${websiteUrl.replace(/\/$/, "")}/media/zol-logo.png`)
   const buttonUrl = options.buttonLabel && options.buttonUrl ? safeEmailUrl(options.buttonUrl, websiteUrl) : ""
+  const compact = Boolean(options.compact)
   return `<!doctype html><html lang="nl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-  <body style="margin:0;background:#f3f5f7;color:#10233b;font-family:Arial,Helvetica,sans-serif">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f7"><tr><td align="center" style="padding:32px 12px">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;overflow:hidden;border-radius:22px;background:#ffffff;box-shadow:0 18px 50px rgba(16,35,59,.09)">
-        <tr><td style="padding:34px 38px;background:#102b4a;color:#ffffff">
+  <body style="margin:0;background:#f3f5f7;color:#10233b;font-family:Arial,Helvetica,sans-serif${compact ? ";-webkit-text-size-adjust:100%;text-size-adjust:100%" : ""}">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f7"><tr><td align="center" style="padding:${compact ? "16px 8px" : "32px 12px"}">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:${compact ? "520" : "680"}px;overflow:hidden;border-radius:${compact ? "14" : "22"}px;background:#ffffff;box-shadow:0 18px 50px rgba(16,35,59,.09)">
+        <tr><td style="padding:${compact ? "24px 20px" : "34px 38px"};background:#102b4a;color:#ffffff">
           <a href="${escapeEmailHtml(websiteUrl)}" style="display:inline-block;color:#ffffff;text-decoration:none"><img src="${escapeEmailHtml(logoUrl)}" width="104" alt="ZOL Solutions" style="display:block;width:104px;max-width:100%;height:auto;filter:brightness(0) invert(1)"></a>
           <p style="margin:24px 0 8px;color:#9fc4e8;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">${escapeEmailHtml(options.eyebrow)}</p>
-          <h1 style="margin:0;max-width:560px;font-size:34px;line-height:1.08;letter-spacing:-1px">${escapeEmailHtml(options.title)}</h1>
+          <h1 style="margin:0;max-width:560px;font-size:${compact ? "26" : "34"}px;line-height:1.12;letter-spacing:-1px">${escapeEmailHtml(options.title)}</h1>
           ${options.intro ? `<p style="margin:16px 0 0;color:#dfeaf4;font-size:15px;line-height:1.65">${escapeEmailHtml(options.intro)}</p>` : ""}
         </td></tr>
-        <tr><td style="padding:34px 38px">${content}${buttonUrl ? `<a href="${escapeEmailHtml(buttonUrl)}" style="display:inline-block;margin-top:8px;padding:14px 21px;border-radius:9px;background:#33669b;color:#fff;font-size:13px;font-weight:700;text-decoration:none">${escapeEmailHtml(options.buttonLabel)} &rarr;</a>` : ""}</td></tr>
-        <tr><td style="padding:22px 38px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">ZOL Solutions &middot; Zachter landen. Beter sporten.<br><a href="${escapeEmailHtml(websiteUrl)}" style="color:#33669b">${escapeEmailHtml(websiteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
+        <tr><td style="padding:${compact ? "24px 20px" : "34px 38px"}">${content}${buttonUrl ? `<a href="${escapeEmailHtml(buttonUrl)}" style="display:inline-block;margin-top:8px;padding:14px 21px;border-radius:9px;background:#33669b;color:#fff;font-size:13px;font-weight:700;text-decoration:none">${escapeEmailHtml(options.buttonLabel)} &rarr;</a>` : ""}</td></tr>
+        <tr><td style="padding:${compact ? "18px 20px" : "22px 38px"};border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">ZOL Solutions &middot; Zachter landen. Beter sporten.<br><a href="${escapeEmailHtml(websiteUrl)}" style="color:#33669b">${escapeEmailHtml(websiteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
       </table>
     </td></tr></table>
   </body></html>`
