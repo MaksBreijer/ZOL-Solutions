@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
 
 type Lead = Record<string, unknown>
-type Recipient = { id: string; campaign_id: string; lead_id: string; practice_name: string; location: string; specialization: string; email: string }
+type Recipient = { id: string; campaign_id: string; lead_id: string; practice_name: string; location: string; specialization: string; contact_person: string; personal_opening: string; email: string }
 const clean = (value: unknown) => String(value ?? "").trim()
 const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 const footer = "Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand."
@@ -19,9 +19,11 @@ function eligibleLeads(leads: Lead[]) {
 }
 
 function personalize(template: string, recipient: Recipient) {
-  return template.replace(/{{\s*(praktijknaam|plaats|specialisatie)\s*}}/gi, (_match, key: string) => {
+  return template.replace(/{{\s*(praktijknaam|plaats|specialisatie|contactpersoon|persoonlijke_opening)\s*}}/gi, (_match, key: string) => {
     if (key.toLowerCase() === "praktijknaam") return recipient.practice_name
     if (key.toLowerCase() === "plaats") return recipient.location
+    if (key.toLowerCase() === "contactpersoon") return recipient.contact_person || `praktijkhouder van ${recipient.practice_name}`
+    if (key.toLowerCase() === "persoonlijke_opening") return recipient.personal_opening
     return recipient.specialization
   })
 }
@@ -48,7 +50,8 @@ async function campaignStatus(db: ReturnType<typeof adminClient>) {
     if (error) throw error
     counts = (data || []).reduce((result: Record<string, number>, row: { status: string }) => { result[row.status] = (result[row.status] || 0) + 1; return result }, {})
   }
-  return { total_physios: physios.length, eligible: eligible.length, excluded: physios.length - eligible.length, campaign, counts, sample: eligible[0] ? { practice_name: clean(eligible[0].name), location: clean(eligible[0].city), specialization: clean(eligible[0].specialization) } : null }
+  const sampleLead = eligible.find((lead) => clean(lead.personal_opening)) || eligible[0]
+  return { total_physios: physios.length, eligible: eligible.length, personalized: eligible.filter((lead) => clean(lead.personal_opening)).length, excluded: physios.length - eligible.length, campaign, counts, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
 }
 
 async function processBatch(db: ReturnType<typeof adminClient>) {
@@ -150,9 +153,10 @@ Deno.serve(async (request) => {
     if (settingsError) throw settingsError
     const recipients = eligibleLeads(Array.isArray(settings?.value?.leads) ? settings.value.leads : [])
     if (!recipients.length) return Response.json({ error: "Er zijn nog geen fysiopraktijken met een vastgelegde mailgrond en geldig e-mailadres." }, { status: 400, headers })
+    if (/{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && recipients.some((lead) => !clean(lead.personal_opening))) return Response.json({ error: "Vul voor iedere ontvanger een controleerbare persoonlijke openingszin in voordat je deze campagne start." }, { status: 400, headers })
     const { data: campaign, error: campaignError } = await db.from("physio_campaigns").insert({ subject_template: subject, body_template: message, created_by: admin.id }).select("id").single()
     if (campaignError) throw campaignError
-    const rows = recipients.map((lead) => ({ campaign_id: campaign.id, lead_id: clean(lead.id), practice_name: clean(lead.name), location: clean(lead.city), specialization: clean(lead.specialization), email: clean(lead.email).toLowerCase() }))
+    const rows = recipients.map((lead) => ({ campaign_id: campaign.id, lead_id: clean(lead.id), practice_name: clean(lead.name), location: clean(lead.city), specialization: clean(lead.specialization), contact_person: clean(lead.contact_name), personal_opening: clean(lead.personal_opening), email: clean(lead.email).toLowerCase() }))
     for (let index = 0; index < rows.length; index += 500) {
       const { error } = await db.from("physio_campaign_recipients").insert(rows.slice(index, index + 500))
       if (error) { await db.from("physio_campaigns").update({ status: "paused" }).eq("id", campaign.id); throw error }

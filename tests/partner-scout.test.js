@@ -70,11 +70,12 @@ test('physio draft keeps product claims measured and outreach review state survi
 })
 
 test('imports a licensed practice file as research leads without e-mail permission', () => {
-  const result = parsePhysioCsv('praktijknaam;plaats;e-mail;specialisatie;bron\nFysio Noord;Haarlem;info@noord.nl;sportfysiotherapie;https://noord.nl\nFysio Noord;Haarlem;info@noord.nl;;')
+  const result = parsePhysioCsv('praktijknaam;plaats;e-mail;specialisatie;bron;persoonlijke_opening\nFysio Noord;Haarlem;info@noord.nl;sportfysiotherapie;https://noord.nl;Ik zag jullie sportspreekuur in Haarlem.\nFysio Noord;Haarlem;info@noord.nl;;')
   assert.equal(result.leads.length, 1)
   assert.equal(result.leads[0].specialization, 'sportfysiotherapie')
   assert.equal(result.leads[0].outreach_basis, 'none')
   assert.equal(result.leads[0].source_url, 'https://noord.nl')
+  assert.equal(normalizePartnerScoutState({ leads: result.leads }).leads[0].personal_opening, 'Ik zag jullie sportspreekuur in Haarlem.')
 })
 
 test('builds rate-limit friendly public searches and reads their results', () => {

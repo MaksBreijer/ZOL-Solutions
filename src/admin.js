@@ -1553,7 +1553,7 @@ function partnerDetailMarkup(lead) {
       <button class="button button--primary" type="submit">Resultaten opslaan</button>
     </form>
     <section class="partner-contact-grid"><div><small>Aanspreekpunt</small><strong>${escapeHtml(lead.contact_name || lead.contact_role || 'Nog vinden')}</strong><span>${lead.contact_name && lead.contact_role ? escapeHtml(lead.contact_role) : ''}</span></div><div><small>Zakelijk contact</small><strong>${escapeHtml(lead.email || 'Nog geen openbaar e-mailadres')}</strong>${lead.phone ? `<span>${escapeHtml(lead.phone)}</span>` : ''}</div><div><small>Broncontrole</small><strong class="partner-freshness ${freshnessClass}"><i></i>${escapeHtml(freshness)}</strong>${lead.source_url ? `<a href="${escapeHtml(lead.source_url)}" target="_blank" rel="noreferrer">Organisatiebron ↗</a>` : ''}${lead.apollo_enriched_at ? `<span class="partner-apollo-source">${escapeHtml(apolloEnrichmentLabel(lead))}</span>` : ''}${lead.apollo_person_url ? `<a href="${escapeHtml(lead.apollo_person_url)}" target="_blank" rel="noreferrer">Apollo-profiel ↗</a>` : ''}</div></section>
-    <details class="partner-inline-editor"><summary><i data-lucide="pencil"></i> Contactgegevens en verkoophoek bewerken</summary><form id="partner-inline-edit" data-id="${escapeHtml(lead.id)}"><div class="form-grid"><label class="field">Contactpersoon<input name="contact_name" maxlength="120" value="${escapeHtml(lead.contact_name)}"></label><label class="field">Functie / rol<input name="contact_role" maxlength="120" value="${escapeHtml(lead.contact_role)}"></label><label class="field">Zakelijk e-mailadres<input name="email" type="email" maxlength="200" value="${escapeHtml(lead.email)}"></label><label class="field">Specialisatie (alleen indien aangetoond)<input name="specialization" maxlength="160" value="${escapeHtml(lead.specialization || '')}"></label><label class="field">Telefoon<input name="phone" maxlength="60" value="${escapeHtml(lead.phone)}"></label><label class="field field--full">Beste openingshoek<textarea name="angle" rows="2" maxlength="500">${escapeHtml(lead.angle)}</textarea></label></div><button class="button" type="submit">Contactgegevens opslaan</button></form></details>
+    <details class="partner-inline-editor"><summary><i data-lucide="pencil"></i> Contactgegevens en persoonlijke opening bewerken</summary><form id="partner-inline-edit" data-id="${escapeHtml(lead.id)}"><div class="form-grid"><label class="field">Contactpersoon<input name="contact_name" maxlength="120" value="${escapeHtml(lead.contact_name)}"></label><label class="field">Functie / rol<input name="contact_role" maxlength="120" value="${escapeHtml(lead.contact_role)}"></label><label class="field">Zakelijk e-mailadres<input name="email" type="email" maxlength="200" value="${escapeHtml(lead.email)}"></label><label class="field">Specialisatie (alleen indien aangetoond)<input name="specialization" maxlength="160" value="${escapeHtml(lead.specialization || '')}"></label><label class="field">Telefoon<input name="phone" maxlength="60" value="${escapeHtml(lead.phone)}"></label><label class="field field--full">Persoonlijke openingszin (alleen controleerbare praktijkdetails)<textarea name="personal_opening" rows="3" maxlength="500">${escapeHtml(lead.personal_opening || '')}</textarea></label><label class="field field--full">Beste openingshoek<textarea name="angle" rows="2" maxlength="500">${escapeHtml(lead.angle)}</textarea></label></div><button class="button" type="submit">Contactgegevens opslaan</button></form></details>
     <section class="partner-notes"><h3>Contactlogboek</h3><form id="partner-note-form" data-id="${escapeHtml(lead.id)}"><textarea name="body" rows="2" maxlength="1000" placeholder="Bijv. Thijn heeft gebeld; LO-coördinator terugbellen op vrijdag…" required></textarea><button class="button" type="submit">Notitie plaatsen</button></form>${interactions.length ? `<ol>${interactions.map((item) => `<li><i></i><div><p>${escapeHtml(item.body)}</p><small>${escapeHtml(item.author)} · ${formatDate(item.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div></li>`).join('')}</ol>` : '<p class="partner-no-notes">Nog geen contactmomenten. De eerste actie komt hier automatisch te staan.</p>'}</section>
   </article>`
 }
@@ -1652,10 +1652,12 @@ function renderPartners() {
 }
 
 function personalizedCampaignText(template, practice) {
-  return String(template || '').replace(/{{\s*(praktijknaam|plaats|specialisatie)\s*}}/gi, (_match, key) => ({
+  return String(template || '').replace(/{{\s*(praktijknaam|plaats|specialisatie|contactpersoon|persoonlijke_opening)\s*}}/gi, (_match, key) => ({
     praktijknaam: practice?.practice_name || 'Voorbeeldpraktijk',
     plaats: practice?.location || 'Plaats',
     specialisatie: practice?.specialization || 'fysiotherapie',
+    contactpersoon: practice?.contact_person || `praktijkhouder van ${practice?.practice_name || 'Voorbeeldpraktijk'}`,
+    persoonlijke_opening: practice?.personal_opening || '[persoonlijke openingszin ontbreekt]',
   })[key.toLowerCase()] || '')
 }
 
@@ -1663,17 +1665,21 @@ function renderPhysioCampaign() {
   const total = state.partnerScout.leads.filter((lead) => lead.type === 'physio').length
   elements.content.innerHTML = `<div class="page-container physio-campaign-page">
     ${pageHeader('physio-campaign', '<a class="button" href="#partners">Praktijken bekijken</a>')}
-    <section class="panel physio-campaign-intro"><h2>Eén mail voor Fysio Nederland</h2><p>Schrijf het bericht zelf. De Scout vult <code>{{praktijknaam}}</code> per ontvanger in; ook <code>{{plaats}}</code> en <code>{{specialisatie}}</code> zijn beschikbaar. De matchscore speelt in deze campagne geen rol.</p><div class="physio-campaign-counts"><strong>${total}<small>fysiopraktijken in overzicht</small></strong><strong id="physio-campaign-eligible">…<small>met vastgelegde mailgrond</small></strong><strong id="physio-campaign-sent">…<small>verzonden in huidige campagne</small></strong></div></section>
-    <section class="physio-campaign-layout"><form class="panel physio-campaign-compose" id="physio-campaign-form"><h2>Schrijf jullie mail</h2><label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(physioCampaignDraft.subject)}" placeholder="Vraag over {{praktijknaam}}" required></label><label class="field">Bericht<textarea name="message" rows="15" maxlength="5000" placeholder="Beste praktijkhouder van {{praktijknaam}},&#10;&#10;..." required>${escapeHtml(physioCampaignDraft.message)}</textarea></label><p class="form-hint">De Scout voegt de afmeldtekst automatisch onder ieder bericht toe. Gebruik <code>{{praktijknaam}}</code> in het onderwerp of de tekst.</p><div class="form-actions"><button class="button button--primary" id="physio-campaign-start" type="submit" disabled>Controleer en start campagne</button></div></form>
+    <section class="panel physio-campaign-intro"><h2>Eén mail voor Fysio Nederland</h2><p>Schrijf het bericht zelf. Gebruik <code>{{contactpersoon}}</code>, <code>{{praktijknaam}}</code>, <code>{{plaats}}</code>, <code>{{specialisatie}}</code> en <code>{{persoonlijke_opening}}</code>. De persoonlijke opening schrijf je per praktijk in Partner Scout op basis van een controleerbare bron. De matchscore speelt geen rol.</p><div class="physio-campaign-counts"><strong>${total}<small>fysiopraktijken in overzicht</small></strong><strong id="physio-campaign-eligible">…<small>met vastgelegde mailgrond</small></strong><strong id="physio-campaign-personalized">…<small>met persoonlijke opening</small></strong><strong id="physio-campaign-sent">…<small>verzonden in huidige campagne</small></strong></div></section>
+    <section class="physio-campaign-layout"><form class="panel physio-campaign-compose" id="physio-campaign-form"><h2>Schrijf jullie mail</h2><label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(physioCampaignDraft.subject)}" placeholder="Vraag over {{praktijknaam}}" required></label><label class="field">Bericht<textarea name="message" rows="15" maxlength="5000" placeholder="Beste {{contactpersoon}},&#10;&#10;{{persoonlijke_opening}}&#10;&#10;..." required>${escapeHtml(physioCampaignDraft.message)}</textarea></label><p class="form-hint">De Scout voegt de afmeldtekst automatisch toe. Gebruik <code>{{praktijknaam}}</code> in onderwerp of tekst. Met <code>{{persoonlijke_opening}}</code> kan de campagne pas starten als iedere ontvanger een eigen openingszin heeft.</p><div class="form-actions"><button class="button button--primary" id="physio-campaign-start" type="submit" disabled>Controleer en start campagne</button></div></form>
     <aside class="panel physio-campaign-preview"><h2>Voorbeeld per praktijk</h2><p id="physio-campaign-sample">De ontvangerslijst wordt geladen.</p><div class="physio-mail-preview"><div class="physio-mail-preview-head"><img src="/media/zol-logo.png" alt="ZOL Solutions"><small>Bericht van ZOL Solutions</small><strong id="physio-preview-subject">Typ een onderwerp</strong></div><div class="physio-mail-preview-content"><div id="physio-preview-body">Typ jullie bericht om een voorbeeld te zien.</div><figure class="physio-mail-preview-team"><img src="/media/story-team.jpg" alt="Maks en Thijn, oprichters van ZOL Solutions"><figcaption>Maks &amp; Thijn · ZOL Solutions</figcaption></figure><p class="physio-mail-preview-optout">Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand.</p></div><div class="physio-mail-preview-foot">ZOL Solutions · Zachter landen. Beter sporten.<br>zolsolutions.nl</div></div><p class="form-hint">Alleen fysiopraktijken met een vastgelegde mailgrond en een geldig adres komen in de verzendrij. Er gaan maximaal 40 e-mails per dag uit via de ingestelde inbox.</p></aside></section>
     <section class="panel physio-campaign-progress"><h2>Verzendstatus</h2><div id="physio-campaign-status">Status laden…</div><div class="form-actions"><button class="button" type="button" id="physio-campaign-pause" hidden>Pauzeren</button><button class="button" type="button" id="physio-campaign-resume" hidden>Hervatten</button></div></section>
   </div>`
   const form = document.querySelector('#physio-campaign-form')
   const preview = () => {
     physioCampaignDraft = Object.fromEntries(new FormData(form))
-    const sample = physioCampaignStatus?.sample || { practice_name: 'Voorbeeldpraktijk', location: 'Amsterdam', specialization: 'fysiotherapie' }
+    const sample = physioCampaignStatus?.sample || { practice_name: 'Voorbeeldpraktijk', location: 'Amsterdam', specialization: 'fysiotherapie', contact_person: 'Mevrouw De Vries', personal_opening: 'Ik zag dat jullie kinderen met sportblessures begeleiden.' }
     document.querySelector('#physio-preview-subject').textContent = personalizedCampaignText(physioCampaignDraft.subject, sample) || 'Typ een onderwerp'
     document.querySelector('#physio-preview-body').textContent = personalizedCampaignText(physioCampaignDraft.message, sample) || 'Typ jullie bericht om een voorbeeld te zien.'
+    const needsOpening = /{{\s*persoonlijke_opening\s*}}/i.test(`${physioCampaignDraft.subject}\n${physioCampaignDraft.message}`)
+    const eligible = Number(physioCampaignStatus?.eligible || 0)
+    const personalized = Number(physioCampaignStatus?.personalized || 0)
+    form.querySelector('[type="submit"]').disabled = !eligible || physioCampaignStatus?.campaign?.status === 'running' || (needsOpening && personalized < eligible)
   }
   form.addEventListener('input', preview)
   form.addEventListener('submit', async (event) => {
@@ -1682,6 +1688,7 @@ function renderPhysioCampaign() {
     if (!/{{\s*praktijknaam\s*}}/i.test(`${subject}\n${message}`)) { toast('Praktijknaam ontbreekt', 'Voeg {{praktijknaam}} toe aan het onderwerp of de tekst.', true); return }
     const eligible = Number(physioCampaignStatus?.eligible || 0)
     if (!eligible) { toast('Nog geen verzendbare ontvangers', 'Leg per praktijk de mailgrond vast in Partner Scout.', true); return }
+    if (/{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && Number(physioCampaignStatus?.personalized || 0) < eligible) { toast('Persoonlijke opening ontbreekt', 'Vul de openingszin bij iedere ontvanger in via Partner Scout.', true); return }
     if (!window.confirm(`Je staat op het punt één campagne voor ${eligible} fysiopraktijken te starten. De eerste maximaal 40 berichten kunnen direct uitgaan; daarna maximaal 40 per dag. Heb je de tekst en de mailgrond gecontroleerd?`)) return
     const button = form.querySelector('[type="submit"]')
     setBusy(button, true, 'Controleer en start campagne')
@@ -1693,7 +1700,7 @@ function renderPhysioCampaign() {
     } catch (error) { toast('Campagne niet gestart', error.message, true) }
     finally {
       setBusy(button, false, 'Controleer en start campagne')
-      button.disabled = !physioCampaignStatus?.eligible || physioCampaignStatus?.campaign?.status === 'running'
+      preview()
     }
   })
   document.querySelector('#physio-campaign-pause').addEventListener('click', () => changePhysioCampaign('pause'))
@@ -1709,6 +1716,7 @@ async function loadPhysioCampaignStatus() {
     physioCampaignStatus = data
     if (currentRoute() !== 'physio-campaign') return
     document.querySelector('#physio-campaign-eligible').innerHTML = `${data.eligible}<small>met vastgelegde mailgrond</small>`
+    document.querySelector('#physio-campaign-personalized').innerHTML = `${data.personalized}<small>met persoonlijke opening</small>`
     document.querySelector('#physio-campaign-sent').innerHTML = `${data.counts?.sent || 0}<small>verzonden in huidige campagne</small>`
     document.querySelector('#physio-campaign-sample').textContent = data.sample ? `Voorbeeld: ${data.sample.practice_name}${data.sample.location ? ` · ${data.sample.location}` : ''}` : 'Er is nog geen praktijk met een vastgelegde mailgrond.'
     const campaign = data.campaign
