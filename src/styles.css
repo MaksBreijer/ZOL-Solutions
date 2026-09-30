@@ -5368,6 +5368,35 @@ blockquote {
   text-transform: none;
 }
 
+/* Keep orange heading accents aligned with the site's main typeface. */
+.hero h1 em,
+.section h2 em,
+.solution h2 em,
+.why h2 em,
+.emotion h2 em,
+.buy h2 em,
+.story-copy h2 em,
+.press-heading h2 em,
+.partners-intro h2 em,
+.product-purchase h1 em,
+.contact-hero h1 em,
+.product-in-use h2 em,
+.contact-form-section h2 em,
+.contact-human h2 em,
+.page-cta h2 em,
+.price-comparison-heading h2 em,
+.professionals h2 em,
+.knowledge-heading h2 em,
+.knowledge-hero h1 em,
+.growth-hero-copy h1 em,
+.growth-section-heading h2 em,
+.campaign-product-copy h2 em {
+  font-family: var(--heading);
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .growth-hero-copy > p:not(.section-index) {
   max-width: 680px;
   margin: 0;
