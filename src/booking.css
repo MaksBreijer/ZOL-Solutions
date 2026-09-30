@@ -1,5 +1,6 @@
 .booking-page { background: #fbfaf7; }
-.booking-main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 90px 0 110px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; gap: clamp(36px, 7vw, 100px); }
+.booking-page main.booking-main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: clamp(118px, 11vw, 154px) 0 110px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; gap: clamp(36px, 7vw, 100px); }
+.booking-card, #booking-form { scroll-margin-top: 118px; }
 .booking-intro h1 { max-width: 590px; margin: 14px 0 24px; color: #102b4a; font: 700 clamp(48px, 6vw, 84px)/.95 'Barlow Condensed', sans-serif; text-transform: uppercase; }
 .booking-intro h1 em { color: #bf512f; font-style: normal; }
 .booking-intro > p:not(.section-index) { max-width: 530px; color: #445b70; font-size: 18px; line-height: 1.65; }
@@ -27,5 +28,5 @@
 .booking-honeypot { position: absolute; left: -9999px; }
 #booking-success p { line-height: 1.6; }
 #booking-success .button { margin-top: 18px; }
-@media (max-width: 860px) { .booking-main { grid-template-columns: 1fr; padding-top: 58px; } .booking-people { max-width: 360px; } }
+@media (max-width: 860px) { .booking-page main.booking-main { grid-template-columns: 1fr; padding-top: 118px; } .booking-people { max-width: 360px; } }
 @media (max-width: 520px) { .booking-fields { grid-template-columns: 1fr; } .booking-card { padding: 20px; } }
