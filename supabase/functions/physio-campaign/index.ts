@@ -136,6 +136,41 @@ Deno.serve(async (request) => {
     }
     const admin = await requireAdmin(request, db)
     if (!["owner", "admin"].includes(clean(admin.role))) return Response.json({ error: "Geen toegang" }, { status: 403, headers })
+    if (action === "test") {
+      const config = await getEmailConfig(db)
+      const recipients = [
+        { name: "Thijn", email: "thijn@zolsolutions.nl" },
+        { name: "Maks", email: "maks@zolsolutions.nl" },
+      ]
+      const templateSubject = clean(body.subject) || "Vraag over {{praktijknaam}}"
+      const templateBody = clean(body.message) || "Hoi {{contactpersoon}},\n\nDit is een test van de persoonlijke fysiomail van ZOL Solutions. Zo ziet de mail eruit voor {{praktijknaam}}.\n\nGroet,\nMaks & Thijn\nZOL Solutions"
+      const results = []
+      for (const recipient of recipients) {
+        const person = { practice_name: `Praktijk van ${recipient.name}`, location: "Amsterdam", specialization: "fysiotherapie", contact_person: recipient.name, personal_opening: `Hoi ${recipient.name}, dit is een voorbeeld van een persoonlijke openingszin.` } as Recipient
+        const subject = `[TEST] ${personalize(templateSubject, person).slice(0, 170)}`
+        const bodyText = personalize(templateBody, person).trim()
+        const bookingUrl = `https://zolsolutions.nl/kennismaking/?praktijk=${encodeURIComponent(person.practice_name)}`
+        const text = `${bodyText}\n\nPlan 10 minuten met ons: ${bookingUrl}\n\n${footer}`
+        const paragraphs = bodyText.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
+          .map((paragraph) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
+        const button = `<a href="${escapeEmailHtml(bookingUrl)}" style="display:inline-block;margin-top:16px;padding:13px 19px;border-radius:8px;background:#33669b;color:#fff;font-size:14px;font-weight:700;text-decoration:none">Plan 10 minuten met ons →</a>`
+        const photo = `<div style="margin:28px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="604" alt="Maks en Thijn, oprichters van ZOL Solutions" style="display:block;width:100%;max-width:604px;height:auto;border-radius:10px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>`
+        const optOut = `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">${escapeEmailHtml(footer)}</p>`
+        const html = emailShell(`${paragraphs}${button}${photo}${optOut}`, { eyebrow: "Test fysiomail · ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
+        const dedupeKey = `physio-campaign-test-${crypto.randomUUID()}`
+        const log = await logEmail(db, { kind: "physio_campaign_test", recipient_email: recipient.email, subject, body_preview: text.slice(0, 500), dedupe_key: dedupeKey })
+        try {
+          const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config })
+          await markEmail(db, log.id, { status: "sent", providerId: sent.id })
+          results.push({ recipient: recipient.email, status: "sent", provider_id: sent.id || null })
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Verzenden mislukt"
+          await markEmail(db, log.id, { status: "failed", error: message })
+          results.push({ recipient: recipient.email, status: "failed", error: message })
+        }
+      }
+      return Response.json({ success: results.every((result) => result.status === "sent"), results }, { headers })
+    }
     if (action === "status") return Response.json({ success: true, ...await campaignStatus(db) }, { headers })
     if (action === "run") return Response.json({ success: true, ...await processBatch(db) }, { headers })
     if (action === "pause" || action === "resume") {
