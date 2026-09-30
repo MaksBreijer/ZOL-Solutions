@@ -158,7 +158,7 @@ Deno.serve(async (request) => {
         const optOut = `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">${escapeEmailHtml(footer)}</p>`
         const html = emailShell(`${paragraphs}${button}${photo}${optOut}`, { eyebrow: "Test fysiomail · ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
         const dedupeKey = `physio-campaign-test-${crypto.randomUUID()}`
-        const log = await logEmail(db, { kind: "physio_campaign_test", recipient_email: recipient.email, subject, body_preview: text.slice(0, 500), dedupe_key: dedupeKey })
+        const log = await logEmail(db, { kind: "physio_campaign", recipient_email: recipient.email, subject, body_preview: text.slice(0, 500), dedupe_key: dedupeKey })
         try {
           const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config })
           await markEmail(db, log.id, { status: "sent", providerId: sent.id })
