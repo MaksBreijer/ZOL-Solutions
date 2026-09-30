@@ -6,6 +6,23 @@ type Recipient = { id: string; campaign_id: string; lead_id: string; practice_na
 const clean = (value: unknown) => String(value ?? "").trim()
 const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 const footer = "Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand."
+const batchSize = 100
+
+async function deliveryHistory(db: ReturnType<typeof adminClient>) {
+  const sent = new Set<string>()
+  const pending = new Set<string>()
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await db.from("physio_campaign_recipients").select("email,status").range(offset, offset + 999)
+    if (error) throw error
+    for (const row of data || []) {
+      const email = clean(row.email).toLowerCase()
+      if (row.status === "sent") sent.add(email)
+      if (["queued", "sending"].includes(row.status)) pending.add(email)
+    }
+    if ((data || []).length < 1000) break
+  }
+  return { sent, pending }
+}
 
 function eligibleLeads(leads: Lead[]) {
   const seen = new Set<string>()
@@ -43,6 +60,9 @@ async function campaignStatus(db: ReturnType<typeof adminClient>) {
   const leads = Array.isArray(settings?.value?.leads) ? settings.value.leads as Lead[] : []
   const physios = leads.filter((lead) => lead.type === "physio")
   const eligible = eligibleLeads(physios)
+  const history = await deliveryHistory(db)
+  const ready = eligible.filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
+  const knownEmails = new Set(physios.map((lead) => clean(lead.email).toLowerCase()).filter(validEmail))
   const { data: campaign, error: campaignError } = await db.from("physio_campaigns").select("id,subject_template,body_template,status,created_at,completed_at").order("created_at", { ascending: false }).limit(1).maybeSingle()
   if (campaignError) throw campaignError
   let counts: Record<string, number> = {}
@@ -51,8 +71,9 @@ async function campaignStatus(db: ReturnType<typeof adminClient>) {
     if (error) throw error
     counts = (data || []).reduce((result: Record<string, number>, row: { status: string }) => { result[row.status] = (result[row.status] || 0) + 1; return result }, {})
   }
-  const sampleLead = eligible.find((lead) => clean(lead.personal_opening)) || eligible[0]
-  return { total_physios: physios.length, eligible: eligible.length, personalized: eligible.filter((lead) => clean(lead.personal_opening)).length, excluded: physios.length - eligible.length, campaign, counts, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
+  const nextBatch = ready.slice(0, batchSize)
+  const sampleLead = nextBatch.find((lead) => clean(lead.personal_opening)) || nextBatch[0]
+  return { total_physios: physios.length, known_emails: knownEmails.size, eligible: ready.length, batch_ready: nextBatch.length, batch_size: batchSize, personalized: nextBatch.filter((lead) => clean(lead.personal_opening)).length, sent_total: history.sent.size, pending_total: history.pending.size, excluded: physios.length - eligible.length, campaign, counts, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
 }
 
 async function processBatch(db: ReturnType<typeof adminClient>) {
@@ -74,7 +95,7 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
   for (const recipient of recipients) {
     const lead = leads.get(recipient.lead_id)
     const campaign = byCampaign.get(recipient.campaign_id)
-    const stillEligible = lead && !lead.outreach_opt_out && ["consent", "existing_customer"].includes(clean(lead.outreach_basis)) && clean(lead.outreach_basis_note) && clean(lead.email).toLowerCase() === recipient.email.toLowerCase()
+    const stillEligible = lead && eligibleLeads([lead]).length === 1 && clean(lead.email).toLowerCase() === recipient.email.toLowerCase()
     if (!stillEligible || !campaign) {
       await db.from("physio_campaign_recipients").update({ status: "skipped", error_message: "Contact of mailgrond gewijzigd" }).eq("id", recipient.id)
       counts.skipped++
@@ -104,7 +125,7 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
       const teamPhoto = `<div style="margin:28px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="604" alt="Maks en Thijn, oprichters van ZOL Solutions" style="display:block;width:100%;max-width:604px;height:auto;border-radius:10px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>`
       const optOut = `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">${escapeEmailHtml(footer)}</p>`
       const html = emailShell(`${paragraphs}${bookingButton}${teamPhoto}${optOut}`, { eyebrow: "Bericht van ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
-      const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config })
+      const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config: { ...config, from_email: "info@zolsolutions.nl", reply_to: "info@zolsolutions.nl" } })
       await markEmail(db, log.id, { status: "sent", providerId: sent.id })
       await db.from("physio_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), provider_id: sent.id || null }).eq("id", recipient.id)
       counts.sent++
@@ -161,7 +182,7 @@ Deno.serve(async (request) => {
         const dedupeKey = `physio-campaign-test-${crypto.randomUUID()}`
         const log = await logEmail(db, { kind: "physio_campaign", recipient_email: recipient.email, subject, body_preview: text.slice(0, 500), dedupe_key: dedupeKey })
         try {
-          const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config })
+          const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config: { ...config, from_email: "info@zolsolutions.nl", reply_to: "info@zolsolutions.nl" } })
           await markEmail(db, log.id, { status: "sent", providerId: sent.id })
           results.push({ recipient: recipient.email, status: "sent", provider_id: sent.id || null })
         } catch (error) {
@@ -189,7 +210,10 @@ Deno.serve(async (request) => {
     if (running) return Response.json({ error: "Er loopt al een fysiocampagne. Rond die eerst af of pauzeer haar." }, { status: 409, headers })
     const { data: settings, error: settingsError } = await db.from("settings").select("value").eq("key", "partner_scout").maybeSingle()
     if (settingsError) throw settingsError
+    const history = await deliveryHistory(db)
     const recipients = eligibleLeads(Array.isArray(settings?.value?.leads) ? settings.value.leads : [])
+      .filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
+      .slice(0, batchSize)
     if (!recipients.length) return Response.json({ error: "Er zijn nog geen fysiopraktijken met een vastgelegde mailgrond en geldig e-mailadres." }, { status: 400, headers })
     if (/{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && recipients.some((lead) => !clean(lead.personal_opening))) return Response.json({ error: "Vul voor iedere ontvanger een controleerbare persoonlijke openingszin in voordat je deze campagne start." }, { status: 400, headers })
     const { data: campaign, error: campaignError } = await db.from("physio_campaigns").insert({ subject_template: subject, body_template: message, created_by: admin.id }).select("id").single()
