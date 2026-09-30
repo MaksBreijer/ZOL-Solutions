@@ -46,6 +46,8 @@ let partnerFilters = { query: '', type: 'sports_club', status: '', flow: 'todo',
 let partnerSelectedId = ''
 let partnerRefreshTimer = null
 let partnerPulseRunning = false
+let physioCampaignDraft = { subject: '', message: '' }
+let physioCampaignStatus = null
 let apolloCandidates = new Map()
 const PARTNER_SCAN_PROFILE = 'no-foot-specialists-v3'
 
@@ -110,6 +112,7 @@ const routeMeta = {
   orders: ['Bestellingen', 'Beheer betalingen, verzending en orderdetails.'],
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
   partners: ['Partner Scout', 'Vind, kwalificeer en bereik scholen, zorgpraktijken en sportclubs.'],
+  'physio-campaign': ['Fysiomail', 'Schrijf één bericht voor alle fysiopraktijken in de verzendlijst.'],
   messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
   emails: ['E-mails', 'Bewerk automatische bestel-, bedank- en productmails in de ZOL-huisstijl.'],
   calendar: ['Teamagenda', 'Plan afspraken, opvolging en ZOL-momenten vanuit één centrale agenda.'],
@@ -1646,6 +1649,82 @@ function renderPartners() {
   </div>`
   wirePartnerDetailForms()
   // Public data lookups run only after an administrator starts a scan.
+}
+
+function personalizedCampaignText(template, practice) {
+  return String(template || '').replace(/{{\s*(praktijknaam|plaats|specialisatie)\s*}}/gi, (_match, key) => ({
+    praktijknaam: practice?.practice_name || 'Voorbeeldpraktijk',
+    plaats: practice?.location || 'Plaats',
+    specialisatie: practice?.specialization || 'fysiotherapie',
+  })[key.toLowerCase()] || '')
+}
+
+function renderPhysioCampaign() {
+  const total = state.partnerScout.leads.filter((lead) => lead.type === 'physio').length
+  elements.content.innerHTML = `<div class="page-container physio-campaign-page">
+    ${pageHeader('physio-campaign', '<a class="button" href="#partners">Praktijken bekijken</a>')}
+    <section class="panel physio-campaign-intro"><h2>Eén mail voor Fysio Nederland</h2><p>Schrijf het bericht zelf. De Scout vult <code>{{praktijknaam}}</code> per ontvanger in; ook <code>{{plaats}}</code> en <code>{{specialisatie}}</code> zijn beschikbaar. De matchscore speelt in deze campagne geen rol.</p><div class="physio-campaign-counts"><strong>${total}<small>fysiopraktijken in overzicht</small></strong><strong id="physio-campaign-eligible">…<small>met vastgelegde mailgrond</small></strong><strong id="physio-campaign-sent">…<small>verzonden in huidige campagne</small></strong></div></section>
+    <section class="physio-campaign-layout"><form class="panel physio-campaign-compose" id="physio-campaign-form"><h2>Schrijf jullie mail</h2><label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(physioCampaignDraft.subject)}" placeholder="Vraag over {{praktijknaam}}" required></label><label class="field">Bericht<textarea name="message" rows="15" maxlength="5000" placeholder="Beste praktijkhouder van {{praktijknaam}},&#10;&#10;..." required>${escapeHtml(physioCampaignDraft.message)}</textarea></label><p class="form-hint">De Scout voegt de afmeldtekst automatisch onder ieder bericht toe. Gebruik <code>{{praktijknaam}}</code> in het onderwerp of de tekst.</p><div class="form-actions"><button class="button button--primary" id="physio-campaign-start" type="submit" disabled>Controleer en start campagne</button></div></form>
+    <aside class="panel physio-campaign-preview"><h2>Voorbeeld per praktijk</h2><p id="physio-campaign-sample">De ontvangerslijst wordt geladen.</p><strong id="physio-preview-subject">Typ een onderwerp</strong><pre id="physio-preview-body">Typ jullie bericht om een voorbeeld te zien.</pre><p class="form-hint">Alleen fysiopraktijken met een vastgelegde mailgrond en een geldig adres komen in de verzendrij. Er gaan maximaal 40 e-mails per dag uit via de ingestelde inbox.</p></aside></section>
+    <section class="panel physio-campaign-progress"><h2>Verzendstatus</h2><div id="physio-campaign-status">Status laden…</div><div class="form-actions"><button class="button" type="button" id="physio-campaign-pause" hidden>Pauzeren</button><button class="button" type="button" id="physio-campaign-resume" hidden>Hervatten</button></div></section>
+  </div>`
+  const form = document.querySelector('#physio-campaign-form')
+  const preview = () => {
+    physioCampaignDraft = Object.fromEntries(new FormData(form))
+    const sample = physioCampaignStatus?.sample || { practice_name: 'Voorbeeldpraktijk', location: 'Amsterdam', specialization: 'fysiotherapie' }
+    document.querySelector('#physio-preview-subject').textContent = personalizedCampaignText(physioCampaignDraft.subject, sample) || 'Typ een onderwerp'
+    document.querySelector('#physio-preview-body').textContent = personalizedCampaignText(physioCampaignDraft.message, sample) || 'Typ jullie bericht om een voorbeeld te zien.'
+  }
+  form.addEventListener('input', preview)
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); preview()
+    const { subject, message } = physioCampaignDraft
+    if (!/{{\s*praktijknaam\s*}}/i.test(`${subject}\n${message}`)) { toast('Praktijknaam ontbreekt', 'Voeg {{praktijknaam}} toe aan het onderwerp of de tekst.', true); return }
+    const eligible = Number(physioCampaignStatus?.eligible || 0)
+    if (!eligible) { toast('Nog geen verzendbare ontvangers', 'Leg per praktijk de mailgrond vast in Partner Scout.', true); return }
+    if (!window.confirm(`Je staat op het punt één campagne voor ${eligible} fysiopraktijken te starten. De eerste maximaal 40 berichten kunnen direct uitgaan; daarna maximaal 40 per dag. Heb je de tekst en de mailgrond gecontroleerd?`)) return
+    const button = form.querySelector('[type="submit"]')
+    setBusy(button, true, 'Controleer en start campagne')
+    try {
+      const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'start', subject, message } })
+      if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Campagne starten mislukt.'))
+      toast('Campagne gestart', `${data.queued} praktijken in de verzendrij; ${data.delivery?.sent || 0} berichten verwerkt.`)
+      await loadPhysioCampaignStatus()
+    } catch (error) { toast('Campagne niet gestart', error.message, true) }
+    finally {
+      setBusy(button, false, 'Controleer en start campagne')
+      button.disabled = !physioCampaignStatus?.eligible || physioCampaignStatus?.campaign?.status === 'running'
+    }
+  })
+  document.querySelector('#physio-campaign-pause').addEventListener('click', () => changePhysioCampaign('pause'))
+  document.querySelector('#physio-campaign-resume').addEventListener('click', () => changePhysioCampaign('resume'))
+  preview()
+  void loadPhysioCampaignStatus()
+}
+
+async function loadPhysioCampaignStatus() {
+  try {
+    const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'status' } })
+    if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Campagnestatus niet beschikbaar.'))
+    physioCampaignStatus = data
+    if (currentRoute() !== 'physio-campaign') return
+    document.querySelector('#physio-campaign-eligible').innerHTML = `${data.eligible}<small>met vastgelegde mailgrond</small>`
+    document.querySelector('#physio-campaign-sent').innerHTML = `${data.counts?.sent || 0}<small>verzonden in huidige campagne</small>`
+    document.querySelector('#physio-campaign-sample').textContent = data.sample ? `Voorbeeld: ${data.sample.practice_name}${data.sample.location ? ` · ${data.sample.location}` : ''}` : 'Er is nog geen praktijk met een vastgelegde mailgrond.'
+    const campaign = data.campaign
+    document.querySelector('#physio-campaign-status').textContent = campaign ? `${campaign.status === 'running' ? 'Actief' : campaign.status === 'paused' ? 'Gepauzeerd' : 'Afgerond'} · ${data.counts?.queued || 0} in wachtrij · ${data.counts?.sent || 0} verzonden · ${data.counts?.failed || 0} mislukt · ${data.counts?.skipped || 0} overgeslagen` : 'Nog geen campagne gestart.'
+    document.querySelector('#physio-campaign-start').disabled = !data.eligible || campaign?.status === 'running'
+    const pause = document.querySelector('#physio-campaign-pause'); pause.hidden = campaign?.status !== 'running'; pause.dataset.id = campaign?.id || ''
+    const resume = document.querySelector('#physio-campaign-resume'); resume.hidden = campaign?.status !== 'paused'; resume.dataset.id = campaign?.id || ''
+    document.querySelector('#physio-campaign-form').dispatchEvent(new Event('input'))
+  } catch (error) { if (currentRoute() === 'physio-campaign') document.querySelector('#physio-campaign-status').textContent = error.message }
+}
+
+async function changePhysioCampaign(action) {
+  const button = document.querySelector(`#physio-campaign-${action}`)
+  const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action, campaign_id: button?.dataset.id } })
+  if (error || data?.error) { toast('Campagne wijzigen mislukt', await edgeFunctionMessage(error, data, 'Probeer opnieuw.'), true); return }
+  await loadPhysioCampaignStatus()
 }
 
 function filterPartners() {
@@ -3584,7 +3663,7 @@ function renderRoute(route = currentRoute(), option) {
   if (route !== 'partners') stopPartnerUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, 'physio-campaign': renderPhysioCampaign, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'marketing') void loadMarketingPlatformStats()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
