@@ -11,6 +11,7 @@ function eligibleLeads(leads: Lead[]) {
   const seen = new Set<string>()
   return leads.filter((lead) => {
     if (lead.type !== "physio" || lead.outreach_opt_out || !["consent", "existing_customer"].includes(clean(lead.outreach_basis)) || !clean(lead.outreach_basis_note)) return false
+    if (/^(smc|sport\s*medisch\s*centrum)\s+almere$/i.test(clean(lead.name).replace(/[-–]/g, " ")) || /@smcalmere\.nl$/i.test(clean(lead.email)) || /(^|\.)smcalmere\.nl$/i.test((() => { try { return new URL(clean(lead.website)).hostname } catch { return "" } })())) return false
     const email = clean(lead.email).toLowerCase()
     if (!validEmail(email) || seen.has(email)) return false
     seen.add(email)

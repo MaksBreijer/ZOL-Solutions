@@ -34,6 +34,11 @@ const statusLabelMap = Object.fromEntries(PARTNER_STATUSES)
 const typeLabelMap = Object.fromEntries(PARTNER_TYPES)
 const regionLabelMap = Object.fromEntries(PARTNER_REGIONS)
 const doneStatuses = new Set(['won', 'lost'])
+const excludedPhysio = (lead) => lead.type === 'physio' && (
+  /^(smc|sport\s*medisch\s*centrum)\s+almere$/i.test(clean(lead.name).replace(/[-–]/g, ' ')) ||
+  /(^|\.)smcalmere\.nl$/i.test((() => { try { return new URL(clean(lead.website)).hostname } catch { return '' } })()) ||
+  /@smcalmere\.nl$/i.test(clean(lead.email))
+)
 
 const seedLeads = [
   {
@@ -105,7 +110,7 @@ export function normalizePartnerScoutState(value = {}) {
   const leads = Array.isArray(value.leads) && value.leads.length ? value.leads : fallback.leads
   const allowedLeads = leads.filter((lead) => {
     const identity = [lead.type, lead.name, lead.contact_role, lead.match_reason, lead.website].map(clean).join(' ')
-    return !/podotherap|podolog|podiatr|chiropod/i.test(identity)
+    return !/podotherap|podolog|podiatr|chiropod/i.test(identity) && !excludedPhysio(lead)
   })
   const normalizedLeads = allowedLeads.map((lead, index) => ({
     id: clean(lead.id) || `partner-${index}-${Date.now()}`,
@@ -304,10 +309,11 @@ export function parseNominatimLeads(payload, type, regionCode, stamp = now()) {
 }
 
 export function mergeDiscoveredLeads(existing = [], discovered = []) {
-  const byId = new Map(existing.map((lead) => [lead.external_id || lead.id, lead]))
+  const byId = new Map(existing.filter((lead) => !excludedPhysio(lead)).map((lead) => [lead.external_id || lead.id, lead]))
   let added = 0
   let refreshed = 0
   discovered.forEach((incoming) => {
+    if (excludedPhysio(incoming)) return
     const key = incoming.external_id || incoming.id
     const current = byId.get(key)
     if (!current) { byId.set(key, incoming); added += 1; return }
@@ -344,7 +350,7 @@ export function parsePhysioCsv(text, stamp = now()) {
   rows.slice(1).forEach((row) => {
     const name = field(row, ['praktijknaam', 'practicename', 'naam'])
     const city = field(row, ['plaats', 'location', 'city', 'vestigingsplaats'])
-    if (!name) return
+    if (!name || excludedPhysio({ type: 'physio', name, website: field(row, ['website', 'site']), email: field(row, ['email', 'emailadres', 'recipientemail']) })) return
     const identity = `${name}|${city}`.toLocaleLowerCase('nl').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     if (seen.has(identity)) return
     seen.add(identity)

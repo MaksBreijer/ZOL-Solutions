@@ -78,6 +78,14 @@ test('imports a licensed practice file as research leads without e-mail permissi
   assert.equal(normalizePartnerScoutState({ leads: result.leads }).leads[0].personal_opening, 'Ik zag jullie sportspreekuur in Haarlem.')
 })
 
+test('excludes SMC Almere from existing, scanned and imported physio leads', () => {
+  const excluded = { id: 'smc-almere', name: 'SMC Almere', type: 'physio', city: 'Almere' }
+  const other = { id: 'smc-rijnland', name: 'SMC-Rijnland', type: 'physio', city: 'Leiden' }
+  assert.deepEqual(normalizePartnerScoutState({ leads: [excluded, other] }).leads.map((lead) => lead.name), ['SMC-Rijnland'])
+  assert.deepEqual(mergeDiscoveredLeads([excluded], [excluded, other]).leads.map((lead) => lead.name), ['SMC-Rijnland'])
+  assert.deepEqual(parsePhysioCsv('praktijknaam;plaats;email\nSport Medisch Centrum Almere;Almere;info@smcalmere.nl\nSMC-Rijnland;Leiden;info@example.nl').leads.map((lead) => lead.name), ['SMC-Rijnland'])
+})
+
 test('builds rate-limit friendly public searches and reads their results', () => {
   const queries = buildNominatimQueries('NL-NH', 'all', 180)
   assert.equal(queries.length, 7)
