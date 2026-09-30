@@ -95,8 +95,9 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
       const log = existing || await logEmail(db, { kind: "physio_campaign", recipient_email: recipient.email, subject, body_preview: text.slice(0, 500), dedupe_key: dedupeKey })
       const paragraphs = body.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
         .map((paragraph) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
+      const teamPhoto = `<div style="margin:28px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="604" alt="Maks en Thijn, oprichters van ZOL Solutions" style="display:block;width:100%;max-width:604px;height:auto;border-radius:10px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>`
       const optOut = `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">${escapeEmailHtml(footer)}</p>`
-      const html = emailShell(`${paragraphs}${optOut}`, { eyebrow: "Bericht van ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
+      const html = emailShell(`${paragraphs}${teamPhoto}${optOut}`, { eyebrow: "Bericht van ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
       const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config })
       await markEmail(db, log.id, { status: "sent", providerId: sent.id })
       await db.from("physio_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), provider_id: sent.id || null }).eq("id", recipient.id)
