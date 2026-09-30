@@ -73,6 +73,7 @@ async function availableSlots(db: ReturnType<typeof adminClient>) {
   const firstHour = Math.max(8, Math.min(16, Number(config.start_hour) || 9))
   const lastHour = Math.max(firstHour + 1, Math.min(19, Number(config.end_hour) || 17))
   const interval = Math.max(10, Math.min(60, Number(config.slot_interval_minutes) || 20))
+  const blockedWeekdays = Array.isArray(config.blocked_weekdays) ? config.blocked_weekdays.map(Number) : [2]
   const now = new Date()
   const local = amsterdamParts(now)
   const today = Date.UTC(local.year, local.month - 1, local.day)
@@ -83,7 +84,7 @@ async function availableSlots(db: ReturnType<typeof adminClient>) {
   const result: { start: string; end: string; day: string }[] = []
   for (let dayOffset = 0; dayOffset < 15; dayOffset++) {
     const date = new Date(today + dayOffset * DAY_MS)
-    if ([0, 6].includes(date.getUTCDay())) continue
+    if ([0, 6, ...blockedWeekdays].includes(date.getUTCDay())) continue
     const year = date.getUTCFullYear(), month = date.getUTCMonth() + 1, dayNumber = date.getUTCDate()
     const day = `${year}-${String(month).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`
     for (let minuteOfDay = firstHour * 60; minuteOfDay + 10 <= lastHour * 60; minuteOfDay += interval) {
@@ -102,7 +103,7 @@ async function notify(db: ReturnType<typeof adminClient>, booking: Record<string
   const subject = `10 minuten met ${booking.practice_name} · ${start}`
   const dates = `${booking.start_at.replace(/[-:]/g, "").replace(/\.\d{3}/, "")}/${booking.end_at.replace(/[-:]/g, "").replace(/\.\d{3}/, "")}`
   const addToCalendar = `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: "TEMPLATE", text: `ZOL · 10 min met ${booking.practice_name}`, dates, ctz: TIME_ZONE, details: `${booking.contact_name} · ${booking.email} · ${booking.phone}\n${booking.message}`, location: "Telefonisch", src: CALENDAR_ID })}`
-  const text = `Nieuwe afspraak met ${booking.practice_name}\n\nContact: ${booking.contact_name}\nE-mail: ${booking.email}\nTelefoon: ${booking.phone}\nWanneer: ${start} (10 minuten)\nVraag: ${booking.message || "Niet ingevuld"}\n\nVoeg deze afspraak toe aan de ZOL Teamagenda: ${addToCalendar}`
+  const text = `Nieuwe afspraak met ${booking.practice_name}\n\nWie bellen: ${booking.contact_name}\n06-nummer: ${booking.phone}\nE-mail: ${booking.email}\nWanneer: ${start} (10 minuten)\nVraag: ${booking.message || "Niet ingevuld"}\n\nVoeg deze afspraak toe aan de ZOL Teamagenda: ${addToCalendar}`
   const guestText = `Hoi ${booking.contact_name},\n\nLeuk dat je even met ons wilt bellen. We hebben 10 minuten voor ${booking.practice_name} gereserveerd op ${start}. We bellen je op ${booking.phone}.\n\n${booking.message ? `Jouw vraag: ${booking.message}\n\n` : ""}Tot dan!\nMaks & Thijn\nZOL Solutions\ninfo@zolsolutions.nl`
   const items = [
     { kind: "physio_booking_admin", to: config.admin_email || "info@zolsolutions.nl", subject, text, html: emailShell(`<p style="white-space:pre-wrap;line-height:1.7">${escapeEmailHtml(text)}</p>`, { eyebrow: "Nieuwe afspraak", title: "10 minuten met een praktijk" }), column: "admin_notified_at" },
@@ -149,6 +150,7 @@ Deno.serve(async (request) => {
     const email = clean(body.email, 254).toLowerCase(), phone = clean(body.phone, 60)
     const message = clean(body.message, 1000), startAt = clean(body.start, 40)
     if (!practice || !name || !/^\S+@\S+\.\S+$/.test(email) || !phone || ![true, "true", "on"].includes(body.privacy_consent)) return Response.json({ error: "Vul praktijk, naam, e-mail, telefoon en toestemming in." }, { status: 400, headers })
+    if (!/^(?:\+316|00316|06)\d{8}$/.test(phone.replace(/[\s()-]/g, ""))) return Response.json({ error: "Vul een geldig Nederlands 06-nummer in." }, { status: 400, headers })
     const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown"
     const fingerprint = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${ip}|${request.headers.get("user-agent") || "unknown"}`)))].map((part) => part.toString(16).padStart(2, "0")).join("")
     const { data: allowed, error: rateError } = await db.rpc("enforce_contact_rate_limit", { p_fingerprint: fingerprint })
