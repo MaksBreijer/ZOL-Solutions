@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { adminClient, corsHeaders, escapeHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
+import { adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
 
 type Lead = Record<string, unknown>
 type Recipient = { id: string; campaign_id: string; lead_id: string; practice_name: string; location: string; specialization: string; email: string }
@@ -93,7 +93,10 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
         continue
       }
       const log = existing || await logEmail(db, { kind: "physio_campaign", recipient_email: recipient.email, subject, body_preview: text.slice(0, 500), dedupe_key: dedupeKey })
-      const html = `<pre style="white-space:pre-wrap;font:15px/1.6 Arial,sans-serif;color:#183047">${escapeHtml(text)}</pre>`
+      const paragraphs = body.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
+        .map((paragraph) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
+      const optOut = `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">${escapeEmailHtml(footer)}</p>`
+      const html = emailShell(`${paragraphs}${optOut}`, { eyebrow: "Bericht van ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
       const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config })
       await markEmail(db, log.id, { status: "sent", providerId: sent.id })
       await db.from("physio_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), provider_id: sent.id || null }).eq("id", recipient.id)
