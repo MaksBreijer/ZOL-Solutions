@@ -267,8 +267,7 @@ svg { display: block; }
 .physio-mail-preview-head strong { overflow-wrap: anywhere; font-size: 25px; line-height: 1.15; }
 .physio-mail-preview-content { min-height: 220px; padding: 24px 26px; color: #445b70; line-height: 1.7; }
 #physio-preview-body { overflow-wrap: anywhere; white-space: pre-wrap; }
-.physio-mail-preview-invite { margin: 24px 0 8px; }
-.physio-mail-preview-cta { display: inline-block; padding: 13px 19px; border-radius: 8px; background: #33669b; color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; }
+.physio-mail-preview-cta { display: inline-block; margin-top: 16px; padding: 13px 19px; border-radius: 8px; background: #33669b; color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; }
 .physio-mail-preview-team { margin: 28px 0 0; }
 .physio-mail-preview-team img { display: block; width: 100%; height: auto; border-radius: 10px; }
 .physio-mail-preview-team figcaption { margin-top: 8px; color: #66798c; font-size: 12px; }
