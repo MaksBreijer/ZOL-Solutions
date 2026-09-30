@@ -50,10 +50,23 @@ test('builds a bounded public-data query and a reviewable mail draft', () => {
   const query = buildOverpassQuery('NL-NH', 'school', 9999)
   assert.match(query, /NL-NH/)
   assert.match(query, /school/)
-  assert.match(query, /tags center 300/)
+  assert.match(query, /tags center 2000/)
   const draft = partnerMailDraft({ name: 'Testschool', type: 'school', status: 'new', contact_name: '', angle: 'bewegingsonderwijs' })
   assert.match(draft.subject, /Testschool/)
   assert.match(draft.body, /15 minuten/)
+})
+
+test('physio draft keeps product claims measured and outreach review state survives source refresh', () => {
+  const draft = partnerMailDraft({ name: 'Fysio Noord', type: 'physio', city: 'Haarlem', specialization: 'sportfysiotherapie', contact_name: 'Anne Jansen' })
+  assert.match(draft.body, /Beste Anne/)
+  assert.match(draft.body, /ziekte van Sever/)
+  assert.match(draft.body, /geen vervanging voor een diagnose/)
+  assert.match(draft.body, /geen interesse/)
+  const old = [{ id: 'osm-node-1', external_id: 'osm:node:1', name: 'Fysio Noord', type: 'physio', outreach_basis: 'consent', outreach_subject: draft.subject, outreach_body: draft.body, outreach_approved_at: '2026-09-30T10:00:00Z' }]
+  const fresh = [{ id: 'osm-node-1', external_id: 'osm:node:1', name: 'Fysio Noord', type: 'physio', city: 'Haarlem' }]
+  const merged = normalizePartnerScoutState({ leads: mergeDiscoveredLeads(old, fresh).leads })
+  assert.equal(merged.leads[0].outreach_basis, 'consent')
+  assert.equal(merged.leads[0].outreach_approved_at, '2026-09-30T10:00:00Z')
 })
 
 test('builds rate-limit friendly public searches and reads their results', () => {

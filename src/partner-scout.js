@@ -93,6 +93,7 @@ export function defaultPartnerScoutState() {
     scan_profile: '',
     last_scan_region: '',
     last_scan_added: 0,
+    national_physio_regions: [],
     updated_at: stamp,
   }
 }
@@ -108,7 +109,7 @@ export function normalizePartnerScoutState(value = {}) {
     id: clean(lead.id) || `partner-${index}-${Date.now()}`,
     name: clean(lead.name) || 'Naamloos contact',
     type: typeLabelMap[lead.type] ? lead.type : 'other',
-    city: clean(lead.city), region: clean(lead.region), website: clean(lead.website),
+    city: clean(lead.city), region: clean(lead.region), website: clean(lead.website), specialization: clean(lead.specialization),
     email: clean(lead.email), phone: clean(lead.phone), score: Math.max(0, Math.min(100, Number(lead.score) || 0)),
     status: statusLabelMap[lead.status] ? lead.status : 'new', contact_name: clean(lead.contact_name),
     contact_role: clean(lead.contact_role), match_reason: clean(lead.match_reason), angle: clean(lead.angle),
@@ -124,6 +125,11 @@ export function normalizePartnerScoutState(value = {}) {
     apollo_contact_id: clean(lead.apollo_contact_id), apollo_person_url: clean(lead.apollo_person_url),
     apollo_email_status: clean(lead.apollo_email_status), apollo_match_confidence: clean(lead.apollo_match_confidence),
     apollo_enriched_at: clean(lead.apollo_enriched_at),
+    outreach_basis: ['consent', 'existing_customer', 'none'].includes(lead.outreach_basis) ? lead.outreach_basis : 'none',
+    outreach_basis_note: clean(lead.outreach_basis_note),
+    outreach_opt_out: Boolean(lead.outreach_opt_out),
+    outreach_subject: clean(lead.outreach_subject), outreach_body: clean(lead.outreach_body),
+    outreach_approved_at: clean(lead.outreach_approved_at),
     last_verified_at: clean(lead.last_verified_at), estimated_units: Math.max(0, Math.min(10000, Number(lead.estimated_units) || 0)),
     created_at: clean(lead.created_at) || now(), updated_at: clean(lead.updated_at) || now(),
   }))
@@ -248,7 +254,7 @@ export function parseOverpassLeads(payload, regionCode, stamp = now()) {
         : `Sportorganisatie${sport ? ` voor ${sport}` : ''} met direct bereik onder sporters en begeleiders.`
     return {
       id: `osm-${element.type}-${element.id}`, external_id: `osm:${element.type}:${element.id}`, name, type, city, region,
-      website, email, phone, score, status: 'new', contact_name: '',
+      website, email, phone, specialization: clean(tags['healthcare:speciality']), score, status: 'new', contact_name: '',
       contact_role: type === 'school' ? 'LO-docent / zorgcoördinator' : type === 'sports_club' ? 'Jeugdcoördinator / medische staf' : 'Kinder- of sportfysiotherapeut',
       match_reason: reason, angle: type === 'school' ? 'Sportende leerlingen met terugkerende hielpijn eerder herkennen.' : type === 'sports_club' ? 'Jeugdleden langer verantwoord laten sporten.' : 'Ondersteuning bij sportende kinderen met hielpijn.',
       notes: '', next_action_at: '', last_contacted_at: '', tags: sport ? sport.split(',').map(clean) : [],
@@ -309,6 +315,7 @@ export function mergeDiscoveredLeads(existing = [], discovered = []) {
       city: incoming.city || current.city,
       region: incoming.region || current.region,
       website: incoming.website || current.website,
+      specialization: incoming.specialization || current.specialization,
       email: incoming.email || current.email,
       phone: incoming.phone || current.phone,
       source_url: incoming.source_url || current.source_url,
@@ -317,12 +324,12 @@ export function mergeDiscoveredLeads(existing = [], discovered = []) {
     })
     refreshed += 1
   })
-  return { leads: [...byId.values()].slice(0, 750), added, refreshed }
+  return { leads: [...byId.values()], added, refreshed }
 }
 
 export function buildOverpassQuery(regionCode, type = 'all', limit = 180) {
   const region = regionLabelMap[regionCode] ? regionCode : 'NL-NH'
-  const safeLimit = Math.max(10, Math.min(300, Number(limit) || 180))
+  const safeLimit = Math.max(10, Math.min(2000, Number(limit) || 180))
   const blocks = {
     physio: ['nwr["healthcare"="physiotherapist"](area.searchArea);', 'nwr["healthcare:speciality"~"physiotherapy"](area.searchArea);'],
     school: ['nwr["amenity"~"school|college"](area.searchArea);'],
@@ -334,7 +341,13 @@ export function buildOverpassQuery(regionCode, type = 'all', limit = 180) {
 
 export function partnerMailDraft(lead) {
   const firstName = clean(lead.contact_name).split(/\s+/)[0]
-  const greeting = firstName ? `Hoi ${firstName}` : `Beste ${lead.name}`
+  const greeting = firstName ? `Beste ${firstName}` : `Beste praktijkhouder van ${lead.name}`
+  if (lead.type === 'physio') {
+    return {
+      subject: `Hielpijn bij jonge sporters · ${lead.name}`,
+      body: `${greeting},\n\nVoor fysiopraktijken${lead.city ? ` in ${lead.city}` : ''}${lead.specialization ? ` met aandacht voor ${lead.specialization}` : ''} kan hielpijn bij jonge sporters een herkenbaar onderwerp zijn. Die klachten kunnen passen bij de ziekte van Sever.\n\nZOL Solutions ontwikkelde een 3/4 comfort-inlegzool met demping en een gevormde hielbasis. De zool kan ondersteuning geven in de schoen, naast de beoordeling en het advies van de behandelaar. Het is geen vervanging voor een diagnose of individueel aangemeten hulpmiddel.\n\nIs dit relevant voor uw praktijk? Dan lichten we de pasvorm en toepassing graag kort toe. Meer informatie staat op https://zolsolutions.nl/product/.\n\nMet vriendelijke groet,\nZOL Solutions\n\nWilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand.`,
+    }
+  }
   const intro = lead.type === 'school'
     ? 'Jullie bereiken dagelijks sportende leerlingen. Bij ZOL Solutions helpen we jonge sporters met hielpijn om comfortabel en verantwoord te blijven bewegen.'
     : lead.type === 'sports_club'
@@ -353,8 +366,8 @@ export function partnerMailDraft(lead) {
 export function partnerCsv(leads = []) {
   const quote = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
   const rows = [
-    ['Organisatie', 'Type', 'Kanaal', 'Plaats', 'Regio', 'Score', 'Status', 'Contactpersoon', 'Rol', 'E-mail', 'Telefoon', 'Website', 'Partnercode', 'Partnerlink', 'Bereik', 'QR-bezoeken', 'Bestellingen', 'Omzet EUR', 'Activatiedatum', 'Volgende actie', 'Verwachte paren', 'Matchreden', 'Notities'],
-    ...leads.map((lead) => [lead.name, partnerTypeLabel(lead.type), partnerChannel(lead), lead.city, lead.region, lead.score, partnerStatusLabel(lead.status), lead.contact_name, lead.contact_role, lead.email, lead.phone, lead.website, partnerCode(lead), partnerTrackingUrl(lead), lead.audience_size, lead.qr_clicks, lead.orders_count, ((lead.revenue_cents || 0) / 100).toFixed(2), lead.activation_at, lead.next_action_at, lead.estimated_units, lead.match_reason, lead.notes]),
+    ['Organisatie', 'Type', 'Kanaal', 'Plaats', 'Regio', 'Score', 'Status', 'Contactpersoon', 'Rol', 'E-mail', 'Telefoon', 'Website', 'Bron', 'Mailgrond', 'Mail goedgekeurd op', 'Mailonderwerp', 'Mailtekst', 'Partnercode', 'Partnerlink', 'Bereik', 'QR-bezoeken', 'Bestellingen', 'Omzet EUR', 'Activatiedatum', 'Volgende actie', 'Verwachte paren', 'Matchreden', 'Notities'],
+    ...leads.map((lead) => [lead.name, partnerTypeLabel(lead.type), partnerChannel(lead), lead.city, lead.region, lead.score, partnerStatusLabel(lead.status), lead.contact_name, lead.contact_role, lead.email, lead.phone, lead.website, lead.source_url, lead.outreach_basis, lead.outreach_approved_at, lead.outreach_subject, lead.outreach_body, partnerCode(lead), partnerTrackingUrl(lead), lead.audience_size, lead.qr_clicks, lead.orders_count, ((lead.revenue_cents || 0) / 100).toFixed(2), lead.activation_at, lead.next_action_at, lead.estimated_units, lead.match_reason, lead.notes]),
   ]
   return rows.map((row) => row.map(quote).join(',')).join('\n')
 }
