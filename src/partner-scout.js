@@ -1,3 +1,5 @@
+import { parseRows } from './csv-customers.js'
+
 export const PARTNER_STATUSES = [
   ['new', 'Match gevonden'],
   ['research', 'Gegevens controleren'],
@@ -325,6 +327,39 @@ export function mergeDiscoveredLeads(existing = [], discovered = []) {
     refreshed += 1
   })
   return { leads: [...byId.values()], added, refreshed }
+}
+
+export function parsePhysioCsv(text, stamp = now()) {
+  const { rows } = parseRows(text)
+  if (rows.length < 2) return { leads: [], errors: ['Het bestand bevat geen praktijkregels.'] }
+  const headers = rows[0].map((value) => clean(value).toLowerCase().replace(/[^a-z0-9]/g, ''))
+  const field = (row, names) => {
+    const index = headers.findIndex((header) => names.includes(header))
+    return index < 0 ? '' : clean(row[index])
+  }
+  if (!headers.some((header) => ['praktijknaam', 'practicename', 'naam'].includes(header))) return { leads: [], errors: ['Kolom praktijknaam of practice_name ontbreekt.'] }
+  const seen = new Set()
+  const leads = []
+  rows.slice(1).forEach((row) => {
+    const name = field(row, ['praktijknaam', 'practicename', 'naam'])
+    const city = field(row, ['plaats', 'location', 'city', 'vestigingsplaats'])
+    if (!name) return
+    const identity = `${name}|${city}`.toLocaleLowerCase('nl').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    if (seen.has(identity)) return
+    seen.add(identity)
+    leads.push({
+      id: `import-${crypto.randomUUID()}`, name, type: 'physio', city,
+      region: field(row, ['provincie', 'region']), website: field(row, ['website', 'site']),
+      email: field(row, ['email', 'emailadres', 'recipientemail']),
+      contact_name: field(row, ['contactpersoon', 'contactperson']),
+      specialization: field(row, ['specialisatie', 'specialization']),
+      source_url: field(row, ['bron', 'sourceurl']), source_provider: 'Geïmporteerd praktijkbestand',
+      score: 75, status: 'research', outreach_basis: 'none', outreach_opt_out: false,
+      match_reason: 'Geïmporteerde fysiopraktijk; bron en contactgegevens controleren.',
+      last_verified_at: '', created_at: stamp, updated_at: stamp,
+    })
+  })
+  return { leads, errors: [] }
 }
 
 export function buildOverpassQuery(regionCode, type = 'all', limit = 180) {

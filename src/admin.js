@@ -13,7 +13,7 @@ import {
 import { participantOverview, pilotExcelCsv, pilotSummary, timepointSummary } from './pilot-report.js'
 import {
   PARTNER_REGIONS, PARTNER_STATUSES, PARTNER_TYPES, buildNominatimQueries, buildOverpassQuery, defaultPartnerScoutState,
-  filterPartnerLeads, mergeDiscoveredLeads, normalizePartnerScoutState, parseNominatimLeads, parseOverpassLeads,
+  filterPartnerLeads, mergeDiscoveredLeads, normalizePartnerScoutState, parseNominatimLeads, parseOverpassLeads, parsePhysioCsv,
   partnerChannel, partnerCode, partnerCsv, partnerIsDone, partnerMailDraft, partnerNextAction, partnerRegionLabel, partnerStats, partnerTrackingUrl,
   partnerStatusLabel, partnerTypeLabel,
 } from './partner-scout.js'
@@ -1625,9 +1625,10 @@ function renderPartners() {
   const queue = partnerActionQueue(leads)
   if (!leads.some((lead) => lead.id === partnerSelectedId)) partnerSelectedId = leads[0]?.id || ''
   elements.content.innerHTML = `<div class="page-container partner-page">
-    ${pageHeader('partners', '<button class="button" data-action="export-partners"><i data-lucide="download"></i> Exporteren</button><button class="button" data-action="new-partner"><i data-lucide="plus"></i> Handmatig toevoegen</button><button class="button" data-action="discover-physios-national"><i data-lucide="map-pin"></i> Fysio’s landelijk zoeken</button><button class="button button--primary" data-action="discover-partners-now"><i data-lucide="sparkles"></i> Scout bijwerken</button>')}
+    ${pageHeader('partners', '<button class="button" data-action="export-partners"><i data-lucide="download"></i> Exporteren</button><button class="button" data-action="import-physios"><i data-lucide="plus"></i> Praktijkbestand importeren</button><button class="button" data-action="new-partner"><i data-lucide="plus"></i> Handmatig toevoegen</button><button class="button" data-action="discover-physios-national"><i data-lucide="map-pin"></i> Fysio’s landelijk zoeken</button><button class="button button--primary" data-action="discover-partners-now"><i data-lucide="sparkles"></i> Scout bijwerken</button>')}
     <section class="partner-hero"><div><span><i></i> REVENUE SPRINT · LIVE</span><h2>Van partner naar bestelling.</h2><p>Club Sales brengt ZOL rechtstreeks bij ouders. Fysio Referral bouwt vertrouwen en verwijzingen op. Iedere actie, klik, bestelling en euro komt hier samen.</p></div><aside><small>Laatste stille datascan</small><strong>${escapeHtml(lastScan)}</strong><span>Blijft op deze pagina · geen pop-ups</span></aside></section>
     <nav class="partner-channel-switch" aria-label="Partnerkanalen"><button class="${partnerFilters.type === 'sports_club' ? 'is-active' : ''}" data-partner-channel="sports_club"><i data-lucide="target"></i><span><strong>Club Sales</strong><small>Verkoopmomenten en ouderbereik</small></span></button><button class="${partnerFilters.type === 'physio' ? 'is-active' : ''}" data-partner-channel="physio"><i data-lucide="users"></i><span><strong>Fysio Referral</strong><small>Demo’s en warme verwijzingen</small></span></button><button class="${partnerFilters.type === '' ? 'is-active' : ''}" data-partner-channel=""><i data-lucide="building-2"></i><span><strong>Alle matches</strong><small>Inclusief scholen en partners</small></span></button></nav>
+    <p class="form-hint">Landelijke bronzoekactie: ${(state.partnerScout.national_physio_regions || []).length} van ${PARTNER_REGIONS.length} provincies verwerkt · ${state.partnerScout.leads.filter((lead) => lead.type === 'physio').length} fysiopraktijken in het overzicht. Openbare vermeldingen zijn geen volledig register.</p>
     <section class="partner-metrics">
       <article><span><i data-lucide="circle-euro"></i></span><div><small>Echte partneromzet</small><strong>${formatMoney(revenue.revenueCents)}</strong><p>gemeten + handmatig geboekt</p></div></article>
       <article><span><i data-lucide="shopping-bag"></i></span><div><small>Partnerbestellingen</small><strong>${revenue.orders}</strong><p>${revenue.clicks} gemeten bezoeken</p></div></article>
@@ -1782,11 +1783,12 @@ async function discoverPhysiosNational(button) {
   if (partnerPulseRunning) return
   partnerPulseRunning = true
   const originalLabel = button?.textContent?.trim() || 'Fysio’s landelijk zoeken'
-  const completed = []
+  const completed = [...(state.partnerScout.national_physio_regions || [])]
   const failed = []
   let added = 0
   try {
     for (const [regionCode, regionName] of PARTNER_REGIONS) {
+      if (completed.includes(regionCode)) continue
       if (button?.isConnected) { button.disabled = true; button.textContent = `${completed.length + failed.length + 1}/${PARTNER_REGIONS.length} · ${regionName}` }
       try {
         const stamp = new Date().toISOString()
@@ -1844,6 +1846,26 @@ function exportPartners() {
   const url = URL.createObjectURL(new Blob([`\ufeff${partnerCsv(leads)}`], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a'); link.href = url; link.download = `zol-partner-scout-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
   recordActivity('Partnerlijst geëxporteerd', 'partner', '', { count: leads.length }); toast('Partnerlijst geëxporteerd', `${leads.length} matches in het bestand.`)
+}
+
+function importPhysiosForm() {
+  openDialog('Fysiopraktijken importeren', 'Partner Scout', `<form id="partner-import-form"><p class="form-hint">Gebruik een bestand dat ZOL voor dit doel mag verwerken. Kolommen: praktijknaam, plaats, e-mail, specialisatie, contactpersoon, website en bron. Een import verleent geen toestemming voor e-mail.</p><label class="csv-file-field"><span>CSV- of TSV-bestand kiezen</span><input name="file" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" required></label><div class="form-actions"><button class="button" type="button" data-close-dialog>Annuleren</button><button class="button button--primary" type="submit">Praktijken toevoegen</button></div></form>`)
+  const form = document.querySelector('#partner-import-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const file = form.elements.file.files?.[0]
+    if (!file || file.size > 10 * 1024 * 1024) { toast('Bestand te groot of ontbreekt', 'Kies een CSV of TSV van maximaal 10 MB.', true); return }
+    try {
+      const { leads, errors } = parsePhysioCsv(await file.text())
+      if (errors.length) throw new Error(errors.join(' '))
+      const key = (lead) => `${lead.name}|${lead.city}`.toLocaleLowerCase('nl').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const known = new Set(state.partnerScout.leads.map(key))
+      const fresh = leads.filter((lead) => !known.has(key(lead)))
+      await savePartnerScout({ ...state.partnerScout, leads: [...state.partnerScout.leads, ...fresh] }, 'Fysiopraktijken geïmporteerd', { imported: fresh.length, skipped: leads.length - fresh.length })
+      closeDialog(); renderPartners(); toast('Praktijken toegevoegd', `${fresh.length} nieuw · ${leads.length - fresh.length} al aanwezig.`)
+    } catch (error) { toast('Importeren mislukt', error.message, true) }
+  })
+  refreshIcons()
 }
 
 function stopPartnerUpdates() {
@@ -3714,6 +3736,7 @@ async function handleContentClick(event) {
   if (action === 'copy-partner-link') { const lead = partnerLead(id); if (lead) { try { await navigator.clipboard.writeText(partnerTrackingUrl(lead)); toast('Partnerlink gekopieerd', `${partnerCode(lead)} staat klaar voor QR, nieuwsbrief of WhatsApp.`) } catch { toast('Kopiëren lukt niet', 'Kopieer de link handmatig uit het partnerblok.', true) } } }
   if (action === 'copy-inline-partner-mail') { const form = document.querySelector('#partner-inline-mail'); if (form) { const values = Object.fromEntries(new FormData(form)); try { await navigator.clipboard.writeText(`${values.subject}\n\n${values.body}`); toast('Mailconcept gekopieerd') } catch { toast('Kopiëren lukt niet', 'Selecteer de tekst en kopieer hem handmatig.', true) } } }
   if (action === 'export-partners') exportPartners()
+  if (action === 'import-physios') importPhysiosForm()
   if (action === 'new-partner') partnerForm()
   if (action === 'edit-partner') partnerForm(partnerLead(id))
   if (action === 'partner-mail') partnerMailForm(partnerLead(id))

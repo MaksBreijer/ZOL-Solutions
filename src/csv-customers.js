@@ -19,7 +19,7 @@ function detectDelimiter(text) {
   return Object.entries(counts).sort((left, right) => right[1] - left[1])[0]?.[0] || ','
 }
 
-function parseRows(text) {
+export function parseRows(text) {
   const delimiter = detectDelimiter(text)
   const rows = []
   let row = []

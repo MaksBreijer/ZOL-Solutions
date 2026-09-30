@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  buildNominatimQueries, buildOverpassQuery, filterPartnerLeads, mergeDiscoveredLeads, parseNominatimLeads, parseOverpassLeads,
+  buildNominatimQueries, buildOverpassQuery, filterPartnerLeads, mergeDiscoveredLeads, parseNominatimLeads, parseOverpassLeads, parsePhysioCsv,
   normalizePartnerScoutState, partnerCode, partnerMailDraft, partnerNextAction, partnerStats, partnerTrackingUrl,
 } from '../src/partner-scout.js'
 
@@ -67,6 +67,14 @@ test('physio draft keeps product claims measured and outreach review state survi
   const merged = normalizePartnerScoutState({ leads: mergeDiscoveredLeads(old, fresh).leads })
   assert.equal(merged.leads[0].outreach_basis, 'consent')
   assert.equal(merged.leads[0].outreach_approved_at, '2026-09-30T10:00:00Z')
+})
+
+test('imports a licensed practice file as research leads without e-mail permission', () => {
+  const result = parsePhysioCsv('praktijknaam;plaats;e-mail;specialisatie;bron\nFysio Noord;Haarlem;info@noord.nl;sportfysiotherapie;https://noord.nl\nFysio Noord;Haarlem;info@noord.nl;;')
+  assert.equal(result.leads.length, 1)
+  assert.equal(result.leads[0].specialization, 'sportfysiotherapie')
+  assert.equal(result.leads[0].outreach_basis, 'none')
+  assert.equal(result.leads[0].source_url, 'https://noord.nl')
 })
 
 test('builds rate-limit friendly public searches and reads their results', () => {
