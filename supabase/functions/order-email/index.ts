@@ -8,7 +8,7 @@ import {
 type OrderRow = Record<string, any>
 
 const actionTemplates: Record<string, string[]> = {
-  created: ["order_received", "new_order_admin"],
+  created: ["new_order_admin"],
   paid: ["payment_confirmed", "new_order_admin"],
   delayed: ["order_delayed"],
   shipping: ["order_shipped"],
@@ -75,7 +75,8 @@ Deno.serve(async (request) => {
     if (order.source === "admin" && templateKeys.every((key) => ["order_received", "payment_confirmed", "order_delayed", "new_order_admin"].includes(key))) {
       return Response.json({ success: true, skipped: "manual_order_waiting_for_shipping", results: [] }, { headers })
     }
-    if (templateKeys.includes("payment_confirmed") && order.payment_status !== "paid") return Response.json({ error: "De bestelling is nog niet betaald." }, { status: 409, headers })
+    if (templateKeys.includes("order_received") && order.source === "zol-webshop") return Response.json({ success: true, skipped: "awaiting_mollie_payment", results: [] }, { headers })
+    if (templateKeys.includes("payment_confirmed") && (order.payment_status !== "paid" || payment?.provider !== "mollie" || payment?.status !== "paid" || !payment?.provider_payment_id)) return Response.json({ error: "Er is nog geen door Mollie bevestigde betaling." }, { status: 409, headers })
     if (templateKeys.includes("order_shipped") && !order.tracking_code) return Response.json({ error: "Voeg eerst een trackingcode toe." }, { status: 409, headers })
     if (templateKeys.includes("order_shipped") && order.postnl?.environment === "sandbox" && order.postnl?.barcode === order.tracking_code) {
       return Response.json({ success: true, skipped: "sandbox_tracking", results: [] }, { headers })
@@ -119,7 +120,8 @@ Deno.serve(async (request) => {
       if (existing?.status === "sent") { results.push({ kind: key, status: "already_sent" }); continue }
 
       const bodyHtml = templateParagraphs(template.body_template, variables)
-      const details = detailBlock(key, order, variables)
+      const teamPhoto = key === "payment_confirmed" ? `<div style="margin:24px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="552" alt="Maks en Thijn van ZOL Solutions" style="display:block;width:100%;max-width:552px;height:auto;border:0;border-radius:12px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>` : ""
+      const details = detailBlock(key, order, variables) + teamPhoto
       const buttonLabel = renderTemplate(template.button_label_template, variables)
       const buttonUrl = renderTemplate(template.button_url_template, variables)
       const html = emailShell(`${bodyHtml}${details}`, {

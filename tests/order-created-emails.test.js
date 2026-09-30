@@ -94,6 +94,7 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
   for (const type of ['customer','physio']) {
     for (const [status, orderSource] of [['pending','admin'],['paid','admin'],['pending','zol-webshop'],['paid','zol-webshop']]) {
       const order = {id:customer,order_number:123,source:orderSource,order_type:type,customer_id:type === 'customer' ? customer : null,customer_email:`${type}@example.invalid`,customer_name:'Test Recipient',payment_status:status,total_cents:0,subtotal_cents:0,shipping_cents:0,currency:'EUR',order_items:[],shipping_address:{}}
+      const payment = {provider:'mollie',provider_payment_id:'tr_test123',status}
       const logs = new Map(), sent = []
       let handler
       const db = {
@@ -102,7 +103,7 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
           let filter
           const query = {
             select() { return query }, eq(key,value) { filter = value; return query }, order() { return query }, limit() { return query },
-            async maybeSingle() { return {data:table === 'orders' ? order : table === 'payments' ? {} : logs.get(filter)} },
+            async maybeSingle() { return {data:table === 'orders' ? order : table === 'payments' ? payment : logs.get(filter)} },
           }
           return query
         },
@@ -120,7 +121,7 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
       })
       const request = (action, extra = {}, internal = false) => new Request('https://example.invalid/order-email',{method:'POST',headers:{'Content-Type':'application/json',...(internal ? {'x-zol-email-secret':'test-internal'} : {})},body:JSON.stringify({order_id:customer,action,...extra})})
       assert.equal((await handler(request('created'))).status,200)
-      const expected = orderSource === 'admin' ? [] : [[`${type}@example.invalid`,'order_received'],['admin@example.invalid','new_order_admin']]
+      const expected = orderSource === 'admin' ? [] : [['admin@example.invalid','new_order_admin']]
       assert.deepEqual(sent.map(email => [email.to,email.subject]),expected)
       assert.equal((await handler(request('created'))).status,200)
       assert.equal(sent.length,expected.length,'a retry must not send another confirmation')
@@ -151,8 +152,15 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
       await handler(request('shipping',consent))
       assert.equal(sent.length,expected.length + 1,'repeated explicit clicks share one shipment dedupe key')
       order.payment_status = 'paid'
+      payment.status = 'paid'
+      if (orderSource !== 'admin') {
+        payment.provider = 'manual'
+        assert.equal((await handler(request('paid'))).status,409,'a manually marked order is not a confirmed Mollie payment')
+        payment.provider = 'mollie'
+      }
       assert.equal((await handler(request('paid'))).status,200)
       assert.equal(sent.at(-1).subject,orderSource === 'admin' ? 'order_shipped' : 'payment_confirmed')
+      if (orderSource !== 'admin') assert.match(sent.at(-1).html,/story-team\.jpg/)
       assert.equal(sent.length,expected.length + (orderSource === 'admin' ? 1 : 2),'marking a manual order paid must not send any confirmation')
       const direct = await (await handler(request('new_order_admin'))).json()
       if (orderSource === 'admin') {
