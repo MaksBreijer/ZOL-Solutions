@@ -183,6 +183,7 @@ export default defineConfig({
         home: resolve(import.meta.dirname, 'index.html'),
         product: resolve(import.meta.dirname, 'product/index.html'),
         contact: resolve(import.meta.dirname, 'contact/index.html'),
+        kennismaking: resolve(import.meta.dirname, 'kennismaking/index.html'),
         about: resolve(import.meta.dirname, 'over-ons/index.html'),
         knowledge: resolve(import.meta.dirname, 'kennisbank/index.html'),
         sever: resolve(import.meta.dirname, 'kennisbank/ziekte-van-sever/index.html'),

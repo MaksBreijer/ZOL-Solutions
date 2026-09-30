@@ -1667,8 +1667,9 @@ function renderPhysioCampaign() {
     ${pageHeader('physio-campaign', '<a class="button" href="#partners">Praktijken bekijken</a>')}
     <section class="panel physio-campaign-intro"><h2>Eén mail voor Fysio Nederland</h2><p>Schrijf het bericht zelf. Gebruik <code>{{contactpersoon}}</code>, <code>{{praktijknaam}}</code>, <code>{{plaats}}</code>, <code>{{specialisatie}}</code> en <code>{{persoonlijke_opening}}</code>. De persoonlijke opening schrijf je per praktijk in Partner Scout op basis van een controleerbare bron. De matchscore speelt geen rol.</p><div class="physio-campaign-counts"><strong>${total}<small>fysiopraktijken in overzicht</small></strong><strong id="physio-campaign-eligible">…<small>met vastgelegde mailgrond</small></strong><strong id="physio-campaign-personalized">…<small>met persoonlijke opening</small></strong><strong id="physio-campaign-sent">…<small>verzonden in huidige campagne</small></strong></div></section>
     <section class="physio-campaign-layout"><form class="panel physio-campaign-compose" id="physio-campaign-form"><h2>Schrijf jullie mail</h2><label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(physioCampaignDraft.subject)}" placeholder="Vraag over {{praktijknaam}}" required></label><label class="field">Bericht<textarea name="message" rows="15" maxlength="5000" placeholder="Beste {{contactpersoon}},&#10;&#10;{{persoonlijke_opening}}&#10;&#10;..." required>${escapeHtml(physioCampaignDraft.message)}</textarea></label><p class="form-hint">De Scout voegt de afmeldtekst automatisch toe. Gebruik <code>{{praktijknaam}}</code> in onderwerp of tekst. Met <code>{{persoonlijke_opening}}</code> kan de campagne pas starten als iedere ontvanger een eigen openingszin heeft.</p><div class="form-actions"><button class="button button--primary" id="physio-campaign-start" type="submit" disabled>Controleer en start campagne</button></div></form>
-    <aside class="panel physio-campaign-preview"><h2>Voorbeeld per praktijk</h2><p id="physio-campaign-sample">De ontvangerslijst wordt geladen.</p><div class="physio-mail-preview"><div class="physio-mail-preview-head"><img src="/media/zol-logo.png" alt="ZOL Solutions"><small>Bericht van ZOL Solutions</small><strong id="physio-preview-subject">Typ een onderwerp</strong></div><div class="physio-mail-preview-content"><div id="physio-preview-body">Typ jullie bericht om een voorbeeld te zien.</div><figure class="physio-mail-preview-team"><img src="/media/story-team.jpg" alt="Maks en Thijn, oprichters van ZOL Solutions"><figcaption>Maks &amp; Thijn · ZOL Solutions</figcaption></figure><p class="physio-mail-preview-optout">Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand.</p></div><div class="physio-mail-preview-foot">ZOL Solutions · Zachter landen. Beter sporten.<br>zolsolutions.nl</div></div><p class="form-hint">Alleen fysiopraktijken met een vastgelegde mailgrond en een geldig adres komen in de verzendrij. Er gaan maximaal 40 e-mails per dag uit via de ingestelde inbox.</p></aside></section>
+    <aside class="panel physio-campaign-preview"><h2>Voorbeeld per praktijk</h2><p id="physio-campaign-sample">De ontvangerslijst wordt geladen.</p><div class="physio-mail-preview"><div class="physio-mail-preview-head"><img src="/media/zol-logo.png" alt="ZOL Solutions"><small>Bericht van ZOL Solutions</small><strong id="physio-preview-subject">Typ een onderwerp</strong></div><div class="physio-mail-preview-content"><div id="physio-preview-body">Typ jullie bericht om een voorbeeld te zien.</div><p class="physio-mail-preview-invite">Lijkt het je leuk om tien minuten met ons te bellen?</p><a class="physio-mail-preview-cta" href="/kennismaking/" target="_blank" rel="noreferrer">Kies een moment van 10 minuten →</a><figure class="physio-mail-preview-team"><img src="/media/story-team.jpg" alt="Maks en Thijn, oprichters van ZOL Solutions"><figcaption>Maks &amp; Thijn · ZOL Solutions</figcaption></figure><p class="physio-mail-preview-optout">Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand.</p></div><div class="physio-mail-preview-foot">ZOL Solutions · Zachter landen. Beter sporten.<br>zolsolutions.nl</div></div><p class="form-hint">Alleen fysiopraktijken met een vastgelegde mailgrond en een geldig adres komen in de verzendrij. Er gaan maximaal 40 e-mails per dag uit via de ingestelde inbox.</p></aside></section>
     <section class="panel physio-campaign-progress"><h2>Verzendstatus</h2><div id="physio-campaign-status">Status laden…</div><div class="form-actions"><button class="button" type="button" id="physio-campaign-pause" hidden>Pauzeren</button><button class="button" type="button" id="physio-campaign-resume" hidden>Hervatten</button></div></section>
+    <section class="panel physio-campaign-progress"><h2>Geplande gesprekken</h2><p class="form-hint">Praktijken kiezen een vrij tijdstip van 10 minuten op werkdagen tussen 09:00 en 17:00. De bevestiging komt binnen op info@zolsolutions.nl. Voeg de afspraak vanuit de melding of hieronder toe aan de Teamagenda.</p><div id="physio-bookings-list">Gesprekken laden…</div><div class="form-actions"><a class="button" href="/kennismaking/" target="_blank" rel="noreferrer">Boekingspagina bekijken ↗</a></div></section>
   </div>`
   const form = document.querySelector('#physio-campaign-form')
   const preview = () => {
@@ -1707,6 +1708,26 @@ function renderPhysioCampaign() {
   document.querySelector('#physio-campaign-resume').addEventListener('click', () => changePhysioCampaign('resume'))
   preview()
   void loadPhysioCampaignStatus()
+  void loadPhysioBookings()
+}
+
+async function loadPhysioBookings() {
+  const list = document.querySelector('#physio-bookings-list')
+  if (!list) return
+  try {
+    const { data, error } = await supabase.functions.invoke('physio-booking', { body: { action: 'admin_bookings' } })
+    if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Gesprekken laden mislukt.'))
+    if (currentRoute() !== 'physio-campaign') return
+    const bookings = data.bookings || []
+    if (!bookings.length) { list.textContent = 'Nog geen gesprekken gepland.'; return }
+    list.innerHTML = bookings.map((booking) => {
+      const start = new Date(booking.start_at)
+      const date = start.toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+      const compact = (value) => String(value).replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+      const params = new URLSearchParams({ action: 'TEMPLATE', text: `ZOL · 10 min met ${booking.practice_name}`, dates: `${compact(booking.start_at)}/${compact(booking.end_at)}`, ctz: 'Europe/Amsterdam', details: `${booking.contact_name} · ${booking.email} · ${booking.phone}\n${booking.message || ''}`, location: 'Telefonisch', src: ZOL_CALENDAR_ID })
+      return `<article class="physio-booking-row"><div><strong>${escapeHtml(booking.practice_name)}</strong><span>${escapeHtml(date)} · ${escapeHtml(booking.contact_name)} · ${escapeHtml(booking.phone)}</span></div><a class="button" href="https://calendar.google.com/calendar/render?${escapeHtml(params.toString())}" target="_blank" rel="noopener noreferrer">Zet in Teamagenda ↗</a></article>`
+    }).join('')
+  } catch (error) { if (currentRoute() === 'physio-campaign') list.textContent = error.message }
 }
 
 async function loadPhysioCampaignStatus() {
