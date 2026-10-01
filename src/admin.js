@@ -1819,8 +1819,8 @@ async function addManualPhysioRecipient(event) {
     }
     physioCampaignSelection.add(recipient.id)
     persistPhysioCampaignSelection()
-    physioCampaignSearch = email
-    document.querySelector('#physio-campaign-search').value = email
+    physioCampaignSearch = ''
+    document.querySelector('#physio-campaign-search').value = ''
     await loadPhysioCampaignStatus()
     form.reset()
     toast('Adres geselecteerd', replaced ? `${email} staat in de selectie. ${replaced} is uit de selectie gehaald.` : `${email} staat in de selectie voor deze verzending.`)
