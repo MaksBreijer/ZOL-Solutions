@@ -47,7 +47,8 @@ let partnerFilters = { query: '', type: 'sports_club', status: '', flow: 'todo',
 let partnerSelectedId = ''
 let partnerRefreshTimer = null
 let partnerPulseRunning = false
-let physioCampaignDraft = { subject: '', message: '' }
+const storedPhysioCampaignDraft = (() => { try { return JSON.parse(localStorage.getItem('zol_physio_campaign_draft') || '{}') } catch { return {} } })()
+let physioCampaignDraft = { subject: String(storedPhysioCampaignDraft.subject || ''), message: String(storedPhysioCampaignDraft.message || '') }
 let physioCampaignStatus = null
 let physioCampaignSelection = null
 let apolloCandidates = new Map()
@@ -1690,6 +1691,7 @@ function renderPhysioCampaign() {
   })
   const preview = () => {
     physioCampaignDraft = Object.fromEntries(new FormData(form))
+    try { localStorage.setItem('zol_physio_campaign_draft', JSON.stringify(physioCampaignDraft)) } catch {}
     const sample = physioCampaignStatus?.sample || { practice_name: 'Voorbeeldpraktijk', location: 'Amsterdam', specialization: 'fysiotherapie', contact_person: 'Mevrouw De Vries', personal_opening: 'Ik zag dat jullie kinderen met sportblessures begeleiden.' }
     document.querySelector('#physio-preview-subject').textContent = personalizedCampaignText(physioCampaignDraft.subject, sample) || 'Typ een onderwerp'
     document.querySelector('#physio-preview-body').textContent = personalizedCampaignText(physioCampaignDraft.message, sample) || 'Typ jullie bericht om een voorbeeld te zien.'
