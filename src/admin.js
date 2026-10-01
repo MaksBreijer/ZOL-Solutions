@@ -50,7 +50,12 @@ let partnerPulseRunning = false
 const storedPhysioCampaignDraft = (() => { try { return JSON.parse(localStorage.getItem('zol_physio_campaign_draft') || '{}') } catch { return {} } })()
 let physioCampaignDraft = { subject: String(storedPhysioCampaignDraft.subject || ''), message: String(storedPhysioCampaignDraft.message || '') }
 let physioCampaignStatus = null
-let physioCampaignSelection = null
+let physioCampaignSelection = (() => {
+  try {
+    const ids = JSON.parse(localStorage.getItem('zol_physio_campaign_selection') || 'null')
+    return Array.isArray(ids) ? new Set(ids.filter((id) => typeof id === 'string').slice(0, 100)) : null
+  } catch { return null }
+})()
 let physioCampaignSearch = ''
 let apolloCandidates = new Map()
 const PARTNER_SCAN_PROFILE = 'no-foot-specialists-v3'
@@ -1693,6 +1698,7 @@ function renderPhysioCampaign() {
     }
     if (event.target.checked) physioCampaignSelection.add(event.target.value)
     else physioCampaignSelection.delete(event.target.value)
+    persistPhysioCampaignSelection()
     recipientList.querySelector('#physio-campaign-selected-count').textContent = physioCampaignSelection.size
     preview()
   })
@@ -1800,20 +1806,30 @@ async function addManualPhysioRecipient(event) {
       lead = { id: crypto.randomUUID(), name: practiceName || email, type: 'physio', email, status: 'new', score: 0,
         source_provider: 'Handmatig via Fysiomail', outreach_basis: 'none', outreach_opt_out: false,
         created_at: timestamp, updated_at: timestamp }
-      await savePartnerScout({ ...scout, leads: [...scout.leads, lead], interactions: [partnerInteraction(lead.id, 'created', 'E-mailadres handmatig toegevoegd via Fysiomail.'), ...scout.interactions] }, 'Fysiomailadres toegevoegd', { lead_id: lead.id, partner_name: lead.name })
+      await savePartnerScout({ ...scout, leads: [lead, ...scout.leads], interactions: [partnerInteraction(lead.id, 'created', 'E-mailadres handmatig toegevoegd via Fysiomail.'), ...scout.interactions] }, 'Fysiomailadres toegevoegd', { lead_id: lead.id, partner_name: lead.name })
     }
     await loadPhysioCampaignStatus()
     const recipient = physioCampaignStatus?.recipients?.find((item) => item.email === email)
     if (!recipient) throw new Error('Dit adres is al verzonden of staat in een wachtrij en kan niet opnieuw worden geselecteerd.')
-    const selected = physioCampaignSelection.size < 100 || physioCampaignSelection.has(recipient.id)
-    if (selected) physioCampaignSelection.add(recipient.id)
+    let replaced = ''
+    if (!physioCampaignSelection.has(recipient.id) && physioCampaignSelection.size >= 100) {
+      const lastId = [...physioCampaignSelection].at(-1)
+      replaced = physioCampaignStatus.recipients.find((item) => item.id === lastId)?.practice_name || 'een ander adres'
+      physioCampaignSelection.delete(lastId)
+    }
+    physioCampaignSelection.add(recipient.id)
+    persistPhysioCampaignSelection()
     physioCampaignSearch = email
     document.querySelector('#physio-campaign-search').value = email
     await loadPhysioCampaignStatus()
     form.reset()
-    toast('Adres beschikbaar', selected ? `${email} is geselecteerd voor deze verzending.` : `${email} is toegevoegd. Maak één plek vrij in de selectie van 100.`)
+    toast('Adres geselecteerd', replaced ? `${email} staat in de selectie. ${replaced} is uit de selectie gehaald.` : `${email} staat in de selectie voor deze verzending.`)
   } catch (error) { toast('Adres toevoegen mislukt', error.message, true) }
   finally { setBusy(button, false, 'Adres toevoegen') }
+}
+
+function persistPhysioCampaignSelection() {
+  try { localStorage.setItem('zol_physio_campaign_selection', JSON.stringify([...physioCampaignSelection])) } catch {}
 }
 
 function filterPhysioCampaignRecipients() {
@@ -1841,6 +1857,7 @@ async function loadPhysioCampaignStatus() {
     physioCampaignSelection = physioCampaignSelection === null
       ? new Set(recipients.slice(0, 100).map((recipient) => recipient.id))
       : new Set([...physioCampaignSelection].filter((id) => availableIds.has(id)))
+    persistPhysioCampaignSelection()
     document.querySelector('#physio-campaign-recipient-list').innerHTML = recipients.length
       ? `<p class="form-hint"><span id="physio-campaign-selected-count">${physioCampaignSelection.size}</span> van maximaal 100 geselecteerd · ${recipients.length} verzendbaar<span id="physio-campaign-filtered-count"></span></p><div class="physio-recipient-list">${recipients.map((recipient) => `<label><input type="checkbox" value="${escapeHtml(recipient.id)}" ${physioCampaignSelection.has(recipient.id) ? 'checked' : ''}><span><strong>${escapeHtml(recipient.practice_name)}</strong><small>${escapeHtml(recipient.email)}</small></span></label>`).join('')}</div><p id="physio-campaign-no-results" hidden>Geen praktijken gevonden.</p>`
       : '<p>Er zijn geen verzendbare adressen.</p>'
