@@ -252,6 +252,15 @@ svg { display: block; }
 .page-container { width: min(1280px, 100%); margin-inline: auto; }
 .physio-campaign-page { display: grid; gap: 18px; }
 .physio-campaign-recipients { padding: 24px; }
+.physio-campaign-mode { padding: 24px; }
+.physio-campaign-mode h2 { margin: 0 0 8px; }
+.physio-campaign-mode .field { max-width: 480px; }
+.physio-campaign-page.is-research .physio-mail-preview-cta,
+.physio-campaign-page.is-research .physio-mail-preview-team,
+.physio-campaign-page.is-research .physio-mail-preview-head img,
+.physio-campaign-page.is-research .physio-mail-preview-head small,
+.physio-campaign-page.is-research .physio-mail-preview-foot { display: none; }
+.physio-campaign-page.is-research .physio-mail-preview-head { background: #fff; color: #10233b; padding-bottom: 0; }
 .physio-campaign-recipients h2 { margin: 0 0 8px; }
 .physio-recipient-list { max-height: 320px; overflow: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; margin-top: 14px; }
 .physio-recipient-list label { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border: 1px solid #dce4eb; border-radius: 8px; cursor: pointer; }
