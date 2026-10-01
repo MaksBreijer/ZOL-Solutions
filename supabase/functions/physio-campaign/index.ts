@@ -66,14 +66,16 @@ async function campaignStatus(db: ReturnType<typeof adminClient>) {
   const { data: campaign, error: campaignError } = await db.from("physio_campaigns").select("id,subject_template,body_template,status,created_at,completed_at").order("created_at", { ascending: false }).limit(1).maybeSingle()
   if (campaignError) throw campaignError
   let counts: Record<string, number> = {}
+  let deliveries: { practice_name: string; email: string; status: string; sent_at: string | null; error_message: string | null }[] = []
   if (campaign) {
-    const { data, error } = await db.from("physio_campaign_recipients").select("status").eq("campaign_id", campaign.id)
+    const { data, error } = await db.from("physio_campaign_recipients").select("practice_name,email,status,sent_at,error_message").eq("campaign_id", campaign.id)
     if (error) throw error
-    counts = (data || []).reduce((result: Record<string, number>, row: { status: string }) => { result[row.status] = (result[row.status] || 0) + 1; return result }, {})
+    deliveries = data || []
+    counts = deliveries.reduce((result: Record<string, number>, row) => { result[row.status] = (result[row.status] || 0) + 1; return result }, {})
   }
   const nextBatch = ready.slice(0, batchSize)
   const sampleLead = nextBatch.find((lead) => clean(lead.personal_opening)) || nextBatch[0]
-  return { total_physios: physios.length, known_emails: knownEmails.size, eligible: ready.length, batch_ready: nextBatch.length, batch_size: batchSize, personalized: nextBatch.filter((lead) => clean(lead.personal_opening)).length, recipients: ready.map((lead) => ({ id: clean(lead.id), practice_name: clean(lead.name), email: clean(lead.email).toLowerCase(), has_personal_opening: Boolean(clean(lead.personal_opening)) })), sent_total: history.sent.size, pending_total: history.pending.size, excluded: physios.length - eligible.length, campaign, counts, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
+  return { total_physios: physios.length, known_emails: knownEmails.size, eligible: ready.length, batch_ready: nextBatch.length, batch_size: batchSize, personalized: nextBatch.filter((lead) => clean(lead.personal_opening)).length, recipients: ready.map((lead) => ({ id: clean(lead.id), practice_name: clean(lead.name), email: clean(lead.email).toLowerCase(), has_personal_opening: Boolean(clean(lead.personal_opening)) })), sent_total: history.sent.size, pending_total: history.pending.size, excluded: physios.length - eligible.length, campaign, counts, deliveries, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
 }
 
 async function processBatch(db: ReturnType<typeof adminClient>) {
