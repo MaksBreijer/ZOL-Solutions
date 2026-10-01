@@ -6,11 +6,12 @@ type Recipient = { id: string; campaign_id: string; lead_id: string; practice_na
 const clean = (value: unknown) => String(value ?? "").trim()
 const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 const footer = "Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand."
-const batchSize = 100
+const batchSize = 40
 
 async function deliveryHistory(db: ReturnType<typeof adminClient>) {
   const sent = new Set<string>()
   const pending = new Set<string>()
+  const skipped = new Set<string>()
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await db.from("physio_campaign_recipients").select("email,status").range(offset, offset + 999)
     if (error) throw error
@@ -18,10 +19,11 @@ async function deliveryHistory(db: ReturnType<typeof adminClient>) {
       const email = clean(row.email).toLowerCase()
       if (row.status === "sent") sent.add(email)
       if (["queued", "sending"].includes(row.status)) pending.add(email)
+      if (row.status === "skipped") skipped.add(email)
     }
     if ((data || []).length < 1000) break
   }
-  return { sent, pending }
+  return { sent, pending, skipped }
 }
 
 function eligibleLeads(leads: Lead[]) {
@@ -61,7 +63,7 @@ async function campaignStatus(db: ReturnType<typeof adminClient>) {
   const physios = leads.filter((lead) => lead.type === "physio")
   const eligible = eligibleLeads(physios)
   const history = await deliveryHistory(db)
-  const ready = eligible.filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
+  const ready = eligible.filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()) && !history.skipped.has(clean(lead.email).toLowerCase()))
   const knownEmails = new Set(physios.map((lead) => clean(lead.email).toLowerCase()).filter(validEmail))
   const { data: campaign, error: campaignError } = await db.from("physio_campaigns").select("id,subject_template,body_template,status,created_at,completed_at").order("created_at", { ascending: false }).limit(1).maybeSingle()
   if (campaignError) throw campaignError
@@ -214,10 +216,10 @@ Deno.serve(async (request) => {
     if (settingsError) throw settingsError
     const history = await deliveryHistory(db)
     const requestedIds = Array.isArray(body.lead_ids) ? body.lead_ids.map(clean) : []
-    if (!requestedIds.length || requestedIds.length > batchSize || new Set(requestedIds).size !== requestedIds.length) return Response.json({ error: "Selecteer 1 tot 100 verschillende praktijken." }, { status: 400, headers })
+    if (!requestedIds.length || requestedIds.length > batchSize || new Set(requestedIds).size !== requestedIds.length) return Response.json({ error: "Selecteer 1 tot 40 verschillende praktijken." }, { status: 400, headers })
     const requested = new Set(requestedIds)
     const recipients = eligibleLeads(Array.isArray(settings?.value?.leads) ? settings.value.leads : [])
-      .filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
+      .filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()) && !history.skipped.has(clean(lead.email).toLowerCase()))
       .filter((lead) => requested.has(clean(lead.id)))
     if (recipients.length !== requested.size) return Response.json({ error: "Een of meer geselecteerde praktijken zijn niet meer verzendbaar. Vernieuw de lijst en controleer de adressen." }, { status: 409, headers })
     if (/{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && recipients.some((lead) => !clean(lead.personal_opening))) return Response.json({ error: "Vul voor iedere ontvanger een controleerbare persoonlijke openingszin in voordat je deze campagne start." }, { status: 400, headers })
