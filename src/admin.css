@@ -764,7 +764,7 @@ svg { display: block; }
 .table-empty-value { color: #9ca6ad; }
 .customer-card { padding-bottom: 14px; }
 .customer-card > header { padding-bottom: 7px; }
-.customer-card > a, .customer-card > button, .customer-card > h3, .customer-card > address { margin-right: 14px; margin-left: 14px; }
+.customer-card > a, .customer-card > button, .customer-card > h3, .customer-card > address, .customer-card > strong.customer-link, .customer-card > span { margin-right: 14px; margin-left: 14px; }
 .customer-card > a, .customer-link { display: block; border: 0; background: none; color: #1268b4; font-size: 9px; line-height: 1.55; text-align: left; text-decoration: none; }
 .customer-link { padding: 0; font-size: 10px; font-weight: 700; }
 .customer-card h3 { margin-top: 17px; margin-bottom: 7px; color: #35434f; font-size: 9px; }
