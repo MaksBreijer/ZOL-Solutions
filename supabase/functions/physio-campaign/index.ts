@@ -7,9 +7,6 @@ const clean = (value: unknown) => String(value ?? "").trim()
 const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 const footer = "Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand."
 const batchSize = 100
-const researchSubject = "Vraag over begeleiding van kinderen met hielpijn"
-const researchBody = "Beste fysiotherapeut,\n\nWij zijn Maks en Thijn van ZOL Solutions. We willen beter begrijpen hoe fysiopraktijken kinderen met Morbus Sever begeleiden bij hun terugkeer naar sport. Zou u bereid zijn in een kort gesprek uw ervaringen en afwegingen te delen? We zijn vooral benieuwd hoe u belasting, pijn en sportdeelname bespreekt.\n\nAls u hiervoor openstaat, kunt u op deze e-mail reageren. Dan stemmen we samen een geschikt moment af.\n\nMet vriendelijke groet,\n\nMaks en Thijn\nZOL Solutions"
-const isResearchCampaign = (campaign: { subject_template: string; body_template: string }) => campaign.subject_template === researchSubject && campaign.body_template === researchBody
 
 async function deliveryHistory(db: ReturnType<typeof adminClient>) {
   const sent = new Set<string>()
@@ -27,10 +24,10 @@ async function deliveryHistory(db: ReturnType<typeof adminClient>) {
   return { sent, pending }
 }
 
-function eligibleLeads(leads: Lead[], requireMailBasis = true) {
+function eligibleLeads(leads: Lead[]) {
   const seen = new Set<string>()
   return leads.filter((lead) => {
-    if (lead.type !== "physio" || lead.outreach_opt_out || (requireMailBasis && (!['consent', 'existing_customer'].includes(clean(lead.outreach_basis)) || !clean(lead.outreach_basis_note)))) return false
+    if (lead.type !== "physio" || lead.outreach_opt_out || !["consent", "existing_customer"].includes(clean(lead.outreach_basis)) || !clean(lead.outreach_basis_note)) return false
     if (/^(smc|sport\s*medisch\s*centrum)\s+almere$/i.test(clean(lead.name).replace(/[-–]/g, " ")) || /@smcalmere\.nl$/i.test(clean(lead.email)) || /(^|\.)smcalmere\.nl$/i.test((() => { try { return new URL(clean(lead.website)).hostname } catch { return "" } })())) return false
     const email = clean(lead.email).toLowerCase()
     if (!validEmail(email) || seen.has(email)) return false
@@ -63,10 +60,8 @@ async function campaignStatus(db: ReturnType<typeof adminClient>) {
   const leads = Array.isArray(settings?.value?.leads) ? settings.value.leads as Lead[] : []
   const physios = leads.filter((lead) => lead.type === "physio")
   const eligible = eligibleLeads(physios)
-  const researchEligible = eligibleLeads(physios, false)
   const history = await deliveryHistory(db)
   const ready = eligible.filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
-  const researchReady = researchEligible.filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
   const knownEmails = new Set(physios.map((lead) => clean(lead.email).toLowerCase()).filter(validEmail))
   const { data: campaign, error: campaignError } = await db.from("physio_campaigns").select("id,subject_template,body_template,status,created_at,completed_at").order("created_at", { ascending: false }).limit(1).maybeSingle()
   if (campaignError) throw campaignError
@@ -78,8 +73,7 @@ async function campaignStatus(db: ReturnType<typeof adminClient>) {
   }
   const nextBatch = ready.slice(0, batchSize)
   const sampleLead = nextBatch.find((lead) => clean(lead.personal_opening)) || nextBatch[0]
-  const recipientSummary = (lead: Lead) => ({ id: clean(lead.id), practice_name: clean(lead.name), email: clean(lead.email).toLowerCase(), has_personal_opening: Boolean(clean(lead.personal_opening)) })
-  return { total_physios: physios.length, known_emails: knownEmails.size, eligible: ready.length, batch_ready: nextBatch.length, research_eligible: researchReady.length, research_batch_ready: Math.min(researchReady.length, batchSize), batch_size: batchSize, personalized: nextBatch.filter((lead) => clean(lead.personal_opening)).length, recipients: ready.map(recipientSummary), research_recipients: researchReady.map(recipientSummary), research_subject: researchSubject, research_body: researchBody, sent_total: history.sent.size, pending_total: history.pending.size, excluded: physios.length - eligible.length, campaign, counts, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
+  return { total_physios: physios.length, known_emails: knownEmails.size, eligible: ready.length, batch_ready: nextBatch.length, batch_size: batchSize, personalized: nextBatch.filter((lead) => clean(lead.personal_opening)).length, recipients: ready.map((lead) => ({ id: clean(lead.id), practice_name: clean(lead.name), email: clean(lead.email).toLowerCase(), has_personal_opening: Boolean(clean(lead.personal_opening)) })), sent_total: history.sent.size, pending_total: history.pending.size, excluded: physios.length - eligible.length, campaign, counts, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
 }
 
 async function processBatch(db: ReturnType<typeof adminClient>) {
@@ -101,7 +95,7 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
   for (const recipient of recipients) {
     const lead = leads.get(recipient.lead_id)
     const campaign = byCampaign.get(recipient.campaign_id)
-    const stillEligible = lead && campaign && eligibleLeads([lead], !isResearchCampaign(campaign)).length === 1 && clean(lead.email).toLowerCase() === recipient.email.toLowerCase()
+    const stillEligible = lead && eligibleLeads([lead]).length === 1 && clean(lead.email).toLowerCase() === recipient.email.toLowerCase()
     if (!stillEligible || !campaign) {
       await db.from("physio_campaign_recipients").update({ status: "skipped", error_message: "Contact of mailgrond gewijzigd" }).eq("id", recipient.id)
       counts.skipped++
@@ -115,9 +109,8 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
       }
       const subject = personalize(campaign.subject_template, recipient).slice(0, 180)
       const body = personalize(campaign.body_template, recipient).trim()
-      const research = isResearchCampaign(campaign)
       const bookingUrl = `https://zolsolutions.nl/kennismaking/?praktijk=${encodeURIComponent(recipient.practice_name)}`
-      const text = research ? `${body}\n\n${footer}` : `${body}\n\nPlan 10 minuten met ons: ${bookingUrl}\n\n${footer}`
+      const text = `${body}\n\nPlan 10 minuten met ons: ${bookingUrl}\n\n${footer}`
       const dedupeKey = `physio-campaign-${recipient.id}`
       const { data: existing } = await db.from("email_messages").select("id,status,provider_id").eq("dedupe_key", dedupeKey).maybeSingle()
       if (existing?.status === "sent") {
@@ -131,9 +124,7 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
       const bookingButton = `<a href="${escapeEmailHtml(bookingUrl)}" style="display:inline-block;margin-top:16px;padding:13px 19px;border-radius:8px;background:#33669b;color:#fff;font-size:14px;font-weight:700;text-decoration:none">Plan 10 minuten met ons →</a>`
       const teamPhoto = `<div style="margin:28px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="604" alt="Maks en Thijn, oprichters van ZOL Solutions" style="display:block;width:100%;max-width:604px;height:auto;border-radius:10px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>`
       const optOut = `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">${escapeEmailHtml(footer)}</p>`
-      const html = research
-        ? `<!doctype html><html lang="nl"><body style="font-family:Arial,Helvetica,sans-serif;color:#24364a;line-height:1.6">${paragraphs}${optOut}</body></html>`
-        : emailShell(`${paragraphs}${bookingButton}${teamPhoto}${optOut}`, { eyebrow: "Bericht van ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
+      const html = emailShell(`${paragraphs}${bookingButton}${teamPhoto}${optOut}`, { eyebrow: "Bericht van ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
       const sent = await sendEmail({ to: recipient.email, subject, html, text, idempotencyKey: dedupeKey, config: { ...config, from_email: "info@zolsolutions.nl", reply_to: "info@zolsolutions.nl" } })
       await markEmail(db, log.id, { status: "sent", providerId: sent.id })
       await db.from("physio_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), provider_id: sent.id || null }).eq("id", recipient.id)
@@ -169,28 +160,25 @@ Deno.serve(async (request) => {
     if (!["owner", "admin"].includes(clean(admin.role))) return Response.json({ error: "Geen toegang" }, { status: 403, headers })
     if (action === "test") {
       const config = await getEmailConfig(db)
-      const research = clean(body.purpose) === "research"
       const recipients = [
         { name: "Thijn", email: "thijn@zolsolutions.nl" },
         { name: "Maks", email: "maks@zolsolutions.nl" },
       ]
-      const templateSubject = research ? researchSubject : clean(body.subject) || "Vraag over {{praktijknaam}}"
-      const templateBody = research ? researchBody : clean(body.message) || "Hoi {{contactpersoon}},\n\nDit is een test van de persoonlijke fysiomail van ZOL Solutions. Zo ziet de mail eruit voor {{praktijknaam}}.\n\nGroet,\nMaks & Thijn\nZOL Solutions"
+      const templateSubject = clean(body.subject) || "Vraag over {{praktijknaam}}"
+      const templateBody = clean(body.message) || "Hoi {{contactpersoon}},\n\nDit is een test van de persoonlijke fysiomail van ZOL Solutions. Zo ziet de mail eruit voor {{praktijknaam}}.\n\nGroet,\nMaks & Thijn\nZOL Solutions"
       const results = []
       for (const recipient of recipients) {
         const person = { practice_name: `Praktijk van ${recipient.name}`, location: "Amsterdam", specialization: "fysiotherapie", contact_person: recipient.name, personal_opening: `Hoi ${recipient.name}, dit is een voorbeeld van een persoonlijke openingszin.` } as Recipient
         const subject = `[TEST] ${personalize(templateSubject, person).slice(0, 170)}`
         const bodyText = personalize(templateBody, person).trim()
         const bookingUrl = `https://zolsolutions.nl/kennismaking/?praktijk=${encodeURIComponent(person.practice_name)}`
-        const text = research ? `${bodyText}\n\n${footer}` : `${bodyText}\n\nPlan 10 minuten met ons: ${bookingUrl}\n\n${footer}`
+        const text = `${bodyText}\n\nPlan 10 minuten met ons: ${bookingUrl}\n\n${footer}`
         const paragraphs = bodyText.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
           .map((paragraph) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
         const button = `<a href="${escapeEmailHtml(bookingUrl)}" style="display:inline-block;margin-top:16px;padding:13px 19px;border-radius:8px;background:#33669b;color:#fff;font-size:14px;font-weight:700;text-decoration:none">Plan 10 minuten met ons →</a>`
         const photo = `<div style="margin:28px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="604" alt="Maks en Thijn, oprichters van ZOL Solutions" style="display:block;width:100%;max-width:604px;height:auto;border-radius:10px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>`
         const optOut = `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">${escapeEmailHtml(footer)}</p>`
-        const html = research
-          ? `<!doctype html><html lang="nl"><body style="font-family:Arial,Helvetica,sans-serif;color:#24364a;line-height:1.6">${paragraphs}${optOut}</body></html>`
-          : emailShell(`${paragraphs}${button}${photo}${optOut}`, { eyebrow: "Test fysiomail · ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
+        const html = emailShell(`${paragraphs}${button}${photo}${optOut}`, { eyebrow: "Test fysiomail · ZOL Solutions", title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
         const dedupeKey = `physio-campaign-test-${crypto.randomUUID()}`
         const log = await logEmail(db, { kind: "physio_campaign", recipient_email: recipient.email, subject, body_preview: text.slice(0, 500), dedupe_key: dedupeKey })
         try {
@@ -215,9 +203,8 @@ Deno.serve(async (request) => {
     }
     if (action !== "start") return Response.json({ error: "Onbekende actie" }, { status: 400, headers })
 
-    const research = clean(body.purpose) === "research"
-    const subject = research ? researchSubject : clean(body.subject).slice(0, 180)
-    const message = research ? researchBody : clean(body.message).slice(0, 5000)
+    const subject = clean(body.subject).slice(0, 180)
+    const message = clean(body.message).slice(0, 5000)
     if (!subject || !message) return Response.json({ error: "Onderwerp en bericht zijn verplicht." }, { status: 400, headers })
     const { data: running } = await db.from("physio_campaigns").select("id").eq("status", "running").limit(1).maybeSingle()
     if (running) return Response.json({ error: "Er loopt al een fysiocampagne. Rond die eerst af of pauzeer haar." }, { status: 409, headers })
@@ -227,10 +214,10 @@ Deno.serve(async (request) => {
     const requestedIds = Array.isArray(body.lead_ids) ? body.lead_ids.map(clean) : []
     if (!requestedIds.length || requestedIds.length > batchSize || new Set(requestedIds).size !== requestedIds.length) return Response.json({ error: "Selecteer 1 tot 100 verschillende praktijken." }, { status: 400, headers })
     const requested = new Set(requestedIds)
-    const recipients = eligibleLeads(Array.isArray(settings?.value?.leads) ? settings.value.leads : [], !research)
+    const recipients = eligibleLeads(Array.isArray(settings?.value?.leads) ? settings.value.leads : [])
       .filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
       .filter((lead) => requested.has(clean(lead.id)))
-    if (recipients.length !== requested.size) return Response.json({ error: "Een of meer geselecteerde praktijken zijn niet meer verzendbaar. Vernieuw de lijst en controleer de adressen." }, { status: 409, headers })
+    if (recipients.length !== requested.size) return Response.json({ error: "Een of meer geselecteerde praktijken zijn niet meer verzendbaar. Vernieuw de lijst en controleer de mailgrond." }, { status: 409, headers })
     if (/{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && recipients.some((lead) => !clean(lead.personal_opening))) return Response.json({ error: "Vul voor iedere ontvanger een controleerbare persoonlijke openingszin in voordat je deze campagne start." }, { status: 400, headers })
     const { data: campaign, error: campaignError } = await db.from("physio_campaigns").insert({ subject_template: subject, body_template: message, created_by: admin.id }).select("id").single()
     if (campaignError) throw campaignError

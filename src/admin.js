@@ -50,7 +50,6 @@ let partnerPulseRunning = false
 let physioCampaignDraft = { subject: '', message: '' }
 let physioCampaignStatus = null
 let physioCampaignSelection = null
-let physioCampaignPurpose = 'research'
 let apolloCandidates = new Map()
 const PARTNER_SCAN_PROFILE = 'no-foot-specialists-v3'
 
@@ -1666,44 +1665,17 @@ function personalizedCampaignText(template, practice) {
 
 function renderPhysioCampaign() {
   const total = state.partnerScout.leads.filter((lead) => lead.type === 'physio').length
-  elements.content.innerHTML = `<div class="page-container physio-campaign-page ${physioCampaignPurpose === 'research' ? 'is-research' : ''}">
+  elements.content.innerHTML = `<div class="page-container physio-campaign-page">
     ${pageHeader('physio-campaign', '<a class="button" href="#partners">Praktijken bekijken</a>')}
     <section class="panel physio-campaign-intro"><h2>Fysiomail in batches van 100</h2><p>Schrijf het bericht zelf. Gebruik <code>{{contactpersoon}}</code>, <code>{{praktijknaam}}</code>, <code>{{plaats}}</code>, <code>{{specialisatie}}</code> en <code>{{persoonlijke_opening}}</code>. De persoonlijke opening schrijf je per praktijk in Partner Scout op basis van een controleerbare bron. De matchscore speelt geen rol.</p><div class="physio-campaign-counts"><strong>${total}<small>fysiopraktijken in overzicht</small></strong><strong id="physio-campaign-known">…<small>unieke e-mailadressen bekend</small></strong><strong id="physio-campaign-eligible">…<small>klaar voor volgende batch</small></strong><strong id="physio-campaign-sent">…<small>ooit verzonden</small></strong></div><p class="form-hint" id="physio-campaign-batch-note">Beschikbaarheid laden…</p></section>
-    <section class="panel physio-campaign-mode"><h2>Type bericht</h2><label class="field">Doel<select id="physio-campaign-purpose"><option value="research" ${physioCampaignPurpose === 'research' ? 'selected' : ''}>Neutrale uitnodiging om werkwijze te bespreken</option><option value="marketing" ${physioCampaignPurpose === 'marketing' ? 'selected' : ''}>Productbericht</option></select></label><p class="form-hint">De onderzoeksuitnodiging bevat geen productclaims, afspraakknop of productfoto. De tekst staat vast voor deze verzending.</p></section>
-    <section class="panel physio-campaign-recipients"><h2>Ontvangers kiezen</h2><p class="form-hint" id="physio-campaign-recipient-hint">Kies maximaal 100 praktijken. Afgemelde en eerder gemailde adressen staan niet in deze lijst.</p><div id="physio-campaign-recipient-list">Ontvangers laden…</div></section>
-    <section class="physio-campaign-layout"><form class="panel physio-campaign-compose" id="physio-campaign-form"><h2 id="physio-campaign-compose-title">Uitnodiging bekijken</h2><label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(physioCampaignDraft.subject)}" placeholder="Vraag over {{praktijknaam}}" required></label><label class="field">Bericht<textarea name="message" rows="15" maxlength="5000" placeholder="Beste {{contactpersoon}},&#10;&#10;{{persoonlijke_opening}}&#10;&#10;..." required>${escapeHtml(physioCampaignDraft.message)}</textarea></label><p class="form-hint" id="physio-campaign-compose-hint">De afmeldtekst wordt automatisch toegevoegd.</p><div class="form-actions"><button class="button" id="physio-campaign-test" type="button">Testmail naar Thijn en Maks</button><button class="button button--primary" id="physio-campaign-start" type="submit" disabled>Verstuur volgende batch (max. 100)</button></div></form>
+    <section class="panel physio-campaign-recipients"><h2>Ontvangers kiezen</h2><p class="form-hint">Kies maximaal 100 praktijken met een vastgelegde mailgrond. Afgemelde en eerder gemailde adressen staan niet in deze lijst.</p><div id="physio-campaign-recipient-list">Ontvangers laden…</div></section>
+    <section class="physio-campaign-layout"><form class="panel physio-campaign-compose" id="physio-campaign-form"><h2>Schrijf jullie mail</h2><label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(physioCampaignDraft.subject)}" placeholder="Vraag over {{praktijknaam}}" required></label><label class="field">Bericht<textarea name="message" rows="15" maxlength="5000" placeholder="Beste {{contactpersoon}},&#10;&#10;{{persoonlijke_opening}}&#10;&#10;..." required>${escapeHtml(physioCampaignDraft.message)}</textarea></label><p class="form-hint">De Scout voegt de afmeldtekst automatisch toe. Gebruik desgewenst <code>{{praktijknaam}}</code> in onderwerp of tekst. Met <code>{{persoonlijke_opening}}</code> kan de campagne pas starten als iedere ontvanger in de volgende batch een eigen openingszin heeft.</p><div class="form-actions"><button class="button" id="physio-campaign-test" type="button">Testmail naar Thijn en Maks</button><button class="button button--primary" id="physio-campaign-start" type="submit" disabled>Verstuur volgende batch (max. 100)</button></div></form>
     <aside class="panel physio-campaign-preview"><h2>Voorbeeld per praktijk</h2><p id="physio-campaign-sample">De ontvangerslijst wordt geladen.</p><div class="physio-mail-preview"><div class="physio-mail-preview-head"><img src="/media/zol-logo.png" alt="ZOL Solutions"><small>Bericht van ZOL Solutions</small><strong id="physio-preview-subject">Typ een onderwerp</strong></div><div class="physio-mail-preview-content"><div id="physio-preview-body">Typ jullie bericht om een voorbeeld te zien.</div><a class="physio-mail-preview-cta" href="/kennismaking/" target="_blank" rel="noreferrer">Plan 10 minuten met ons →</a><figure class="physio-mail-preview-team"><img src="/media/story-team.jpg" alt="Maks en Thijn, oprichters van ZOL Solutions"><figcaption>Maks &amp; Thijn · ZOL Solutions</figcaption></figure><p class="physio-mail-preview-optout">Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand.</p></div><div class="physio-mail-preview-foot">ZOL Solutions · Zachter landen. Beter sporten.<br>zolsolutions.nl</div></div><p class="form-hint">Verzending gebeurt vanuit info@zolsolutions.nl. Per klik gaan maximaal 100 nieuwe contacten in de wachtrij. Er worden maximaal 40 e-mails per dag verstuurd.</p></aside></section>
     <section class="panel physio-campaign-progress"><h2>Verzendstatus</h2><div id="physio-campaign-status">Status laden…</div><div class="form-actions"><button class="button" type="button" id="physio-campaign-pause" hidden>Pauzeren</button><button class="button" type="button" id="physio-campaign-resume" hidden>Hervatten</button></div></section>
     <section class="panel physio-campaign-progress"><h2>Geplande gesprekken</h2><p class="form-hint">Praktijken kiezen 10 minuten op maandag, woensdag, donderdag of vrijdag tussen 09:00 en 17:00. De melding met contactnaam, 06-nummer en tijd komt op info@zolsolutions.nl. Voeg de afspraak vanuit de melding of hieronder toe aan de Teamagenda.</p><div id="physio-bookings-list">Gesprekken laden…</div><div class="form-actions"><a class="button" href="/kennismaking/" target="_blank" rel="noreferrer">Boekingspagina bekijken ↗</a><button class="button" type="button" id="physio-booking-test">Test boekingsbevestiging naar Thijn en Maks</button></div></section>
   </div>`
   const form = document.querySelector('#physio-campaign-form')
   const recipientList = document.querySelector('#physio-campaign-recipient-list')
-  const purposeSelect = document.querySelector('#physio-campaign-purpose')
-  const applyPurpose = () => {
-    const research = physioCampaignPurpose === 'research'
-    const subject = form.elements.subject
-    const message = form.elements.message
-    subject.readOnly = research
-    message.readOnly = research
-    subject.value = research ? (physioCampaignStatus?.research_subject || '') : physioCampaignDraft.subject
-    message.value = research ? (physioCampaignStatus?.research_body || '') : physioCampaignDraft.message
-    document.querySelector('.physio-campaign-page').classList.toggle('is-research', research)
-    document.querySelector('#physio-campaign-compose-title').textContent = research ? 'Uitnodiging bekijken' : 'Schrijf jullie mail'
-    document.querySelector('#physio-campaign-compose-hint').textContent = research
-      ? 'De afmeldtekst wordt automatisch toegevoegd. Reageerders kunnen zelf aangeven of zij een gesprek willen.'
-      : 'De afmeldtekst wordt automatisch toegevoegd. Gebruik desgewenst {{praktijknaam}} of een controleerbare {{persoonlijke_opening}}.'
-    document.querySelector('#physio-campaign-recipient-hint').textContent = research
-      ? 'Kies maximaal 100 fysiopraktijken voor deze neutrale vraag. Afgemelde en eerder gemailde adressen staan niet in de lijst.'
-      : 'Kies maximaal 100 praktijken met een vastgelegde mailgrond. Afgemelde en eerder gemailde adressen staan niet in de lijst.'
-    document.querySelector('#physio-campaign-test').textContent = research ? 'Test onderzoeksuitnodiging' : 'Testmail naar Thijn en Maks'
-    preview()
-  }
-  purposeSelect.addEventListener('change', () => {
-    physioCampaignPurpose = purposeSelect.value
-    physioCampaignSelection = null
-    applyPurpose()
-    void loadPhysioCampaignStatus()
-  })
   recipientList.addEventListener('change', (event) => {
     if (!event.target.matches('input[type="checkbox"]')) return
     if (event.target.checked && physioCampaignSelection.size >= 100) {
@@ -1717,45 +1689,40 @@ function renderPhysioCampaign() {
     preview()
   })
   const preview = () => {
-    if (physioCampaignPurpose === 'marketing') physioCampaignDraft = Object.fromEntries(new FormData(form))
-    const currentDraft = Object.fromEntries(new FormData(form))
+    physioCampaignDraft = Object.fromEntries(new FormData(form))
     const sample = physioCampaignStatus?.sample || { practice_name: 'Voorbeeldpraktijk', location: 'Amsterdam', specialization: 'fysiotherapie', contact_person: 'Mevrouw De Vries', personal_opening: 'Ik zag dat jullie kinderen met sportblessures begeleiden.' }
-    document.querySelector('#physio-preview-subject').textContent = personalizedCampaignText(currentDraft.subject, sample) || 'Typ een onderwerp'
-    document.querySelector('#physio-preview-body').textContent = personalizedCampaignText(currentDraft.message, sample) || 'Typ jullie bericht om een voorbeeld te zien.'
-    const needsOpening = physioCampaignPurpose === 'marketing' && /{{\s*persoonlijke_opening\s*}}/i.test(`${currentDraft.subject}\n${currentDraft.message}`)
+    document.querySelector('#physio-preview-subject').textContent = personalizedCampaignText(physioCampaignDraft.subject, sample) || 'Typ een onderwerp'
+    document.querySelector('#physio-preview-body').textContent = personalizedCampaignText(physioCampaignDraft.message, sample) || 'Typ jullie bericht om een voorbeeld te zien.'
+    const needsOpening = /{{\s*persoonlijke_opening\s*}}/i.test(`${physioCampaignDraft.subject}\n${physioCampaignDraft.message}`)
     const eligible = physioCampaignSelection?.size || 0
     const personalized = (physioCampaignStatus?.recipients || []).filter((recipient) => physioCampaignSelection?.has(recipient.id) && recipient.has_personal_opening).length
-    form.querySelector('[type="submit"]').disabled = !eligible || !currentDraft.subject || !currentDraft.message || physioCampaignStatus?.campaign?.status === 'running' || (needsOpening && personalized < eligible)
+    form.querySelector('[type="submit"]').disabled = !eligible || physioCampaignStatus?.campaign?.status === 'running' || (needsOpening && personalized < eligible)
   }
   form.addEventListener('input', preview)
   document.querySelector('#physio-campaign-test').addEventListener('click', async (event) => {
     const button = event.currentTarget
     const { subject, message } = Object.fromEntries(new FormData(form))
-    const label = physioCampaignPurpose === 'research' ? 'Test onderzoeksuitnodiging' : 'Testmail naar Thijn en Maks'
-    setBusy(button, true, label)
+    setBusy(button, true, 'Testmail naar Thijn en Maks')
     try {
-      const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'test', purpose: physioCampaignPurpose, subject, message } })
+      const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'test', subject, message } })
       if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Testmail versturen mislukt.'))
       const failed = (data.results || []).filter((result) => result.status !== 'sent')
       if (failed.length) throw new Error(failed.map((result) => `${result.recipient}: ${result.error || 'niet verzonden'}`).join('; '))
-      toast('Testmail verstuurd', physioCampaignPurpose === 'research' ? 'Thijn en Maks ontvangen de neutrale uitnodiging.' : 'Thijn en Maks ontvangen ieder een persoonlijke voorbeeldmail met foto en boekingsknop.')
+      toast('Testmail verstuurd', 'Thijn en Maks ontvangen ieder een persoonlijke voorbeeldmail met foto en boekingsknop.')
     } catch (error) { toast('Testmail mislukt', error.message, true) }
-    finally { setBusy(button, false, label) }
+    finally { setBusy(button, false, 'Testmail naar Thijn en Maks') }
   })
   form.addEventListener('submit', async (event) => {
     event.preventDefault(); preview()
-    const { subject, message } = Object.fromEntries(new FormData(form))
+    const { subject, message } = physioCampaignDraft
     const eligible = physioCampaignSelection?.size || 0
-    if (!eligible) { toast('Geen ontvangers geselecteerd', 'Selecteer een of meer praktijken.', true); return }
-    if (physioCampaignPurpose === 'marketing' && /{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && (physioCampaignStatus?.recipients || []).filter((recipient) => physioCampaignSelection.has(recipient.id) && recipient.has_personal_opening).length < eligible) { toast('Persoonlijke opening ontbreekt', 'Vul de openingszin bij iedere ontvanger in via Partner Scout.', true); return }
-    const prompt = physioCampaignPurpose === 'research'
-      ? `Je zet ${eligible} neutrale onderzoeksuitnodigingen in de verzendrij via info@zolsolutions.nl. De eerste maximaal 40 kunnen direct uitgaan; daarna maximaal 40 per dag. Heb je tekst en ontvangers gecontroleerd?`
-      : `Je zet ${eligible} nieuwe fysiopraktijken in de verzendrij via info@zolsolutions.nl. De eerste maximaal 40 berichten kunnen direct uitgaan; daarna maximaal 40 per dag. Eerder gemailde adressen worden overgeslagen. Heb je de tekst en de mailgrond gecontroleerd?`
-    if (!window.confirm(prompt)) return
+    if (!eligible) { toast('Geen ontvangers geselecteerd', 'Selecteer een of meer praktijken met vastgelegde mailgrond.', true); return }
+    if (/{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && (physioCampaignStatus?.recipients || []).filter((recipient) => physioCampaignSelection.has(recipient.id) && recipient.has_personal_opening).length < eligible) { toast('Persoonlijke opening ontbreekt', 'Vul de openingszin bij iedere ontvanger in via Partner Scout.', true); return }
+    if (!window.confirm(`Je zet ${eligible} nieuwe fysiopraktijken in de verzendrij via info@zolsolutions.nl. De eerste maximaal 40 berichten kunnen direct uitgaan; daarna maximaal 40 per dag. Eerder gemailde adressen worden overgeslagen. Heb je de tekst en de mailgrond gecontroleerd?`)) return
     const button = form.querySelector('[type="submit"]')
     setBusy(button, true, 'Verstuur volgende batch (max. 100)')
     try {
-      const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'start', purpose: physioCampaignPurpose, subject, message, lead_ids: [...physioCampaignSelection] } })
+      const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'start', subject, message, lead_ids: [...physioCampaignSelection] } })
       if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Campagne starten mislukt.'))
       toast('Campagne gestart', `${data.queued} praktijken in de verzendrij; ${data.delivery?.sent || 0} berichten verwerkt.`)
       await loadPhysioCampaignStatus()
@@ -1779,7 +1746,7 @@ function renderPhysioCampaign() {
     } catch (error) { toast('Testbevestiging mislukt', error.message, true) }
     finally { setBusy(button, false, 'Test boekingsbevestiging naar Thijn en Maks') }
   })
-  applyPurpose()
+  preview()
   void loadPhysioCampaignStatus()
   void loadPhysioBookings()
 }
@@ -1809,31 +1776,22 @@ async function loadPhysioCampaignStatus() {
     if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Campagnestatus niet beschikbaar.'))
     physioCampaignStatus = data
     if (currentRoute() !== 'physio-campaign') return
-    const research = physioCampaignPurpose === 'research'
-    const recipients = research ? (data.research_recipients || []) : (data.recipients || [])
+    const recipients = data.recipients || []
     const availableIds = new Set(recipients.map((recipient) => recipient.id))
     physioCampaignSelection = physioCampaignSelection === null
       ? new Set(recipients.slice(0, 100).map((recipient) => recipient.id))
       : new Set([...physioCampaignSelection].filter((id) => availableIds.has(id)))
     document.querySelector('#physio-campaign-recipient-list').innerHTML = recipients.length
       ? `<p class="form-hint"><span id="physio-campaign-selected-count">${physioCampaignSelection.size}</span> van maximaal 100 geselecteerd · ${recipients.length} verzendbaar</p><div class="physio-recipient-list">${recipients.map((recipient) => `<label><input type="checkbox" value="${escapeHtml(recipient.id)}" ${physioCampaignSelection.has(recipient.id) ? 'checked' : ''}><span><strong>${escapeHtml(recipient.practice_name)}</strong><small>${escapeHtml(recipient.email)}</small></span></label>`).join('')}</div>`
-      : research ? '<p>Er zijn geen nieuwe adressen beschikbaar voor deze uitnodiging.</p>' : '<p>Er zijn geen verzendbare adressen. Leg per praktijk de mailgrond vast in Partner Scout.</p>'
+      : '<p>Er zijn geen verzendbare adressen. Leg per praktijk de mailgrond vast in Partner Scout.</p>'
     document.querySelector('#physio-campaign-known').innerHTML = `${data.known_emails || 0}<small>unieke e-mailadressen bekend</small>`
-    document.querySelector('#physio-campaign-eligible').innerHTML = `${research ? data.research_batch_ready || 0 : data.batch_ready || 0}<small>klaar voor volgende batch</small>`
+    document.querySelector('#physio-campaign-eligible').innerHTML = `${data.batch_ready || 0}<small>klaar voor volgende batch</small>`
     document.querySelector('#physio-campaign-sent').innerHTML = `${data.sent_total || 0}<small>ooit verzonden</small>`
-    document.querySelector('#physio-campaign-batch-note').textContent = research
-      ? `${data.research_eligible || 0} nieuwe adressen beschikbaar voor de neutrale uitnodiging; ${physioCampaignSelection.size} geselecteerd. ${data.pending_total || 0} staan al in een wachtrij.`
-      : `${data.eligible || 0} nieuwe contacten met vastgelegde mailgrond; ${physioCampaignSelection.size} geselecteerd voor de volgende batch van maximaal 100. ${data.personalized || 0} van de eerste 100 hebben een persoonlijke opening. ${data.pending_total || 0} staan al in een wachtrij. Nieuwe contacten verzamel en controleer je via Partner Scout.`
-    document.querySelector('#physio-campaign-sample').textContent = research
-      ? (recipients[0] ? `Voorbeeldontvanger: ${recipients[0].practice_name}` : 'Nog geen voorbeeldontvanger.')
-      : data.sample ? `Voorbeeld: ${data.sample.practice_name}${data.sample.location ? ` · ${data.sample.location}` : ''}` : 'Er is nog geen praktijk met een vastgelegde mailgrond.'
-    if (research) {
-      document.querySelector('#physio-campaign-form').elements.subject.value = data.research_subject || ''
-      document.querySelector('#physio-campaign-form').elements.message.value = data.research_body || ''
-    }
+    document.querySelector('#physio-campaign-batch-note').textContent = `${data.eligible || 0} nieuwe contacten met vastgelegde mailgrond; ${physioCampaignSelection.size} geselecteerd voor de volgende batch van maximaal 100. ${data.personalized || 0} van de eerste 100 hebben een persoonlijke opening. ${data.pending_total || 0} staan al in een wachtrij. Nieuwe contacten verzamel en controleer je via Partner Scout.`
+    document.querySelector('#physio-campaign-sample').textContent = data.sample ? `Voorbeeld: ${data.sample.practice_name}${data.sample.location ? ` · ${data.sample.location}` : ''}` : 'Er is nog geen praktijk met een vastgelegde mailgrond.'
     const campaign = data.campaign
     document.querySelector('#physio-campaign-status').textContent = campaign ? `${campaign.status === 'running' ? 'Actief' : campaign.status === 'paused' ? 'Gepauzeerd' : 'Afgerond'} · ${data.counts?.queued || 0} in wachtrij · ${data.counts?.sent || 0} verzonden · ${data.counts?.failed || 0} mislukt · ${data.counts?.skipped || 0} overgeslagen` : 'Nog geen campagne gestart.'
-    document.querySelector('#physio-campaign-start').disabled = !physioCampaignSelection.size || campaign?.status === 'running'
+    document.querySelector('#physio-campaign-start').disabled = !data.batch_ready || campaign?.status === 'running'
     const pause = document.querySelector('#physio-campaign-pause'); pause.hidden = campaign?.status !== 'running'; pause.dataset.id = campaign?.id || ''
     const resume = document.querySelector('#physio-campaign-resume'); resume.hidden = campaign?.status !== 'paused'; resume.dataset.id = campaign?.id || ''
     document.querySelector('#physio-campaign-form').dispatchEvent(new Event('input'))
