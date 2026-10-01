@@ -3,6 +3,7 @@ import { calculateVatBreakdown, ledgerExcelCsv, matchBankTransactions, parseBank
 import { appleCalendarSubscriptionUrl, calendarGridRange, eventsForDay, parseCalendarEvents } from './calendar-feed.js'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
 import { orderImportTemplateCsv, parseOrderCsv } from './csv-orders.js'
+import { orderWorkbookSheets } from './order-export.js'
 import { financeExcelCsv, financeMonthKey, financeMonthLabel, financeMonthOptions, financeRows, financeSummary } from './finance-report.js'
 import {
   normalizeTrackingDestination,
@@ -800,8 +801,8 @@ const orderFilters = { query: '', status: '', payment: '', archive: 'active' }
 
 function renderOrders() {
   const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('orders', `<button class="button" data-action="export-orders">Exporteren</button>${canManageOrders ? '<button class="button" data-action="import-orders">CSV importeren</button><button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
-    <section class="panel"><div class="filters"><input type="search" data-filter="orders" placeholder="Zoek op ordernummer, klant of e-mail"><select data-filter-status="orders" aria-label="Orderstatus filter"><option value="">Alle statussen</option><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select><select data-filter-payment="orders" aria-label="Betaalstatus filter"><option value="">Elke betaling</option><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="refunded">Terugbetaald</option><option value="partially_refunded">Deels terugbetaald</option><option value="failed">Mislukt</option></select><select data-filter-archive="orders" aria-label="Archief"><option value="active">Actieve bestellingen</option><option value="archived">Archief</option><option value="all">Alle bestellingen</option></select></div><p class="form-hint">Onbetaalde webshop-checkouts verdwijnen na ${escapeHtml(settingsValue('commerce').abandoned_checkout_minutes || 10)} minuten automatisch uit dit overzicht. Zodra een betaling alsnog slaagt, verschijnt de bestelling weer.</p><div id="orders-table">${ordersTable(visibleOrders())}</div></section>
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('orders', `<button class="button" data-action="export-orders"><i data-lucide="download"></i> Excel downloaden</button>${canManageOrders ? '<button class="button" data-action="import-orders">CSV importeren</button><button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
+    <section class="panel"><div class="filters"><input type="search" data-filter="orders" placeholder="Zoek op ordernummer, klant of e-mail"><select data-filter-status="orders" aria-label="Orderstatus filter"><option value="">Alle statussen</option><option value="draft">Concept</option><option value="open">Open</option><option value="completed">Afgerond</option><option value="cancelled">Geannuleerd</option></select><select data-filter-payment="orders" aria-label="Betaalstatus filter"><option value="">Elke betaling</option><option value="pending">Openstaand</option><option value="paid">Betaald</option><option value="refunded">Terugbetaald</option><option value="partially_refunded">Deels terugbetaald</option><option value="failed">Mislukt</option></select><select data-filter-archive="orders" aria-label="Archief"><option value="active">Actieve bestellingen</option><option value="archived">Archief</option><option value="all">Alle bestellingen</option></select></div><p class="form-hint">De Excel-download volgt de huidige filters. Onbetaalde webshop-checkouts verdwijnen na ${escapeHtml(settingsValue('commerce').abandoned_checkout_minutes || 10)} minuten automatisch uit dit overzicht. Zodra een betaling alsnog slaagt, verschijnt de bestelling weer.</p><div id="orders-table">${ordersTable(visibleOrders())}</div></section>
   </div>`
   document.querySelector('[data-filter="orders"]').value = orderFilters.query
   document.querySelector('[data-filter-status="orders"]').value = orderFilters.status
@@ -3739,11 +3740,18 @@ async function refreshCurrentRoute(option) {
 async function exportOrders() {
   const orders = filteredOrders()
   if (!orders.length) { toast('Geen bestellingen om te exporteren'); return }
-  const rows = [['Bestelling', 'Extern nummer', 'Datum', 'Klant', 'E-mail', 'Totaal', 'Betaling', 'Verzending', 'Status'], ...orders.map((order) => [order.order_number, order.external_reference || '', order.created_at, order.customer_name, order.customer_email, (order.total_cents / 100).toFixed(2), order.payment_status, order.fulfillment_status, order.status])]
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/^[=+@-]/, "\'$&").replaceAll('"', '""')}"`).join(',')).join('\n')
-  const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
-  const link = document.createElement('a'); link.href = url; link.download = `zol-bestellingen-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
-  await recordActivity('Bestellingen geëxporteerd', 'order', '', { count: orders.length }); toast('Export aangemaakt')
+  const button = document.querySelector('[data-action="export-orders"]')
+  setBusy(button, true, 'Excel maken')
+  try {
+    const { default: writeExcelFile } = await import('write-excel-file/browser')
+    await writeExcelFile(orderWorkbookSheets(orders)).toFile(`zol-bestellingen-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    await recordActivity('Bestellingen als Excel geëxporteerd', 'order', '', { count: orders.length })
+    toast('Excel-bestand gedownload', `${orders.length} bestellingen uit de huidige selectie.`)
+  } catch (error) {
+    toast('Excel-export mislukt', error.message || 'Probeer het opnieuw.', true)
+  } finally {
+    setBusy(button, false, 'Excel downloaden')
+  }
 }
 
 function exportFinance() {

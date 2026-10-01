@@ -27,6 +27,7 @@ export async function adminHarness() {
   window.URL.createObjectURL = blob => { downloads.push(blob); return `blob:test-${downloads.length}` }
   window.URL.revokeObjectURL = () => {}
   window.HTMLAnchorElement.prototype.click = function () { downloads.push(this.download) }
+  context.mockWriteExcelFile = () => ({ toFile: async (fileName) => { downloads.push(fileName) } })
   for (const match of source.matchAll(/import\s*\{([\s\S]*?)\}\s*from\s*['"]([^'"]+)['"]/g)) {
     const [, names, path] = match
     if (path === 'lucide') { for (const name of names.split(',').map(s => s.trim()).filter(Boolean)) context[name] = name === 'createIcons' ? () => {} : {}; continue }
@@ -36,7 +37,7 @@ export async function adminHarness() {
       context.formatDate = (value, options = {}) => new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', ...options }).format(new Date(value))
     } else Object.assign(context, await import(new URL(`../../src/${path.slice(2)}`, import.meta.url)))
   }
-  source = source.replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"]\s*;?\n/gm, '').replace(/^import\s+['"][^'"]+['"]\s*;?\n/gm, '').replace(/^boot\(\)$/m, '')
+  source = source.replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"]\s*;?\n/gm, '').replace(/^import\s+['"][^'"]+['"]\s*;?\n/gm, '').replace(/^boot\(\)$/m, '').replace("import('write-excel-file/browser')", 'Promise.resolve({ default: mockWriteExcelFile })')
   context.fixtureProfile = fixture.profile
   vm.runInContext(source, context)
   vm.runInContext('state.profile = fixtureProfile', context)

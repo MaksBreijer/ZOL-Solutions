@@ -94,8 +94,8 @@ scenario('PostNL label create and open use a window opened before the asynchrono
   assert.ok(h.popups.length); assert.equal(h.popups[0].args[0],'about:blank')
   await h.click('[data-action="postnl-label-url"]'); assert.equal(h.calls.filter(c=>c.function==='postnl-shipment').length,2)
 })
-scenario('export and CSV template download buttons create files; CSV import validates before submission',async h=>{
-  await h.click('[data-action="export-orders"]'); assert.ok(h.downloads.some(x=>typeof x==='string'&&x.startsWith('zol-bestellingen-')))
+scenario('Excel export and CSV template download buttons create files; CSV import validates before submission',async h=>{
+  await h.click('[data-action="export-orders"]'); assert.ok(h.downloads.some(x=>typeof x==='string'&&/^zol-bestellingen-.*\.xlsx$/.test(x)))
   await h.click('[data-action="import-orders"]'); await h.click('[data-action="download-order-template"]'); assert.ok(h.downloads.includes('zol-bestellingen-import-voorbeeld.csv'))
   const file={name:'test.csv',size:100,text:async()=>h.run('orderImportTemplateCsv()')}
   Object.defineProperty(h.q('#order-import-file'),'files',{value:[file]}); h.q('#order-import-file').dispatchEvent(new h.window.Event('change')); await h.flush()
