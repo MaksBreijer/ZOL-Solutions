@@ -73,7 +73,7 @@ async function campaignStatus(db: ReturnType<typeof adminClient>) {
   }
   const nextBatch = ready.slice(0, batchSize)
   const sampleLead = nextBatch.find((lead) => clean(lead.personal_opening)) || nextBatch[0]
-  return { total_physios: physios.length, known_emails: knownEmails.size, eligible: ready.length, batch_ready: nextBatch.length, batch_size: batchSize, personalized: nextBatch.filter((lead) => clean(lead.personal_opening)).length, sent_total: history.sent.size, pending_total: history.pending.size, excluded: physios.length - eligible.length, campaign, counts, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
+  return { total_physios: physios.length, known_emails: knownEmails.size, eligible: ready.length, batch_ready: nextBatch.length, batch_size: batchSize, personalized: nextBatch.filter((lead) => clean(lead.personal_opening)).length, recipients: ready.map((lead) => ({ id: clean(lead.id), practice_name: clean(lead.name), email: clean(lead.email).toLowerCase(), has_personal_opening: Boolean(clean(lead.personal_opening)) })), sent_total: history.sent.size, pending_total: history.pending.size, excluded: physios.length - eligible.length, campaign, counts, sample: sampleLead ? { practice_name: clean(sampleLead.name), location: clean(sampleLead.city), specialization: clean(sampleLead.specialization), contact_person: clean(sampleLead.contact_name), personal_opening: clean(sampleLead.personal_opening) } : null }
 }
 
 async function processBatch(db: ReturnType<typeof adminClient>) {
@@ -205,16 +205,19 @@ Deno.serve(async (request) => {
 
     const subject = clean(body.subject).slice(0, 180)
     const message = clean(body.message).slice(0, 5000)
-    if (!subject || !message || !/{{\s*praktijknaam\s*}}/i.test(`${subject}\n${message}`)) return Response.json({ error: "Onderwerp, bericht en {{praktijknaam}} zijn verplicht." }, { status: 400, headers })
+    if (!subject || !message) return Response.json({ error: "Onderwerp en bericht zijn verplicht." }, { status: 400, headers })
     const { data: running } = await db.from("physio_campaigns").select("id").eq("status", "running").limit(1).maybeSingle()
     if (running) return Response.json({ error: "Er loopt al een fysiocampagne. Rond die eerst af of pauzeer haar." }, { status: 409, headers })
     const { data: settings, error: settingsError } = await db.from("settings").select("value").eq("key", "partner_scout").maybeSingle()
     if (settingsError) throw settingsError
     const history = await deliveryHistory(db)
+    const requestedIds = Array.isArray(body.lead_ids) ? body.lead_ids.map(clean) : []
+    if (!requestedIds.length || requestedIds.length > batchSize || new Set(requestedIds).size !== requestedIds.length) return Response.json({ error: "Selecteer 1 tot 100 verschillende praktijken." }, { status: 400, headers })
+    const requested = new Set(requestedIds)
     const recipients = eligibleLeads(Array.isArray(settings?.value?.leads) ? settings.value.leads : [])
       .filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
-      .slice(0, batchSize)
-    if (!recipients.length) return Response.json({ error: "Er zijn nog geen fysiopraktijken met een vastgelegde mailgrond en geldig e-mailadres." }, { status: 400, headers })
+      .filter((lead) => requested.has(clean(lead.id)))
+    if (recipients.length !== requested.size) return Response.json({ error: "Een of meer geselecteerde praktijken zijn niet meer verzendbaar. Vernieuw de lijst en controleer de mailgrond." }, { status: 409, headers })
     if (/{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && recipients.some((lead) => !clean(lead.personal_opening))) return Response.json({ error: "Vul voor iedere ontvanger een controleerbare persoonlijke openingszin in voordat je deze campagne start." }, { status: 400, headers })
     const { data: campaign, error: campaignError } = await db.from("physio_campaigns").insert({ subject_template: subject, body_template: message, created_by: admin.id }).select("id").single()
     if (campaignError) throw campaignError

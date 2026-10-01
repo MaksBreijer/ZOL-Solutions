@@ -251,6 +251,13 @@ svg { display: block; }
 .admin-content { min-height: 100vh; margin-left: var(--admin-sidebar); padding: calc(var(--admin-topbar) + 27px) clamp(20px, 3vw, 42px) 64px; }
 .page-container { width: min(1280px, 100%); margin-inline: auto; }
 .physio-campaign-page { display: grid; gap: 18px; }
+.physio-campaign-recipients { padding: 24px; }
+.physio-campaign-recipients h2 { margin: 0 0 8px; }
+.physio-recipient-list { max-height: 320px; overflow: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; margin-top: 14px; }
+.physio-recipient-list label { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border: 1px solid #dce4eb; border-radius: 8px; cursor: pointer; }
+.physio-recipient-list input { margin-top: 3px; }
+.physio-recipient-list strong, .physio-recipient-list small { display: block; overflow-wrap: anywhere; }
+.physio-recipient-list small { color: var(--admin-muted); }
 .physio-campaign-page .panel + .panel { margin-top: 0; }
 .physio-campaign-intro, .physio-campaign-compose, .physio-campaign-preview, .physio-campaign-progress { padding: 24px; }
 .physio-campaign-intro h2, .physio-campaign-compose h2, .physio-campaign-preview h2, .physio-campaign-progress h2 { margin: 0 0 12px; }
