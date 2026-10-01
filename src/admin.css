@@ -287,6 +287,15 @@ svg { display: block; }
 .physio-mail-preview-team figcaption { margin-top: 8px; color: #66798c; font-size: 12px; }
 .physio-mail-preview-optout { margin: 28px 0 0; padding-top: 18px; border-top: 1px solid #e4e9ee; color: #66798c; font-size: 12px; line-height: 1.6; }
 .physio-mail-preview-foot { padding: 18px 26px; border-top: 1px solid #e4e9ee; color: #66798c; font-size: 12px; line-height: 1.6; }
+.physio-campaign-progress h3 { margin: 24px 0 10px; font-size: 17px; }
+.physio-delivery-list { max-height: 420px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.physio-delivery-list li { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-top: 1px solid #e4e9ee; }
+.physio-delivery-list li div { display: grid; gap: 3px; min-width: 0; }
+.physio-delivery-list li strong, .physio-delivery-list li span { overflow-wrap: anywhere; }
+.physio-delivery-list li span, .physio-delivery-list time { color: var(--admin-muted); font-size: 12px; }
+.physio-delivery-list time { flex-shrink: 0; }
+.physio-delivery-exceptions { margin-top: 20px; }
+.physio-delivery-exceptions summary { cursor: pointer; font-weight: 600; }
 .physio-booking-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-top: 1px solid #e4e9ee; }
 .physio-booking-row div { display: grid; gap: 4px; }
 .physio-booking-row span { color: var(--admin-muted); font-size: 12px; }
