@@ -27,7 +27,7 @@ async function deliveryHistory(db: ReturnType<typeof adminClient>) {
 function eligibleLeads(leads: Lead[]) {
   const seen = new Set<string>()
   return leads.filter((lead) => {
-    if (lead.type !== "physio" || lead.outreach_opt_out || !["consent", "existing_customer"].includes(clean(lead.outreach_basis)) || !clean(lead.outreach_basis_note)) return false
+    if (lead.type !== "physio" || lead.outreach_opt_out) return false
     if (/^(smc|sport\s*medisch\s*centrum)\s+almere$/i.test(clean(lead.name).replace(/[-–]/g, " ")) || /@smcalmere\.nl$/i.test(clean(lead.email)) || /(^|\.)smcalmere\.nl$/i.test((() => { try { return new URL(clean(lead.website)).hostname } catch { return "" } })())) return false
     const email = clean(lead.email).toLowerCase()
     if (!validEmail(email) || seen.has(email)) return false
@@ -97,7 +97,7 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
     const campaign = byCampaign.get(recipient.campaign_id)
     const stillEligible = lead && eligibleLeads([lead]).length === 1 && clean(lead.email).toLowerCase() === recipient.email.toLowerCase()
     if (!stillEligible || !campaign) {
-      await db.from("physio_campaign_recipients").update({ status: "skipped", error_message: "Contact of mailgrond gewijzigd" }).eq("id", recipient.id)
+      await db.from("physio_campaign_recipients").update({ status: "skipped", error_message: "Contact gewijzigd of afgemeld" }).eq("id", recipient.id)
       counts.skipped++
       continue
     }
@@ -217,7 +217,7 @@ Deno.serve(async (request) => {
     const recipients = eligibleLeads(Array.isArray(settings?.value?.leads) ? settings.value.leads : [])
       .filter((lead) => !history.sent.has(clean(lead.email).toLowerCase()) && !history.pending.has(clean(lead.email).toLowerCase()))
       .filter((lead) => requested.has(clean(lead.id)))
-    if (recipients.length !== requested.size) return Response.json({ error: "Een of meer geselecteerde praktijken zijn niet meer verzendbaar. Vernieuw de lijst en controleer de mailgrond." }, { status: 409, headers })
+    if (recipients.length !== requested.size) return Response.json({ error: "Een of meer geselecteerde praktijken zijn niet meer verzendbaar. Vernieuw de lijst en controleer de adressen." }, { status: 409, headers })
     if (/{{\s*persoonlijke_opening\s*}}/i.test(`${subject}\n${message}`) && recipients.some((lead) => !clean(lead.personal_opening))) return Response.json({ error: "Vul voor iedere ontvanger een controleerbare persoonlijke openingszin in voordat je deze campagne start." }, { status: 400, headers })
     const { data: campaign, error: campaignError } = await db.from("physio_campaigns").insert({ subject_template: subject, body_template: message, created_by: admin.id }).select("id").single()
     if (campaignError) throw campaignError
