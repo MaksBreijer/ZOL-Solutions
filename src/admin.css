@@ -260,6 +260,8 @@ svg { display: block; }
 .physio-recipient-list input { margin-top: 3px; }
 .physio-recipient-list strong, .physio-recipient-list small { display: block; overflow-wrap: anywhere; }
 .physio-recipient-list small { color: var(--admin-muted); }
+.physio-batch-selection { margin: 16px 0 0; padding: 12px 14px; border-radius: 8px; background: #edf4fa; color: #213a53; font-weight: 600; }
+.physio-batch-selection strong { font-size: 1.35em; }
 .physio-campaign-page .panel + .panel { margin-top: 0; }
 .physio-campaign-intro, .physio-campaign-compose, .physio-campaign-preview, .physio-campaign-progress { padding: 24px; }
 .physio-campaign-intro h2, .physio-campaign-compose h2, .physio-campaign-preview h2, .physio-campaign-progress h2 { margin: 0 0 12px; }
