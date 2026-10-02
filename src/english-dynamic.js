@@ -5,6 +5,7 @@ export const englishDynamic = {
   'Broodkruimel': 'Breadcrumb',
   'Over ons': 'About us',
   'Redactie ZOL Solutions': 'ZOL Solutions editorial team',
+  '2 oktober 2026': '2 October 2026',
   '2 september 2026': '2 September 2026',
   '1 september 2026': '1 September 2026',
   'De medische basisinformatie op deze pagina is gecontroleerd aan de hand van openbare informatie van:': 'The basic medical information on this page has been checked against public information from:',
