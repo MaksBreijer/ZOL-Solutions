@@ -43,10 +43,15 @@ if (article && heroInner) {
   breadcrumb.append(homeLink, document.createTextNode(' / '), knowledgeLink, document.createTextNode(' / '), current)
   heroInner.prepend(breadcrumb)
 
-  const isUpdatedToday = ['/kennisbank/hielpijn-bij-kinderen/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(window.location.pathname)
+  const expandedArticles = ['/kennisbank/hielpijn-tijdens-sporten/', '/kennisbank/kind-pijn-aan-hiel-na-sporten/', '/kennisbank/groeipijn-in-de-hiel/', '/kennisbank/oefeningen-bij-ziekte-van-sever/', '/kennisbank/sporten-met-ziekte-van-sever/', '/kennisbank/sportschoenen-bij-ziekte-van-sever/', '/kennisbank/ziekte-van-sever-voetbal/', '/kennisbank/ziekte-van-sever-hockey/']
+  const [updatedIso, updatedLabel] = expandedArticles.includes(window.location.pathname)
+    ? ['2026-10-02', '2 oktober 2026']
+    : ['/kennisbank/hielpijn-bij-kinderen/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(window.location.pathname)
+      ? ['2026-09-02', '2 september 2026']
+      : ['2026-09-01', '1 september 2026']
   const meta = document.createElement('p')
   meta.className = 'article-meta'
-  meta.innerHTML = `Redactie ZOL Solutions <span aria-hidden="true">·</span> Bijgewerkt <time datetime="${isUpdatedToday ? '2026-09-02' : '2026-09-01'}">${isUpdatedToday ? '2 september 2026' : '1 september 2026'}</time>`
+  meta.innerHTML = `Redactie ZOL Solutions <span aria-hidden="true">·</span> Bijgewerkt <time datetime="${updatedIso}">${updatedLabel}</time>`
   article.prepend(meta)
 
   if (!article.querySelector('.article-sources')) {
