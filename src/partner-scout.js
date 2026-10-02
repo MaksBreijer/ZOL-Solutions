@@ -133,6 +133,7 @@ export function normalizePartnerScoutState(value = {}) {
     apollo_contact_id: clean(lead.apollo_contact_id), apollo_person_url: clean(lead.apollo_person_url),
     apollo_email_status: clean(lead.apollo_email_status), apollo_match_confidence: clean(lead.apollo_match_confidence),
     apollo_enriched_at: clean(lead.apollo_enriched_at),
+    email_scan_at: clean(lead.email_scan_at), email_scan_result: clean(lead.email_scan_result), email_source_url: clean(lead.email_source_url),
     outreach_basis: ['consent', 'existing_customer', 'none'].includes(lead.outreach_basis) ? lead.outreach_basis : 'none',
     outreach_basis_note: clean(lead.outreach_basis_note),
     outreach_opt_out: Boolean(lead.outreach_opt_out),

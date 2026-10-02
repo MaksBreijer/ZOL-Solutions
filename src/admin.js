@@ -1687,7 +1687,7 @@ function renderPhysioCampaign() {
   elements.content.innerHTML = `<div class="page-container physio-campaign-page">
     ${pageHeader('physio-campaign', '<a class="button" href="#partners">Praktijken bekijken</a>')}
     <section class="panel physio-campaign-intro"><h2>Fysiomail in batches van 40</h2><p>Schrijf het bericht zelf. Gebruik <code>{{contactpersoon}}</code>, <code>{{praktijknaam}}</code>, <code>{{plaats}}</code>, <code>{{specialisatie}}</code> en <code>{{persoonlijke_opening}}</code>. De persoonlijke opening schrijf je per praktijk in Partner Scout op basis van een controleerbare bron. De matchscore speelt geen rol.</p><div class="physio-campaign-counts"><strong id="physio-campaign-total">${total}<small>fysiopraktijken in overzicht</small></strong><strong id="physio-campaign-known">…<small>unieke e-mailadressen bekend</small></strong><strong id="physio-campaign-eligible">…<small>klaar voor volgende batch</small></strong><strong id="physio-campaign-sent">…<small>ooit verzonden</small></strong></div><p class="form-hint" id="physio-campaign-batch-note">Beschikbaarheid laden…</p></section>
-    <section class="panel physio-campaign-recipients"><h2>Ontvangers kiezen</h2><p class="form-hint">De volgende maximaal 40 verzendbare praktijken worden automatisch geselecteerd. Je kunt de selectie aanpassen. Afgemelde, overgeslagen en eerder gemailde adressen staan niet in deze lijst.</p><form id="physio-campaign-add-recipient" class="physio-add-recipient-form"><label class="field">E-mailadres<input name="email" type="email" maxlength="200" placeholder="naam@praktijk.nl" required></label><label class="field">Praktijknaam (optioneel)<input name="practice_name" maxlength="160" placeholder="Naam van de praktijk"></label><button class="button" type="submit">Adres toevoegen</button></form><label class="field physio-recipient-search">Zoek praktijk of e-mailadres<input id="physio-campaign-search" type="search" value="${escapeHtml(physioCampaignSearch)}" placeholder="Zoek in de ontvangerslijst"></label><div id="physio-campaign-recipient-list">Ontvangers laden…</div></section>
+    <section class="panel physio-campaign-recipients"><h2>Ontvangers kiezen</h2><div class="physio-find-emails"><button class="button button--primary" type="button" id="physio-campaign-find-emails"><i data-lucide="search"></i> Zoek 40 nieuwe e-mailadressen</button><p class="form-hint">Zoekt op de websites van fysiopraktijken uit Partner Scout die nog geen e-mailadres hebben. Er wordt niets verstuurd; nieuwe adressen komen in de lijst hieronder.</p></div><p class="form-hint">De volgende maximaal 40 verzendbare praktijken worden automatisch geselecteerd. Je kunt de selectie aanpassen. Afgemelde, overgeslagen en eerder gemailde adressen staan niet in deze lijst.</p><form id="physio-campaign-add-recipient" class="physio-add-recipient-form"><label class="field">E-mailadres<input name="email" type="email" maxlength="200" placeholder="naam@praktijk.nl" required></label><label class="field">Praktijknaam (optioneel)<input name="practice_name" maxlength="160" placeholder="Naam van de praktijk"></label><button class="button" type="submit">Adres toevoegen</button></form><label class="field physio-recipient-search">Zoek praktijk of e-mailadres<input id="physio-campaign-search" type="search" value="${escapeHtml(physioCampaignSearch)}" placeholder="Zoek in de ontvangerslijst"></label><div id="physio-campaign-recipient-list">Ontvangers laden…</div></section>
     <section class="physio-campaign-layout"><form class="panel physio-campaign-compose" id="physio-campaign-form"><h2>Schrijf jullie mail</h2><label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(physioCampaignDraft.subject)}" placeholder="Vraag over {{praktijknaam}}" required></label><label class="field">Bericht<textarea name="message" rows="15" maxlength="5000" placeholder="Beste {{contactpersoon}},&#10;&#10;{{persoonlijke_opening}}&#10;&#10;..." required>${escapeHtml(physioCampaignDraft.message)}</textarea></label><p class="form-hint">De Scout voegt de afmeldtekst automatisch toe. Gebruik desgewenst <code>{{praktijknaam}}</code> in onderwerp of tekst. Met <code>{{persoonlijke_opening}}</code> kan de campagne pas starten als iedere ontvanger in de volgende batch een eigen openingszin heeft.</p><p class="physio-batch-selection" aria-live="polite"><strong id="physio-campaign-batch-selected">0</strong> adressen geselecteerd voor deze verzending (maximaal 40)</p><div class="form-actions"><button class="button" id="physio-campaign-test" type="button">Testmail naar Thijn en Maks</button><button class="button button--primary" id="physio-campaign-start" type="submit" disabled>Verstuur volgende batch (max. 40)</button></div></form>
     <aside class="panel physio-campaign-preview"><h2>Voorbeeld per praktijk</h2><p id="physio-campaign-sample">De ontvangerslijst wordt geladen.</p><div class="physio-mail-preview"><div class="physio-mail-preview-head"><img src="/media/zol-logo.png" alt="ZOL Solutions"><small>Bericht van ZOL Solutions</small><strong id="physio-preview-subject">Typ een onderwerp</strong></div><div class="physio-mail-preview-content"><div id="physio-preview-body">Typ jullie bericht om een voorbeeld te zien.</div><a class="physio-mail-preview-cta" href="/kennismaking/" target="_blank" rel="noreferrer">Plan 10 minuten met ons →</a><figure class="physio-mail-preview-team"><img src="/media/story-team.jpg" alt="Maks en Thijn, oprichters van ZOL Solutions"><figcaption>Maks &amp; Thijn · ZOL Solutions</figcaption></figure><p class="physio-mail-preview-optout">Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand.</p></div><div class="physio-mail-preview-foot">ZOL Solutions · Zachter landen. Beter sporten.<br>zolsolutions.nl</div></div><p class="form-hint">Verzending gebeurt vanuit info@zolsolutions.nl. Per klik gaan maximaal 40 nieuwe contacten in de wachtrij. Er worden maximaal 40 e-mails per dag verstuurd.</p></aside></section>
     <section class="panel physio-campaign-progress"><h2>Verzendstatus</h2><div id="physio-campaign-status">Status laden…</div><div class="form-actions"><button class="button" type="button" id="physio-campaign-refresh">Vernieuwen</button><button class="button" type="button" id="physio-campaign-pause" hidden>Pauzeren</button><button class="button" type="button" id="physio-campaign-resume" hidden>Hervatten</button></div><div id="physio-campaign-deliveries"></div></section>
@@ -1697,6 +1697,7 @@ function renderPhysioCampaign() {
   const recipientList = document.querySelector('#physio-campaign-recipient-list')
   document.querySelector('#physio-campaign-add-recipient').addEventListener('submit', addManualPhysioRecipient)
   document.querySelector('#physio-campaign-refresh').addEventListener('click', loadPhysioCampaignStatus)
+  document.querySelector('#physio-campaign-find-emails').addEventListener('click', (event) => findPhysioEmails(event.currentTarget))
   document.querySelector('#physio-campaign-search').addEventListener('input', (event) => {
     physioCampaignSearch = event.target.value
     filterPhysioCampaignRecipients()
@@ -1838,6 +1839,30 @@ async function addManualPhysioRecipient(event) {
     toast('Adres geselecteerd', replaced ? `${email} staat in de selectie. ${replaced} is uit de selectie gehaald.` : `${email} staat in de selectie voor deze verzending.`)
   } catch (error) { toast('Adres toevoegen mislukt', error.message, true) }
   finally { setBusy(button, false, 'Adres toevoegen') }
+}
+
+async function findPhysioEmails(button) {
+  const label = 'Zoek 40 nieuwe e-mailadressen'
+  setBusy(button, true, label)
+  button.textContent = 'Websites doorzoeken…'
+  try {
+    const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'find-emails' } })
+    if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'E-mailadressen zoeken lukt nu niet.'))
+    const { data: fresh, error: freshError } = await supabase.from('settings').select('value').eq('key', 'partner_scout').maybeSingle()
+    if (!freshError && fresh?.value) {
+      state.partnerScout = normalizePartnerScoutState(fresh.value)
+      const setting = state.settings.find((item) => item.key === 'partner_scout')
+      if (setting) setting.value = state.partnerScout
+    }
+    await loadPhysioCampaignStatus()
+    const available = new Set((physioCampaignStatus?.recipients || []).map((recipient) => recipient.id))
+    for (const id of data.lead_ids || []) if (available.has(id) && physioCampaignSelection.size < 40) physioCampaignSelection.add(id)
+    persistPhysioCampaignSelection()
+    await loadPhysioCampaignStatus()
+    const rest = data.remaining ? ` Nog ${data.remaining} websites te doorzoeken.` : ' Alle praktijkwebsites zijn doorzocht.'
+    toast(data.found ? `${data.found} nieuwe e-mailadressen gevonden` : 'Geen nieuwe e-mailadressen gevonden', `${data.scanned} websites doorzocht.${data.found < 40 && data.remaining ? ' Klik nog een keer om verder te zoeken.' : ''}${rest}`)
+  } catch (error) { toast('E-mailadressen zoeken mislukt', error.message, true) }
+  finally { if (button.isConnected) setBusy(button, false, label) }
 }
 
 function persistPhysioCampaignSelection() {
