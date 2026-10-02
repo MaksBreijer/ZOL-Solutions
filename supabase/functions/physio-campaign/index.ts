@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
+import { contactPageUrls, extractEmails, leadsToScan, normalizeWebsite, pickPracticeEmail } from "./email-finder.js"
 
 type Lead = Record<string, unknown>
 type Recipient = { id: string; campaign_id: string; lead_id: string; practice_name: string; location: string; specialization: string; contact_person: string; personal_opening: string; email: string }
@@ -147,6 +148,88 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
   return counts
 }
 
+async function fetchPage(url: string) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 8000)
+  try {
+    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; ZOL-Solutions/1.0; +https://zolsolutions.nl)", accept: "text/html" }, redirect: "follow", signal: controller.signal })
+    if (!response.ok || !/html/i.test(response.headers.get("content-type") || "html")) return null
+    return { url: response.url || url, html: (await response.text()).slice(0, 1_500_000) }
+  } catch { return null } finally { clearTimeout(timer) }
+}
+
+async function findPracticeEmail(website: string): Promise<{ result: string; email?: string; source_url?: string }> {
+  const home = await fetchPage(website)
+  if (!home) return { result: "unreachable" }
+  const fromHome = pickPracticeEmail(extractEmails(home.html), home.url)
+  if (fromHome) return { result: "found", email: fromHome, source_url: home.url }
+  for (const url of contactPageUrls(home.html, home.url)) {
+    const page = await fetchPage(url)
+    const email = page ? pickPracticeEmail(extractEmails(page.html), home.url) : ""
+    if (email) return { result: "found", email, source_url: page!.url }
+  }
+  return { result: "none" }
+}
+
+// Zoekt nieuwe adressen op praktijkwebsites en slaat ze op in Partner Scout. Verstuurt niets.
+async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchSize) {
+  const { data: settings, error } = await db.from("settings").select("value").eq("key", "partner_scout").maybeSingle()
+  if (error) throw error
+  const leads = Array.isArray(settings?.value?.leads) ? settings.value.leads as Lead[] : []
+  const history = await deliveryHistory(db)
+  const known = new Set([...leads.map((lead) => clean(lead.email).toLowerCase()).filter(validEmail), ...history.sent, ...history.pending, ...history.skipped])
+  const queue = leadsToScan(leads) as Lead[]
+  const patches = new Map<string, Record<string, string>>()
+  const deadline = Date.now() + 100_000
+  let found = 0
+  let scanned = 0
+  let next = 0
+  const worker = async () => {
+    while (next < queue.length && found < target && Date.now() < deadline) {
+      const lead = queue[next++]
+      const outcome = await findPracticeEmail(normalizeWebsite(lead.website))
+      if (found >= target) return
+      const stamp = new Date().toISOString()
+      let patch: Record<string, string> = { email_scan_at: stamp, email_scan_result: outcome.result }
+      if (outcome.email) {
+        const email = outcome.email.toLowerCase()
+        let usable = !known.has(email)
+        if (usable) { try { usable = await mxValid(email) } catch { usable = false } }
+        if (usable && found < target) {
+          known.add(email)
+          found++
+          patch = { ...patch, email, email_source_url: clean(outcome.source_url) }
+        } else patch.email_scan_result = known.has(email) ? "duplicate" : "no_mx"
+      }
+      scanned++
+      patches.set(clean(lead.id), patch)
+    }
+  }
+  await Promise.all(Array.from({ length: 8 }, worker))
+
+  if (patches.size) {
+    // Opnieuw lezen vlak voor het schrijven, zodat wijzigingen van andere beheerders tijdens het zoeken blijven staan.
+    const { data: fresh, error: freshError } = await db.from("settings").select("value").eq("key", "partner_scout").maybeSingle()
+    if (freshError) throw freshError
+    const value = fresh?.value || {}
+    const stamp = new Date().toISOString()
+    const interactions: Record<string, string>[] = []
+    const nextLeads = (Array.isArray(value.leads) ? value.leads as Lead[] : []).map((lead) => {
+      const patch = patches.get(clean(lead.id))
+      if (!patch) return lead
+      const { email, ...scanFields } = patch
+      if (!email || clean(lead.email)) return { ...lead, ...scanFields, updated_at: stamp }
+      interactions.push({ id: crypto.randomUUID(), lead_id: clean(lead.id), kind: "email_found", body: `E-mailadres ${email} gevonden op de website (${patch.email_source_url}).`, author: "Fysiomail e-mailzoeker", created_at: stamp })
+      return { ...lead, ...patch, updated_at: stamp }
+    })
+    const nextInteractions = [...interactions, ...(Array.isArray(value.interactions) ? value.interactions : [])].slice(0, 1000)
+    const { error: saveError } = await db.from("settings").update({ value: { ...value, leads: nextLeads, interactions: nextInteractions, updated_at: stamp } }).eq("key", "partner_scout")
+    if (saveError) throw saveError
+  }
+  const leadIds = [...patches].filter(([, patch]) => patch.email).map(([id]) => id)
+  return { found, scanned, remaining: Math.max(0, queue.length - scanned), target, lead_ids: leadIds }
+}
+
 Deno.serve(async (request) => {
   const headers = corsHeaders(request)
   if (request.method === "OPTIONS") return new Response("ok", { headers })
@@ -197,6 +280,7 @@ Deno.serve(async (request) => {
       }
       return Response.json({ success: results.every((result) => result.status === "sent"), results }, { headers })
     }
+    if (action === "find-emails") return Response.json({ success: true, ...await findNewEmails(db) }, { headers })
     if (action === "status") return Response.json({ success: true, ...await campaignStatus(db) }, { headers })
     if (action === "run") return Response.json({ success: true, ...await processBatch(db) }, { headers })
     if (action === "pause" || action === "resume") {

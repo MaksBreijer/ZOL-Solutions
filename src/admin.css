@@ -253,6 +253,8 @@ svg { display: block; }
 .physio-campaign-page { display: grid; gap: 18px; }
 .physio-campaign-recipients { padding: 24px; }
 .physio-campaign-recipients h2 { margin: 0 0 8px; }
+.physio-find-emails { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 14px 0 4px; padding: 14px; border-radius: 10px; background: var(--admin-blue-soft); }
+.physio-find-emails .form-hint { flex: 1 1 260px; margin: 0; }
 .physio-add-recipient-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 18px; }
 .physio-add-recipient-form .field { flex: 1 1 220px; max-width: 360px; }
 .physio-add-recipient-form .button { min-height: 42px; }
