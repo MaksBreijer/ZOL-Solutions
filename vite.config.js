@@ -10,15 +10,13 @@ const imageDimensions = new Map([
   ['/media/product-use.jpg', [960, 1200]],
   ['/media/contact-team.jpg', [1200, 799]],
   ['/media/sport-kids.jpg', [1400, 933]],
-  ['/media/heel-anatomy.png', [1200, 655]],
+  ['/media/heel-anatomy.webp', [1200, 655]],
   ['/media/partner-bootfitter.png', [400, 163]],
   ['/media/partner-bpcollege.png', [400, 153]],
   ['/media/partner-kidscare.png', [271, 92]],
   ['/media/partner-tulp.png', [400, 116]],
   ['/media/press-ad-logo.png', [152, 152]],
-  ['/media/press-ad.png', [1080, 1350]],
   ['/media/press-hockey-logo.png', [339, 338]],
-  ['/media/press-hockey.png', [1080, 1350]],
   ['/images/zol-familie.jpg', [933, 1400]],
 ])
 
@@ -29,6 +27,10 @@ function routeForHtml(filename) {
 
 function htmlValue(html, pattern, fallback = '') {
   return (html.match(pattern)?.[1] || fallback).replace(/\s+/g, ' ').trim()
+}
+
+function decodeHtmlText(value) {
+  return value.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&amp;', '&')
 }
 
 function htmlAttribute(value) {
@@ -42,15 +44,15 @@ function seoPlugin() {
       order: 'post',
       handler(html, context) {
         const route = routeForHtml(context.filename)
-        const canonical = `${siteOrigin}${route}`
-        const title = htmlValue(html, /<title>([\s\S]*?)<\/title>/i, 'ZOL Solutions')
+        const canonical = htmlValue(html, /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) || `${siteOrigin}${route}`
+        const title = decodeHtmlText(htmlValue(html, /<title>([\s\S]*?)<\/title>/i, 'ZOL Solutions'))
         const description = htmlValue(html, /<meta[^>]+name=["']description["'][^>]+content="([^"]*)"/i) || htmlValue(html, /<meta[^>]+name=["']description["'][^>]+content='([^']*)'/i, 'Dempende en stabiele 3/4 inlegzolen voor sportende kinderen.')
         const safeTitle = htmlAttribute(title)
         const safeDescription = htmlAttribute(description)
         const noIndex = /<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(html)
         const isKnowledgeIndex = route === '/kennisbank/'
         const isArticle = route.startsWith('/kennisbank/') && !isKnowledgeIndex
-        const image = route === '/product/' ? `${siteOrigin}/images/zol-familie.jpg` : ['/', '/contact/', '/over-ons/', '/kennisbank/'].includes(route) ? `${siteOrigin}/og.png` : ''
+        const image = route === '/product/' ? `${siteOrigin}/images/zol-familie.jpg` : ['/', '/contact/', '/over-ons/', '/kennisbank/'].includes(route) ? `${siteOrigin}/og-zol.jpg` : ''
         const additions = [
           '<link rel="icon" href="/favicon.ico" sizes="any">',
           '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">',
@@ -130,7 +132,7 @@ function seoPlugin() {
             const footTypes = route === '/kennisbank/voettypes-en-enkelstanden/'
             const expandedArticles = ['/kennisbank/hielpijn-tijdens-sporten/', '/kennisbank/kind-pijn-aan-hiel-na-sporten/', '/kennisbank/groeipijn-in-de-hiel/', '/kennisbank/oefeningen-bij-ziekte-van-sever/', '/kennisbank/sporten-met-ziekte-van-sever/', '/kennisbank/sportschoenen-bij-ziekte-van-sever/', '/kennisbank/ziekte-van-sever-voetbal/', '/kennisbank/ziekte-van-sever-hockey/']
             const dateModified = expandedArticles.includes(route) ? '2026-10-02' : ['/kennisbank/hielpijn-bij-kinderen/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(route) ? '2026-09-02' : '2026-09-01'
-            graph.push({ '@type': 'Article', '@id': `${canonical}#article`, headline: shortTitle, description, url: canonical, mainEntityOfPage: { '@id': `${canonical}#webpage` }, inLanguage: 'nl-NL', image: `${siteOrigin}/media/heel-anatomy.png`, dateModified, author: { '@id': `${siteOrigin}/#organization` }, publisher: { '@id': `${siteOrigin}/#organization` }, about: footTypes ? ['Voettypes bij kinderen', 'Enkelstanden', 'Pronatie'] : ['Hielpijn bij kinderen', 'Ziekte van Sever'], citation: footTypes ? ['https://www.nhs.uk/conditions/flat-feet/', 'https://www.guysandstthomas.nhs.uk/health-information/flat-feet-children', 'https://www.nhs.uk/baby/health/leg-and-foot-problems-in-children/'] : ['https://www.cuh.nhs.uk/patient-information/severs-diseasesevers-disease/', 'https://www.clinicalguidelines.scot.nhs.uk/rhc-for-health-professionals/guidelines/primary-care-referral-guidelines/orthopaedic-pre-referral-guidance/heel-pain-in-children-advice-for-referrers/'] })
+            graph.push({ '@type': 'Article', '@id': `${canonical}#article`, headline: shortTitle, description, url: canonical, mainEntityOfPage: { '@id': `${canonical}#webpage` }, inLanguage: 'nl-NL', image: `${siteOrigin}/media/heel-anatomy.webp`, dateModified, author: { '@id': `${siteOrigin}/#organization` }, publisher: { '@id': `${siteOrigin}/#organization` }, about: footTypes ? ['Voettypes bij kinderen', 'Enkelstanden', 'Pronatie'] : ['Hielpijn bij kinderen', 'Ziekte van Sever'], citation: footTypes ? ['https://www.nhs.uk/conditions/flat-feet/', 'https://www.guysandstthomas.nhs.uk/health-information/flat-feet-children', 'https://www.nhs.uk/baby/health/leg-and-foot-problems-in-children/'] : ['https://www.cuh.nhs.uk/patient-information/severs-diseasesevers-disease/', 'https://www.clinicalguidelines.scot.nhs.uk/rhc-for-health-professionals/guidelines/primary-care-referral-guidelines/orthopaedic-pre-referral-guidance/heel-pain-in-children-advice-for-referrers/'] })
           }
           else graph.push({ '@type': isKnowledgeIndex ? 'CollectionPage' : route === '/contact/' ? 'ContactPage' : route === '/over-ons/' ? 'AboutPage' : 'WebPage', '@id': `${canonical}#webpage`, name: title, description, url: canonical, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: route === '/over-ons/' ? { '@id': `${siteOrigin}/#organization` } : undefined })
 

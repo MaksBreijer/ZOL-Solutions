@@ -1,7 +1,6 @@
 import { hasAnalyticsConsent } from './cookie-consent.js'
 import { disableGoogleAnalytics, enableGoogleAnalytics, trackGoogleAnalyticsEvent } from './google-analytics.js'
 import { insertPublic, selectPublic } from './public-api.js'
-import { supabase } from './supabase-client.js'
 
 if (window.location.hostname === 'zol-solutions.pages.dev') {
   window.location.replace(`https://zolsolutions.nl${window.location.pathname}${window.location.search}${window.location.hash}`)
@@ -157,6 +156,14 @@ loadCms().catch(() => {})
 let initialViewsTracked = false
 let visitorPresenceChannel = null
 let visitorPresenceSubscribed = false
+let visitorPresenceLoading = false
+let supabaseClient = null
+
+// Loaded on demand so pages without checkout or forms skip the Supabase bundle on first paint.
+async function loadSupabase() {
+  supabaseClient ||= (await import('./supabase-client.js')).supabase
+  return supabaseClient
+}
 
 function visitorSource() {
   try {
@@ -181,19 +188,25 @@ function startVisitorPresence() {
     if (visitorPresenceSubscribed) void visitorPresenceChannel.track(visitorPresencePayload())
     return
   }
-  visitorPresenceChannel = supabase.channel('zol-live-visitors', { config: { presence: { key: getSessionId() } } })
-  visitorPresenceChannel.subscribe(async (status) => {
-    visitorPresenceSubscribed = status === 'SUBSCRIBED'
-    if (visitorPresenceSubscribed) await visitorPresenceChannel?.track(visitorPresencePayload())
-    if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) visitorPresenceSubscribed = false
-  })
+  if (visitorPresenceLoading) return
+  visitorPresenceLoading = true
+  void loadSupabase().then((supabase) => {
+    visitorPresenceLoading = false
+    if (visitorPresenceChannel || !hasAnalyticsConsent() || document.hidden) return
+    visitorPresenceChannel = supabase.channel('zol-live-visitors', { config: { presence: { key: getSessionId() } } })
+    visitorPresenceChannel.subscribe(async (status) => {
+      visitorPresenceSubscribed = status === 'SUBSCRIBED'
+      if (visitorPresenceSubscribed) await visitorPresenceChannel?.track(visitorPresencePayload())
+      if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) visitorPresenceSubscribed = false
+    })
+  }).catch(() => { visitorPresenceLoading = false })
 }
 
 async function stopVisitorPresence(removeChannel = true) {
   if (!visitorPresenceChannel) return
   if (visitorPresenceSubscribed) await visitorPresenceChannel.untrack()
   visitorPresenceSubscribed = false
-  if (removeChannel) { await supabase.removeChannel(visitorPresenceChannel); visitorPresenceChannel = null }
+  if (removeChannel) { await supabaseClient?.removeChannel(visitorPresenceChannel); visitorPresenceChannel = null }
 }
 
 function trackInitialViews() {

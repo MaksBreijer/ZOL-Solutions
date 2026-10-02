@@ -50,10 +50,31 @@ test('growth and new knowledge routes are listed in the sitemap', async () => {
   const sitemap = await readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8')
 
   for (const route of [
-    '/hielpijn-kind-sport/',
     '/hielpijn-kind/',
     '/kennisbank/sportschoenen-bij-ziekte-van-sever/',
   ]) assert.match(sitemap, new RegExp(`<loc>https://zolsolutions\\.nl${route.replaceAll('/', '\\/')}</loc>`))
+})
+
+test('paid campaign landing page points search engines to the organic heel-pain page', async () => {
+  const sitemap = await readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8')
+  const filename = new URL('../hielpijn-kind-sport/index.html', import.meta.url).pathname
+  const html = await readFile(filename, 'utf8')
+  const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
+  const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
+
+  assert.doesNotMatch(sitemap, /hielpijn-kind-sport/)
+  assert.equal((transformed.match(/rel="canonical"/g) || []).length, 1)
+  assert.match(transformed, /<link rel="canonical" href="https:\/\/zolsolutions\.nl\/hielpijn-kind\/" \/>/)
+})
+
+test('social titles escape ampersands exactly once', async () => {
+  const filename = new URL('../index.html', import.meta.url).pathname
+  const html = await readFile(filename, 'utf8')
+  const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
+  const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
+
+  assert.match(transformed, /<meta name="twitter:title" content="Hielpijn bij kinderen &amp; Ziekte van Sever \| ZOL Solutions">/)
+  assert.doesNotMatch(transformed, /&amp;amp;/)
 })
 
 test('legacy high-intent Shopify URLs redirect to the current knowledge pages', async () => {
