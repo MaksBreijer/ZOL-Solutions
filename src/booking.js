@@ -1,4 +1,4 @@
-import './cursor.css'
+import './cursor.js'
 import './booking.css'
 import { invokePublicFunction } from './public-api.js'
 

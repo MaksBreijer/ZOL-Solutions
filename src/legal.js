@@ -1,4 +1,4 @@
-import './cursor.css'
+import './cursor.js'
 import './styles.css'
 import './legal.css'
 import './site-runtime.js'
