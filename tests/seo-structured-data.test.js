@@ -85,3 +85,15 @@ test('legacy high-intent Shopify URLs redirect to the current knowledge pages', 
   assert.match(redirects, /^\/en\/pages\/mijn-kind-heeft-hielpijn \/kennisbank\/hielpijn-bij-kinderen\/ 301$/m)
   assert.match(redirects, /^\/en\/blogs\/news \/kennisbank\/ 301$/m)
 })
+
+test('shopping feed availability follows live stock per SKU', async () => {
+  const { applyStock } = await import('../src/feed-stock.js')
+  const feed = await readFile(new URL('../public/google-product-feed.xml', import.meta.url), 'utf8')
+  const updated = applyStock(feed, { 'ZOL-XS-3435': 0, 'ZOL-M-3839': 5, 'ZOL-XXL-4445': 2 })
+
+  assert.match(updated, /ZOL-XS-3435[\s\S]*?<g:availability>out_of_stock<\/g:availability>/)
+  assert.match(updated, /ZOL-M-3839[\s\S]*?<g:availability>in_stock<\/g:availability>/)
+  assert.match(updated, /ZOL-L-4041[\s\S]*?<g:availability>in_stock<\/g:availability>/)
+  assert.doesNotMatch(updated, /ZOL-XXL-4445/)
+  assert.equal((updated.match(/<item>/g) || []).length, 5)
+})
