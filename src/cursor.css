@@ -5,6 +5,11 @@
     cursor: image-set(url('/media/cursor-voetje.png') 1x, url('/media/cursor-voetje@2x.png') 2x) 9 11, auto;
   }
 
+  html.cursor-op-donker {
+    cursor: url('/media/cursor-voetje-wit.png') 9 11, auto;
+    cursor: image-set(url('/media/cursor-voetje-wit.png') 1x, url('/media/cursor-voetje-wit@2x.png') 2x) 9 11, auto;
+  }
+
   /* :where() houdt de specificiteit op nul, zodat bestaande cursorregels (zoals disabled-knoppen) blijven winnen. */
   :where(a[href], button:not(:disabled), [role='button'], summary, label[for], select, input[type='checkbox'], input[type='radio'], input[type='submit'], input[type='button']) {
     cursor: pointer;
