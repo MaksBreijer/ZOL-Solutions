@@ -210,6 +210,66 @@
         </div>
       </section>
 
+      <section class="product-reviews section is-empty" id="reviews" aria-labelledby="reviews-title" data-product-reviews>
+        <div class="product-reviews-heading reveal">
+          <div>
+            <p class="section-index">Van ouder tot ouder</p>
+            <h2 id="reviews-title">Jullie ervaring, jullie <em>woorden.</em></h2>
+            <p>Gebruikt je kind de ZOL'tjes? Vertel andere ouders hoe ze bevallen.</p>
+          </div>
+          <button class="product-review-write-link" type="button" data-review-toggle aria-expanded="false" aria-controls="product-review-form">Schrijf een review <span aria-hidden="true">↗</span></button>
+        </div>
+
+        <div class="product-reviews-layout">
+          <aside class="product-review-summary reveal" aria-label="Gemiddelde score">
+            <p class="product-review-score"><strong data-review-average>–</strong><span>van 5</span></p>
+            <p class="product-review-stars product-review-stars--large" data-review-stars aria-hidden="true"><span>★★★★★</span><span class="product-review-stars-fill">★★★★★</span></p>
+            <p class="product-review-count" data-review-count>Nog geen reviews</p>
+            <ol class="product-review-distribution" data-review-distribution aria-label="Verdeling van de scores">
+              <li data-stars="5"><span>5 ★</span><i><b></b></i><strong>0</strong></li>
+              <li data-stars="4"><span>4 ★</span><i><b></b></i><strong>0</strong></li>
+              <li data-stars="3"><span>3 ★</span><i><b></b></i><strong>0</strong></li>
+              <li data-stars="2"><span>2 ★</span><i><b></b></i><strong>0</strong></li>
+              <li data-stars="1"><span>1 ★</span><i><b></b></i><strong>0</strong></li>
+            </ol>
+            <small>We lezen elke review voordat hij online komt, maar we controleren niet of iemand de ZOL'tjes heeft gekocht. Deel alleen een review als je kind de ZOL'tjes heeft gebruikt.</small>
+          </aside>
+
+          <div class="product-review-feed reveal">
+            <header class="product-review-feed-header"><h3>Ervaringen van ouders</h3><span>Nieuwste eerst</span></header>
+
+            <form class="product-review-form" id="product-review-form" data-review-form hidden novalidate>
+              <fieldset class="product-review-rating-input">
+                <legend>Jouw score</legend>
+                <div class="product-review-rating-stars">
+                  <input id="product-review-rating-5" type="radio" name="rating" value="5" required /><label for="product-review-rating-5" title="5 sterren"><span class="visually-hidden">5 sterren</span>★</label>
+                  <input id="product-review-rating-4" type="radio" name="rating" value="4" /><label for="product-review-rating-4" title="4 sterren"><span class="visually-hidden">4 sterren</span>★</label>
+                  <input id="product-review-rating-3" type="radio" name="rating" value="3" /><label for="product-review-rating-3" title="3 sterren"><span class="visually-hidden">3 sterren</span>★</label>
+                  <input id="product-review-rating-2" type="radio" name="rating" value="2" /><label for="product-review-rating-2" title="2 sterren"><span class="visually-hidden">2 sterren</span>★</label>
+                  <input id="product-review-rating-1" type="radio" name="rating" value="1" /><label for="product-review-rating-1" title="1 ster"><span class="visually-hidden">1 ster</span>★</label>
+                </div>
+              </fieldset>
+              <label class="product-review-field">Titel<input name="title" type="text" maxlength="120" placeholder="Bijvoorbeeld: Fijn tijdens het hockeyen" required /></label>
+              <label class="product-review-field">Jouw ervaring<textarea name="body" rows="5" maxlength="2000" placeholder="Hoe bevallen de ZOL'tjes bij je kind?" required></textarea></label>
+              <div class="product-review-form-row">
+                <label class="product-review-field">Voornaam<input name="author_name" type="text" maxlength="60" autocomplete="given-name" required /></label>
+                <label class="product-review-field"><span>E-mailadres <small>(optioneel, nooit zichtbaar)</small></span><input name="email" type="email" maxlength="254" autocomplete="email" inputmode="email" /></label>
+              </div>
+              <input class="stock-alert-honeypot" name="company" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+              <label class="product-review-consent"><input name="consent" type="checkbox" required /><span>Mijn kind heeft de ZOL'tjes gebruikt en ik vind het goed dat mijn voornaam en review op deze website verschijnen. Lees ons <a href="/privacy/">privacybeleid</a>.</span></label>
+              <div class="product-review-form-actions">
+                <button class="button button--primary" type="submit">Review versturen <span>→</span></button>
+                <button class="product-review-cancel" type="button" data-review-toggle>Annuleren</button>
+              </div>
+              <p class="product-review-form-message" data-review-message role="status" aria-live="polite"></p>
+            </form>
+
+            <ol class="product-review-list" data-review-list></ol>
+            <p class="product-review-empty" data-review-empty>Nog geen reviews. Gebruikt je kind de ZOL'tjes al? Deel als eerste je ervaring.</p>
+          </div>
+        </div>
+      </section>
+
       <section class="product-questions section" aria-labelledby="questions-title">
         <div class="product-questions-heading reveal">
           <p class="section-index">Goed om te weten</p>

@@ -22,6 +22,7 @@ Installeer daarna de aanbevolen extensies wanneer Visual Studio Code dit vraagt.
 | Algemene vormgeving en responsive gedrag | `src/styles.css` |
 | Interacties op de website | `src/main.js` en `src/site-runtime.js` |
 | Productpagina | `product/index.html` en `src/product-commerce.js` |
+| Productreviews (formulier, score en lijst) | `product/index.html`, `src/product-reviews.js` en `src/product-reviews-core.js`; goedkeuren in Admin → Reviews |
 | Winkelwagen | `src/cart.js` |
 | Checkout | `checkout/index.html`, `src/checkout.js` en `src/checkout.css` |
 | Contactpagina | `contact/index.html` |
