@@ -1,3 +1,4 @@
+import './cursor.css'
 import './styles.css'
 import { trackEvent } from './site-runtime.js'
 import { Activity, Footprints, Ruler, createIcons } from 'lucide'
