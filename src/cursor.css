@@ -1,13 +1,13 @@
 /* ZOL-voetje als muiscursor, alleen op apparaten met een muis of trackpad. */
 @media (hover: hover) and (pointer: fine) {
   html {
-    cursor: url('/media/cursor-voetje.png') 9 11, auto;
-    cursor: image-set(url('/media/cursor-voetje.png') 1x, url('/media/cursor-voetje@2x.png') 2x) 9 11, auto;
+    cursor: url('./cursor/voetje.png') 9 11, auto;
+    cursor: image-set(url('./cursor/voetje.png') 1x, url('./cursor/voetje@2x.png') 2x) 9 11, auto;
   }
 
   html.cursor-op-donker {
-    cursor: url('/media/cursor-voetje-wit.png') 9 11, auto;
-    cursor: image-set(url('/media/cursor-voetje-wit.png') 1x, url('/media/cursor-voetje-wit@2x.png') 2x) 9 11, auto;
+    cursor: url('./cursor/voetje-wit.png') 9 11, auto;
+    cursor: image-set(url('./cursor/voetje-wit.png') 1x, url('./cursor/voetje-wit@2x.png') 2x) 9 11, auto;
   }
 
   /* :where() houdt de specificiteit op nul, zodat bestaande cursorregels (zoals disabled-knoppen) blijven winnen. */
