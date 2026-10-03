@@ -21,7 +21,7 @@ test('product structured data includes complete variant and audience details', a
   assert.equal(productGroup.category.codeValue, '2801')
   assert.equal(productGroup.hasVariant.length, 5)
   assert.equal(productGroup.hasVariant[0].offers.price, '99.95')
-  assert.equal(productGroup.hasVariant[0].offers.availability, 'https://schema.org/OutOfStock')
+  assert.equal(productGroup.hasVariant[0].offers.availability, 'https://schema.org/InStock')
 })
 
 test('homepage structured data includes the visible heel-pain FAQ', async () => {
@@ -43,7 +43,7 @@ test('shopping feed includes Google category and variant attributes', async () =
   assert.equal((feed.match(/<item>/g) || []).length, 5)
   assert.equal((feed.match(/<g:google_product_category>2801<\/g:google_product_category>/g) || []).length, 5)
   assert.equal((feed.match(/<g:age_group>kids<\/g:age_group>/g) || []).length, 5)
-  assert.match(feed, /ZOL-XS-3435[\s\S]*?<g:availability>out_of_stock<\/g:availability>/)
+  assert.match(feed, /ZOL-XS-3435[\s\S]*?<g:availability>in_stock<\/g:availability>/)
 })
 
 test('growth and new knowledge routes are listed in the sitemap', async () => {
