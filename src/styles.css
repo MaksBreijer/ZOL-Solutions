@@ -3335,9 +3335,10 @@ a.media-chip:focus-visible {
 .product-reviews-layout {
   display: grid;
   margin-top: clamp(60px, 8vw, 96px);
-  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+  /* Same columns as the FAQ below, so both right-hand columns line up. */
+  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
   align-items: start;
-  gap: clamp(50px, 8vw, 120px);
+  gap: clamp(60px, 9vw, 120px);
 }
 
 .product-review-summary {
