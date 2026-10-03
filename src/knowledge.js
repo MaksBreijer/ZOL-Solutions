@@ -45,7 +45,9 @@ if (article && heroInner) {
   heroInner.prepend(breadcrumb)
 
   const expandedArticles = ['/kennisbank/hielpijn-tijdens-sporten/', '/kennisbank/kind-pijn-aan-hiel-na-sporten/', '/kennisbank/groeipijn-in-de-hiel/', '/kennisbank/oefeningen-bij-ziekte-van-sever/', '/kennisbank/sporten-met-ziekte-van-sever/', '/kennisbank/sportschoenen-bij-ziekte-van-sever/', '/kennisbank/ziekte-van-sever-voetbal/', '/kennisbank/ziekte-van-sever-hockey/']
-  const [updatedIso, updatedLabel] = expandedArticles.includes(window.location.pathname)
+  const [updatedIso, updatedLabel] = window.location.pathname === '/kennisbank/inlegzolen-voor-kinderen/'
+    ? ['2026-10-03', '3 oktober 2026']
+    : expandedArticles.includes(window.location.pathname)
     ? ['2026-10-02', '2 oktober 2026']
     : ['/kennisbank/hielpijn-bij-kinderen/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(window.location.pathname)
       ? ['2026-09-02', '2 september 2026']

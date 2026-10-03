@@ -52,6 +52,7 @@ test('growth and new knowledge routes are listed in the sitemap', async () => {
   for (const route of [
     '/hielpijn-kind/',
     '/kennisbank/sportschoenen-bij-ziekte-van-sever/',
+    '/kennisbank/inlegzolen-voor-kinderen/',
   ]) assert.match(sitemap, new RegExp(`<loc>https://zolsolutions\\.nl${route.replaceAll('/', '\\/')}</loc>`))
 })
 
@@ -73,7 +74,7 @@ test('social titles escape ampersands exactly once', async () => {
   const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
   const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
 
-  assert.match(transformed, /<meta name="twitter:title" content="Hielpijn bij kinderen &amp; Ziekte van Sever \| ZOL Solutions">/)
+  assert.match(transformed, /<meta name="twitter:title" content="Hielpijn bij kinderen &amp; Ziekte van Sever \| Inlegzolen van ZOL Solutions">/)
   assert.doesNotMatch(transformed, /&amp;amp;/)
 })
 
