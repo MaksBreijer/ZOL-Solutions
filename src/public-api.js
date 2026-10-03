@@ -50,3 +50,16 @@ export async function invokePublicFunction(name, body) {
     return response.ok ? { data, error: null } : { data, error: new Error(data?.error || 'Versturen mislukt.') }
   } catch (error) { return { data: null, error } }
 }
+
+export async function rpcPublic(name, args = {}) {
+  if (!apiUrl || !apiKey) return { data: null, error: new Error('De publieke API is niet geconfigureerd.') }
+  try {
+    const response = await fetch(`${apiUrl}/rest/v1/rpc/${name}`, {
+      method: 'POST',
+      headers: headers({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(args),
+    })
+    const data = await responseData(response)
+    return response.ok ? { data, error: null } : { data: null, error: new Error(data?.message || 'Ophalen mislukt.') }
+  } catch (error) { return { data: null, error } }
+}

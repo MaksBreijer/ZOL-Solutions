@@ -1436,3 +1436,16 @@ svg { display: block; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Product reviews moderation */
+.admin-review-list { display: grid; gap: 12px; }
+.admin-review-card { padding: 18px 20px; border: 1px solid #d7dde2; border-radius: 12px; background: var(--admin-card); box-shadow: 0 1px 0 rgb(17 28 38 / 4%), 0 2px 5px rgb(17 28 38 / 4%); }
+.admin-review-card > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-review-stars { color: var(--admin-orange); font-size: 15px; letter-spacing: 2px; }
+.admin-review-stars i { color: #d5dbe0; font-style: normal; }
+.admin-review-card h3 { margin: 12px 0 6px; color: var(--admin-ink); font-size: 13px; }
+.admin-review-card > p { max-width: 760px; margin: 0; color: #43515e; font-size: 11px; line-height: 1.65; white-space: pre-line; overflow-wrap: anywhere; }
+.admin-review-card > footer { margin-top: 14px; padding-top: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--admin-line); }
+.admin-review-card > footer strong { display: block; font-size: 11px; }
+.admin-review-card > footer small { color: var(--admin-muted); font-size: 9px; }
+.admin-review-actions { display: flex; flex-wrap: wrap; gap: 6px; }
