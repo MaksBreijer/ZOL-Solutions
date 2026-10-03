@@ -99,7 +99,7 @@ function seoPlugin() {
           else if (route === '/product/') {
             const returnPolicy = { '@type': 'MerchantReturnPolicy', applicableCountry: 'NL', returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow', merchantReturnDays: 14, returnMethod: 'https://schema.org/ReturnByMail', returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility' }
             const variants = [
-              ['ZOL-XS-3435', '34/35', '34-35', 'OutOfStock'],
+              ['ZOL-XS-3435', '34/35', '34-35', 'InStock'],
               ['ZOL-S-3637', '36/37', '36-37', 'InStock'],
               ['ZOL-M-3839', '38/39', '38-39', 'InStock'],
               ['ZOL-L-4041', '40/41', '40-41', 'InStock'],
