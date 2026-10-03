@@ -1,7 +1,7 @@
 /* ZOL-voetje als muiscursor, alleen op apparaten met een muis of trackpad. */
 @media (hover: hover) and (pointer: fine) {
   html {
-    cursor: url('/media/cursor-voetje.svg') 9 11, url('/media/cursor-voetje.png') 9 11, auto;
+    cursor: url('/media/cursor-voetje.svg') 7 5, url('/media/cursor-voetje.png') 7 5, auto;
   }
 
   /* :where() houdt de specificiteit op nul, zodat bestaande cursorregels (zoals disabled-knoppen) blijven winnen. */
