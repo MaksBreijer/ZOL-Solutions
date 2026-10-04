@@ -14,10 +14,14 @@ const mollieStatuses = new Set(["open", "pending", "authorized", "paid", "failed
 const discoveryLabels = new Map([
   ["google", "Google"],
   ["social", "Social media"],
+  ["instagram", "Instagram"],
+  ["facebook", "Facebook"],
+  ["tiktok", "TikTok"],
   ["physio", "Fysiotherapeut of podoloog"],
   ["club", "Sportclub of trainer"],
   ["professional", "Zorgprofessional of sportclub"],
   ["friends-family", "Familie of vrienden"],
+  ["press", "Krant of tijdschrift"],
   ["other", "Anders"],
 ])
 
