@@ -48,3 +48,14 @@ test('keeps email scan fields when Partner Scout state is normalized', () => {
   assert.equal(state.leads[0].email_source_url, 'https://fysio-a.nl/contact')
   assert.equal(state.leads[0].email_scan_at, '2026-10-02T10:00:00Z')
 })
+
+test('stays fast on large pages with long unbroken strings', () => {
+  const blob = 'A'.repeat(300_000)
+  const html = `<img src="data:image/png;base64,${blob}"><script>var x="${'b'.repeat(80_000)}"</script><a href="/contact">Contact</a><a href="mailto:info@fysiodelinde.nl">Mail</a>`
+  const started = performance.now()
+  const emails = extractEmails(html)
+  const pages = contactPageUrls(html, 'https://fysiodelinde.nl/')
+  assert.ok(performance.now() - started < 200, 'email extraction should not scale quadratically')
+  assert.deepEqual(emails, ['info@fysiodelinde.nl'])
+  assert.deepEqual(pages, ['https://fysiodelinde.nl/contact'])
+})

@@ -1854,10 +1854,24 @@ async function addManualPhysioRecipient(event) {
 async function findPhysioEmails(button) {
   const label = 'Zoek 40 nieuwe e-mailadressen'
   setBusy(button, true, label)
-  button.textContent = 'Websites doorzoeken…'
+  let found = 0
+  let scanned = 0
+  let remaining = 1
+  const leadIds = []
   try {
-    const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'find-emails' } })
-    if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'E-mailadressen zoeken lukt nu niet.'))
+    // Kleine rondes: één aanroep doorzoekt een handvol websites, zodat de functie binnen haar CPU-limiet blijft.
+    for (let round = 0; round < 40 && found < 40 && remaining > 0; round += 1) {
+      button.textContent = `Websites doorzoeken… ${found}/40 gevonden`
+      const { data, error } = await supabase.functions.invoke('physio-campaign', { body: { action: 'find-emails', target: 40 - found } })
+      if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'E-mailadressen zoeken lukt nu niet.'))
+      found += data.found || 0
+      scanned += data.scanned || 0
+      remaining = data.remaining || 0
+      leadIds.push(...(data.lead_ids || []))
+      if (!data.scanned) break
+    }
+  } catch (error) { toast('E-mailadressen zoeken mislukt', found ? `${found} adressen zijn wel opgeslagen. ${error.message}` : error.message, true) }
+  try {
     const { data: fresh, error: freshError } = await supabase.from('settings').select('value').eq('key', 'partner_scout').maybeSingle()
     if (!freshError && fresh?.value) {
       state.partnerScout = normalizePartnerScoutState(fresh.value)
@@ -1866,12 +1880,11 @@ async function findPhysioEmails(button) {
     }
     await loadPhysioCampaignStatus()
     const available = new Set((physioCampaignStatus?.recipients || []).map((recipient) => recipient.id))
-    for (const id of data.lead_ids || []) if (available.has(id) && physioCampaignSelection.size < 40) physioCampaignSelection.add(id)
+    for (const id of leadIds) if (available.has(id) && physioCampaignSelection.size < 40) physioCampaignSelection.add(id)
     persistPhysioCampaignSelection()
     await loadPhysioCampaignStatus()
-    const rest = data.remaining ? ` Nog ${data.remaining} websites te doorzoeken.` : ' Alle praktijkwebsites zijn doorzocht.'
-    toast(data.found ? `${data.found} nieuwe e-mailadressen gevonden` : 'Geen nieuwe e-mailadressen gevonden', `${data.scanned} websites doorzocht.${data.found < 40 && data.remaining ? ' Klik nog een keer om verder te zoeken.' : ''}${rest}`)
-  } catch (error) { toast('E-mailadressen zoeken mislukt', error.message, true) }
+    if (scanned) toast(found ? `${found} nieuwe e-mailadressen gevonden` : 'Geen nieuwe e-mailadressen gevonden', `${scanned} websites doorzocht.${remaining ? ` Nog ${remaining} websites te doorzoeken.` : ' Alle praktijkwebsites zijn doorzocht.'}`)
+  } catch (error) { toast('Lijst verversen mislukt', error.message, true) }
   finally { if (button.isConnected) setBusy(button, false, label) }
 }
 

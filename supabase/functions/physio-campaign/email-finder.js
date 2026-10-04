@@ -8,6 +8,7 @@ const FREE_MAIL_DOMAINS = new Set([
 const SKIPPED_SITE_HOSTS = /(^|\.)(facebook|instagram|linkedin|google|youtube|twitter|x|tiktok|wa)\.(com|me|nl)$/i
 const PREFERRED_LOCAL_PARTS = ["info", "praktijk", "contact", "receptie", "secretariaat", "administratie", "balie", "mail", "post"]
 const IGNORED_LOCAL_PARTS = /^(noreply|no-reply|donotreply|privacy|avg|fg|webmaster|postmaster|abuse|wordpress|admin|example|u00|sentry)/i
+export const MAX_HTML = 400_000
 const ASSET_SUFFIX = /\.(png|jpe?g|gif|svg|webp|avif|css|js|ico)$/i
 
 const decodeEntities = (value) => String(value || "")
@@ -31,15 +32,26 @@ export function normalizeWebsite(value) {
 }
 
 // Ruwe kandidaten uit mailto-links en zichtbare tekst, inclusief "info [at] praktijk.nl".
+// Alleen kleine stukjes rond een @ of [at] worden doorzocht: een regex over de hele pagina
+// loopt kwadratisch op lange tekenreeksen (inline afbeeldingen, geminificeerde scripts).
 export function extractEmails(html) {
-  const text = decodeEntities(html)
-    .replace(/\s*[[(]\s*(at|apenstaartje)\s*[\])]\s*/gi, "@")
-    .replace(/\s*[[(]\s*(dot|punt)\s*[\])]\s*/gi, ".")
+  const source = String(html || "").slice(0, MAX_HTML)
   const found = new Set()
-  for (const match of text.matchAll(/mailto:([^"'?\s>]+)/gi)) {
-    try { found.add(decodeURIComponent(match[1]).trim().toLowerCase()) } catch { found.add(match[1].trim().toLowerCase()) }
+  const windows = []
+  const anchor = /@|&#0*64;|&#x0*40;|&commat;|[[(]\s*(?:at|apenstaartje)\s*[\])]/gi
+  for (const match of source.matchAll(anchor)) {
+    windows.push(source.slice(Math.max(0, match.index - 80), match.index + 120))
+    if (windows.length >= 300) break
   }
-  for (const match of text.matchAll(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}/gi)) found.add(match[0].toLowerCase())
+  for (const chunk of windows) {
+    const text = decodeEntities(chunk)
+      .replace(/\s*[[(]\s*(at|apenstaartje)\s*[\])]\s*/gi, "@")
+      .replace(/\s*[[(]\s*(dot|punt)\s*[\])]\s*/gi, ".")
+    for (const match of text.matchAll(/mailto:([^"'?\s>]{1,120})/gi)) {
+      try { found.add(decodeURIComponent(match[1]).trim().toLowerCase()) } catch { found.add(match[1].trim().toLowerCase()) }
+    }
+    for (const match of text.matchAll(/[a-z0-9._%+-]{1,64}@[a-z0-9.-]{1,100}\.[a-z]{2,24}/gi)) found.add(match[0].toLowerCase())
+  }
   return [...found]
     .map((email) => email.replace(/^[._-]+|[._-]+$/g, ""))
     .filter((email) => /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,24}$/.test(email))
@@ -66,10 +78,12 @@ export function pickPracticeEmail(candidates, websiteUrl) {
 
 // Contactpagina's op hetzelfde domein, met een vaste fallback als de homepage er geen link naar heeft.
 export function contactPageUrls(html, baseUrl, max = 2) {
+  const source = String(html || "").slice(0, MAX_HTML)
   const site = hostOf(baseUrl)
   const urls = []
-  for (const match of String(html || "").matchAll(/<a\b[^>]*href\s*=\s*["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
-    const label = `${match[1]} ${match[2].replace(/<[^>]+>/g, " ")}`
+  for (const match of source.matchAll(/<a\b[^>]{0,400}?href\s*=\s*["']([^"'#<>]{1,300})["'][^>]{0,400}>/gi)) {
+    const after = source.slice(match.index + match[0].length, match.index + match[0].length + 200)
+    const label = `${match[1]} ${after.split(/<\/a>/i)[0].replace(/<[^>]*>/g, " ")}`
     if (!/contact|bereikbaar|over[-\s]?ons|praktijkinfo/i.test(label)) continue
     try {
       const url = new URL(match[1], baseUrl)
@@ -77,6 +91,7 @@ export function contactPageUrls(html, baseUrl, max = 2) {
       url.hash = ""
       if (!urls.includes(url.href) && url.href !== baseUrl) urls.push(url.href)
     } catch { /* ongeldige link */ }
+    if (urls.length >= max) break
   }
   if (!urls.length) { try { urls.push(new URL("/contact", baseUrl).href) } catch { /* geen fallback */ } }
   return urls.slice(0, max)
