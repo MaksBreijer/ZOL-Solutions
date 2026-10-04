@@ -6207,7 +6207,7 @@ blockquote {
 .about-letter-image img { display:block; width:100%; height:auto; border-radius:18px; }
 .about-letter-image figcaption { margin-top:16px; color:var(--muted); font-size:13px; text-align:center; }
 .about-letter-copy { max-width:560px; }
-.about-letter-copy h2 { margin:56px 0 18px; color:var(--blue-deep); font:400 clamp(28px,3vw,38px)/1.15 var(--serif); letter-spacing:-.01em; text-wrap:balance; }
+.about-letter-copy h2 { margin:44px 0 10px; color:var(--blue-deep); font:400 clamp(24px,2.2vw,28px)/1.2 var(--serif); letter-spacing:-.01em; }
 .about-letter-copy h2:first-child { margin-top:0; }
 .about-letter-copy p { margin:0 0 18px; color:var(--muted); font-size:17px; line-height:1.75; }
 .about-letter-copy .about-letter-mission { margin-top:30px; padding-left:18px; border-left:2px solid var(--orange); color:var(--blue-deep); }
