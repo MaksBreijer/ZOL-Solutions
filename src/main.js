@@ -1,9 +1,11 @@
+import './cursor.css'
 import './styles.css'
 import { trackEvent } from './site-runtime.js'
 import { Activity, Footprints, Ruler, createIcons } from 'lucide'
 import { invokePublicFunction } from './public-api.js'
 
 if (document.querySelector('.product-purchase')) void import('./product-commerce.js')
+if (document.querySelector('[data-product-reviews]')) void import('./product-reviews.js')
 
 document.documentElement.classList.add('js')
 createIcons({ icons: { Activity, Footprints, Ruler } })

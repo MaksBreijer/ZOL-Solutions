@@ -10,15 +10,13 @@ const imageDimensions = new Map([
   ['/media/product-use.jpg', [960, 1200]],
   ['/media/contact-team.jpg', [1200, 799]],
   ['/media/sport-kids.jpg', [1400, 933]],
-  ['/media/heel-anatomy.png', [1200, 655]],
+  ['/media/heel-anatomy.webp', [1200, 655]],
   ['/media/partner-bootfitter.png', [400, 163]],
   ['/media/partner-bpcollege.png', [400, 153]],
   ['/media/partner-kidscare.png', [271, 92]],
   ['/media/partner-tulp.png', [400, 116]],
   ['/media/press-ad-logo.png', [152, 152]],
-  ['/media/press-ad.png', [1080, 1350]],
   ['/media/press-hockey-logo.png', [339, 338]],
-  ['/media/press-hockey.png', [1080, 1350]],
   ['/images/zol-familie.jpg', [933, 1400]],
 ])
 
@@ -29,6 +27,10 @@ function routeForHtml(filename) {
 
 function htmlValue(html, pattern, fallback = '') {
   return (html.match(pattern)?.[1] || fallback).replace(/\s+/g, ' ').trim()
+}
+
+function decodeHtmlText(value) {
+  return value.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&amp;', '&')
 }
 
 function htmlAttribute(value) {
@@ -42,15 +44,15 @@ function seoPlugin() {
       order: 'post',
       handler(html, context) {
         const route = routeForHtml(context.filename)
-        const canonical = `${siteOrigin}${route}`
-        const title = htmlValue(html, /<title>([\s\S]*?)<\/title>/i, 'ZOL Solutions')
+        const canonical = htmlValue(html, /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) || `${siteOrigin}${route}`
+        const title = decodeHtmlText(htmlValue(html, /<title>([\s\S]*?)<\/title>/i, 'ZOL Solutions'))
         const description = htmlValue(html, /<meta[^>]+name=["']description["'][^>]+content="([^"]*)"/i) || htmlValue(html, /<meta[^>]+name=["']description["'][^>]+content='([^']*)'/i, 'Dempende en stabiele 3/4 inlegzolen voor sportende kinderen.')
         const safeTitle = htmlAttribute(title)
         const safeDescription = htmlAttribute(description)
         const noIndex = /<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(html)
         const isKnowledgeIndex = route === '/kennisbank/'
         const isArticle = route.startsWith('/kennisbank/') && !isKnowledgeIndex
-        const image = route === '/product/' ? `${siteOrigin}/images/zol-familie.jpg` : ['/', '/contact/', '/over-ons/', '/kennisbank/'].includes(route) ? `${siteOrigin}/og.png` : ''
+        const image = route === '/product/' ? `${siteOrigin}/images/zol-familie.jpg` : ['/', '/contact/', '/over-ons/', '/kennisbank/'].includes(route) ? `${siteOrigin}/og-zol.jpg` : ''
         const additions = [
           '<link rel="icon" href="/favicon.ico" sizes="any">',
           '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">',
@@ -88,14 +90,16 @@ function seoPlugin() {
                 ['Wat is de ziekte van Sever?', 'De Ziekte van Sever, ook calcaneale apofysitis genoemd, is irritatie rond de groeizone van de hiel. De klacht komt vooral voor bij actieve kinderen in de groei en kan worden versterkt door herhaald rennen, springen en sporten op harde ondergronden.'],
                 ['Kan mijn kind blijven sporten met hielpijn?', 'Dat hangt af van de ernst en oorzaak van de klacht. Pas de sportbelasting aan wanneer pijn tijdens of na het sporten toeneemt. Bij aanhoudende, hevige, nachtelijke of onverklaarbare pijn is beoordeling door een zorgprofessional verstandig.'],
                 ['Hoe helpen ZOL-inlegzolen bij hielpijn?', 'ZOL-inlegzolen combineren gerichte demping, een stevige hielkuip en ondersteuning van hiel en achtervoet. Ze zijn ontworpen als ondersteunend comfortproduct voor sportende kinderen en passen door het 3/4-ontwerp in veel sportschoenen.'],
-                ['Wanneer moet ik professionele hulp inschakelen?', "Neem contact op met een huisarts, podotherapeut of andere gekwalificeerde zorgprofessional bij pijn die aanhoudt, toeneemt, 's nachts optreedt, na een ongeluk ontstaat of niet duidelijk samenhangt met sportbelasting."],
+                ['Welke inlegzolen helpen bij hielpijn bij kinderen?', 'Bij hielpijn bij kinderen werken inlegzolen met demping onder de hiel en een stevige hielkuip het prettigst. Een 3/4 sportzool past bovendien in voetbal-, hockey- en andere sportschoenen. ZOL-inlegzolen zijn speciaal voor deze sportende kinderen ontwikkeld, in maat 34/35 tot en met 42/43.'],
+                ['Waarom kiezen voor ZOL in plaats van een podotherapeut?', 'ZOL is speciaal ontwikkeld voor sportende kinderen met hielpijn en is direct thuis te bestellen. Je hoeft geen intake, aanmeting of meerdere afspraken te plannen en je betaalt geen maatwerktraject dat kan oplopen tot ongeveer €300 of meer. Door het 3/4-ontwerp past ZOL in veel sportschoenen en hoeft de zool niet automatisch ieder groeijaar vervangen te worden. Bij hevige, aanhoudende of onduidelijke klachten blijft een bezoek aan een huisarts of podotherapeut verstandig.'],
+                ['Waarom kosten ZOL-inlegzolen €99,95?', 'ZOL is een podologische inlegzool, gebaseerd op het ontwerp van registerpodoloog Marco-Paul Breijer. Zo krijg je die podologische kennis zonder dat je eerst op consult hoeft. We gebruiken duurzame materialen van hoge kwaliteit, zodat de zolen intensief sporten aankunnen en lang meegaan. Vergeleken met een individueel maatwerktraject ben je daarmee een stuk voordeliger uit.'],
               ].map(([name, text]) => ({ '@type': 'Question', name, acceptedAnswer: { '@type': 'Answer', text } })),
             })
           }
           else if (route === '/product/') {
             const returnPolicy = { '@type': 'MerchantReturnPolicy', applicableCountry: 'NL', returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow', merchantReturnDays: 14, returnMethod: 'https://schema.org/ReturnByMail', returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility' }
             const variants = [
-              ['ZOL-XS-3435', '34/35', '34-35', 'OutOfStock'],
+              ['ZOL-XS-3435', '34/35', '34-35', 'InStock'],
               ['ZOL-S-3637', '36/37', '36-37', 'InStock'],
               ['ZOL-M-3839', '38/39', '38-39', 'InStock'],
               ['ZOL-L-4041', '40/41', '40-41', 'InStock'],
@@ -128,8 +132,9 @@ function seoPlugin() {
           }
           else if (isArticle) {
             const footTypes = route === '/kennisbank/voettypes-en-enkelstanden/'
-            const modifiedToday = ['/kennisbank/hielpijn-bij-kinderen/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(route)
-            graph.push({ '@type': 'Article', '@id': `${canonical}#article`, headline: shortTitle, description, url: canonical, mainEntityOfPage: { '@id': `${canonical}#webpage` }, inLanguage: 'nl-NL', image: `${siteOrigin}/media/heel-anatomy.png`, dateModified: modifiedToday ? '2026-09-02' : '2026-09-01', author: { '@id': `${siteOrigin}/#organization` }, publisher: { '@id': `${siteOrigin}/#organization` }, about: footTypes ? ['Voettypes bij kinderen', 'Enkelstanden', 'Pronatie'] : ['Hielpijn bij kinderen', 'Ziekte van Sever'], citation: footTypes ? ['https://www.nhs.uk/conditions/flat-feet/', 'https://www.guysandstthomas.nhs.uk/health-information/flat-feet-children', 'https://www.nhs.uk/baby/health/leg-and-foot-problems-in-children/'] : ['https://www.cuh.nhs.uk/patient-information/severs-diseasesevers-disease/', 'https://www.clinicalguidelines.scot.nhs.uk/rhc-for-health-professionals/guidelines/primary-care-referral-guidelines/orthopaedic-pre-referral-guidance/heel-pain-in-children-advice-for-referrers/'] })
+            const expandedArticles = ['/kennisbank/hielpijn-tijdens-sporten/', '/kennisbank/kind-pijn-aan-hiel-na-sporten/', '/kennisbank/groeipijn-in-de-hiel/', '/kennisbank/oefeningen-bij-ziekte-van-sever/', '/kennisbank/sporten-met-ziekte-van-sever/', '/kennisbank/sportschoenen-bij-ziekte-van-sever/', '/kennisbank/ziekte-van-sever-voetbal/', '/kennisbank/ziekte-van-sever-hockey/']
+            const dateModified = route === '/kennisbank/inlegzolen-voor-kinderen/' ? '2026-10-03' : expandedArticles.includes(route) ? '2026-10-02' : ['/kennisbank/hielpijn-bij-kinderen/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(route) ? '2026-09-02' : '2026-09-01'
+            graph.push({ '@type': 'Article', '@id': `${canonical}#article`, headline: shortTitle, description, url: canonical, mainEntityOfPage: { '@id': `${canonical}#webpage` }, inLanguage: 'nl-NL', image: `${siteOrigin}/media/heel-anatomy.webp`, dateModified, author: { '@id': `${siteOrigin}/#organization` }, publisher: { '@id': `${siteOrigin}/#organization` }, about: footTypes ? ['Voettypes bij kinderen', 'Enkelstanden', 'Pronatie'] : ['Hielpijn bij kinderen', 'Ziekte van Sever'], citation: footTypes ? ['https://www.nhs.uk/conditions/flat-feet/', 'https://www.guysandstthomas.nhs.uk/health-information/flat-feet-children', 'https://www.nhs.uk/baby/health/leg-and-foot-problems-in-children/'] : ['https://www.cuh.nhs.uk/patient-information/severs-diseasesevers-disease/', 'https://www.clinicalguidelines.scot.nhs.uk/rhc-for-health-professionals/guidelines/primary-care-referral-guidelines/orthopaedic-pre-referral-guidance/heel-pain-in-children-advice-for-referrers/'] })
           }
           else graph.push({ '@type': isKnowledgeIndex ? 'CollectionPage' : route === '/contact/' ? 'ContactPage' : route === '/over-ons/' ? 'AboutPage' : 'WebPage', '@id': `${canonical}#webpage`, name: title, description, url: canonical, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: route === '/over-ons/' ? { '@id': `${siteOrigin}/#organization` } : undefined })
 
@@ -142,7 +147,9 @@ function seoPlugin() {
                 ['Wat is de ziekte van Sever?', 'De Ziekte van Sever, ook calcaneale apofysitis genoemd, is irritatie rond de groeizone van de hiel. De klacht komt vooral voor bij actieve kinderen in de groei en kan worden versterkt door herhaald rennen, springen en sporten op harde ondergronden.'],
                 ['Kan mijn kind blijven sporten met hielpijn?', 'Dat hangt af van de ernst en oorzaak van de klacht. Pas de sportbelasting aan wanneer pijn tijdens of na het sporten toeneemt. Bij aanhoudende, hevige, nachtelijke of onverklaarbare pijn is beoordeling door een zorgprofessional verstandig.'],
                 ['Hoe helpen ZOL-inlegzolen bij hielpijn?', 'ZOL-inlegzolen combineren gerichte demping, een stevige hielkuip en ondersteuning van hiel en achtervoet. Ze zijn ontworpen als ondersteunend comfortproduct voor sportende kinderen en passen door het 3/4-ontwerp in veel sportschoenen.'],
-                ['Wanneer moet ik professionele hulp inschakelen?', "Neem contact op met een huisarts, podotherapeut of andere gekwalificeerde zorgprofessional bij pijn die aanhoudt, toeneemt, 's nachts optreedt, na een ongeluk ontstaat of niet duidelijk samenhangt met sportbelasting."],
+                ['Welke inlegzolen helpen bij hielpijn bij kinderen?', 'Bij hielpijn bij kinderen werken inlegzolen met demping onder de hiel en een stevige hielkuip het prettigst. Een 3/4 sportzool past bovendien in voetbal-, hockey- en andere sportschoenen. ZOL-inlegzolen zijn speciaal voor deze sportende kinderen ontwikkeld, in maat 34/35 tot en met 42/43.'],
+                ['Waarom kiezen voor ZOL in plaats van een podotherapeut?', 'ZOL is speciaal ontwikkeld voor sportende kinderen met hielpijn en is direct thuis te bestellen. Je hoeft geen intake, aanmeting of meerdere afspraken te plannen en je betaalt geen maatwerktraject dat kan oplopen tot ongeveer €300 of meer. Door het 3/4-ontwerp past ZOL in veel sportschoenen en hoeft de zool niet automatisch ieder groeijaar vervangen te worden. Bij hevige, aanhoudende of onduidelijke klachten blijft een bezoek aan een huisarts of podotherapeut verstandig.'],
+                ['Waarom kosten ZOL-inlegzolen €99,95?', 'ZOL is een podologische inlegzool, gebaseerd op het ontwerp van registerpodoloog Marco-Paul Breijer. Zo krijg je die podologische kennis zonder dat je eerst op consult hoeft. We gebruiken duurzame materialen van hoge kwaliteit, zodat de zolen intensief sporten aankunnen en lang meegaan. Vergeleken met een individueel maatwerktraject ben je daarmee een stuk voordeliger uit.'],
               ].map(([name, text]) => ({ '@type': 'Question', name, acceptedAnswer: { '@type': 'Answer', text } })),
             })
           }
@@ -196,6 +203,7 @@ export default defineConfig({
         severSportsShoes: resolve(import.meta.dirname, 'kennisbank/sportschoenen-bij-ziekte-van-sever/index.html'),
         sportsWithSever: resolve(import.meta.dirname, 'kennisbank/sporten-met-ziekte-van-sever/index.html'),
         severExercises: resolve(import.meta.dirname, 'kennisbank/oefeningen-bij-ziekte-van-sever/index.html'),
+        childInsoles: resolve(import.meta.dirname, 'kennisbank/inlegzolen-voor-kinderen/index.html'),
         severInsoles: resolve(import.meta.dirname, 'kennisbank/inlegzolen-bij-ziekte-van-sever/index.html'),
         footTypes: resolve(import.meta.dirname, 'kennisbank/voettypes-en-enkelstanden/index.html'),
         checkout: resolve(import.meta.dirname, 'checkout/index.html'),

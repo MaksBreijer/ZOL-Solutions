@@ -24,7 +24,7 @@ import {
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
   ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
   Menu, Monitor, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw, Smartphone,
-  Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, Unplug, UserCog, UserPlus, Users, Zap,
+  Search, Settings, ShoppingBag, Sparkles, Star, Store, Tag, Target, TrendingUp, Truck, Unplug, UserCog, UserPlus, Users, Zap,
   createIcons,
 } from 'lucide'
 
@@ -33,7 +33,7 @@ const adminIcons = {
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
   ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
   Menu, Monitor, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw, Smartphone,
-  Search, Settings, ShoppingBag, Sparkles, Store, Tag, Target, TrendingUp, Truck, Unplug, UserCog, UserPlus, Users, Zap,
+  Search, Settings, ShoppingBag, Sparkles, Star, Store, Tag, Target, TrendingUp, Truck, Unplug, UserCog, UserPlus, Users, Zap,
 }
 
 const refreshIcons = () => createIcons({ icons: adminIcons, attrs: { 'aria-hidden': 'true' } })
@@ -111,6 +111,9 @@ const state = {
   mfaMode: '',
   mfaFactors: [],
   discounts: [],
+  productReviews: [],
+  productReviewsReady: false,
+  reviewFilter: 'pending',
   orderNotes: [],
   partnerScout: defaultPartnerScoutState(),
   search: '',
@@ -127,6 +130,7 @@ const routeMeta = {
   calendar: ['Teamagenda', 'Plan afspraken, opvolging en ZOL-momenten vanuit één centrale agenda.'],
   pilot: ['Pijnvragenlijsten', 'Volg hoe het met de hielpijn, het sporten en het gebruik van de ZOL’tjes gaat.'],
   products: ['Producten', 'Prijzen, maten, voorraad en productmedia.'],
+  reviews: ['Reviews', 'Lees nieuwe productreviews en zet ze online. Wijs alleen spam, beledigingen of privégegevens af, niet kritische ervaringen.'],
   discounts: ['Kortingen', 'Maak kortingscodes en automatische acties voor de ZOL-webshop.'],
   content: ['Website CMS', 'Bewerk teksten, knoppen, beelden, video en SEO zonder code.'],
   media: ['Mediabibliotheek', 'Eén centrale plek voor afbeeldingen, video en iconen.'],
@@ -500,7 +504,7 @@ async function fetchAccountingData() {
 }
 
 async function fetchAllData() {
-  const [requests, accounting] = await Promise.all([Promise.all([
+  const [requests, accounting, productReviews] = await Promise.all([Promise.all([
     fetchAllRows('orders', '*, order_items(*, products(images))'),
     fetchAllRows('customers'),
     supabase.from('contact_messages').select('*').order('created_at', { ascending: false }).limit(500),
@@ -519,7 +523,7 @@ async function fetchAllData() {
     supabase.from('email_templates').select('*').order('sort_order'),
     fetchPilotEnrollments(),
     supabase.from('pilot_consent_invites').select('id,customer_id,status,sent_at,accepted_at,declined_at,created_at').order('created_at', { ascending: false }),
-  ]), fetchAccountingData()])
+  ]), fetchAccountingData(), supabase.from('product_reviews').select('*').order('created_at', { ascending: false }).limit(500)])
 
   const firstError = requests.find((request) => request.error)?.error
   if (firstError) throw firstError
@@ -545,6 +549,9 @@ async function fetchAllData() {
     state.pilotConsentInvites,
   ] = requests.map((request) => request.data || [])
 
+  // Reviews load separately so the admin keeps working before the review migration is applied.
+  state.productReviewsReady = !productReviews?.error
+  state.productReviews = productReviews?.error ? [] : productReviews?.data || []
   state.accountingReady = accounting.ready
   state.accountingAccounts = accounting.accounts
   state.accountingPeriods = accounting.periods
@@ -559,6 +566,9 @@ async function fetchAllData() {
   document.querySelector('#new-message-count').textContent = newMessages || ''
   const duePartners = partnerStats(state.partnerScout.leads).due
   document.querySelector('#partner-due-count').textContent = duePartners || ''
+  const pendingReviews = state.productReviews.filter((review) => review.status === 'pending').length
+  const reviewCount = document.querySelector('#pending-review-count')
+  if (reviewCount) reviewCount.textContent = pendingReviews || ''
 }
 
 function renderDashboard() {
@@ -2181,6 +2191,46 @@ function filterCustomers() {
 function renderMessages() {
   const rows = state.contactMessages.map((message) => `<tr data-action="open-message" data-id="${message.id}"><td><strong>${escapeHtml(message.name)}</strong></td><td>${escapeHtml(message.topic)}</td><td>${escapeHtml(message.email)}</td><td>${statusPill(message.status)}</td><td>${formatDate(message.created_at, { hour: '2-digit', minute: '2-digit' })}</td></tr>`).join('')
   elements.content.innerHTML = `<div class="page-container">${pageHeader('messages', '<button class="button" data-action="refresh">Vernieuwen</button>')}<section class="metric-grid"><article class="metric-card"><header><span>Nieuwe berichten</span><i>✉</i></header><strong>${state.contactMessages.filter((message) => ['new', 'email_failed'].includes(message.status)).length}</strong><footer><span>Wacht op reactie</span><span>Actueel</span></footer></article><article class="metric-card"><header><span>Totaal ontvangen</span><i>▤</i></header><strong>${state.contactMessages.length}</strong><footer><span>Contactformulier</span><span>Totaal</span></footer></article></section><section class="panel">${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>Onderwerp</th><th>E-mail</th><th>Status</th><th>Ontvangen</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen berichten', 'Nieuwe vragen via het contactformulier verschijnen hier.', '✉')}</section></div>`
+}
+
+const reviewStars = (rating) => `<span class="admin-review-stars" aria-label="${Number(rating)} van 5 sterren">${'★'.repeat(Number(rating) || 0)}<i>${'★'.repeat(5 - (Number(rating) || 0))}</i></span>`
+
+function renderProductReviews() {
+  const reviews = state.productReviews
+  const counts = { pending: 0, approved: 0, rejected: 0 }
+  reviews.forEach((review) => { counts[review.status] = (counts[review.status] || 0) + 1 })
+  const approved = reviews.filter((review) => review.status === 'approved')
+  const average = approved.length ? (approved.reduce((sum, review) => sum + Number(review.rating), 0) / approved.length).toFixed(1).replace('.', ',') : '–'
+  const filter = ['pending', 'approved', 'rejected', 'all'].includes(state.reviewFilter) ? state.reviewFilter : 'pending'
+  const visible = filter === 'all' ? reviews : reviews.filter((review) => review.status === filter)
+  const labels = { pending: 'Te beoordelen', approved: 'Online', rejected: 'Afgewezen', all: 'Alles' }
+  const statusLabel = { pending: 'Te beoordelen', approved: 'Online', rejected: 'Afgewezen' }
+  const statusTone = { pending: 'is-blue', approved: 'is-green', rejected: 'is-red' }
+  const canDelete = ['owner', 'admin'].includes(state.profile?.role)
+  const tabs = `<nav class="finance-tabs" aria-label="Reviewfilter">${Object.entries(labels).map(([value, label]) => `<button type="button" class="${filter === value ? 'is-active' : ''}" data-action="review-filter" data-filter="${value}">${label}${value === 'all' ? '' : ` (${counts[value] || 0})`}</button>`).join('')}</nav>`
+  const cards = visible.map((review) => `<article class="admin-review-card"><header>${reviewStars(review.rating)}<span class="status-pill ${statusTone[review.status] || 'is-orange'}">${statusLabel[review.status] || escapeHtml(review.status)}</span></header><h3>${escapeHtml(review.title)}</h3><p>${escapeHtml(review.body)}</p><footer><div><strong>${escapeHtml(review.author_name)}</strong><small>${review.email ? `${escapeHtml(review.email)} · ` : ''}${formatDate(review.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div><div class="admin-review-actions">${review.status !== 'approved' ? `<button class="button button--primary" type="button" data-action="approve-review" data-id="${review.id}">Online zetten</button>` : ''}${review.status !== 'rejected' ? `<button class="button" type="button" data-action="reject-review" data-id="${review.id}">${review.status === 'approved' ? 'Offline halen' : 'Afwijzen'}</button>` : `<button class="button" type="button" data-action="reopen-review" data-id="${review.id}">Terug naar te beoordelen</button>`}${canDelete ? `<button class="button button--danger" type="button" data-action="delete-review" data-id="${review.id}">Verwijderen</button>` : ''}</div></footer></article>`).join('')
+  const notice = state.productReviewsReady ? '' : `<section class="panel">${emptyState('Reviews zijn nog niet geactiveerd', 'De databasetabel voor reviews ontbreekt nog. Zodra de migratie is uitgevoerd verschijnen nieuwe reviews hier.', '★')}</section>`
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('reviews', '<a class="button" href="/product/#reviews" target="_blank" rel="noreferrer">Bekijk op de website</a><button class="button" data-action="refresh">Vernieuwen</button>')}<section class="metric-grid"><article class="metric-card"><header><span>Te beoordelen</span><i>★</i></header><strong>${counts.pending}</strong><footer><span>Nog niet zichtbaar</span><span>Actueel</span></footer></article><article class="metric-card"><header><span>Online</span><i>✓</i></header><strong>${counts.approved}</strong><footer><span>Op de productpagina</span><span>Totaal</span></footer></article><article class="metric-card"><header><span>Gemiddelde score</span><i>◎</i></header><strong>${average}</strong><footer><span>Van online reviews</span><span>van 5</span></footer></article></section>${notice}${state.productReviewsReady ? `${tabs}<section class="admin-review-list">${cards || `<div class="panel">${emptyState(filter === 'pending' ? 'Geen reviews om te beoordelen' : 'Geen reviews in deze lijst', 'Nieuwe reviews van de productpagina komen eerst hier binnen.', '★')}</div>`}</section>` : ''}</div>`
+}
+
+async function moderateProductReview(id, status, button) {
+  const review = state.productReviews.find((item) => item.id === id)
+  if (!review) return
+  if (button) button.disabled = true
+  const { error } = await supabase.from('product_reviews').update({ status, reviewed_at: status === 'pending' ? null : new Date().toISOString(), reviewed_by: status === 'pending' ? null : state.profile?.id || null }).eq('id', id)
+  if (error) { toast('Review bijwerken mislukt', error.message, true); if (button) button.disabled = false; return }
+  await recordActivity(status === 'approved' ? 'Review online gezet' : status === 'rejected' ? 'Review afgewezen' : 'Review teruggezet naar beoordelen', 'product_review', id, { rating: review.rating })
+  toast(status === 'approved' ? 'Review staat online' : status === 'rejected' ? 'Review is niet zichtbaar' : 'Review staat weer bij te beoordelen')
+  await refreshCurrentRoute()
+}
+
+async function deleteProductReview(id) {
+  if (!id || !window.confirm('Deze review definitief verwijderen?')) return
+  const { error } = await supabase.from('product_reviews').delete().eq('id', id)
+  if (error) { toast('Review verwijderen mislukt', error.message, true); return }
+  await recordActivity('Review verwijderd', 'product_review', id)
+  toast('Review verwijderd')
+  await refreshCurrentRoute()
 }
 
 const emailSampleVariables = {
@@ -3857,7 +3907,7 @@ function renderRoute(route = currentRoute(), option) {
   if (route !== 'partners') stopPartnerUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, 'physio-campaign': renderPhysioCampaign, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, 'physio-campaign': renderPhysioCampaign, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, reviews: renderProductReviews, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'marketing') void loadMarketingPlatformStats()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
@@ -4106,6 +4156,9 @@ async function handleContentClick(event) {
     else { toast('Vragenlijst verstuurd', data?.warning ? 'De mail is bezorgd, maar vernieuw het overzicht om de status te controleren.' : 'De ontvanger kan direct op een antwoord in de mail klikken.'); await refreshCurrentRoute() }
     setBusy(target, false, 'Vragenlijst sturen')
   }
+  if (action === 'review-filter') { state.reviewFilter = target.dataset.filter || 'pending'; renderProductReviews(); refreshIcons() }
+  if (['approve-review', 'reject-review', 'reopen-review'].includes(action)) await moderateProductReview(id, { 'approve-review': 'approved', 'reject-review': 'rejected', 'reopen-review': 'pending' }[action], target)
+  if (action === 'delete-review') await deleteProductReview(id)
   if (action === 'open-product') productForm(state.products.find((item) => item.id === id))
   if (action === 'new-product') productForm()
   if (action === 'delete-product') await deleteProduct(id)
