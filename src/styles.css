@@ -6204,7 +6204,7 @@ blockquote {
 .about-intro > p:last-child { max-width:640px; margin:28px auto 0; color:var(--muted); font-size:18px; line-height:1.6; }
 .about-letter { display:grid; width:min(1180px,100%); margin:0 auto; padding:clamp(30px,5vw,70px) clamp(22px,5vw,60px) clamp(90px,10vw,140px); grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:clamp(40px,7vw,110px); align-items:start; }
 .about-letter-image { position:sticky; top:120px; margin:0; }
-.about-letter-image img { display:block; width:100%; aspect-ratio:4/5; border-radius:18px; object-fit:cover; }
+.about-letter-image img { display:block; width:100%; height:auto; border-radius:18px; }
 .about-letter-image figcaption { margin-top:16px; color:var(--muted); font-size:13px; text-align:center; }
 .about-letter-copy { max-width:560px; }
 .about-letter-copy h2 { margin:56px 0 18px; color:var(--blue-deep); font:400 clamp(28px,3vw,38px)/1.15 var(--serif); letter-spacing:-.01em; text-wrap:balance; }
