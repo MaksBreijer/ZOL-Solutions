@@ -32,6 +32,23 @@ test('checkout makes the discovery source optional and stores it outside custome
   assert.match(edgeFunction, /Zorgprofessional of sportclub/)
 })
 
+test('checkout offers specific discovery answers with a follow-up where a name matters and keeps only the chosen one', async () => {
+  const [html, edgeFunction] = await Promise.all([
+    readFile(new URL('../checkout/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../supabase/functions/create-checkout/index.ts', import.meta.url), 'utf8'),
+  ])
+
+  for (const source of ['google', 'instagram', 'facebook', 'tiktok', 'physio', 'club', 'friends-family', 'press', 'other']) {
+    assert.match(html, new RegExp(`name="discovery_source" value="${source}"`))
+    assert.match(edgeFunction, new RegExp(`\\["${source}", "`))
+  }
+  for (const source of ['physio', 'club', 'friends-family', 'press', 'other']) assert.match(html, new RegExp(`data-discovery-for="${source}" hidden`))
+  assert.doesNotMatch(html, /value="professional"/)
+  assert.match(edgeFunction, /\["physio", "Fysiotherapeut of podoloog"\]/)
+  assert.match(edgeFunction, /\["club", "Sportclub of trainer"\]/)
+  assert.match(edgeFunction, /details \? `\$\{source\} — \$\{details\}` : source/)
+})
+
 test('checkout measures incomplete forms separately from technical payment failures', async () => {
   const client = await readFile(new URL('../src/checkout.js', import.meta.url), 'utf8')
 

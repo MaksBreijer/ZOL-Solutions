@@ -9,8 +9,7 @@ const summaryElement = document.querySelector('#checkout-summary')
 const form = document.querySelector('#checkout-form')
 const checkoutFlow = document.querySelector('.checkout-flow')
 const discoveryFieldset = document.querySelector('.checkout-discovery')
-const discoveryDetails = document.querySelector('#discovery-details')
-const discoveryDetailsInput = document.querySelector('#discovery-details-input')
+const discoveryDetails = [...document.querySelectorAll('[data-discovery-for]')]
 const discoveryError = document.querySelector('#discovery-error')
 const discountInput = form.elements.discount_code
 const discountButton = document.querySelector('#apply-discount')
@@ -33,7 +32,8 @@ let quoteRequest = 0
 let submitInFlight = false
 
 if (linkedPartnerCode) {
-  const professionalSource = [...form.elements.discovery_source].find((option) => option.value === 'professional')
+  const partnerSource = linkedPartnerCode.includes('-CLUB-') ? 'club' : 'physio'
+  const professionalSource = [...form.elements.discovery_source].find((option) => option.value === partnerSource)
   if (professionalSource) professionalSource.checked = true
 }
 
@@ -46,19 +46,24 @@ function setDiscoveryError(show) {
   })
 }
 
+// Elke keuze krijgt een eigen vervolgvraag; alleen bij "Anders" is die verplicht.
 function updateDiscoveryDetails({ focus = false } = {}) {
-  const isOther = form.elements.discovery_source.value === 'other'
-  discoveryDetails.hidden = !isOther
-  discoveryDetailsInput.disabled = !isOther
-  discoveryDetailsInput.required = isOther
-  form.elements.discovery_source.forEach((option) => option.setAttribute('aria-expanded', String(isOther && option.value === 'other')))
-  if (!isOther) discoveryDetailsInput.value = ''
-  if (isOther && focus) requestAnimationFrame(() => discoveryDetailsInput.focus())
+  const source = form.elements.discovery_source.value
+  discoveryDetails.forEach((details) => {
+    const isActive = details.dataset.discoveryFor === source
+    const input = details.querySelector('input')
+    details.hidden = !isActive
+    input.disabled = !isActive
+    input.required = isActive && source === 'other'
+    if (!isActive) input.value = ''
+    if (isActive && focus) requestAnimationFrame(() => input.focus())
+  })
+  form.elements.discovery_source.forEach((option) => option.setAttribute('aria-expanded', String(option.checked && discoveryDetails.some((details) => details.dataset.discoveryFor === option.value))))
 }
 
 form.elements.discovery_source.forEach((option) => option.addEventListener('change', (event) => {
   setDiscoveryError(false)
-  updateDiscoveryDetails({ focus: event.target.value === 'other' })
+  updateDiscoveryDetails({ focus: true })
 }))
 updateDiscoveryDetails()
 
@@ -413,8 +418,8 @@ form.addEventListener('submit', async (event) => {
   try {
     const customer = Object.fromEntries(new FormData(form))
     const discovery = {
-      source: linkedPartnerCode ? 'professional' : String(customer.discovery_source || ''),
-      details: linkedPartnerCode ? `Partnercode ${linkedPartnerCode}` : String(customer.discovery_details || ''),
+      source: String(customer.discovery_source || '') || (linkedPartnerCode ? 'professional' : ''),
+      details: [String(customer.discovery_details || '').trim(), linkedPartnerCode ? `Partnercode ${linkedPartnerCode}` : ''].filter(Boolean).join(' · '),
     }
     delete customer.discovery_source
     delete customer.discovery_details

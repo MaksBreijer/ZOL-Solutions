@@ -24,13 +24,23 @@
               <p id="discovery-help">Optioneel.</p>
               <div class="discovery-options">
                 <label><input type="radio" name="discovery_source" value="google"><span>Google</span></label>
-                <label><input type="radio" name="discovery_source" value="social"><span>Social media</span></label>
-                <label><input type="radio" name="discovery_source" value="professional"><span>Zorgprofessional / sportclub</span></label>
+                <label><input type="radio" name="discovery_source" value="instagram"><span>Instagram</span></label>
+                <label><input type="radio" name="discovery_source" value="facebook"><span>Facebook</span></label>
+                <label><input type="radio" name="discovery_source" value="tiktok"><span>TikTok</span></label>
+                <label><input type="radio" name="discovery_source" value="physio"><span>Fysiotherapeut / podoloog</span></label>
+                <label><input type="radio" name="discovery_source" value="club"><span>Sportclub / trainer</span></label>
                 <label><input type="radio" name="discovery_source" value="friends-family"><span>Familie / vrienden</span></label>
+                <label><input type="radio" name="discovery_source" value="press"><span>Krant / tijdschrift</span></label>
                 <label><input type="radio" name="discovery_source" value="other" aria-controls="discovery-details"><span>Anders</span></label>
               </div>
               <p class="discovery-error" id="discovery-error" role="alert" hidden>Kies één antwoord om verder te gaan.</p>
-              <label class="discovery-details" id="discovery-details" for="discovery-details-input" hidden><span>Vertel hoe je ons hebt gevonden <em>verplicht</em></span><input id="discovery-details-input" name="discovery_details" maxlength="120" pattern=".*\S.*" autocomplete="off" disabled placeholder="Bijvoorbeeld via een evenement of advertentie"></label>
+              <div id="discovery-details">
+                <label class="discovery-details" data-discovery-for="physio" hidden><span>Welke praktijk? <em>optioneel</em></span><input name="discovery_details" maxlength="120" autocomplete="off" disabled placeholder="Naam van de praktijk en plaats"></label>
+                <label class="discovery-details" data-discovery-for="club" hidden><span>Welke club of trainer? <em>optioneel</em></span><input name="discovery_details" maxlength="120" autocomplete="off" disabled placeholder="Naam van de club en sport"></label>
+                <label class="discovery-details" data-discovery-for="friends-family" hidden><span>Weet je hoe zij ons kenden? <em>optioneel</em></span><input name="discovery_details" maxlength="120" autocomplete="off" disabled placeholder="Bijvoorbeeld via de hockeyclub of de fysio"></label>
+                <label class="discovery-details" data-discovery-for="press" hidden><span>Welke krant of welk blad? <em>optioneel</em></span><input name="discovery_details" maxlength="120" autocomplete="off" disabled placeholder="Bijvoorbeeld AD of Hockey Magazine"></label>
+                <label class="discovery-details" data-discovery-for="other" hidden><span>Vertel hoe je ons hebt gevonden <em>verplicht</em></span><input id="discovery-details-input" name="discovery_details" maxlength="120" pattern=".*\S.*" autocomplete="off" disabled placeholder="Bijvoorbeeld via een evenement of advertentie"></label>
+              </div>
             </fieldset>
             <div class="checkout-fields">
               <label>Voornaam<input name="first_name" autocomplete="given-name" required></label><label>Achternaam<input name="last_name" autocomplete="family-name" required></label>
