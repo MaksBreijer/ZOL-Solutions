@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
-import { contactPageUrls, extractEmails, leadsToScan, normalizeWebsite, pickPracticeEmail } from "./email-finder.js"
+import { contactPageUrls, extractEmails, leadsToScan, MAX_HTML, normalizeWebsite, pickPracticeEmail } from "./email-finder.js"
 
 type Lead = Record<string, unknown>
 type Recipient = { id: string; campaign_id: string; lead_id: string; practice_name: string; location: string; specialization: string; contact_person: string; personal_opening: string; email: string }
@@ -148,13 +148,28 @@ async function processBatch(db: ReturnType<typeof adminClient>) {
   return counts
 }
 
+// Leest hooguit `limit` tekens, zodat een grote pagina geen CPU-tijd opslokt.
+async function readLimited(response: Response, limit: number) {
+  const reader = response.body?.getReader()
+  if (!reader) return ""
+  const decoder = new TextDecoder()
+  let html = ""
+  while (html.length < limit) {
+    const { done, value } = await reader.read()
+    if (done) break
+    html += decoder.decode(value, { stream: true })
+  }
+  await reader.cancel().catch(() => {})
+  return html.slice(0, limit)
+}
+
 async function fetchPage(url: string) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 8000)
   try {
     const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; ZOL-Solutions/1.0; +https://zolsolutions.nl)", accept: "text/html" }, redirect: "follow", signal: controller.signal })
-    if (!response.ok || !/html/i.test(response.headers.get("content-type") || "html")) return null
-    return { url: response.url || url, html: (await response.text()).slice(0, 1_500_000) }
+    if (!response.ok || !/html/i.test(response.headers.get("content-type") || "html")) { await response.body?.cancel(); return null }
+    return { url: response.url || url, html: await readLimited(response, MAX_HTML) }
   } catch { return null } finally { clearTimeout(timer) }
 }
 
@@ -172,15 +187,17 @@ async function findPracticeEmail(website: string): Promise<{ result: string; ema
 }
 
 // Zoekt nieuwe adressen op praktijkwebsites en slaat ze op in Partner Scout. Verstuurt niets.
-async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchSize) {
+// Doorzoekt per aanroep maximaal `siteLimit` websites; de admin roept herhaald aan tot er genoeg adressen zijn.
+async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchSize, siteLimit = 10) {
   const { data: settings, error } = await db.from("settings").select("value").eq("key", "partner_scout").maybeSingle()
   if (error) throw error
   const leads = Array.isArray(settings?.value?.leads) ? settings.value.leads as Lead[] : []
   const history = await deliveryHistory(db)
   const known = new Set([...leads.map((lead) => clean(lead.email).toLowerCase()).filter(validEmail), ...history.sent, ...history.pending, ...history.skipped])
-  const queue = leadsToScan(leads) as Lead[]
+  const pending = leadsToScan(leads) as Lead[]
+  const queue = pending.slice(0, siteLimit)
   const patches = new Map<string, Record<string, string>>()
-  const deadline = Date.now() + 100_000
+  const deadline = Date.now() + 45_000
   let found = 0
   let scanned = 0
   let next = 0
@@ -205,7 +222,7 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
       patches.set(clean(lead.id), patch)
     }
   }
-  await Promise.all(Array.from({ length: 8 }, worker))
+  await Promise.all(Array.from({ length: 5 }, worker))
 
   if (patches.size) {
     // Opnieuw lezen vlak voor het schrijven, zodat wijzigingen van andere beheerders tijdens het zoeken blijven staan.
@@ -227,7 +244,7 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
     if (saveError) throw saveError
   }
   const leadIds = [...patches].filter(([, patch]) => patch.email).map(([id]) => id)
-  return { found, scanned, remaining: Math.max(0, queue.length - scanned), target, lead_ids: leadIds }
+  return { found, scanned, remaining: Math.max(0, pending.length - scanned), target, lead_ids: leadIds }
 }
 
 Deno.serve(async (request) => {
@@ -280,7 +297,7 @@ Deno.serve(async (request) => {
       }
       return Response.json({ success: results.every((result) => result.status === "sent"), results }, { headers })
     }
-    if (action === "find-emails") return Response.json({ success: true, ...await findNewEmails(db) }, { headers })
+    if (action === "find-emails") return Response.json({ success: true, ...await findNewEmails(db, Math.min(batchSize, Math.max(1, Number(body.target) || batchSize))) }, { headers })
     if (action === "status") return Response.json({ success: true, ...await campaignStatus(db) }, { headers })
     if (action === "run") return Response.json({ success: true, ...await processBatch(db) }, { headers })
     if (action === "pause" || action === "resume") {
