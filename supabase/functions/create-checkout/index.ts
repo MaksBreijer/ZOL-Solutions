@@ -14,6 +14,8 @@ const mollieStatuses = new Set(["open", "pending", "authorized", "paid", "failed
 const discoveryLabels = new Map([
   ["google", "Google"],
   ["social", "Social media"],
+  ["physio", "Fysiotherapeut of podoloog"],
+  ["club", "Sportclub of trainer"],
   ["professional", "Zorgprofessional of sportclub"],
   ["friends-family", "Familie of vrienden"],
   ["other", "Anders"],
@@ -23,7 +25,7 @@ function checkoutDiscoveryNote(value: Record<string, unknown> = {}) {
   const source = discoveryLabels.get(String(value.source || ""))
   if (!source) return null
   const details = String(value.details || "").trim().replace(/\s+/g, " ").slice(0, 120)
-  return `Gevonden via: ${details && ["Anders", "Zorgprofessional of sportclub"].includes(source) ? `${source} — ${details}` : source}`
+  return `Gevonden via: ${details ? `${source} — ${details}` : source}`
 }
 
 function corsHeaders(request: Request) {
