@@ -2171,6 +2171,16 @@ a.media-chip:focus-visible {
   color: #fff;
 }
 
+.footer-contact .footer-rating {
+  color: #fff;
+  font-weight: 700;
+}
+
+.footer-rating span {
+  margin-right: 5px;
+  color: var(--orange);
+}
+
 .footer-contact a[href*="instagram.com"],
 .footer-contact a[href*="linkedin.com"] {
   display: inline-flex;
