@@ -37,12 +37,11 @@ async function initializeProductCommerce() {
   function renderPaymentSupport(methods = []) {
     if (!paymentSupport) return
     const list = paymentSupport.querySelector('.product-payment-methods')
-    const visibleMethods = methods.filter((method) => method.id !== 'applepay' || (window.ApplePaySession && window.ApplePaySession.canMakePayments()))
-    if (!visibleMethods.length) {
+    if (!methods.length) {
       paymentSupport.hidden = true
       return
     }
-    list.replaceChildren(...visibleMethods.map((method) => {
+    list.replaceChildren(...methods.map((method) => {
       const badge = document.createElement('i')
       badge.className = `product-payment-method product-payment-method--${method.id}`
       badge.title = method.description || method.id

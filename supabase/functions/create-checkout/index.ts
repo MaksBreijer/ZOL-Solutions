@@ -70,7 +70,7 @@ async function listPaymentMethods(mollieKey: string, amountCents: number, countr
     locale: country === 'BE' ? "nl_BE" : "nl_NL",
     sequenceType: "oneoff",
     billingCountry: country,
-    includeWallets: "applepay",
+    includeWallets: "applepay,googlepay",
     "amount[value]": moneyValue(amountCents),
     "amount[currency]": "EUR",
   })
@@ -79,7 +79,7 @@ async function listPaymentMethods(mollieKey: string, amountCents: number, countr
   })
   const payload = await response.json()
   if (!response.ok) throw new Error("De betaalmethoden konden niet worden geladen.")
-  const preferred = ["ideal", "creditcard", "applepay", "paypal", "bancontact", "banktransfer", "in3", "klarna"]
+  const preferred = ["ideal", "applepay", "googlepay", "creditcard", "paypal", "bancontact", "banktransfer", "in3", "klarna"]
   const methods = Array.isArray(payload?._embedded?.methods) ? payload._embedded.methods : []
   return methods
     .filter((method: Record<string, any>) => typeof method?.id === "string")
@@ -88,7 +88,7 @@ async function listPaymentMethods(mollieKey: string, amountCents: number, countr
       const bIndex = preferred.indexOf(b.id)
       return (aIndex === -1 ? preferred.length : aIndex) - (bIndex === -1 ? preferred.length : bIndex)
     })
-    .slice(0, 8)
+    .slice(0, 10)
     .map((method: Record<string, any>) => {
       const image = [method.image?.svg, method.image?.size2x, method.image?.size1x]
         .find((source) => typeof source === "string" && source.startsWith("https://")) || ""
@@ -170,7 +170,8 @@ async function startMolliePayment(input: {
       cancelUrl: `${redirect}&cancelled=1`,
       webhookUrl: `${input.supabaseUrl}/functions/v1/mollie-webhook`,
       metadata: { order_id: input.order.id, order_number: input.order.order_number },
-      ...(input.method ? { method: input.method } : {}),
+      // Google Pay runs inside Mollie's hosted card page, so it is started as a creditcard payment.
+      ...(input.method ? { method: input.method === "googlepay" ? "creditcard" : input.method } : {}),
     }),
   })
   const mollie = await response.json()

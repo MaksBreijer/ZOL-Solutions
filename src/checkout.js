@@ -64,8 +64,9 @@ updateDiscoveryDetails()
 
 const paymentMethodPresentation = {
   ideal: { label: 'iDEAL', detail: 'Betaal direct via je eigen bank', mark: 'iDEAL' },
-  creditcard: { label: 'Creditcard', detail: 'Visa, Mastercard en meer', mark: 'VISA · MC' },
+  creditcard: { label: 'Creditcard', detail: 'Visa, Mastercard en American Express', mark: 'VISA · AMEX' },
   applepay: { label: 'Apple Pay', detail: 'Snel betalen met je Apple-apparaat', mark: ' Pay' },
+  googlepay: { label: 'Google Pay', detail: 'Snel betalen met je Google-account', mark: 'G Pay' },
   paypal: { label: 'PayPal', detail: 'Betaal met je PayPal-account', mark: 'PayPal' },
   bancontact: { label: 'Bancontact', detail: 'Veilig betalen vanuit België', mark: 'Bancontact' },
   banktransfer: { label: 'Bankoverschrijving', detail: 'Handmatig via je bank', mark: 'SEPA' },
@@ -164,29 +165,32 @@ function renderPaymentMethods(methods = []) {
     return
   }
   paymentMethodsElement.hidden = false
-  const visibleMethods = methods.filter((method) => paymentMethodSupportedOnDevice(method.id))
+  const firstSupported = methods.findIndex((method) => paymentMethodSupportedOnDevice(method.id))
   paymentMethodOptions.replaceChildren()
-  if (!visibleMethods.length) {
+  if (!methods.length) {
     const fallback = document.createElement('div')
     fallback.className = 'payment-method-fallback'
     fallback.innerHTML = '<span aria-hidden="true">M</span><div><strong>Veilig betalen via Mollie</strong><small>Je kiest je betaalmethode in de volgende stap.</small></div>'
     paymentMethodOptions.append(fallback)
     return
   }
-  visibleMethods.forEach((method, index) => {
+  methods.forEach((method, index) => {
     const presentation = paymentMethodPresentation[method.id] || {
       label: method.description || method.id,
       detail: 'Veilig betalen via Mollie',
       mark: '€',
     }
     const option = document.createElement('label')
+    const supported = paymentMethodSupportedOnDevice(method.id)
     option.className = `payment-method-card payment-method-card--${method.id}`
+    option.classList.toggle('is-unavailable', !supported)
     const input = document.createElement('input')
     input.type = 'radio'
     input.name = 'payment_method'
     input.value = method.id
     input.required = true
-    input.checked = index === 0
+    input.disabled = !supported
+    input.checked = index === firstSupported
     option.classList.toggle('is-selected', input.checked)
     const radio = document.createElement('span')
     radio.className = 'payment-method-radio'
@@ -196,7 +200,7 @@ function renderPaymentMethods(methods = []) {
     const title = document.createElement('strong')
     title.textContent = presentation.label
     const detail = document.createElement('small')
-    detail.textContent = presentation.detail
+    detail.textContent = supported ? presentation.detail : 'Beschikbaar op iPhone, iPad en Mac met Safari'
     copy.append(title, detail)
     const mark = createPaymentMethodMark(method, presentation.mark)
     option.append(input, radio, mark, copy)
