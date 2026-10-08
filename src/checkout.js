@@ -1,4 +1,3 @@
-import './cursor.css'
 import './checkout.css'
 import { clearCart, getCart, updateCartItem } from './cart.js'
 import { formatMoney, supabase } from './supabase-client.js'

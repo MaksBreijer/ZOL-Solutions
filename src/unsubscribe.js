@@ -1,4 +1,3 @@
-import './cursor.css'
 import './styles.css'
 import './unsubscribe.css'
 import './cookie-consent.js'

@@ -1,4 +1,3 @@
-import './cursor.css'
 import { supabase } from './supabase-client.js'
 import { timepoints } from '../supabase/functions/_shared/pilot-questions.js'
 
