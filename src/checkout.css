@@ -54,6 +54,7 @@
 .payment-method-card--ideal .payment-method-mark{color:#cc0066;background:#fff7fb}
 .payment-method-card--paypal .payment-method-mark{color:#1164a3;background:#f6fbff}
 .payment-method-card--applepay .payment-method-mark{font-size:13px}
+.payment-method-card--googlepay .payment-method-mark{font-size:12px}
 .payment-method-card--bancontact .payment-method-mark{color:#005498;background:#f4faff}
 .payment-method-card--klarna .payment-method-mark{color:#111;background:#fff3f6}
 .payment-method-card--in3 .payment-method-mark{color:#222;background:#f5f2ff}

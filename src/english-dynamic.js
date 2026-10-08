@@ -40,6 +40,8 @@ export const englishDynamic = {
   'Betaal direct via je eigen bank': 'Pay directly through your bank',
   'Creditcard': 'Credit card',
   'Visa, Mastercard en meer': 'Visa, Mastercard and more',
+  'Visa, Mastercard en American Express': 'Visa, Mastercard and American Express',
+  'Snel betalen met je Google-account': 'Pay quickly with your Google account',
   'Snel betalen met je Apple-apparaat': 'Pay quickly with your Apple device',
   'Betaal met je PayPal-account': 'Pay with your PayPal account',
   'Veilig betalen vanuit België': 'Secure payments from Belgium',

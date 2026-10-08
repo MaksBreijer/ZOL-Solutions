@@ -64,8 +64,9 @@ updateDiscoveryDetails()
 
 const paymentMethodPresentation = {
   ideal: { label: 'iDEAL', detail: 'Betaal direct via je eigen bank', mark: 'iDEAL' },
-  creditcard: { label: 'Creditcard', detail: 'Visa, Mastercard en meer', mark: 'VISA · MC' },
+  creditcard: { label: 'Creditcard', detail: 'Visa, Mastercard en American Express', mark: 'VISA · AMEX' },
   applepay: { label: 'Apple Pay', detail: 'Snel betalen met je Apple-apparaat', mark: ' Pay' },
+  googlepay: { label: 'Google Pay', detail: 'Snel betalen met je Google-account', mark: 'G Pay' },
   paypal: { label: 'PayPal', detail: 'Betaal met je PayPal-account', mark: 'PayPal' },
   bancontact: { label: 'Bancontact', detail: 'Veilig betalen vanuit België', mark: 'Bancontact' },
   banktransfer: { label: 'Bankoverschrijving', detail: 'Handmatig via je bank', mark: 'SEPA' },
