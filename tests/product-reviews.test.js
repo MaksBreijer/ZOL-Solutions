@@ -107,9 +107,9 @@ test('product page renders approved reviews, the score breakdown and review stru
   assert.equal(root.querySelector('[data-review-count]').textContent, 'Gebaseerd op 2 reviews')
   assert.equal(root.querySelector('[data-stars="5"] b').style.width, '50%')
   assert.equal(root.querySelector('[data-stars="3"] strong').textContent, '0')
-  assert.equal(root.querySelectorAll('.product-review-item').length, 2)
-  assert.equal(root.querySelector('.product-review-item h4').textContent, '<b>Top</b>', 'review text must never be parsed as HTML')
-  assert.equal(root.querySelector('.product-review-item h4').getAttribute('translate'), 'no')
+  assert.equal(root.querySelectorAll('[data-review-list] .product-review-item').length, 2)
+  assert.equal(root.querySelector('[data-review-list] .product-review-item h4').textContent, '<b>Top</b>', 'review text must never be parsed as HTML')
+  assert.equal(root.querySelector('[data-review-list] .product-review-item h4').getAttribute('translate'), 'no')
   assert.equal(root.querySelector('[data-review-empty]').hidden, true)
 
   const structured = reviewStructuredData(data, 'https://zolsolutions.nl/product/')

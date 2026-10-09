@@ -3491,12 +3491,45 @@ a.media-chip:focus-visible {
   display: none;
 }
 
+.product-reviews:not(.is-empty) [data-review-google],
+.product-reviews.is-empty .product-review-distribution,
+.product-reviews.is-empty .product-review-feed-header span {
+  display: none;
+}
+
+.product-review-google {
+  display: grid;
+  gap: 4px;
+  color: var(--blue-deep);
+  text-decoration: none;
+}
+
+.product-review-google strong {
+  font: 700 64px/.9 var(--heading);
+}
+
+.product-review-google span {
+  color: var(--orange);
+  letter-spacing: .08em;
+}
+
+.product-review-google small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.product-review-list--google {
+  margin-bottom: 18px;
+}
+
+.product-review-list--google .product-review-item-meta > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .product-reviews.is-empty .product-review-count {
-  margin-top: 0;
-  font-family: var(--heading);
-  font-size: 30px;
-  font-weight: 700;
-  text-transform: uppercase;
+  display: none;
 }
 
 .product-review-list {
