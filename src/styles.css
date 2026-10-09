@@ -2225,31 +2225,24 @@ a.media-chip:focus-visible {
 
 .footer-payment-badges {
   display: flex;
+  margin: 0;
+  padding: 0;
   flex-wrap: wrap;
   gap: 8px;
+  list-style: none;
 }
 
 .footer-payment-badge {
-  display: grid;
-  min-width: 62px;
-  min-height: 32px;
-  padding: 7px 10px;
-  place-items: center;
-  border: 1px solid rgb(255 255 255 / 16%);
-  border-radius: 7px;
-  background: #fff;
-  color: #17212b;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 800;
-  line-height: 1;
+  display: block;
+  line-height: 0;
 }
 
 .footer-payment-badge img {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  width: 48px;
+  height: 36px;
+  border-radius: 6px;
+  background: #fff;
 }
 
 .footer-legal {
@@ -5611,12 +5604,17 @@ blockquote {
   }
 
   .footer-payment-badges {
+    display: grid;
     width: 100%;
+    max-width: 360px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
   }
 
-  .footer-payment-badge {
-    min-width: 0;
-    flex: 1;
+  .footer-payment-badge img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
   }
 
   .footer-legal {
