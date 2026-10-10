@@ -175,6 +175,8 @@ function seoPlugin() {
         if (!noIndex) optimizedHtml = optimizedHtml
           .replace(/\s*<link\b[^>]*href=["']https:\/\/fonts\.googleapis\.com[^>]*>\s*/gi, '\n')
           .replace(/\s*<link\b[^>]*href=["']https:\/\/fonts\.gstatic\.com[^>]*>\s*/gi, '\n')
+        // Cloudflare Email Obfuscation rewrites mailto links to /cdn-cgi/l/email-protection, which crawlers report as a broken 404.
+        optimizedHtml = optimizedHtml.replace(/(<body\b[^>]*>)/i, '$1<!--email_off-->').replace(/<\/body>/i, '<!--/email_off--></body>')
         return optimizedHtml.replace(/<\/head>/i, `  ${additions.join('\n    ')}\n  </head>`)
       },
     },

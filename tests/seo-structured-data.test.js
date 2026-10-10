@@ -74,7 +74,7 @@ test('social titles escape ampersands exactly once', async () => {
   const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
   const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
 
-  assert.match(transformed, /<meta name="twitter:title" content="Hielpijn bij kinderen &amp; Ziekte van Sever \| Inlegzolen van ZOL Solutions">/)
+  assert.match(transformed, /<meta name="twitter:title" content="Hielpijn bij kinderen &amp; Ziekte van Sever \| ZOL Inlegzolen">/)
   assert.doesNotMatch(transformed, /&amp;amp;/)
 })
 
