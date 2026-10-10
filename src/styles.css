@@ -6259,3 +6259,28 @@ blockquote {
   .about-letter-image { position:static; }
   .about-letter-copy { max-width:none; }
 }
+
+/* Homepage hero headline: calmer — smaller and lighter than the section headings. */
+.hero h1,
+.hero h1 em {
+  font-weight: 600;
+}
+
+.hero h1 {
+  max-width: 560px;
+  font-size: clamp(3.4rem, 5.6vw, 5.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+
+@media (max-width: 980px) {
+  .hero h1 {
+    font-size: clamp(3.2rem, 8.5vw, 4.8rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .hero h1 {
+    font-size: clamp(2.6rem, 12vw, 3.6rem);
+  }
+}
