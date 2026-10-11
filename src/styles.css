@@ -6565,3 +6565,124 @@ blockquote {
     white-space: nowrap;
   }
 }
+
+/* Navigatie: strakke balk over de volle breedte in plaats van een zwevende pil */
+.site-header {
+  top: 0;
+}
+
+.site-header .nav-shell {
+  width: 100%;
+  min-height: 68px;
+  padding: 0 max(24px, calc((100% - 1180px) / 2));
+  gap: 28px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--paper);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.site-header .nav-links {
+  align-self: stretch;
+  justify-content: flex-start;
+  gap: clamp(18px, 2.2vw, 32px);
+}
+
+.site-header .nav-links a {
+  display: flex;
+  align-items: center;
+  color: var(--blue-deep);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.site-header .nav-links a::after {
+  bottom: -1px;
+  height: 2px;
+  background: var(--orange);
+  transition: none;
+}
+
+.site-header .nav-links a:hover {
+  color: var(--blue);
+}
+
+.site-header .cart-link {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.site-header .cart-link span {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 3px;
+}
+
+.site-header .nav-cta {
+  min-height: 42px;
+  padding: 9px 18px;
+  border-radius: 4px;
+  background: var(--orange);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.site-header .nav-cta:hover {
+  background: #a6431f;
+  box-shadow: none;
+  transform: none;
+}
+
+.site-header .language-switcher,
+.site-header .language-switcher button {
+  border-radius: 4px;
+}
+
+.site-header .menu-toggle {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+}
+
+.site-header .menu-toggle span {
+  background: var(--blue-deep);
+}
+
+@media (max-width: 980px) {
+  .site-header .nav-shell {
+    min-height: 60px;
+    padding: 0 20px;
+  }
+
+  .site-header .nav-links {
+    top: 100%;
+    justify-content: stretch;
+    padding: 8px 20px 16px;
+    gap: 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--paper);
+    box-shadow: 0 14px 24px rgb(16 43 74 / 8%);
+    transform: none;
+  }
+
+  .site-header .nav-links a {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    font-size: 17px;
+  }
+
+  .site-header .nav-links a:last-child {
+    border-bottom: 0;
+  }
+
+  .site-header .nav-links a:hover {
+    background: transparent;
+  }
+}
