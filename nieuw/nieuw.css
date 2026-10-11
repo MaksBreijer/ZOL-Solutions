@@ -443,12 +443,24 @@ h1, h2, h3 { font-weight: 500; }
 }
 
 /* Logo's: partners in ZOL-oranje, pers in eigen kleur */
-.logo-mask {
-  display: block; width: 100%; height: 48px;
-  background: var(--orange);
-  -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat;
-  transition: background .3s;
-}
-.logo-row a:hover .logo-mask { background: var(--orange-light); }
+.logo-row img.logo-partner { filter: none; opacity: 1; transition: opacity .3s; }
+.logo-row a:hover img.logo-partner { opacity: .75; }
 .logo-row img.logo-own { filter: none; opacity: 1; max-height: 44px; border-radius: 4px; }
 .logo-row img.logo-own[src*="hockey"] { border-radius: 50%; }
+
+/* Oplossing: productfoto compacter, naast de tekst in plaats van half scherm */
+.solution {
+  min-height: 0; margin: 0 12px; padding: clamp(40px, 6vw, 96px);
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(32px, 6vw, 112px); align-items: center;
+  border-radius: var(--radius);
+}
+.solution-image { min-height: 0; aspect-ratio: 4 / 5; max-height: 600px; width: 100%; }
+.solution-body { padding: 0; max-width: 640px; }
+@media (max-width: 1180px) {
+  .solution { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+}
+@media (max-width: 760px) {
+  .solution { margin: 0 8px; padding: 24px 16px 40px; grid-template-columns: 1fr; gap: 32px; }
+  .solution-image { aspect-ratio: 1 / 1; max-height: 340px; }
+  .solution-body { padding: 0; }
+}
