@@ -3,8 +3,12 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { JSDOM } from 'jsdom'
 import { installLanguageChoice, translateEnglish } from '../src/language-core.js'
+import { footerHtml, headerHtml } from '../src/chrome-markup.js'
 
+// Vult navigatie en footer in zoals de Vite-plugin dat bij het bouwen doet.
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+  .replace(/<!-- zol:header(?: over-hero)? -->/, headerHtml)
+  .replace('<!-- zol:footer -->', footerHtml)
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 
 test('language switching preserves form data, listeners, cart storage and payment return parameters', async () => {
@@ -17,7 +21,7 @@ test('language switching preserves form data, listeners, cart storage and paymen
   const before = [...new w.FormData(form)]
   w.localStorage.setItem('zol_cart_v1', '[{"variant_id":"v1","quantity":2,"price_cents":9995}]')
   let clicks = 0
-  const original = w.document.querySelector('.menu-toggle')
+  const original = w.document.querySelector('[data-menu-toggle]')
   original.addEventListener('click', () => clicks++)
   const language = installLanguageChoice(w)
   language.setLanguage('en')

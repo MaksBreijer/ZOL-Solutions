@@ -1,0 +1,115 @@
+/* Nieuwe huisstijl over de bestaande pagina's heen (laadt na styles.css).
+   Barlow Condensed koppen zonder cursief, oranje accenten, inktblauw, kleine afrondingen. */
+:root {
+  --blue: #33669b;
+  --blue-deep: #0c1824;
+  --blue-black: #0c1824;
+  --blue-pale: #e8eff5;
+  --orange: #c4532f;
+  --orange-light: #e27a52;
+  --paper: #f6f6f4;
+  --off-white: #eeece8;
+  --ink: #0c1824;
+  --muted: #6a727b;
+  --line: rgb(12 24 36 / 14%);
+  --serif: "Barlow Condensed", "Arial Narrow", sans-serif;
+}
+
+body { background: var(--paper); font-size: 17px; }
+body::before { display: none; }
+
+/* Typografie: geen cursief, geen serif-accenten, rustiger gewicht */
+em, i, cite { font-style: normal !important; }
+h1 em, h2 em, h3 em, .page-cta em, p em, strong em {
+  font-family: var(--heading) !important;
+  font-weight: inherit !important;
+  text-transform: inherit !important;
+  letter-spacing: inherit !important;
+  color: var(--orange);
+}
+h1, h2 { font-weight: 500 !important; letter-spacing: 0 !important; }
+h3 { letter-spacing: 0; }
+.knowledge-hero h1 em, .section-index--light + h2 em,
+[class*="hero"] h1 em { display: inline; color: var(--orange-light); }
+
+.section-index, .eyebrow {
+  color: var(--orange) !important;
+  font: 600 12px/1.4 var(--body) !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase;
+}
+.section-index--light, .knowledge-hero .section-index { color: var(--orange-light) !important; }
+.section-index::before, .eyebrow::before { display: none !important; }
+
+/* Knoppen */
+.button, .button--primary, .button--light, .button--outline, .button--wide {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  font: 600 13px/1 var(--body) !important;
+  letter-spacing: .12em !important;
+  text-transform: uppercase;
+  transform: none !important;
+}
+.button--primary { background: var(--orange) !important; color: #fff !important; border-color: var(--orange) !important; }
+.button--primary:hover { background: var(--orange-light) !important; }
+.button--light { background: #fff !important; color: var(--ink) !important; }
+.button--outline { background: transparent !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
+.text-link { color: var(--ink); border-bottom-color: var(--orange) !important; }
+.text-link:hover { color: var(--orange); }
+
+/* Mededelingsbalk onder de navigatie */
+.announcement { background: var(--ink) !important; border-top: 1px solid rgb(255 255 255 / 10%); }
+.announcement a { color: rgb(255 255 255 / 80%) !important; font: 600 12px/1.4 var(--body); letter-spacing: .1em; text-transform: uppercase; }
+.announcement span { color: var(--orange-light) !important; }
+
+/* Donkere hero's: vlak inktblauw in plaats van verloop */
+.knowledge-hero, .price-comparison, .page-cta {
+  background: var(--ink) !important;
+}
+
+/* Kaarten en vlakken: kleine afronding, geen zware schaduwen */
+.knowledge-card, .knowledge-index-card, .recognition-card, .comparison-card, .contact-path, .bundle-option,
+.product-review-item, .product-review-summary, .product-review-form, .size-advice, .booking-card,
+.contact-form, .stock-alert-form, .faq-list details, .about-letter, .about-letter-image, .contact-human-image,
+.product-gallery-main, .product-gallery-secondary, .product-gallery img, .article-figure img, .campaign-product-image,
+.heel-pain-hero-media, .hero-media, .partner-track a, .size-selector label, .size-selector button, .story-image, .buy-image {
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+.knowledge-card:hover, .knowledge-index-card:hover { transform: none !important; border-color: var(--orange) !important; }
+.comparison-card--zol { background: var(--blue) !important; }
+.comparison-card li::before { color: #fff !important; }
+.comparison-card li.is-tradeoff::before { color: var(--orange-light) !important; }
+
+/* Formulieren */
+input, select, textarea { border-radius: 4px !important; }
+input:focus, select:focus, textarea:focus { border-color: var(--orange) !important; outline: none; box-shadow: 0 0 0 3px rgb(196 83 47 / 15%) !important; }
+
+/* Kennisbank-artikelen */
+.article-content h2 { font-family: var(--heading); font-weight: 500 !important; text-transform: uppercase; }
+.article-content a { color: var(--orange); }
+.knowledge-breadcrumb a, .breadcrumb a { color: rgb(255 255 255 / 70%); }
+
+/* Contact: decoratieve bol rustiger */
+.orbit-core { background: var(--blue) !important; box-shadow: none !important; }
+.orbit-satellite { border-radius: 4px !important; box-shadow: none !important; }
+
+/* Mobiele bestelbalk */
+.mobile-order-bar { border-radius: 4px !important; background: var(--orange) !important; box-shadow: 0 12px 30px rgb(12 24 36 / 25%) !important; }
+.mobile-order-bar strong { color: #fff !important; }
+
+/* Pillen en rondjes worden strakke vlakken */
+.size-selector label span, .product-review-more, .orbit-label, .media-chip, .language-switcher, .language-switcher button,
+.bundle-badge, .contact-path, .product-review-write-link { border-radius: 4px !important; }
+.size-selector label input:checked + span { background: var(--orange) !important; border-color: var(--orange) !important; color: #fff !important; }
+.bundle-option.is-selected, .bundle-option:has(input:checked) { border-color: var(--orange) !important; }
+
+/* Rustiger lettergroottes: koppen niet te groot */
+h1 { font-size: clamp(38px, 4.6vw, 68px) !important; line-height: .95 !important; }
+.knowledge-hero h1 { max-width: 900px; }
+.section h2, [class*="heading"] h2, [class*="intro"] h2, [class*="hero"] h2, .page-cta h2, .partners h2, .about-letter h2,
+.price-comparison h2, .professionals h2, .contact-form-section h2, .product-story-heading h2 {
+  font-size: clamp(30px, 3.2vw, 48px) !important; line-height: .98 !important;
+}
+.article-content h2 { font-size: clamp(24px, 2.2vw, 32px) !important; }
+.product-price, .comparison-card > strong { font-size: clamp(36px, 3.6vw, 52px) !important; }

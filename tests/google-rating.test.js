@@ -3,9 +3,10 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { applyGoogleRating } from '../src/google-rating.js'
 import { translateEnglish } from '../src/language-core.js'
+import { footerHtml, headerHtml } from '../src/chrome-markup.js'
 
 test('the live Google rating replaces every score and count on the product page', async () => {
-  const html = await readFile(new URL('../product/index.html', import.meta.url), 'utf8')
+  const html = (await readFile(new URL('../product/index.html', import.meta.url), 'utf8')).replace('<!-- zol:header -->', headerHtml).replace('<!-- zol:footer -->', footerHtml)
   const updated = applyGoogleRating(html, { rating: 4.8, count: 15 })
   assert.doesNotMatch(updated, /\b4,9\b|\b12 (?:Google-)?reviews/)
   assert.match(updated, /4,8 op Google/)

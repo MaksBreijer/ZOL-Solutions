@@ -1,4 +1,6 @@
 import './styles.css'
+import './theme.css'
+import './chrome.js'
 import { trackEvent } from './site-runtime.js'
 import { Activity, Footprints, MapPin, Ruler, Star, Volume2, VolumeX, createIcons } from 'lucide'
 import { invokePublicFunction } from './public-api.js'
@@ -37,37 +39,6 @@ if (storyVideo && storySound) {
       void storyVideo.play().catch(() => {})
       trackEvent('cta_click', { cta: 'story_video_sound_on' })
     }
-  })
-}
-
-const menuButton = document.querySelector('.menu-toggle')
-const navigation = document.querySelector('.nav-links')
-
-function closeMenu() {
-  if (!menuButton || !navigation) return
-
-  menuButton.setAttribute('aria-expanded', 'false')
-  menuButton.setAttribute('aria-label', 'Menu openen')
-  navigation.classList.remove('is-open')
-}
-
-if (menuButton && navigation) {
-  menuButton.addEventListener('click', () => {
-    const isOpen = menuButton.getAttribute('aria-expanded') === 'true'
-
-    menuButton.setAttribute('aria-expanded', String(!isOpen))
-    menuButton.setAttribute('aria-label', isOpen ? 'Menu openen' : 'Menu sluiten')
-    navigation.classList.toggle('is-open', !isOpen)
-  })
-
-  navigation.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu))
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeMenu()
-  })
-
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('.nav-shell')) closeMenu()
   })
 }
 

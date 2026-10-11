@@ -1,33 +1,16 @@
+import './chrome.js'
+import './home.css'
+import './site-runtime.js'
+
 document.documentElement.classList.add('js')
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// Navigatie: donker na scrollen, verbergen bij omlaag scrollen, mobiel menu
-const nav = document.querySelector('[data-nav]')
-const toggle = document.querySelector('.nav-toggle')
-const links = document.getElementById('nav-links')
+// Mobiele bestelbalk verschijnt na de hero
 const mobileBar = document.querySelector('.mobile-bar')
-let lastY = 0
-
-function setMenu(open) {
-  toggle.setAttribute('aria-expanded', String(open))
-  toggle.setAttribute('aria-label', open ? 'Menu sluiten' : 'Menu openen')
-  links.classList.toggle('is-open', open)
-  document.body.style.overflow = open ? 'hidden' : ''
-}
-toggle.addEventListener('click', () => setMenu(toggle.getAttribute('aria-expanded') !== 'true'))
-links.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => setMenu(false)))
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setMenu(false) })
-
-function onScroll() {
-  const y = window.scrollY
-  nav.classList.toggle('is-scrolled', y > 40)
-  nav.classList.toggle('is-hidden', y > lastY && y > window.innerHeight && !links.classList.contains('is-open'))
-  mobileBar.classList.toggle('is-visible', y > window.innerHeight * 0.8)
-  lastY = y
-}
-window.addEventListener('scroll', onScroll, { passive: true })
-onScroll()
+const syncMobileBar = () => mobileBar.classList.toggle('is-visible', window.scrollY > window.innerHeight * 0.8)
+window.addEventListener('scroll', syncMobileBar, { passive: true })
+syncMobileBar()
 
 // Tekst en beeld komen rustig in beeld
 const revealItems = document.querySelectorAll('.reveal, .media-reveal')

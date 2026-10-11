@@ -241,9 +241,3 @@ document.addEventListener('click', (event) => {
   })
 })
 
-const siteHeader = document.querySelector('.site-header')
-if (siteHeader) {
-  const syncHeader = () => siteHeader.classList.toggle('is-scrolled', window.scrollY > 24)
-  syncHeader()
-  window.addEventListener('scroll', syncHeader, { passive: true })
-}

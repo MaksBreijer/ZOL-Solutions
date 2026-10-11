@@ -1,5 +1,6 @@
 import { relative, resolve } from 'node:path'
 import { defineConfig } from 'vite'
+import { chromePlugin } from './src/chrome-markup.js'
 
 const siteOrigin = 'https://zolsolutions.nl'
 const imageDimensions = new Map([
@@ -184,7 +185,7 @@ function seoPlugin() {
 }
 
 export default defineConfig({
-  plugins: [seoPlugin()],
+  plugins: [chromePlugin(), seoPlugin()],
   build: {
     target: 'safari13',
     rollupOptions: {
