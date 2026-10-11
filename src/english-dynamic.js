@@ -16,6 +16,8 @@ export const englishDynamic = {
   'Cookiekeuze': 'Cookie choice',
   'Alleen noodzakelijk': 'Necessary only',
   'Alles accepteren': 'Accept all',
+  'Toon alle reviews': 'Show all reviews',
+  'Toon minder reviews': 'Show fewer reviews',
   'Huidige keuze: noodzakelijke opslag en analytics.': 'Current choice: necessary storage and analytics.',
   'Huidige keuze: alleen noodzakelijke opslag.': 'Current choice: necessary storage only.',
   'Bericht versturen…': 'Sending message…',
@@ -134,6 +136,7 @@ export const englishDynamic = {
 }
 
 export const englishPatterns = [
+  [/^Toon alle (\d+) reviews$/, (_, count) => `Show all ${count} reviews`],
   [/^\+ (\d+) reviews? op deze website$/, (_, count) => `+ ${count} ${count === '1' ? 'review' : 'reviews'} on this website`],
   [/^([\d,]+) van 5 sterren$/, (_, score) => `${score.replace(',', '.')} out of 5 stars`],
   [/^Niet genoeg voorraad voor (.+)\.$/, (_, product) => `Not enough stock for ${product.replace('inlegzolen', 'insoles')}.`],

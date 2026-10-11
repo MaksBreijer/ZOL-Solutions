@@ -20,11 +20,37 @@ function publishStructuredData(data) {
   document.head.append(script)
 }
 
+const VISIBLE_REVIEWS = 3
+
+// Show the first few reviews (own site first, then Google) and fold the rest behind a button.
+function collapseReviews() {
+  const button = root.querySelector('[data-review-more]')
+  if (!button) return
+  const items = [...root.querySelectorAll('.product-review-feed .product-review-item')]
+  const expanded = button.getAttribute('aria-expanded') === 'true'
+  items.forEach((item, index) => { item.hidden = !expanded && index >= VISIBLE_REVIEWS })
+  button.hidden = items.length <= VISIBLE_REVIEWS
+  button.textContent = expanded ? 'Toon minder reviews' : `Toon alle ${items.length} reviews`
+}
+
+function initializeCollapse() {
+  const button = root.querySelector('[data-review-more]')
+  if (!button) return
+  button.addEventListener('click', () => {
+    const expanded = button.getAttribute('aria-expanded') !== 'true'
+    button.setAttribute('aria-expanded', String(expanded))
+    collapseReviews()
+    if (!expanded) root.querySelector('.product-review-feed')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+  })
+  collapseReviews()
+}
+
 async function loadReviews() {
   const { data, error } = await rpcPublic('get_product_reviews', { p_product_slug: PRODUCT_SLUG, p_limit: 50 })
   if (error) return
   renderReviews(root, data, document.documentElement.lang)
   publishStructuredData(data)
+  collapseReviews()
 }
 
 function initializeForm() {
@@ -92,5 +118,6 @@ function initializeForm() {
 
 if (root) {
   initializeForm()
+  initializeCollapse()
   void loadReviews()
 }

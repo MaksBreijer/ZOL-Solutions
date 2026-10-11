@@ -3484,6 +3484,7 @@ a.media-chip:focus-visible {
 }
 
 .product-reviews.has-few-reviews .product-review-distribution,
+.product-reviews.is-empty .product-review-distribution,
 .product-reviews.is-empty .product-review-feed-header span {
   display: none;
 }
@@ -3500,8 +3501,35 @@ a.media-chip:focus-visible {
 }
 
 .product-review-google span {
+  margin-top: 10px;
   color: var(--orange);
-  letter-spacing: .08em;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: .04em;
+}
+
+.product-review-more {
+  display: inline-flex;
+  margin-top: 26px;
+  padding: 13px 22px;
+  border: 1px solid var(--blue-deep);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--blue-deep);
+  cursor: pointer;
+  font: 700 14px/1 var(--body, inherit);
+}
+
+.product-review-more:hover,
+.product-review-more:focus-visible {
+  background: var(--blue-deep);
+  color: #fff;
+  outline: none;
+}
+
+.product-review-more[hidden],
+.product-review-item[hidden] {
+  display: none;
 }
 
 .product-review-google small {
