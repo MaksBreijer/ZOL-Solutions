@@ -3040,13 +3040,12 @@ a.media-chip:focus-visible {
 
 .product-payment-method {
   display: grid;
-  width: 64px;
-  height: 38px;
-  padding: 5px 7px;
+  width: 48px;
+  height: 36px;
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 6px;
   background: #fff;
   color: var(--blue-deep);
   font-size: 10px;
@@ -3056,9 +3055,8 @@ a.media-chip:focus-visible {
 
 .product-payment-method img {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  width: 48px;
+  height: 36px;
 }
 
 .product-story-heading,

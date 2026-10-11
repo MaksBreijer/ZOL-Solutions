@@ -41,12 +41,16 @@ async function initializeProductCommerce() {
       paymentSupport.hidden = true
       return
     }
-    list.replaceChildren(...methods.map((method) => {
+    // Own card-shaped logos (as in the footer); Mollie's icons get cropped in these badges.
+    const localLogos = { ideal: ['ideal'], applepay: ['applepay'], googlepay: ['googlepay'], creditcard: ['visa', 'mastercard', 'amex'], bancontact: ['bancontact'] }
+    const cardNames = { visa: 'Visa', mastercard: 'Mastercard', amex: 'American Express' }
+    const badges = methods.flatMap((method) => (localLogos[method.id] || [null]).map((logo) => ({ ...method, logo, description: cardNames[logo] || method.description })))
+    list.replaceChildren(...badges.map((method) => {
       const badge = document.createElement('i')
-      badge.className = `product-payment-method product-payment-method--${method.id}`
+      badge.className = `product-payment-method product-payment-method--${method.logo || method.id}`
       badge.title = method.description || method.id
-      const source = String(method.image || '')
-      if (source.startsWith('https://')) {
+      const source = method.logo ? `/images/payment/${method.logo}.svg` : String(method.image || '')
+      if (source.startsWith('https://') || source.startsWith('/images/')) {
         const image = document.createElement('img')
         image.src = source
         image.alt = method.description || method.id
