@@ -395,18 +395,7 @@ h1, h2, h3 { font-weight: 500; }
   .solution-body { padding: 0; }
 }
 
-/* ---------- Wonder Vision-invloed ---------- */
-.statement { padding-top: clamp(72px, 10vw, 160px); padding-bottom: clamp(24px, 4vw, 56px); }
-.statement-line {
-  font: 500 clamp(48px, 8vw, 128px)/.9 var(--display); text-transform: uppercase; letter-spacing: -.01em;
-  color: var(--ink);
-}
-.statement-line--right { text-align: right; }
-.statement-line em { color: var(--orange); }
-.statement-block {
-  display: inline-block; width: .62em; height: .62em; margin-left: .12em;
-  background: var(--orange); vertical-align: baseline;
-}
+/* ---------- Wonder Vision-invloed: beeldkaarten met wit tekstvak ---------- */
 
 /* Stappen: beeld met wit tekstvak linksonder */
 .step::after { background: linear-gradient(180deg, transparent 55%, rgb(12 24 36 / 25%)); }
@@ -418,10 +407,6 @@ h1, h2, h3 { font-weight: 500; }
 .step h3 { max-width: none; font-size: clamp(20px, 1.6vw, 24px); }
 .step p { color: var(--muted); font-size: 14px; line-height: 1.45; }
 
-@media (max-width: 760px) {
-  .statement-line { font-size: clamp(44px, 14vw, 72px); }
-}
-
 /* ZOL-blauw als tweede merkkleur */
 .compare { background: var(--blue); }
 .compare h2 em, .compare-col--zol header strong { color: #fff; }
@@ -432,5 +417,3 @@ h1, h2, h3 { font-weight: 500; }
 .compare .label--light { color: #fff; }
 a.fact strong { color: var(--orange); }
 .signs li { border-top-color: var(--blue); }
-.statement-line em { color: var(--blue); }
-.statement-block { background: var(--orange); }
