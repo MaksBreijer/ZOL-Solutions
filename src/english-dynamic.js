@@ -134,7 +134,7 @@ export const englishDynamic = {
 }
 
 export const englishPatterns = [
-  [/^Gebaseerd op (\d+) reviews?$/, (_, count) => `Based on ${count} ${count === '1' ? 'review' : 'reviews'}`],
+  [/^\+ (\d+) reviews? op deze website$/, (_, count) => `+ ${count} ${count === '1' ? 'review' : 'reviews'} on this website`],
   [/^([\d,]+) van 5 sterren$/, (_, score) => `${score.replace(',', '.')} out of 5 stars`],
   [/^Niet genoeg voorraad voor (.+)\.$/, (_, product) => `Not enough stock for ${product.replace('inlegzolen', 'insoles')}.`],
   [/^Besteed minimaal €(.+) om deze kortingscode te gebruiken\.$/, (_, amount) => `Spend at least €${amount} to use this discount code.`],

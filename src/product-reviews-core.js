@@ -19,7 +19,7 @@ export function formatAverage(average) {
 
 export function reviewCountLabel(count) {
   if (!count) return 'Nog geen reviews'
-  return `Gebaseerd op ${count} ${count === 1 ? 'review' : 'reviews'}`
+  return `+ ${count} ${count === 1 ? 'review' : 'reviews'} op deze website`
 }
 
 function starsElement(doc, rating) {
@@ -97,6 +97,7 @@ export function renderReviews(root, rawData, language = 'nl') {
   }
   if (empty) empty.hidden = data.count > 0
   root.classList.toggle('is-empty', data.count === 0)
+  root.classList.toggle('has-few-reviews', data.count < 3)
   return data
 }
 

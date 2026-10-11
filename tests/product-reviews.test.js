@@ -104,7 +104,7 @@ test('product page renders approved reviews, the score breakdown and review stru
   }
   renderReviews(root, data)
   assert.equal(root.querySelector('[data-review-average]').textContent, '4,5')
-  assert.equal(root.querySelector('[data-review-count]').textContent, 'Gebaseerd op 2 reviews')
+  assert.equal(root.querySelector('[data-review-count]').textContent, '+ 2 reviews op deze website')
   assert.equal(root.querySelector('[data-stars="5"] b').style.width, '50%')
   assert.equal(root.querySelector('[data-stars="3"] strong').textContent, '0')
   assert.equal(root.querySelectorAll('[data-review-list] .product-review-item').length, 2)

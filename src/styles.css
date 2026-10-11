@@ -3477,13 +3477,13 @@ a.media-chip:focus-visible {
   white-space: nowrap;
 }
 
-.product-reviews.is-empty .product-review-score,
-.product-reviews.is-empty .product-review-stars--large {
+/* The Google score is the headline; the site's own reviews are counted underneath it. */
+.product-reviews .product-review-score,
+.product-reviews .product-review-stars--large {
   display: none;
 }
 
-.product-reviews:not(.is-empty) [data-review-google],
-.product-reviews.is-empty .product-review-distribution,
+.product-reviews.has-few-reviews .product-review-distribution,
 .product-reviews.is-empty .product-review-feed-header span {
   display: none;
 }
@@ -3522,6 +3522,7 @@ a.media-chip:focus-visible {
 .product-reviews.is-empty .product-review-count {
   display: none;
 }
+
 
 .product-review-list {
   margin: 0;
