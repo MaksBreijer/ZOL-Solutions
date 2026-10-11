@@ -136,6 +136,14 @@ export const englishDynamic = {
 }
 
 export const englishPatterns = [
+  // Google score and review count change with every new review, so these are patterns rather than fixed texts.
+  [/^(\d,\d)\/5 uit (\d+) Google-reviews ↗$/, (_, score, count) => `${score.replace(',', '.')}/5 from ${count} Google reviews ↗`],
+  [/^★★★★★ (\d,\d) uit (\d+) Google-reviews( ↗)?$/, (_, score, count, arrow) => `★★★★★ ${score.replace(',', '.')} from ${count} Google reviews${arrow || ''}`],
+  [/^(\d,\d) op basis van (\d+) Google-reviews ↗$/, (_, score, count) => `${score.replace(',', '.')} based on ${count} Google reviews ↗`],
+  [/^(\d,\d) · (\d+) Google-reviews ↗$/, (_, score, count) => `${score.replace(',', '.')} · ${count} Google reviews ↗`],
+  [/^(\d,\d) op Google$/, (_, score) => `${score.replace(',', '.')} on Google`],
+  [/^(\d+) Google-reviews ↗$/, (_, count) => `${count} Google reviews ↗`],
+  [/^Bekijk (de|alle) (\d+) Google-reviews van ZOL Solutions$/, (_, which, count) => `Read ${which === 'alle' ? 'all' : 'the'} ${count} Google reviews of ZOL Solutions`],
   [/^Toon alle (\d+) reviews$/, (_, count) => `Show all ${count} reviews`],
   [/^\+ (\d+) reviews? op deze website$/, (_, count) => `+ ${count} ${count === '1' ? 'review' : 'reviews'} on this website`],
   [/^([\d,]+) van 5 sterren$/, (_, score) => `${score.replace(',', '.')} out of 5 stars`],
