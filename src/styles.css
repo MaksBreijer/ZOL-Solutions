@@ -6449,3 +6449,119 @@ blockquote {
 @media (max-width: 640px) {
   .gallery-viewer-nav { display: none; }
 }
+
+/* Homepage stats: four cards; the Google score stands out. */
+.signal-strip {
+  gap: 14px;
+  padding: 0;
+  border: 0;
+}
+
+.signal-strip .signal-item {
+  position: relative;
+  min-height: 0;
+  padding: 26px 24px 24px;
+  align-content: start;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 40px rgb(16 43 74 / 6%);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.signal-strip .signal-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 50px rgb(16 43 74 / 11%);
+}
+
+.signal-strip .signal-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--blue-pale);
+  color: var(--blue);
+}
+
+.signal-strip .signal-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.signal-strip .signal-item strong {
+  color: var(--blue-deep);
+  font-size: clamp(38px, 4vw, 48px);
+}
+
+.signal-strip .signal-item span {
+  margin-top: 6px;
+  color: var(--blue-deep);
+  font-size: 13px;
+}
+
+.signal-strip .signal-item small {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.signal-strip .signal-item--reviews {
+  border-color: var(--blue-deep);
+  background: var(--blue-deep);
+}
+
+.signal-strip .signal-item--reviews:hover {
+  background: var(--blue-deep);
+}
+
+.signal-strip .signal-item--reviews .signal-icon {
+  background: rgb(255 255 255 / 12%);
+  color: var(--orange-light);
+}
+
+.signal-strip .signal-item--reviews strong,
+.signal-strip .signal-item--reviews span {
+  color: #fff;
+}
+
+.signal-strip .signal-item--reviews .signal-stars {
+  margin-top: 2px;
+  color: var(--orange-light);
+  font-size: 20px;
+  letter-spacing: .06em;
+}
+
+@media (max-width: 760px) {
+  .signal-strip {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .signal-strip .signal-item {
+    padding: 20px 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+  }
+
+  .signal-strip .signal-item--reviews {
+    border-color: var(--blue-deep);
+  }
+
+  .signal-strip .signal-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 10px;
+  }
+
+  .signal-strip .signal-item small {
+    font-size: 13px;
+  }
+
+  .signal-strip .signal-item--reviews span:last-child {
+    letter-spacing: .03em;
+    white-space: nowrap;
+  }
+}

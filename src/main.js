@@ -1,6 +1,6 @@
 import './styles.css'
 import { trackEvent } from './site-runtime.js'
-import { Activity, Footprints, Ruler, createIcons } from 'lucide'
+import { Activity, Footprints, MapPin, Ruler, Star, createIcons } from 'lucide'
 import { invokePublicFunction } from './public-api.js'
 
 if (document.querySelector('.product-purchase')) void import('./product-commerce.js')
@@ -8,7 +8,7 @@ if (document.querySelector('.product-gallery')) void import('./product-gallery.j
 if (document.querySelector('[data-product-reviews]')) void import('./product-reviews.js')
 
 document.documentElement.classList.add('js')
-createIcons({ icons: { Activity, Footprints, Ruler } })
+createIcons({ icons: { Activity, Footprints, MapPin, Ruler, Star } })
 
 const menuButton = document.querySelector('.menu-toggle')
 const navigation = document.querySelector('.nav-links')
