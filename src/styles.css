@@ -3388,6 +3388,11 @@ a.media-chip:focus-visible {
   color: var(--orange);
 }
 
+/* Google reviews are static 5-star reviews; inline width styles are blocked by the CSP. */
+.product-review-list--google .product-review-stars-fill {
+  width: 100%;
+}
+
 .section .product-review-stars--large {
   margin-top: 22px;
   font-size: 30px;
