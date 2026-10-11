@@ -240,3 +240,10 @@ document.addEventListener('click', (event) => {
     destination: target instanceof HTMLAnchorElement ? target.href.slice(0, 300) : '',
   })
 })
+
+const siteHeader = document.querySelector('.site-header')
+if (siteHeader) {
+  const syncHeader = () => siteHeader.classList.toggle('is-scrolled', window.scrollY > 24)
+  syncHeader()
+  window.addEventListener('scroll', syncHeader, { passive: true })
+}
