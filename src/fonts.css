@@ -9,3 +9,7 @@
 @font-face{font-family:"Barlow Semi Condensed";font-style:normal;font-weight:700;font-display:swap;src:url("/fonts/barlow-semi-condensed-700.woff2") format("woff2")}
 @font-face{font-family:"DM Serif Display";font-style:italic;font-weight:400;font-display:swap;src:url("/fonts/dm-serif-display-italic.woff2") format("woff2")}
 @font-face{font-family:"DM Serif Display";font-style:normal;font-weight:400;font-display:swap;src:url("/fonts/dm-serif-display-regular.woff2") format("woff2")}
+
+/* Grote koppen en grote cijfers: overal dezelfde rustige dikte als de homepage-hero. */
+h1, h1 em, h2, h2 em,
+.product-review-score strong, .product-review-google strong, .campaign-price, .product-price, .step-symbol[data-cms-icon="true"] { font-weight: 600 !important; }
