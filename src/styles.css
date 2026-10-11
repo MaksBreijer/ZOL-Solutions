@@ -3393,6 +3393,10 @@ a.media-chip:focus-visible {
   width: 100%;
 }
 
+.product-review-list--google .product-review-stars--4 .product-review-stars-fill {
+  width: 80%;
+}
+
 .section .product-review-stars--large {
   margin-top: 22px;
   font-size: 30px;
