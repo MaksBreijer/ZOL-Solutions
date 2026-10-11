@@ -1,6 +1,6 @@
 import './styles.css'
 import { trackEvent } from './site-runtime.js'
-import { Activity, Footprints, MapPin, Ruler, Star, createIcons } from 'lucide'
+import { Activity, Footprints, MapPin, Ruler, Star, Volume2, VolumeX, createIcons } from 'lucide'
 import { invokePublicFunction } from './public-api.js'
 
 if (document.querySelector('.product-purchase')) void import('./product-commerce.js')
@@ -8,7 +8,37 @@ if (document.querySelector('.product-gallery')) void import('./product-gallery.j
 if (document.querySelector('[data-product-reviews]')) void import('./product-reviews.js')
 
 document.documentElement.classList.add('js')
-createIcons({ icons: { Activity, Footprints, MapPin, Ruler, Star } })
+createIcons({ icons: { Activity, Footprints, MapPin, Ruler, Star, Volume2, VolumeX } })
+
+const storyVideo = document.querySelector('.story-video')
+const storySound = document.querySelector('.story-sound')
+
+if (storyVideo && storySound) {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          if (!reduceMotion || !storyVideo.muted) void storyVideo.play().catch(() => {})
+        } else {
+          storyVideo.pause()
+        }
+      },
+      { threshold: 0.35 },
+    ).observe(storyVideo)
+  }
+
+  storySound.addEventListener('click', () => {
+    storyVideo.muted = !storyVideo.muted
+    storySound.setAttribute('aria-pressed', String(!storyVideo.muted))
+    storySound.setAttribute('aria-label', storyVideo.muted ? 'Geluid aanzetten' : 'Geluid uitzetten')
+    if (!storyVideo.muted) {
+      void storyVideo.play().catch(() => {})
+      trackEvent('cta_click', { cta: 'story_video_sound_on' })
+    }
+  })
+}
 
 const menuButton = document.querySelector('.menu-toggle')
 const navigation = document.querySelector('.nav-links')

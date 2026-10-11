@@ -133,11 +133,22 @@
       </section>
 
       <section class="story" id="ons-verhaal" aria-labelledby="story-title">
-        <figure class="story-image reveal">
-          <picture>
-            <source srcset="/media/story-team.avif" type="image/avif" />
-            <img src="/media/story-team.jpg" alt="Thijn Koelemij en Maks Breijer, oprichters van ZOL Solutions" loading="lazy" />
-          </picture>
+        <figure class="story-image story-image--video reveal">
+          <video
+            class="story-video"
+            muted
+            loop
+            playsinline
+            preload="none"
+            poster="/media/story-video-poster.jpg"
+            aria-label="Video: maak kennis met Thijn Koelemij en Maks Breijer, oprichters van ZOL Solutions"
+          >
+            <source src="/media/story-video.mp4" type="video/mp4" />
+          </video>
+          <button class="story-sound" type="button" aria-pressed="false" aria-label="Geluid aanzetten">
+            <span class="story-sound-off" aria-hidden="true"><i data-lucide="volume-x"></i></span>
+            <span class="story-sound-on" aria-hidden="true"><i data-lucide="volume-2"></i></span>
+          </button>
           <figcaption><span>Thijn &amp; Maks</span><span>Amsterdam · 2026</span></figcaption>
         </figure>
 

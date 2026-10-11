@@ -6686,3 +6686,63 @@ blockquote {
     background: transparent;
   }
 }
+
+/* Kennismakingsvideo in "Ons verhaal" */
+.story-image--video .story-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+}
+
+.story-sound {
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  right: 20px;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 45%);
+  border-radius: 50%;
+  background: rgb(11 29 48 / 55%);
+  color: #fff;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.story-sound:hover {
+  background: rgb(11 29 48 / 80%);
+}
+
+.story-sound:focus-visible {
+  outline: 3px solid var(--orange-light);
+  outline-offset: 3px;
+}
+
+.story-sound span {
+  display: grid;
+  place-items: center;
+}
+
+.story-sound svg {
+  width: 20px;
+  height: 20px;
+}
+
+.story-sound[aria-pressed="false"] .story-sound-on,
+.story-sound[aria-pressed="true"] .story-sound-off {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .story-image.story-image--video {
+    min-height: 0;
+    max-height: none;
+    aspect-ratio: 4 / 5;
+  }
+}
