@@ -74,6 +74,21 @@ export function disableGoogleAnalytics() {
   deleteAnalyticsCookies()
 }
 
+// GA4 identifiers for server-side purchase tracking; only available after analytics consent.
+export function googleAnalyticsIds() {
+  if (!enabled) return null
+  try {
+    const cookies = Object.fromEntries(document.cookie.split('; ').map((entry) => [entry.split('=')[0], entry.slice(entry.indexOf('=') + 1)]))
+    const clientId = (cookies._ga || '').split('.').slice(2).join('.')
+    if (!/^\d+\.\d+$/.test(clientId)) return null
+    const sessionCookie = cookies[`_ga_${GOOGLE_ANALYTICS_MEASUREMENT_ID.slice(2)}`] || ''
+    const sessionId = sessionCookie.match(/^GS1\.\d+\.(\d+)/)?.[1] || sessionCookie.match(/^GS2\.\d+\.s(\d+)/)?.[1] || ''
+    return { client_id: clientId, session_id: sessionId }
+  } catch {
+    return null
+  }
+}
+
 function commerceItem(metadata = {}) {
   return {
     item_id: metadata.sku || metadata.variant_id || metadata.product_id || 'zol-inlegzolen',

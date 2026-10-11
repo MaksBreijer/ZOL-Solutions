@@ -80,6 +80,7 @@ test('the real checkout sends identical order data in Dutch and English (mocked 
     w.getPartnerAttributionCode = () => ''
     w.getSessionId = () => 'same-session'
     w.trackEvent = () => {}
+    w.googleAnalyticsIds = () => null
     w.supabase = {
       from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }) }),
       functions: { invoke: async (name, { body }) => {

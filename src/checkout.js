@@ -2,6 +2,7 @@ import './checkout.css'
 import { clearCart, getCart, updateCartItem } from './cart.js'
 import { formatMoney, supabase } from './supabase-client.js'
 import { getPartnerAttributionCode, getSessionId, trackEvent } from './site-runtime.js'
+import { googleAnalyticsIds } from './google-analytics.js'
 
 const cartElement = document.querySelector('#checkout-cart')
 const summaryElement = document.querySelector('#checkout-summary')
@@ -304,7 +305,8 @@ async function renderPaymentReturn() {
   const processing = ['open', 'pending'].includes(status)
   const retryable = ['failed', 'cancelled', 'expired'].includes(status)
   const purchasedCart = getCart()
-  if (successful) trackEvent('partner_order_paid', {
+  // The server reports the purchase itself when the Mollie webhook arrives first.
+  if (successful && data.track_purchase !== false) trackEvent('partner_order_paid', {
     partner_code: getPartnerAttributionCode(),
     order_number: data.order_number,
     total_cents: Number(data.total_cents) || 0,
@@ -431,7 +433,7 @@ form.addEventListener('submit', async (event) => {
     const paymentMethod = String(customer.payment_method || '')
     delete customer.payment_method
     trackEvent('checkout_submit', { payment_method: paymentMethod, country: customer.country })
-    const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discovery, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
+    const { data, error } = await supabase.functions.invoke('create-checkout', { body: { customer, discovery, payment_method: paymentMethod, discount_code: discountCode, session_id: sessionId, analytics: googleAnalyticsIds(), items: cart.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })) } })
     if (error || data?.error) throw new Error(await functionErrorMessage(error, data, 'Afrekenen is niet gelukt.'))
     if (data.checkout_url) { window.location.assign(data.checkout_url); return }
     trackEvent('partner_order_created', { partner_code: getPartnerAttributionCode(), order_number: data.order_number, total_cents: Number(data.total_cents) || 0 })

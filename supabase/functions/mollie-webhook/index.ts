@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { adminClient } from "../_shared/email.ts"
+import { sendServerPurchase } from "../_shared/ga4.ts"
 
 const allowedStatuses = new Set(["open", "pending", "authorized", "paid", "failed", "cancelled", "expired"])
 
@@ -22,13 +23,21 @@ Deno.serve(async (request) => {
     if (payment.metadata?.order_id && payment.metadata.order_id !== localPayment.order_id) return Response.json({ error: "Ordercontrole mislukt." }, { status: 409 })
     const refundedCents = Math.round(Number(payment.amountRefunded?.value || 0) * 100)
     const mappedStatus = refundedCents > 0 ? (refundedCents >= Math.round(Number(payment.amount?.value || 0) * 100) ? "refunded" : "partially_refunded") : status
+    const metadata = { ...(localPayment.metadata || {}), ...(payment.metadata || {}) }
     const { error: updateError } = await db.from("payments").update({
       status: mappedStatus,
       method: payment.method || "",
       refunded_cents: refundedCents,
-      metadata: { ...(localPayment.metadata || {}), ...(payment.metadata || {}) },
+      metadata,
     }).eq("id", localPayment.id)
     if (updateError) throw updateError
+    if (["paid", "authorized"].includes(mappedStatus)) {
+      try {
+        await sendServerPurchase(db, { ...localPayment, metadata })
+      } catch {
+        // Analytics must never make Mollie retry or fail the webhook.
+      }
+    }
     return new Response("ok", { status: 200 })
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Webhook kon niet worden verwerkt." }, { status: 500 })

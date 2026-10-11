@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { analyticsMetadata, claimPurchaseTracking } from "../_shared/ga4.ts"
 import { createClient } from "jsr:@supabase/supabase-js@2.112.3"
 
 const allowedOrigins = new Set([
@@ -220,6 +221,8 @@ Deno.serve(async (request) => {
         })
         return Response.json({ success: true, checkout_url: checkoutUrl }, { headers: { ...headers, "Content-Type": "application/json" } })
       }
+      const paid = ["paid", "authorized"].includes(payment.status)
+      const trackPurchase = paid ? await claimPurchaseTracking(db, payment, "client") : false
       return Response.json({
         success: true,
         order_number: checkout.order.order_number,
@@ -230,6 +233,7 @@ Deno.serve(async (request) => {
         tax_cents: checkout.order.tax_cents,
         total_cents: checkout.order.total_cents,
         payment_status: payment.status,
+        track_purchase: trackPurchase,
       }, { headers: { ...headers, "Content-Type": "application/json" } })
     }
 
@@ -302,7 +306,7 @@ Deno.serve(async (request) => {
 
     const token = randomToken()
     const { data: payment, error: paymentError } = await db.from("payments").update({
-      metadata: { checkout_ready: false, return_token_hash: await hashToken(token) },
+      metadata: { checkout_ready: false, return_token_hash: await hashToken(token), ...analyticsMetadata(body.analytics) },
     }).eq("order_id", order.order_id).select("id,order_id,provider_payment_id,status,amount_cents,currency,metadata").single()
     if (paymentError) throw paymentError
 
