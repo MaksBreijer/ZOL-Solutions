@@ -39,7 +39,9 @@ export async function onRequest(context) {
     const rating = await googleRating(context)
     if (!rating) return response
     const html = await response.text()
-    return new Response(applyGoogleRating(html, rating), { status: response.status, statusText: response.statusText, headers: response.headers })
+    const headers = new Headers(response.headers)
+    headers.set('X-Google-Rating', `${rating.rating}/${rating.count}`)
+    return new Response(applyGoogleRating(html, rating), { status: response.status, statusText: response.statusText, headers })
   } catch {
     return response
   }
