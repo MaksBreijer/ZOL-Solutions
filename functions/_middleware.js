@@ -5,7 +5,7 @@ const CACHE_SECONDS = 6 * 60 * 60
 
 // Fetches the live Google rating and review count via the Places API (New), cached per data centre.
 async function googleRating(context) {
-  const apiKey = context.env.GOOGLE_PLACES_API_KEY
+  const apiKey = String(context.env.GOOGLE_PLACES_API_KEY || '').trim()
   if (!apiKey) return null
   const cache = caches.default
   const cacheKey = new Request('https://zolsolutions.nl/__google-rating')
@@ -21,14 +21,16 @@ async function googleRating(context) {
     },
     body: JSON.stringify({ textQuery: 'ZOL Solutions Amsterdam', languageCode: 'nl', regionCode: 'NL' }),
   })
-  if (!response.ok) return null
+  const remember = (value) => {
+    context.waitUntil(cache.put(cacheKey, new Response(JSON.stringify(value), { headers: { 'Cache-Control': `public, max-age=${CACHE_SECONDS}` } })))
+    return value
+  }
+  // A failed lookup is remembered as well, so a wrong key never slows down every page view.
+  if (!response.ok) return remember(null)
   const { places = [] } = await response.json()
   const place = places.find((candidate) => String(candidate.googleMapsUri || '').includes(GOOGLE_CID))
-  if (!place) return null
-  const rating = { rating: Number(place.rating), count: Number(place.userRatingCount) }
-  if (!(rating.rating >= 1 && rating.rating <= 5 && rating.count >= 1)) return null
-  context.waitUntil(cache.put(cacheKey, new Response(JSON.stringify(rating), { headers: { 'Cache-Control': `public, max-age=${CACHE_SECONDS}` } })))
-  return rating
+  const rating = place && { rating: Number(place.rating), count: Number(place.userRatingCount) }
+  return remember(rating && rating.rating >= 1 && rating.rating <= 5 && rating.count >= 1 ? rating : null)
 }
 
 // Keeps the Google score and review count on every HTML page in sync with Google Maps.
