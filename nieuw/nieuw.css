@@ -436,3 +436,14 @@ h1, h2, h3 { font-weight: 500; }
   .buy-shade { background: rgb(12 24 36 / 66%); }
   .buy-action .btn { width: auto; }
 }
+
+/* Logo's: partners in ZOL-oranje, pers in eigen kleur */
+.logo-mask {
+  display: block; width: 100%; height: 48px;
+  background: var(--orange);
+  -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat;
+  transition: background .3s;
+}
+.logo-row a:hover .logo-mask { background: var(--orange-light); }
+.logo-row img.logo-own { filter: none; opacity: 1; max-height: 44px; border-radius: 4px; }
+.logo-row img.logo-own[src*="hockey"] { border-radius: 50%; }
