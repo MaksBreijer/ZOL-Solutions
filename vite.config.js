@@ -1,5 +1,6 @@
 import { relative, resolve } from 'node:path'
 import { defineConfig } from 'vite'
+import { footerMarkup, navMarkup } from './src/zol-chrome-markup.js'
 
 const siteOrigin = 'https://zolsolutions.nl'
 const imageDimensions = new Map([
@@ -35,6 +36,34 @@ function decodeHtmlText(value) {
 
 function htmlAttribute(value) {
   return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+}
+
+// Zet de gedeelde navigatie en footer (homepage-ontwerp) in elke publieke pagina.
+const chromeSkip = ['/admin/', '/zolsolutions/admin/', '/meting/', '/nieuw/']
+function chromePlugin() {
+  return {
+    name: 'zol-chrome',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html, context) {
+        const route = routeForHtml(context.filename)
+        if (chromeSkip.includes(route)) return html
+        const overHero = html.includes('<!-- zol:nav hero -->')
+        html = html
+          .replace(/<!-- zol:nav( hero)? -->/, '')
+          .replace(/<!-- zol:footer -->/, '')
+          .replace(/<a class="skip-link"[^>]*>[\s\S]*?<\/a>/, '')
+          .replace(/<header class="(?:site-header|checkout-header)"[\s\S]*?<\/header>/, '')
+          .replace(/<footer class="(?:site-footer|checkout-footer)"[\s\S]*?<\/footer>/, '')
+        html = html.replace(/<body([^>]*)>/, (tag) => `${tag}\n    ${navMarkup({ overHero })}`)
+        const mainEnd = html.lastIndexOf('</main>')
+        const at = mainEnd >= 0 ? mainEnd + '</main>'.length : html.lastIndexOf('</body>')
+        html = `${html.slice(0, at)}\n    ${footerMarkup()}${html.slice(at)}`
+        const scripts = `    <script type="module" src="/src/zol-chrome.js"></script>${overHero ? '' : '\n    <script type="module" src="/src/zol-design.js"></script>'}`
+        return html.replace('</body>', `${scripts}\n  </body>`)
+      },
+    },
+  }
 }
 
 function seoPlugin() {
@@ -186,7 +215,7 @@ function seoPlugin() {
 }
 
 export default defineConfig({
-  plugins: [seoPlugin()],
+  plugins: [chromePlugin(), seoPlugin()],
   build: {
     target: 'safari13',
     rollupOptions: {

@@ -40,11 +40,11 @@ export function installLanguageChoice(win) {
   choice.dataset.languageSwitcher = ''
   choice.setAttribute('role', 'group')
   choice.innerHTML = '<button type="button" lang="nl" data-language="nl" aria-label="Nederlands">NL</button><button type="button" lang="en" data-language="en" aria-label="English">EN</button>'
-  const nav = doc.querySelector('.nav-shell')
+  const nav = doc.querySelector('.zn') || doc.querySelector('.nav-shell')
   const header = doc.querySelector('.checkout-header')
   if (nav) {
     nav.classList.add('has-language-choice')
-    nav.insertBefore(choice, nav.querySelector('.menu-toggle'))
+    nav.insertBefore(choice, nav.querySelector('.zn-toggle, .menu-toggle'))
   } else if (header) header.append(choice)
   else { choice.classList.add('language-switcher--standalone'); doc.body.prepend(choice) }
 

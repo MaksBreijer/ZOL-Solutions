@@ -1,0 +1,79 @@
+/* Homepage-ontwerp over de bestaande pagina's: Barlow koppen in zinsvorm, ZOL-blauw, pill-knoppen, zachte kaarten. */
+:root {
+  --blue: #33669b; --blue-deep: #102b4a; --orange: #bf512f; --orange-light: #d96d4b;
+  --paper: #fbfaf7; --ink: #161b20; --muted: #626970; --line: #e3e6e7;
+  --serif: "Barlow Condensed", "Arial Narrow", sans-serif;
+  background: var(--paper);
+}
+body { background: var(--paper); color: var(--ink); font-family: "Barlow Semi Condensed", Arial, sans-serif; }
+body::before { display: none !important; }
+.announcement, .language-switcher--standalone { display: none !important; }
+.zn .language-switcher { margin-left: 4px; }
+.zn:not(.is-solid) .language-switcher { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); color: #fff; }
+
+/* Koppen: zoals de homepage, geen hoofdletters, geen cursief */
+h1, h2, h3,
+main h1, main h2, main h3 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif !important;
+  text-transform: none !important;
+  letter-spacing: -.01em !important;
+  font-style: normal !important;
+}
+main h1 { font-weight: 500 !important; line-height: 1.02 !important; }
+main h2 { font-weight: 500 !important; line-height: 1.05 !important; }
+main h3 { font-weight: 600 !important; }
+em, i, cite { font-style: normal !important; }
+h1 em, h2 em, h3 em, h1 b, h2 b {
+  font-family: inherit !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  color: var(--blue) !important;
+  display: inline !important;
+}
+.section-index, .eyebrow, .product-kicker, [class*="kicker"] {
+  color: var(--orange) !important;
+  font: 600 11px/1.4 "Barlow Semi Condensed", Arial, sans-serif !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase;
+}
+.section-index::before, .eyebrow::before { display: none !important; }
+
+/* Donkere kopblokken krijgen de blauwe hero van de homepage */
+.knowledge-hero, .page-hero, .legal-hero, .about-hero, .contact-hero, .price-comparison {
+  margin: 10px !important;
+  border-radius: 22px !important;
+  background: radial-gradient(1200px 700px at 75% 40%, #45698f 0%, transparent 60%), radial-gradient(900px 600px at 10% 90%, #1d3550 0%, transparent 60%), #2f5274 !important;
+  color: #fff;
+}
+.knowledge-hero h1 em, .knowledge-hero h1 b, .page-hero h1 em, .legal-hero h1 em, .about-hero h1 em, .contact-hero h1 em,
+.price-comparison h2 em, .price-comparison h2 b { color: #fff !important; }
+.knowledge-hero .section-index, .price-comparison .section-index { color: #f0a080 !important; }
+
+/* Knoppen */
+.button, .button--primary, .button--light, .button--outline, .button--wide, .nav-cta, .add-to-cart, button[type="submit"]:not(.zn-toggle) {
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-family: "Barlow Semi Condensed", Arial, sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: .01em !important;
+  text-transform: none !important;
+}
+.button--primary, .add-to-cart { background: var(--blue) !important; border-color: var(--blue) !important; color: #fff !important; }
+.button--primary:hover, .add-to-cart:hover { background: var(--blue-deep) !important; }
+.button--outline { background: #fff !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
+.text-link { color: var(--blue); }
+
+/* Kaarten en blokken */
+.knowledge-index-card, .knowledge-guide-inner, .recognition-card, .knowledge-sidebar, .knowledge-aside, .contact-form, .faq-item, details {
+  border-radius: 20px;
+}
+.knowledge-index-card, .recognition-card { background: #f4f3ef !important; border: 1px solid var(--line) !important; box-shadow: none !important; }
+.knowledge-index-card span { color: var(--orange) !important; }
+input, select, textarea { border-radius: 12px; }
+
+/* Checkout */
+.checkout-heading h1 { font-size: clamp(44px, 6vw, 68px) !important; }
+.checkout-heading h1 em { color: var(--blue) !important; }
+.checkout-submit, .empty-cart a, .checkout-retry { border-radius: 999px !important; }
+.cart-block, .checkout-form, .checkout-summary { border-radius: 20px !important; }
+.checkout-summary { background: var(--blue-deep) !important; }

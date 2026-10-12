@@ -45,19 +45,6 @@
       .wrap { width: min(1200px, 100% - 32px); margin-inline: auto; }
       .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
 
-      .nav { position: fixed; top: 10px; left: 10px; right: 10px; z-index: 100; display: flex; align-items: center; gap: 22px; padding: 14px 18px 14px 28px; border-radius: 22px 22px 0 0; background: transparent; border: 1px solid transparent; color: #fff; transition: background .25s, color .25s, border-color .25s, border-radius .25s, box-shadow .25s; }
-      .nav .logo { display: block; background: #fff; -webkit-mask: url(/media/zol-logo.png) left center / contain no-repeat; mask: url(/media/zol-logo.png) left center / contain no-repeat; }
-      .nav .logo img { height: 26px; width: auto; opacity: 0; }
-      .nav-links { display: flex; gap: 30px; margin-left: auto; font-size: 15px; font-weight: 500; }
-      .nav-links a { opacity: .85; } .nav-links a:hover { opacity: 1; }
-      .nav .btn { height: 46px; padding: 0 22px; border-radius: 999px; font-size: 15px; }
-      .nav .btn-line { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.4); color: #fff; }
-      .nav .btn-brand { background: #fff; color: var(--ink); }
-      .nav.is-solid { top: 0; left: 0; right: 0; border-radius: 0; background: rgba(251,250,247,.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom-color: var(--line); box-shadow: 0 6px 24px rgba(16,43,74,.08); color: var(--ink); }
-      .nav.is-solid .logo { background: var(--brand); }
-      .nav.is-solid .btn-line { background: #fff; border-color: var(--line); color: var(--ink); }
-      .nav.is-solid .btn-brand { background: var(--brand); color: #fff; }
-      .nav.is-solid .btn-brand:hover { background: var(--dark); }
       .btn { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 12px; font-size: 14px; font-weight: 600; white-space: nowrap; transition: transform .2s; }
       .btn:hover { transform: translateY(-1px); }
       .btn-line { border: 1px solid var(--line); background: #fff; }
@@ -183,22 +170,13 @@
       .sizes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
       .sizes span { border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 10px 16px; font-weight: 600; font-size: 15px; }
 
-      footer { margin: 10px; border-radius: 22px; background: var(--dark); color: #fff; padding: 90px 0 36px; }
-      .fcta { text-align: center; }
-      .fcta h2 { font-size: clamp(36px, 5vw, 60px); font-weight: 400; margin: 20px 0 28px; }
       .stripes { height: 26px; margin: 80px 0 50px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 2px, transparent 2px 7px); border-radius: 4px; }
-      .fgrid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 40px; font-size: 14px; }
-      .fgrid img { height: 26px; width: auto; margin-bottom: 18px; }
-      .fgrid p { color: rgba(255,255,255,.6); max-width: 320px; }
-      .fgrid h4 { font-size: 13px; font-weight: 600; margin: 0 0 14px; }
-      .fgrid a { display: block; color: rgba(255,255,255,.65); margin-bottom: 8px; } .fgrid a:hover { color: #fff; }
-      .legal { margin-top: 50px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.1); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 13px; color: rgba(255,255,255,.5); }
 
       .reveal { opacity: 1; }
 
 
       @media (max-width: 960px) {
-        .nav-links, .nav .btn-line { display: none; } .nav .btn-brand { margin-left: auto; }
+
         .hero-inner, .scard, .solution, .story, .buy, .plans, .cards3, .reviews, .callout, .fgrid { grid-template-columns: 1fr; }
         .hero-inner { padding-top: 120px; }
         .hero-visual { height: auto; padding: 40px 0; } .device { width: 100%; } .hero .float, .hero .tag { display: none; }
@@ -238,7 +216,6 @@
       .faq summary::after { color: var(--accent); }
       .sizes span:hover { border-color: var(--brand); color: var(--brand); }
       .review { border-top: 3px solid var(--accent); }
-      .fcta h2 b { color: var(--orange-l, #d96d4b); }
       .stripes { background: repeating-linear-gradient(90deg, rgba(217,109,75,.45) 0 2px, transparent 2px 7px); }
 
       /* demping-animatie: een gedetailleerde voet (zijaanzicht) loopt over de toppen van de streepjes en drukt ze in */
@@ -246,18 +223,7 @@
     </style>
   </head>
   <body>
-    <nav class="nav">
-      <a class="logo" href="/"><img src="/media/zol-logo.png" alt="ZOL Solutions" /></a>
-      <div class="nav-links">
-        <a href="#werking">Hoe het werkt</a>
-        <a href="#probleem">Voor wie</a>
-        <a href="#prijs">Prijs</a>
-        <a href="#ons-verhaal">Ons verhaal</a>
-        <a href="/kennisbank/">Kennisbank</a>
-      </div>
-      <a class="btn btn-line" href="/contact/">Contact</a>
-      <a class="btn btn-brand" href="/product/">Bekijk de ZOL'tjes ↗</a>
-    </nav>
+    <!-- zol:nav hero -->
 
     <header class="hero">
       <video class="hero-bg" autoplay muted loop playsinline poster="/media/zol-hero-poster.jpg"><source src="/media/zol-hero.mp4" type="video/mp4" /></video>
@@ -482,34 +448,12 @@
       </div>
     </section>
 
-    <footer>
-      <div class="wrap">
-        <div class="fcta">
-          <span class="badge"><i></i>Van de zijlijn terug het veld op</span>
-          <h2>Zachter landen. <b>Beter sporten.</b></h2>
-          <a class="btn btn-white" href="/product/">Bekijk de ZOL'tjes →</a>
-        </div>
-        <div class="fgrid">
-          <div><img src="/media/zol-logo.png" alt="ZOL Solutions" /><p>Dempende 3/4 inlegzolen voor kinderen met hielpijn. Extra comfort, demping en stabiliteit voor jonge sporters in de groei.</p></div>
-          <div><h4>Snelle links</h4><a href="#werking">Hoe het werkt</a><a href="/product/">De ZOL'tjes</a><a href="#prijs">Prijs</a></div>
-          <div><h4>Info</h4><a href="/kennisbank/">Kennisbank</a><a href="#faq">Veelgestelde vragen</a><a href="/over-ons/">Ons verhaal</a></div>
-          <div><h4>Contact</h4><a href="mailto:info@zolsolutions.nl">info@zolsolutions.nl</a><a href="/contact/">Contactformulier</a></div>
-        </div>
-        <div class="legal"><span>© 2026 ZOL Solutions. Alle rechten voorbehouden.</span><span><a href="/privacy/">Privacy</a> · <a href="/algemene-voorwaarden/">Algemene voorwaarden</a></span></div>
-      </div>
-    </footer>
+    <!-- zol:footer -->
 
     <script>
       const v = document.getElementById("storyVideo"), b = document.getElementById("storyPlay");
       b.onclick = () => { if (v.paused || v.muted) { v.muted = false; v.play(); b.textContent = "❚❚ Pauze"; } else { v.pause(); b.textContent = "▶ Bekijk met geluid"; } };
 
-    </script>
-      <script>
-      (() => {
-        const nav = document.querySelector('.nav'), hero = document.querySelector('.hero');
-        const sync = () => nav.classList.toggle('is-solid', hero.getBoundingClientRect().bottom <= nav.offsetHeight + 10);
-        addEventListener('scroll', sync, { passive: true }); addEventListener('resize', sync); sync();
-      })();
     </script>
     <script type="module" src="/src/home-page.js"></script>
   </body>
