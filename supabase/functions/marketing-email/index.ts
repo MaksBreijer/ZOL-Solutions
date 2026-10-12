@@ -11,6 +11,7 @@ import {
   sendEmail,
   templateParagraphs,
 } from "../_shared/email.ts"
+import { sendCustomerFollowups } from "./customer-followup.ts"
 
 const TEMPLATE_KEY = "marketing_product_update"
 const MAX_PER_RUN = 50
@@ -25,12 +26,13 @@ Deno.serve(async (request) => {
     if (verificationError || !verified) return Response.json({ error: "Niet toegestaan." }, { status: 401 })
 
     const config = await getEmailConfig(db)
-    if (!config.enabled || !config.marketing_enabled) {
-      return Response.json({ success: true, status: "disabled", sent: 0 })
-    }
+    if (!config.enabled) return Response.json({ success: true, status: "disabled", sent: 0 })
+    // Persoonlijke opvolging na een bestelling staat los van de marketingtoestemming: het gaat over hun eigen bestelling.
+    const followups = await sendCustomerFollowups(db, config)
+    if (!config.marketing_enabled) return Response.json({ success: true, status: "marketing_disabled", sent: 0, followups })
 
     const template = await getEmailTemplate(TEMPLATE_KEY, db)
-    if (!template.enabled) return Response.json({ success: true, status: "template_disabled", sent: 0 })
+    if (!template.enabled) return Response.json({ success: true, status: "template_disabled", sent: 0, followups })
 
     const now = new Date()
     const intervalDays = Math.min(90, Math.max(21, Number(config.marketing_interval_days || 21)))
@@ -103,6 +105,7 @@ Deno.serve(async (request) => {
 
     return Response.json({
       success: true,
+      followups,
       processed: results.length,
       sent: results.filter((result) => result.status === "sent").length,
       failed: results.filter((result) => result.status === "failed").length,
