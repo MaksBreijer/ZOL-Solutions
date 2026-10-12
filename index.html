@@ -20,207 +20,6 @@
     <meta property="og:image:alt" content="ZOL Solutions — Zachter landen. Beter sporten." />
     <meta name="twitter:card" content="summary_large_image" />
     <title>Hielpijn bij kinderen &amp; Ziekte van Sever | ZOL Inlegzolen</title>
-    <style>
-      :root {
-        --bg: #fbfaf7;
-        --ink: #161b20;
-        --muted: #626970;
-        --soft: #e8eff5;
-        --soft-2: #f4f3ef;
-        --line: #e3e6e7;
-        --brand: #33669b;
-        --accent: #bf512f;
-        --dark: #102b4a;
-      }
-      * { box-sizing: border-box; }
-      html { scroll-behavior: smooth; }
-      body { margin: 0; background: var(--bg); color: var(--ink); font: 400 17px/1.6 "Barlow Semi Condensed", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-      img, video { display: block; max-width: 100%; }
-      a { color: inherit; text-decoration: none; }
-      h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.025em; line-height: 1.05; }
-      h2 b, h1 b { font-weight: 700; }
-      h1, h2, h3, .stat strong, .kv strong, .plan .price { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; letter-spacing: 0 !important; }
-      h1 b, h2 b, h3 b { font-weight: inherit; }
-      em, i { font-style: normal; }
-      .wrap { width: min(1200px, 100% - 32px); margin-inline: auto; }
-      .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
-
-      .btn { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 12px; font-size: 14px; font-weight: 600; white-space: nowrap; transition: transform .2s; }
-      .btn:hover { transform: translateY(-1px); }
-      .btn-line { border: 1px solid var(--line); background: #fff; }
-      .btn-brand { background: var(--brand); color: #fff; }
-      .btn-white { background: #fff; color: var(--ink); }
-      .btn-accent { background: var(--accent); color: #fff; }
-      .btn-glass { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.28); color: #fff; }
-
-      .hero { position: relative; margin: 10px; min-height: calc(100vh - 20px); border-radius: 22px; overflow: hidden; color: #fff; display: flex; align-items: center;
-        background: radial-gradient(1200px 700px at 75% 40%, #45698f 0%, transparent 60%), radial-gradient(900px 600px at 10% 90%, #1d3550 0%, transparent 60%), #2f5274; }
-      .hero::before { content: ""; position: absolute; inset: 0; opacity: .22; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-      .hero-inner { position: relative; width: min(1200px, 100% - 48px); margin: 0 auto; display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; padding: 110px 0 60px; }
-      .badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); }
-      .badge i { width: 18px; height: 18px; border-radius: 50%; background: rgba(191,81,47,.25); display: grid; place-items: center; }
-      .badge i::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
-      .hero h1 { font-size: clamp(40px, 4.4vw, 60px); font-weight: 400; margin: 22px 0; }
-      .hero h1 b { display: block; font-weight: 700; }
-      .hero p { font-size: 18px; line-height: 1.55; color: rgba(255,255,255,.82); max-width: 520px; margin: 0 0 30px; }
-      .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-      .hero-visual { position: relative; height: 560px; display: flex; align-items: center; }
-      .device { position: relative; width: 112%; aspect-ratio: 16/10; border-radius: 28px; padding: 8px; background: #0d1116; box-shadow: 0 50px 100px rgba(0,0,0,.45), inset 0 0 0 2px #2b3138; transform: rotate(-2deg); }
-      .device video { width: 100%; height: 100%; object-fit: cover; border-radius: 22px; }
-      .float { position: absolute; display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.96); color: var(--ink); border-radius: 14px; padding: 9px 14px 9px 9px; font-size: 13px; font-weight: 600; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
-      .float .ic { flex: none; width: 32px; height: 32px; border-radius: 10px; background: var(--soft); display: grid; place-items: center; font-size: 13px; }
-      .float small { display: block; font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-      .tag { position: absolute; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 999px; background: rgba(20,26,34,.55); backdrop-filter: blur(8px); color: #fff; }
-      .tag::before { content: "+ "; color: var(--accent); }
-      .scroll-hint { position: absolute; bottom: 22px; left: 50%; width: 24px; height: 38px; margin-left: -12px; border: 1.5px solid rgba(255,255,255,.5); border-radius: 14px; }
-      .scroll-hint::after { content: ""; position: absolute; top: 8px; left: 50%; width: 3px; height: 7px; margin-left: -1.5px; border-radius: 2px; background: #fff; }
-
-      .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; margin: 70px auto 0; }
-      .stat { background: #fff; padding: 26px 28px; }
-      .stat strong { display: block; font-size: 34px; font-weight: 700; letter-spacing: -.03em; }
-      .stat span { font-weight: 600; font-size: 14px; } .stat small { display: block; color: var(--muted); font-size: 13px; }
-      .stars { color: var(--accent); font-size: 12px; letter-spacing: 2px; }
-
-      .partners { margin-top: 70px; background: var(--soft); padding: 56px 0; text-align: center; }
-      .partners .row { display: flex; justify-content: center; align-items: center; gap: 70px; flex-wrap: wrap; margin-top: 26px; }
-      .partners img { height: 40px; width: auto; opacity: .9; transition: .3s; }
-      .partners img:hover { filter: none; opacity: 1; }
-
-      section.s { padding: 120px 0; }
-      .head { text-align: center; max-width: 720px; margin: 0 auto 56px; }
-      .head h2 { font-size: clamp(34px, 4.4vw, 54px); font-weight: 500; }
-      .head p { color: var(--muted); font-size: 17px; margin: 16px 0 0; }
-
-      .scard { position: sticky; top: 90px; min-height: 560px; margin-bottom: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; padding: 56px; border-radius: 26px; overflow: hidden; border: 1px solid rgba(0,0,0,.05); box-shadow: 0 -20px 50px rgba(20,27,34,.06); background: linear-gradient(180deg, #f1f5f9, #e8eff5); }
-      .scard:nth-child(2) { top: 110px; background: linear-gradient(180deg, #edf2f7, #dfe8f1); }
-      .scard:nth-child(3) { top: 130px; background: linear-gradient(180deg, #e8eff5, #d6e2ed); }
-      .scard .num { position: absolute; top: 22px; left: 22px; width: 30px; height: 30px; border-radius: 9px; background: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
-      .scard h3 { font-size: clamp(34px, 4vw, 52px); font-weight: 700; margin: 14px 0; }
-      .scard p { color: var(--muted); font-size: 17px; margin: 0 0 22px; max-width: 460px; }
-      .note { display: flex; gap: 14px; align-items: center; background: rgba(255,255,255,.65); border: 1px solid rgba(0,0,0,.05); border-radius: 14px; padding: 14px 16px; font-size: 14px; color: var(--muted); max-width: 460px; }
-      .note .ic { flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--soft); display: grid; place-items: center; }
-      .scard-media { position: relative; height: 440px; }
-      .scard-media .pic { position: absolute; inset: 0 0 0 10%; border-radius: 22px; overflow: hidden; box-shadow: 0 30px 60px rgba(20,27,34,.18); }
-      .scard-media .pic img { width: 100%; height: 100%; object-fit: cover; }
-      .scard-media .float { animation: none; }
-
-      .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-      .card { background: var(--soft-2); border: 1px solid var(--line); border-radius: 20px; padding: 28px; }
-      .card .num { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
-      .card h3 { font-size: 24px; margin: 22px 0 8px; }
-      .card p { margin: 0; color: var(--muted); }
-      .callout { margin-top: 16px; display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 32px; align-items: center; padding: 30px 34px; border-radius: 20px; background: var(--dark); color: #fff; }
-      .callout small { color: #d96d4b; font-size: 13px; font-weight: 500; }
-      .callout h3 { font-size: 26px; margin-top: 6px; }
-      .callout p { margin: 0; color: rgba(255,255,255,.7); font-size: 15px; }
-
-      .solution { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
-      .solution h2, .story h2, .buy h2 { font-size: clamp(34px, 4.4vw, 54px); font-weight: 500; margin: 14px 0 18px; }
-      .solution p, .story p, .buy p { color: var(--muted); font-size: 17px; }
-      .kv { display: flex; gap: 40px; margin: 28px 0; }
-      .kv span { display: block; font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-      .kv strong { font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
-      .blueprint { position: relative; border-radius: 26px; background: linear-gradient(180deg, #edf2f7, #dbe6f0); padding: 50px 40px; }
-      .blueprint img { border-radius: 18px; width: 100%; height: 460px; object-fit: cover; }
-      .blueprint .f1 { top: 24px; left: -20px; } .blueprint .f2 { top: 46%; right: -24px; } .blueprint .f3 { bottom: -18px; left: 16%; }
-
-      .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 980px; margin: 0 auto; }
-      .plan { position: relative; border-radius: 22px; padding: 34px; background: var(--soft-2); border: 1px solid var(--line); }
-      .plan.dark { background: var(--dark); color: #fff; border-color: var(--dark); }
-      .plan .pill { position: absolute; top: -13px; right: 24px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 999px; }
-      .plan h3 { font-size: 17px; letter-spacing: 0; }
-      .plan .sub { color: var(--muted); font-size: 15px; margin: 4px 0 22px; }
-      .plan.dark .sub { color: rgba(255,255,255,.6); }
-      .plan .price { font-size: 52px; font-weight: 700; letter-spacing: -.04em; line-height: 1; margin-bottom: 26px; }
-      .plan ul { list-style: none; padding: 0; margin: 0 0 30px; display: grid; gap: 12px; font-size: 15px; }
-      .plan li { display: flex; gap: 12px; }
-      .plan li::before { content: "✓"; flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: rgba(191,81,47,.15); color: var(--accent); font-weight: 700; }
-      .plan li.no::before { content: "–"; background: rgba(0,0,0,.06); color: var(--muted); }
-      .plan .btn { width: 100%; justify-content: center; }
-      .fine { text-align: center; color: var(--muted); font-size: 13px; max-width: 760px; margin: 28px auto 0; }
-
-      .story { display: grid; grid-template-columns: .85fr 1.15fr; gap: 64px; align-items: center; }
-      .story-media { position: relative; aspect-ratio: 4/5; border-radius: 26px; overflow: hidden; background: #000; margin: 0; }
-      .story-media video { width: 100%; height: 100%; object-fit: cover; }
-      .story-media .cap { position: absolute; left: 16px; top: 16px; color: #fff; background: rgba(0,0,0,.35); }
-      .story-media button { position: absolute; left: 16px; bottom: 16px; border: 0; cursor: pointer; font-family: inherit; }
-      .story details { background: var(--soft-2); border: 1px solid var(--line); border-radius: 16px; padding: 18px 22px; margin: 22px 0; }
-      .story details p { font-size: 15px; }
-      .press { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-      .press a { display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 14px; }
-      .press img { height: 28px; width: auto; }
-      .press small { display: block; color: var(--muted); font-size: 12px; }
-
-      .reviews { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-      .review { background: var(--soft-2); border: 1px solid var(--line); border-radius: 20px; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; gap: 26px; }
-      .review blockquote { margin: 10px 0 0; font-size: 17px; line-height: 1.55; }
-      .review p { margin: 0; font-size: 14px; } .review p span { display: block; color: var(--muted); }
-      .rating { display: inline-flex; gap: 8px; align-items: center; margin-top: 18px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; font-size: 14px; font-weight: 600; background: #fff; }
-
-      .faq { max-width: 860px; margin: 0 auto; display: grid; gap: 10px; }
-      .faq details { background: var(--soft-2); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; }
-      .faq summary, .story summary { list-style: none; cursor: pointer; font-weight: 500; display: flex; justify-content: space-between; gap: 16px; }
-      .faq summary::-webkit-details-marker, .story summary::-webkit-details-marker { display: none; }
-      .faq summary::after, .story summary::after { content: "+"; color: var(--muted); font-size: 20px; line-height: 1; transition: transform .2s; }
-      details[open] summary::after { transform: rotate(45deg); }
-      .faq p { color: var(--muted); font-size: 15px; margin: 12px 0 0; }
-
-      .buy { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
-      .buy img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 26px; }
-      .sizes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
-      .sizes span { border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 10px 16px; font-weight: 600; font-size: 15px; }
-
-      .stripes { height: 26px; margin: 80px 0 50px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 2px, transparent 2px 7px); border-radius: 4px; }
-
-      .reveal { opacity: 1; }
-
-
-      @media (max-width: 960px) {
-
-        .hero-inner, .scard, .solution, .story, .buy, .plans, .cards3, .reviews, .callout, .fgrid { grid-template-columns: 1fr; }
-        .hero-inner { padding-top: 120px; }
-        .hero-visual { height: auto; padding: 40px 0; } .device { width: 100%; } .hero .float, .hero .tag { display: none; }
-        .stats { grid-template-columns: 1fr 1fr; }
-        .scard { position: relative; top: 0 !important; padding: 64px 22px 22px; min-height: 0; }
-        .scard-media { height: 320px; } .scard-media .pic { inset: 0; }
-        section.s { padding: 80px 0; }
-        .blueprint .f1 { left: 8px; } .blueprint .f2 { right: 8px; }
-        .press { grid-template-columns: 1fr; }
-      }
-
-      .hero { background: #0b1d30; align-items: flex-end; }
-      .hero::before { display: none; }
-      .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-      .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(11,29,48,.78) 0%, rgba(11,29,48,.35) 55%, rgba(11,29,48,.1) 100%), linear-gradient(0deg, rgba(11,29,48,.55), transparent 45%); }
-      .hero-inner { z-index: 1; grid-template-columns: 1fr; padding: 140px 0 90px; }
-      .hero-inner > div { max-width: 760px; } .hero-inner > div p { max-width: 560px; }
-      .hero h1 { font-size: clamp(40px, 5.2vw, 72px); }
-      .hero-review { position: absolute; z-index: 1; right: 28px; bottom: 28px; display: inline-flex; gap: 8px; align-items: center; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); backdrop-filter: blur(10px); }
-      .scroll-hint { z-index: 1; }
-      @media (max-width: 960px) { .hero-review { left: 20px; right: auto; bottom: 20px; } .hero-inner { padding-bottom: 100px; } .scroll-hint { display: none; } }
-
-      /* huisstijl-accenten */
-      .eyebrow { color: var(--accent); }
-      .hero .badge, .partners .eyebrow { color: inherit; }
-      .head h2 b, .solution h2 b, .story h2 b, .buy h2 b { color: var(--brand); }
-      .hero h1 b { color: #fff; }
-      .hero h1 b::after { content: ""; display: block; width: 84px; height: 5px; border-radius: 3px; background: var(--accent); margin-top: 18px; }
-      .stat strong, .kv strong { color: var(--brand); }
-      .stats { border-top: 3px solid var(--accent); }
-      .partners { background: var(--soft); }
-      .card { border-top: 3px solid var(--brand); }
-      .card .num, .scard .num { background: var(--brand); color: #fff; }
-      .scard h3 { color: var(--dark); }
-      .note .ic, .float .ic { background: var(--soft); color: var(--brand); }
-      .faq details[open] { border-left: 3px solid var(--accent); }
-      .faq summary::after { color: var(--accent); }
-      .sizes span:hover { border-color: var(--brand); color: var(--brand); }
-      .review { border-top: 3px solid var(--accent); }
-      .stripes { background: repeating-linear-gradient(90deg, rgba(217,109,75,.45) 0 2px, transparent 2px 7px); }
-
-      /* demping-animatie: een gedetailleerde voet (zijaanzicht) loopt over de toppen van de streepjes en drukt ze in */
-      .stripes { display: none; }
-    </style>
   </head>
   <body>
     <!-- zol:nav hero -->
@@ -278,7 +77,7 @@
       </div>
     </section>
 
-    <section class="s" id="oplossing" style="padding-top: 0">
+    <section class="s" id="oplossing" data-inline="is-1">
       <div class="wrap solution">
         <div class="reveal">
           <p class="eyebrow">02 — De ZOL-oplossing</p>
@@ -296,7 +95,7 @@
       </div>
     </section>
 
-    <section class="s" id="prijs" style="padding-top: 0">
+    <section class="s" id="prijs" data-inline="is-1">
       <div class="wrap">
         <div class="head reveal">
           <p class="eyebrow">03 — Duidelijke keuze</p>
@@ -323,7 +122,7 @@
       </div>
     </section>
 
-    <section class="s" id="werking" style="padding-top: 0">
+    <section class="s" id="werking" data-inline="is-1">
       <div class="wrap">
         <div class="head reveal">
           <p class="eyebrow">04 — Zo werkt het</p>
@@ -340,7 +139,7 @@
             </div>
             <div class="scard-media">
               <div class="pic"><picture><source srcset="/media/product-detail.avif" type="image/avif" /><img src="/media/product-detail.jpg" alt="ZOL inlegzool detail" /></picture></div>
-              <div class="float" style="top: 30px; left: 0"><span class="ic">€</span><span><small>Prijs</small>€99,95</span></div>
+              <div class="float" data-inline="is-2"><span class="ic">€</span><span><small>Prijs</small>€99,95</span></div>
             </div>
           </article>
           <article class="scard">
@@ -353,7 +152,7 @@
             </div>
             <div class="scard-media">
               <div class="pic"><picture><source srcset="/media/product-use.avif" type="image/avif" /><img src="/media/product-use.jpg" alt="ZOL wordt in een sportschoen geplaatst" /></picture></div>
-              <div class="float" style="bottom: 30px; left: 0"><span class="ic">✓</span><span><small>Eenvoudig</small>Tussen schoenen wisselen</span></div>
+              <div class="float" data-inline="is-3"><span class="ic">✓</span><span><small>Eenvoudig</small>Tussen schoenen wisselen</span></div>
             </div>
           </article>
           <article class="scard">
@@ -366,14 +165,14 @@
             </div>
             <div class="scard-media">
               <div class="pic"><img src="/media/sport-kids.jpg" alt="Sportende kinderen" /></div>
-              <div class="float" style="top: 30px; left: 0"><span class="ic">★</span><span><small>Google-reviews</small>4,9 uit 5</span></div>
+              <div class="float" data-inline="is-2"><span class="ic">★</span><span><small>Google-reviews</small>4,9 uit 5</span></div>
             </div>
           </article>
         </div>
       </div>
     </section>
 
-    <section class="s" id="ons-verhaal" style="padding-top: 40px">
+    <section class="s" id="ons-verhaal" data-inline="is-4">
       <div class="wrap story">
         <figure class="story-media reveal">
           <video id="storyVideo" muted loop playsinline preload="none" poster="/media/story-video-poster.jpg"><source src="/media/story-video.mp4" type="video/mp4" /></video>
@@ -384,7 +183,7 @@
           <p class="eyebrow">Een persoonlijk ontstaan</p>
           <h2>Begonnen vanuit iets <b>persoonlijks.</b></h2>
           <p>In februari 2026 raakten Maks en Thijn aan de praat over podologische zolen. Voor Maks was hielpijn persoonlijk: hij had zelf de ziekte van Sever gehad. Vanuit hun ervaring als skibootfitters, gesprekken met podologen en een bestaand zoolontwerp bouwden ze aan een verkorte zool die demping met stabilisatie combineert.</p>
-          <p style="color: var(--ink)"><strong>Hun missie:</strong> kinderen niet onnodig langs de kant laten staan, maar ouders en zorgprofessionals een toegankelijke ondersteuningsoptie bieden die beweging mogelijk maakt.</p>
+          <p data-inline="is-5"><strong>Hun missie:</strong> kinderen niet onnodig langs de kant laten staan, maar ouders en zorgprofessionals een toegankelijke ondersteuningsoptie bieden die beweging mogelijk maakt.</p>
           <details>
             <summary>Van praktijkidee naar ZOL</summary>
             <p>De technische basis kwam van een ontwerp van Maks’ vader, registerpodoloog Marco-Paul Breijer. Hij combineerde stabilisatie en demping vanuit zijn dagelijkse praktijk. Na zijn overlijden bleef het ontwerp ongebruikt liggen.</p>
@@ -399,7 +198,7 @@
       </div>
     </section>
 
-    <section class="s" id="ervaringen" style="padding-top: 0">
+    <section class="s" id="ervaringen" data-inline="is-1">
       <div class="wrap">
         <div class="head reveal">
           <p class="eyebrow">05 — Ervaringen</p>
@@ -414,7 +213,7 @@
       </div>
     </section>
 
-    <section class="s" id="product" style="padding-top: 0">
+    <section class="s" id="product" data-inline="is-1">
       <div class="wrap buy">
         <picture class="reveal"><source srcset="/media/product-use.avif" type="image/avif" /><img src="/media/product-use.jpg" alt="ZOL-inlegzool wordt in een sportschoen geplaatst" /></picture>
         <div class="reveal">
@@ -424,12 +223,12 @@
           <div class="kv"><div><span>Prijs</span><strong>€99,95</strong></div><div><span>Maten</span><strong>34/35 — 42/43</strong></div></div>
           <div class="sizes"><span>34/35</span><span>36/37</span><span>38/39</span><span>40/41</span><span>42/43</span></div>
           <a class="btn btn-brand" href="/product/">Kies de juiste maat →</a>
-          <p style="font-size: 13px">Prijs en voorraad worden tijdens het afrekenen veilig gecontroleerd.</p>
+          <p data-inline="is-6">Prijs en voorraad worden tijdens het afrekenen veilig gecontroleerd.</p>
         </div>
       </div>
     </section>
 
-    <section class="s" id="faq" style="padding-top: 0">
+    <section class="s" id="faq" data-inline="is-1">
       <div class="wrap">
         <div class="head reveal">
           <p class="eyebrow">Veelgestelde vragen</p>
@@ -449,12 +248,6 @@
     </section>
 
     <!-- zol:footer -->
-
-    <script>
-      const v = document.getElementById("storyVideo"), b = document.getElementById("storyPlay");
-      b.onclick = () => { if (v.paused || v.muted) { v.muted = false; v.play(); b.textContent = "❚❚ Pauze"; } else { v.pause(); b.textContent = "▶ Bekijk met geluid"; } };
-
-    </script>
     <script type="module" src="/src/home-page.js"></script>
   </body>
 </html>
