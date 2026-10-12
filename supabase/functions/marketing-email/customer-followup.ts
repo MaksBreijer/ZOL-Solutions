@@ -52,10 +52,27 @@ const firstName = (order: Order, customerFirst?: string | null) => {
 // Bezorgdatum; zonder bezorgmelding rekenen we twee dagen na verzending.
 const deliveredOn = (order: Order) => order.delivered_at ? new Date(order.delivered_at) : order.shipped_at ? new Date(new Date(order.shipped_at).getTime() + 2 * DAY) : null
 
-export function renderFollowup(followup: typeof followups[number], name: string) {
-  const text = followup.body.replace(/{{\s*(voornaam|customer_first_name)\s*}}/g, name)
-  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#222">${text.split(/\n{2,}/).map((part) => `<p style="margin:0 0 14px">${escapeEmailHtml(part).replaceAll("\n", "<br>")}</p>`).join("")}</div>`
-  return { subject: followup.subject, text, html }
+const paragraphsHtml = (text: string) => text.split(/\n{2,}/).map((part) => `<p style="margin:0 0 14px">${escapeEmailHtml(part).replaceAll("\n", "<br>")}</p>`).join("")
+const mailDate = (iso: string) => new Intl.DateTimeFormat("nl-NL", { timeZone: "Europe/Amsterdam", weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
+const messageId = (orderId: string, step: number) => `<customer-followup-${orderId}-${step}@zolsolutions.nl>`
+const fill = (text: string, name: string) => text.replace(/{{\s*(voornaam|customer_first_name)\s*}}/g, name)
+
+// Mail 2 gaat als antwoord op mail 1 (zelfde gesprek, "Re:", mail 1 eronder) als mail 1 echt verstuurd is.
+export function renderFollowup(followup: typeof followups[number], name: string, orderId = "", previous?: { followup: typeof followups[number]; sentAt: string }) {
+  const own = fill(followup.body, name)
+  const headers: Record<string, string> = orderId ? { "Message-ID": messageId(orderId, followup.step) } : {}
+  if (!previous) {
+    return { subject: followup.subject, text: own, html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#222">${paragraphsHtml(own)}</div>`, headers }
+  }
+  const earlier = fill(previous.followup.body, name)
+  const intro = `Op ${mailDate(previous.sentAt)} schreef ZOL Solutions <info@zolsolutions.nl>:`
+  if (orderId) { headers["In-Reply-To"] = messageId(orderId, previous.followup.step); headers["References"] = messageId(orderId, previous.followup.step) }
+  return {
+    subject: `Re: ${previous.followup.subject}`.slice(0, 240),
+    text: `${own}\n\n${intro}\n${earlier.split("\n").map((line) => `> ${line}`).join("\n")}`,
+    html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#222">${paragraphsHtml(own)}<div style="margin-top:22px;color:#666">${escapeEmailHtml(intro)}</div><blockquote style="margin:6px 0 0 4px;padding-left:12px;border-left:2px solid #ccc;color:#555">${paragraphsHtml(earlier)}</blockquote></div>`,
+    headers,
+  }
 }
 
 export async function sendCustomerFollowups(db: Db, config: Record<string, unknown>, now = new Date()) {
@@ -95,10 +112,16 @@ export async function sendCustomerFollowups(db: Db, config: Record<string, unkno
       .eq("recipient_email", email).like("dedupe_key", `customer-followup-%-${due.step}`).eq("status", "sent")
       .gte("created_at", new Date(now.getTime() - 25 * DAY).toISOString())
     if (count) continue
-    const mail = renderFollowup(due, firstName(order, customer?.first_name))
+    let previous
+    const before = active.find((followup) => followup.step === due.step - 1)
+    if (before) {
+      const { data: earlier } = await db.from("email_messages").select("sent_at,created_at").eq("dedupe_key", `customer-followup-${order.id}-${before.step}`).eq("status", "sent").maybeSingle()
+      if (earlier) previous = { followup: before, sentAt: earlier.sent_at || earlier.created_at }
+    }
+    const mail = renderFollowup(due, firstName(order, customer?.first_name), order.id, previous)
     const log = existing || await logEmail(db, { kind: `customer_followup_${due.step}`, recipient_email: email, subject: mail.subject, body_preview: mail.text.slice(0, 500), customer_id: order.customer_id, dedupe_key: dedupeKey })
     try {
-      const sent = await sendEmail({ to: email, subject: mail.subject, html: mail.html, text: mail.text, idempotencyKey: dedupeKey, config: { ...config, from_email: "info@zolsolutions.nl", reply_to: "info@zolsolutions.nl" } as never })
+      const sent = await sendEmail({ to: email, subject: mail.subject, html: mail.html, text: mail.text, headers: mail.headers, idempotencyKey: dedupeKey, config: { ...config, from_email: "info@zolsolutions.nl", reply_to: "info@zolsolutions.nl" } as never })
       await markEmail(db, log.id, { status: "sent", providerId: sent.id })
       results.push({ order_id: order.id, step: due.step, status: "sent" })
     } catch (sendError) {
