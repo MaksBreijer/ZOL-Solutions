@@ -77,3 +77,12 @@ input, select, textarea { border-radius: 12px; }
 .checkout-submit, .empty-cart a, .checkout-retry { border-radius: 999px !important; }
 .cart-block, .checkout-form, .checkout-summary { border-radius: 20px !important; }
 .checkout-summary { background: var(--blue-deep) !important; }
+
+/* Partnerlogo's: vijf naast elkaar, op mobiel de laatste over de volle breedte */
+.partners--compact .partner-track { grid-template-columns: repeat(5, minmax(90px, 1fr)); }
+@media (max-width: 760px) {
+  .partners--compact .partner-track { grid-template-columns: repeat(2, 1fr); }
+  .partners--compact .partner-track a:nth-child(-n + 4) { border-bottom: 1px solid var(--line); }
+  .partners--compact .partner-track a:nth-child(2n) { border-right: 0; }
+  .partners--compact .partner-track a:last-child { grid-column: 1 / -1; }
+}
