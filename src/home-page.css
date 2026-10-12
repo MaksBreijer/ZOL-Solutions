@@ -206,3 +206,10 @@
 [data-inline="is-6"] { font-size: 13px !important; }
 .partners img.partner-round { height: 56px; }
 .card h3 { margin-top: 0 !important; }
+
+      /* Mobiel: hero over het hele scherm, ook achter de statusbalk; geen emoji-pijltjes */
+      @media (max-width: 760px) {
+        .hero { margin: 0; min-height: 100svh; border-radius: 0; }
+        .hero-inner { padding-top: calc(110px + env(safe-area-inset-top)); }
+        .arr { display: none; }
+      }
