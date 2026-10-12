@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
-import { contactPageUrls, extractEmails, leadsToScan, MAX_HTML, normalizeWebsite, pickPracticeEmail } from "./email-finder.js"
+import { contactPageUrls, extractEmails, isGenericEmail, leadsToScan, MAX_HTML, normalizeWebsite, pickPracticeEmail } from "./email-finder.js"
 
 type Lead = Record<string, unknown>
 type Recipient = { id: string; campaign_id: string; lead_id: string; practice_name: string; location: string; specialization: string; contact_person: string; personal_opening: string; email: string }
@@ -188,13 +188,30 @@ async function findPracticeEmail(website: string): Promise<{ result: string; ema
 
 // Zoekt nieuwe adressen op praktijkwebsites en slaat ze op in Partner Scout. Verstuurt niets.
 // Doorzoekt per aanroep maximaal `siteLimit` websites; de admin roept herhaald aan tot er genoeg adressen zijn.
-async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchSize, siteLimit = 10) {
+// Groep om te doorzoeken: "national" (heel Nederland), "silver" (Amsterdam), "gold" (zelf gekozen) of "region:<provincie>".
+async function scopeFilter(db: ReturnType<typeof adminClient>, scope: string) {
+  if (scope === "silver") return (lead: Lead) => /amsterdam/i.test(clean(lead.city))
+  if (scope.startsWith("region:")) { const region = scope.slice(7).toLowerCase(); return (lead: Lead) => clean(lead.region).toLowerCase() === region }
+  if (scope === "gold") {
+    const { data } = await db.from("settings").select("value").eq("key", "physio_sequence").maybeSingle()
+    const gold = new Set((Array.isArray(data?.value?.gold_lead_ids) ? data.value.gold_lead_ids : []).map(clean))
+    return (lead: Lead) => gold.has(clean(lead.id))
+  }
+  return () => true
+}
+
+async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchSize, siteLimit = 10, scope = "national") {
   const { data: settings, error } = await db.from("settings").select("value").eq("key", "partner_scout").maybeSingle()
   if (error) throw error
   const leads = Array.isArray(settings?.value?.leads) ? settings.value.leads as Lead[] : []
   const history = await deliveryHistory(db)
   const known = new Set([...leads.map((lead) => clean(lead.email).toLowerCase()).filter(validEmail), ...history.sent, ...history.pending, ...history.skipped])
-  const pending = leadsToScan(leads) as Lead[]
+  const inScope = await scopeFilter(db, scope)
+  // Praktijken die al in de mailreeks zitten, houden hun adres; anders stopt hun reeks halverwege.
+  const { data: enrolled } = await db.from("physio_sequence_enrollments").select("lead_id")
+  const enrolledIds = new Set((enrolled || []).map((row: { lead_id: string }) => row.lead_id))
+  const pending = (leadsToScan(leads.filter((lead) => inScope(lead) && !enrolledIds.has(clean(lead.id))), { personal: true }) as Lead[])
+    .sort((a, b) => Number(Boolean(clean(a.email))) - Number(Boolean(clean(b.email))))
   const queue = pending.slice(0, siteLimit)
   const patches = new Map<string, Record<string, string>>()
   const deadline = Date.now() + 45_000
@@ -207,8 +224,10 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
       const outcome = await findPracticeEmail(normalizeWebsite(lead.website))
       if (found >= target) return
       const stamp = new Date().toISOString()
-      let patch: Record<string, string> = { email_scan_at: stamp, email_scan_result: outcome.result }
-      if (outcome.email) {
+      const rescan = Boolean(clean(lead.email))
+      let patch: Record<string, string> = { email_scan_at: stamp, email_scan_result: rescan ? "personal_checked" : outcome.result }
+      // Bij een herscan telt alleen een nieuw persoonlijk adres; een algemeen adres hebben we al.
+      if (outcome.email && (!rescan || !isGenericEmail(outcome.email))) {
         const email = outcome.email.toLowerCase()
         let usable = !known.has(email)
         if (usable) { try { usable = await mxValid(email) } catch { usable = false } }
@@ -216,7 +235,7 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
           known.add(email)
           found++
           patch = { ...patch, email, email_source_url: clean(outcome.source_url) }
-        } else patch.email_scan_result = known.has(email) ? "duplicate" : "no_mx"
+        } else if (!rescan) patch.email_scan_result = known.has(email) ? "duplicate" : "no_mx"
       }
       scanned++
       patches.set(clean(lead.id), patch)
@@ -235,8 +254,9 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
       const patch = patches.get(clean(lead.id))
       if (!patch) return lead
       const { email, ...scanFields } = patch
-      if (!email || clean(lead.email)) return { ...lead, ...scanFields, updated_at: stamp }
-      interactions.push({ id: crypto.randomUUID(), lead_id: clean(lead.id), kind: "email_found", body: `E-mailadres ${email} gevonden op de website (${patch.email_source_url}).`, author: "Fysiomail e-mailzoeker", created_at: stamp })
+      const previous = clean(lead.email)
+      if (!email || (previous && !isGenericEmail(previous))) return { ...lead, ...scanFields, updated_at: stamp }
+      interactions.push({ id: crypto.randomUUID(), lead_id: clean(lead.id), kind: "email_found", body: previous ? `Persoonlijk e-mailadres ${email} gevonden op de website (${patch.email_source_url}); vervangt ${previous}.` : `E-mailadres ${email} gevonden op de website (${patch.email_source_url}).`, author: "Fysiomail e-mailzoeker", created_at: stamp })
       return { ...lead, ...patch, updated_at: stamp }
     })
     const nextInteractions = [...interactions, ...(Array.isArray(value.interactions) ? value.interactions : [])].slice(0, 1000)
@@ -297,7 +317,7 @@ Deno.serve(async (request) => {
       }
       return Response.json({ success: results.every((result) => result.status === "sent"), results }, { headers })
     }
-    if (action === "find-emails") return Response.json({ success: true, ...await findNewEmails(db, Math.min(batchSize, Math.max(1, Number(body.target) || batchSize))) }, { headers })
+    if (action === "find-emails") return Response.json({ success: true, ...await findNewEmails(db, Math.min(batchSize, Math.max(1, Number(body.target) || batchSize)), 10, clean(body.scope) || "national") }, { headers })
     if (action === "status") return Response.json({ success: true, ...await campaignStatus(db) }, { headers })
     if (action === "run") return Response.json({ success: true, ...await processBatch(db) }, { headers })
     if (action === "pause" || action === "resume") {

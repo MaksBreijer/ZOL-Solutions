@@ -8,9 +8,20 @@ test('extracts emails from mailto links, text and obfuscated notation', () => {
   assert.deepEqual(extractEmails(html).sort(), ['balie@fysiodelinde.nl', 'info@fysiodelinde.nl', 'praktijk@fysiodelinde.nl'])
 })
 
-test('prefers an info address on the practice domain', () => {
+test('prefers a personal address on the practice domain over a general inbox', () => {
   const candidates = ['jan@fysiodelinde.nl', 'info@fysiodelinde.nl', 'hallo@webbureau.nl', 'fysio@gmail.com']
-  assert.equal(pickPracticeEmail(candidates, 'https://www.fysiodelinde.nl/'), 'info@fysiodelinde.nl')
+  assert.equal(pickPracticeEmail(candidates, 'https://www.fysiodelinde.nl/'), 'jan@fysiodelinde.nl')
+  assert.equal(pickPracticeEmail(['balie@fysiodelinde.nl', 'info@fysiodelinde.nl'], 'https://fysiodelinde.nl'), 'info@fysiodelinde.nl')
+})
+
+test('personal scan also revisits practices that only have a general inbox', () => {
+  const leads = [
+    { id: 'a', type: 'physio', website: 'fysio-a.nl', email: 'info@fysio-a.nl' },
+    { id: 'b', type: 'physio', website: 'fysio-b.nl', email: 'jan@fysio-b.nl' },
+    { id: 'c', type: 'physio', website: 'fysio-c.nl', email: 'info@fysio-c.nl', email_scan_result: 'personal_checked' },
+  ]
+  assert.deepEqual(leadsToScan(leads, { personal: true }).map((lead) => lead.id), ['a'])
+  assert.deepEqual(leadsToScan(leads).map((lead) => lead.id), [])
 })
 
 test('falls back to a free mail address but never to a third-party domain', () => {

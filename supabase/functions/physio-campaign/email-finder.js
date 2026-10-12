@@ -7,6 +7,8 @@ const FREE_MAIL_DOMAINS = new Set([
 ])
 const SKIPPED_SITE_HOSTS = /(^|\.)(facebook|instagram|linkedin|google|youtube|twitter|x|tiktok|wa)\.(com|me|nl)$/i
 const PREFERRED_LOCAL_PARTS = ["info", "praktijk", "contact", "receptie", "secretariaat", "administratie", "balie", "mail", "post"]
+// Algemene postvakken: bruikbaar, maar een persoonlijk adres (jan@praktijk.nl) gaat voor.
+const GENERIC_LOCAL_PARTS = /^(info|praktijk|contact|receptie|secretariaat|administratie|balie|mail|post|afspraak|afspraken|planning|fysio|fysiotherapie|team|office|kantoor|hallo|hello|welkom|zorg|spoed|factu|financ|boekhouding|vacature|sollicit|jobs|werkenbij|hr|support|service|algemeen|aanmelden|aanmelding)/i
 const IGNORED_LOCAL_PARTS = /^(noreply|no-reply|donotreply|privacy|avg|fg|webmaster|postmaster|abuse|wordpress|admin|example|u00|sentry)/i
 export const MAX_HTML = 400_000
 const ASSET_SUFFIX = /\.(png|jpe?g|gif|svg|webp|avif|css|js|ico)$/i
@@ -58,13 +60,17 @@ export function extractEmails(html) {
     .filter((email) => !ASSET_SUFFIX.test(email) && !IGNORED_LOCAL_PARTS.test(email.split("@")[0]))
 }
 
+export const isGenericEmail = (email) => GENERIC_LOCAL_PARTS.test(String(email || "").split("@")[0])
+
 // Alleen adressen op het eigen domein van de praktijk, of een gangbare consumentenmail als die er niet is.
+// Een persoonlijk adres gaat voor op een algemeen postvak, omdat de fysiomail zo persoonlijk mogelijk moet zijn.
 export function pickPracticeEmail(candidates, websiteUrl) {
   const site = hostOf(websiteUrl)
   if (!site) return ""
   const siteRoot = site.split(".").slice(-2).join(".")
   const rank = (email) => {
     const local = email.split("@")[0]
+    if (!GENERIC_LOCAL_PARTS.test(local)) return -1
     const index = PREFERRED_LOCAL_PARTS.findIndex((part) => local === part || local.startsWith(`${part}.`) || local.startsWith(`${part}-`))
     return index === -1 ? PREFERRED_LOCAL_PARTS.length : index
   }
@@ -98,7 +104,12 @@ export function contactPageUrls(html, baseUrl, max = 2) {
 }
 
 // Praktijken die nog geen e-mailadres hebben, wel een website, en nog niet eerder zijn doorzocht.
-export function leadsToScan(leads = []) {
-  return leads.filter((lead) => lead?.type === "physio" && !lead.outreach_opt_out && !String(lead.email || "").trim()
-    && !lead.email_scan_at && normalizeWebsite(lead.website))
+// Met `personal` ook praktijken met alleen een algemeen adres, zodat we daar nog een persoonlijk adres zoeken.
+export function leadsToScan(leads = [], { personal = false } = {}) {
+  return leads.filter((lead) => {
+    if (lead?.type !== "physio" || lead.outreach_opt_out || !normalizeWebsite(lead.website)) return false
+    const email = String(lead.email || "").trim()
+    if (!email) return !lead.email_scan_at
+    return personal && isGenericEmail(email) && lead.email_scan_result !== "personal_checked"
+  })
 }

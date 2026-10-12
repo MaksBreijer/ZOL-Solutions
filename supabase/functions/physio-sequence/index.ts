@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
+import { adminClient, corsHeaders, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
 
 type Lead = Record<string, unknown>
 type Step = { title: string; subject: string; body: string; wait_days: number }
@@ -8,11 +8,11 @@ type Db = ReturnType<typeof adminClient>
 
 const clean = (value: unknown) => String(value ?? "").trim()
 const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-const footer = "Wilt u geen berichten meer ontvangen van ZOL Solutions? Reageer met 'geen interesse', dan verwijderen wij u direct uit het bestand."
 const stepTitles = ["Eerste contact", "Geen reactie", "Herhaling", "Herhaling 2.0"]
 const defaultWait = [0, 7, 7, 14]
 // Een praktijk die in Partner Scout al een gesprek, test of besluit heeft, krijgt geen opvolgmail meer.
 const stopStatuses = new Set(["meeting", "pilot", "won", "lost"])
+const groups = ["gold", "silver", "national"] as const
 const fromConfig = { from_email: "info@zolsolutions.nl", reply_to: "info@zolsolutions.nl" }
 
 async function loadSettings(db: Db) {
@@ -26,7 +26,9 @@ async function loadSettings(db: Db) {
   })
   const leads = Array.isArray(byKey.partner_scout?.leads) ? byKey.partner_scout.leads as Lead[] : []
   const gold = new Set((Array.isArray(sequence.gold_lead_ids) ? sequence.gold_lead_ids : []).map(clean))
-  return { enabled: Boolean(sequence.enabled), steps, leads, gold }
+  const flags = sequence.enabled_groups || {}
+  const enabledGroups = Object.fromEntries(groups.map((group) => [group, Boolean(flags[group])])) as Record<string, boolean>
+  return { enabledGroups, steps, leads, gold }
 }
 
 const isExcluded = (lead: Lead) => /^(smc|sport\s*medisch\s*centrum)\s+almere$/i.test(clean(lead.name).replace(/[-–]/g, " ")) || /@smcalmere\.nl$/i.test(clean(lead.email))
@@ -44,18 +46,15 @@ function personalize(template: string, enrollment: Enrollment) {
   })
 }
 
-function renderMail(step: Step, enrollment: Enrollment, config: Awaited<ReturnType<typeof getEmailConfig>>, eyebrow = "Bericht van ZOL Solutions") {
+// Bewust een kale, persoonlijke mail: geen huisstijlkop, knop of afmeldregel, zodat het leest als een mail die we zelf typen.
+function renderMail(step: Step, enrollment: Enrollment) {
   const subject = personalize(step.subject, enrollment).slice(0, 180)
   const body = personalize(step.body, enrollment).trim()
-  const bookingUrl = `https://zolsolutions.nl/kennismaking/?praktijk=${encodeURIComponent(enrollment.practice_name)}`
-  const text = `${body}\n\nPlan 10 minuten met ons: ${bookingUrl}\n\n${footer}`
   const paragraphs = body.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
-    .map((paragraph) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
-  const button = `<a href="${escapeEmailHtml(bookingUrl)}" style="display:inline-block;margin-top:16px;padding:13px 19px;border-radius:8px;background:#33669b;color:#fff;font-size:14px;font-weight:700;text-decoration:none">Plan 10 minuten met ons →</a>`
-  const photo = `<div style="margin:28px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="604" alt="Maks en Thijn, oprichters van ZOL Solutions" style="display:block;width:100%;max-width:604px;height:auto;border-radius:10px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>`
-  const optOut = `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">${escapeEmailHtml(footer)}</p>`
-  const html = emailShell(`${paragraphs}${button}${photo}${optOut}`, { eyebrow, title: subject, websiteUrl: config.website_url, logoUrl: config.logo_url })
-  return { subject, text, html }
+    .map((paragraph) => `<p style="margin:0 0 14px">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
+  const photo = `<img src="https://zolsolutions.nl/media/story-team.jpg" width="280" alt="Maks en Thijn" style="display:block;width:280px;max-width:100%;height:auto;margin-top:6px;border-radius:6px">`
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#222">${paragraphs}${photo}</div>`
+  return { subject, text: body, html }
 }
 
 async function mxValid(email: string) {
@@ -85,13 +84,15 @@ async function release(db: Db, id: string, patch: Record<string, unknown>) {
   if (error) throw error
 }
 
-async function processDue(db: Db) {
-  const { enabled, steps, leads } = await loadSettings(db)
-  if (!enabled) return { sent: 0, status: "disabled" }
+// Verstuurt alleen voor de groepen die aan staan; met `onlyGroup` alleen voor die ene groep.
+async function processDue(db: Db, onlyGroup = "") {
+  const { enabledGroups, steps, leads } = await loadSettings(db)
+  const active = groups.filter((group) => enabledGroups[group] && (!onlyGroup || group === onlyGroup))
+  if (!active.length) return { sent: 0, status: "disabled" }
   if (!withinOfficeHours()) return { sent: 0, status: "outside_office_hours" }
   const config = await getEmailConfig(db)
   if (!config.enabled) return { sent: 0, status: "email_disabled" }
-  const { data: claimed, error } = await db.rpc("claim_physio_sequence_due", { p_limit: 40 })
+  const { data: claimed, error } = await db.rpc("claim_physio_sequence_due", { p_groups: active, p_limit: 40 })
   if (error) throw error
   const byId = new Map(leads.map((lead) => [clean(lead.id), lead]))
   const counts = { sent: 0, failed: 0, stopped: 0, waiting: 0 }
@@ -122,7 +123,7 @@ async function processDue(db: Db) {
         counts.failed++
         continue
       }
-      const mail = renderMail(step, enrollment, config)
+      const mail = renderMail(step, enrollment)
       const { data: existing } = await db.from("email_messages").select("id,status,provider_id").eq("dedupe_key", dedupeKey).maybeSingle()
       let providerId = existing?.provider_id || null
       if (existing?.status !== "sent") {
@@ -162,12 +163,12 @@ async function previousMailings(db: Db) {
 }
 
 async function status(db: Db) {
-  const { enabled, steps, leads, gold } = await loadSettings(db)
+  const { enabledGroups, steps, leads, gold } = await loadSettings(db)
   const { data: enrollments, error } = await db.from("physio_sequence_enrollments")
     .select("id,lead_id,email,practice_name,location,region,circle,steps_sent,next_send_at,status,last_sent_at,error_message,created_at")
     .order("created_at", { ascending: false })
   if (error) throw error
-  const enrolledLeads = new Set((enrollments || []).map((row) => row.lead_id))
+  const enrolledLeads = new Map((enrollments || []).map((row) => [row.lead_id, row.circle]))
   const enrolledEmails = new Set((enrollments || []).map((row) => clean(row.email).toLowerCase()))
   const previous = await previousMailings(db)
   const practices = leads.filter((lead) => lead.type === "physio" && !isExcluded(lead)).map((lead) => {
@@ -178,11 +179,12 @@ async function status(db: Db) {
       opt_out: Boolean(lead.outreach_opt_out), has_opening: Boolean(clean(lead.personal_opening)),
       enrolled: enrolledLeads.has(clean(lead.id)) || (email && enrolledEmails.has(email)),
       previous_mail_at: previous.get(email) || "",
+      enrolled_group: enrolledLeads.get(clean(lead.id)) || "",
     }
   })
   const { count: sentToday } = await db.from("email_messages").select("id", { count: "exact", head: true }).eq("status", "sent")
     .gte("sent_at", amsterdamDayStart().toISOString())
-  return { enabled, steps, practices, enrollments: enrollments || [], sent_today: sentToday || 0, daily_limit: 40, office_hours: withinOfficeHours() }
+  return { enabled_groups: enabledGroups, steps, practices, enrollments: enrollments || [], sent_today: sentToday || 0, daily_limit: 40, office_hours: withinOfficeHours() }
 }
 
 Deno.serve(async (request) => {
@@ -211,7 +213,7 @@ Deno.serve(async (request) => {
       const results = []
       for (const person of [{ name: "Thijn", email: "thijn@zolsolutions.nl" }, { name: "Maks", email: "maks@zolsolutions.nl" }]) {
         const sample = { id: "", lead_id: "", email: person.email, practice_name: `Praktijk van ${person.name}`, location: "Amsterdam", region: "Noord-Holland", specialization: "fysiotherapie", contact_person: person.name, personal_opening: `Hoi ${person.name}, dit is een voorbeeld van een persoonlijke openingszin.`, circle: "", steps_sent: index }
-        const mail = renderMail(step, sample, config, `Test stap ${index + 1} · ${step.title}`)
+        const mail = renderMail(step, sample)
         const dedupeKey = `physio-sequence-test-${crypto.randomUUID()}`
         const log = await logEmail(db, { kind: "physio_campaign", recipient_email: person.email, subject: `[TEST] ${mail.subject}`, body_preview: mail.text.slice(0, 500), dedupe_key: dedupeKey })
         try {
@@ -230,7 +232,10 @@ Deno.serve(async (request) => {
     if (action === "enroll") {
       const ids = [...new Set((Array.isArray(body.lead_ids) ? body.lead_ids : []).map(clean).filter(Boolean))]
       if (!ids.length || ids.length > 200) return Response.json({ error: "Kies 1 tot 200 praktijken." }, { status: 400, headers })
+      const group = clean(body.group)
+      if (!groups.includes(group as typeof groups[number])) return Response.json({ error: "Kies een groep: Gold, Silver of Landelijk." }, { status: 400, headers })
       const { leads, gold } = await loadSettings(db)
+      const inGroup = (lead: Lead) => group === "gold" ? gold.has(clean(lead.id)) : group === "silver" ? isAmsterdam(lead) : true
       const wanted = new Set(ids)
       const { data: existing, error: existingError } = await db.from("physio_sequence_enrollments").select("lead_id,email")
       if (existingError) throw existingError
@@ -239,10 +244,10 @@ Deno.serve(async (request) => {
       const rows = []
       for (const lead of leads) {
         const email = clean(lead.email).toLowerCase()
-        if (!wanted.has(clean(lead.id)) || lead.type !== "physio" || lead.outreach_opt_out || isExcluded(lead) || !validEmail(email)) continue
+        if (!wanted.has(clean(lead.id)) || lead.type !== "physio" || lead.outreach_opt_out || isExcluded(lead) || !validEmail(email) || !inGroup(lead)) continue
         if (takenLeads.has(clean(lead.id)) || takenEmails.has(email)) continue
         takenEmails.add(email)
-        rows.push({ lead_id: clean(lead.id), email, practice_name: clean(lead.name), location: clean(lead.city), region: clean(lead.region), specialization: clean(lead.specialization), contact_person: clean(lead.contact_name), personal_opening: clean(lead.personal_opening), circle: circleOf(lead, gold), created_by: admin.id })
+        rows.push({ lead_id: clean(lead.id), email, practice_name: clean(lead.name), location: clean(lead.city), region: clean(lead.region), specialization: clean(lead.specialization), contact_person: clean(lead.contact_name), personal_opening: clean(lead.personal_opening), circle: group, created_by: admin.id })
       }
       if (rows.length) {
         const { error: insertError } = await db.from("physio_sequence_enrollments").insert(rows)
@@ -264,7 +269,7 @@ Deno.serve(async (request) => {
       return Response.json({ success: true, ...await status(db) }, { headers })
     }
 
-    if (action === "run") return Response.json({ success: true, delivery: await processDue(db), ...await status(db) }, { headers })
+    if (action === "run") return Response.json({ success: true, delivery: await processDue(db, clean(body.group)), ...await status(db) }, { headers })
     return Response.json({ error: "Onbekende actie" }, { status: 400, headers })
   } catch (error) {
     const message = error instanceof Error ? error.message : "De fysiomail kon niet worden verwerkt"
