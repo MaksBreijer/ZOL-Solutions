@@ -8,8 +8,6 @@
 body { background: var(--paper); color: var(--ink); font-family: "Barlow Semi Condensed", Arial, sans-serif; }
 body::before { display: none !important; }
 .announcement, .language-switcher--standalone { display: none !important; }
-.zn .language-switcher { margin-left: 4px; }
-.zn:not(.is-solid) .language-switcher { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); color: #fff; }
 
 /* Koppen: zoals de homepage, geen hoofdletters, geen cursief */
 h1, h2, h3,

@@ -1,6 +1,7 @@
 import './font-faces.css'
 import './home-page.css'
 import './site-runtime.js'
+import './language.js'
 
 const v = document.getElementById('storyVideo')
 const b = document.getElementById('storyPlay')
