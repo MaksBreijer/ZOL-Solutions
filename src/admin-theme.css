@@ -1,0 +1,26 @@
+/* Admin in de huisstijl van de homepage: Barlow, ZOL-blauw, rustig licht. */
+:root {
+  --admin-navy: #102b4a;
+  --admin-navy-deep: #0b2038;
+  --admin-blue: #33669b;
+  --admin-blue-dark: #284f78;
+  --admin-blue-soft: #e8eff5;
+  --admin-orange: #bf512f;
+  --admin-orange-soft: #fbeee8;
+  --admin-ink: #161b20;
+  --admin-muted: #626970;
+  --admin-line: #e3e6e7;
+  --admin-bg: #fbfaf7;
+  font-family: "Barlow Semi Condensed", Arial, sans-serif;
+}
+body { font-family: "Barlow Semi Condensed", Arial, sans-serif; background: var(--admin-bg); }
+em, cite { font-style: normal; }
+h1, h2, .page-header h1, .order-title-line h1 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.page-header h1 { font-size: clamp(30px, 3.4vw, 38px); }
+.button { border-radius: 999px; }
+.button--primary { background: var(--admin-blue); border-color: var(--admin-blue); color: #fff; }
+.button--primary:hover { background: var(--admin-navy); border-color: var(--admin-navy); }
