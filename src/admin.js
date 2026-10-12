@@ -1648,7 +1648,7 @@ function renderPartners() {
   const queue = partnerActionQueue(leads)
   if (!leads.some((lead) => lead.id === partnerSelectedId)) partnerSelectedId = leads[0]?.id || ''
   elements.content.innerHTML = `<div class="page-container partner-page">
-    ${pageHeader('partners', '<button class="button" data-action="export-partners"><i data-lucide="download"></i> Exporteren</button><button class="button" data-action="import-physios"><i data-lucide="plus"></i> Praktijkbestand importeren</button><button class="button" data-action="new-partner"><i data-lucide="plus"></i> Handmatig toevoegen</button><button class="button" data-action="discover-physios-national"><i data-lucide="map-pin"></i> Fysio’s landelijk zoeken</button><button class="button button--primary" data-action="discover-partners-now"><i data-lucide="sparkles"></i> Scout bijwerken</button>')}
+    ${pageHeader('partners', '<button class="button" data-action="export-partners"><i data-lucide="download"></i> Exporteren</button><button class="button" data-action="import-physios"><i data-lucide="plus"></i> Praktijkbestand importeren</button><button class="button" data-action="new-partner"><i data-lucide="plus"></i> Handmatig toevoegen</button><button class="button" type="button" id="partner-find-emails"><i data-lucide="search"></i> Zoek 40 nieuwe e-mailadressen</button><button class="button" data-action="discover-physios-national"><i data-lucide="map-pin"></i> Fysio’s landelijk zoeken</button><button class="button button--primary" data-action="discover-partners-now"><i data-lucide="sparkles"></i> Scout bijwerken</button>')}
     <section class="partner-hero"><div><span><i></i> REVENUE SPRINT · LIVE</span><h2>Van partner naar bestelling.</h2><p>Club Sales brengt ZOL rechtstreeks bij ouders. Fysio Referral bouwt vertrouwen en verwijzingen op. Iedere actie, klik, bestelling en euro komt hier samen.</p></div><aside><small>Laatste stille datascan</small><strong>${escapeHtml(lastScan)}</strong><span>Blijft op deze pagina · geen pop-ups</span></aside></section>
     <nav class="partner-channel-switch" aria-label="Partnerkanalen"><button class="${partnerFilters.type === 'sports_club' ? 'is-active' : ''}" data-partner-channel="sports_club"><i data-lucide="target"></i><span><strong>Club Sales</strong><small>Verkoopmomenten en ouderbereik</small></span></button><button class="${partnerFilters.type === 'physio' ? 'is-active' : ''}" data-partner-channel="physio"><i data-lucide="users"></i><span><strong>Fysio Referral</strong><small>Demo’s en warme verwijzingen</small></span></button><button class="${partnerFilters.type === '' ? 'is-active' : ''}" data-partner-channel=""><i data-lucide="building-2"></i><span><strong>Alle matches</strong><small>Inclusief scholen en partners</small></span></button></nav>
     <p class="form-hint">Landelijke bronzoekactie: ${(state.partnerScout.national_physio_regions || []).length} van ${PARTNER_REGIONS.length} provincies verwerkt · ${state.partnerScout.leads.filter((lead) => lead.type === 'physio').length} fysiopraktijken in het overzicht. Openbare vermeldingen zijn geen volledig register.</p>
@@ -1668,6 +1668,7 @@ function renderPartners() {
     <section class="partner-privacy"><i data-lucide="zap"></i><div><strong>Brondekking en mailcontrole</strong><p>De landelijke zoekactie verzamelt fysiopraktijken die als zodanig in <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> staan. Deze bron bevat niet gegarandeerd alle actieve praktijken. Controleer per praktijk de bron, contactgegevens en grond voor e-mail. De Scout verstuurt niets automatisch.</p></div></section>
   </div>`
   wirePartnerDetailForms()
+  document.querySelector('#partner-find-emails')?.addEventListener('click', (event) => findPhysioEmails(event.currentTarget))
   // Public data lookups run only after an administrator starts a scan.
 }
 
@@ -1878,6 +1879,7 @@ async function findPhysioEmails(button) {
       const setting = state.settings.find((item) => item.key === 'partner_scout')
       if (setting) setting.value = state.partnerScout
     }
+    if (currentRoute() === 'partners') renderPartners()
     await loadPhysioCampaignStatus()
     const available = new Set((physioCampaignStatus?.recipients || []).map((recipient) => recipient.id))
     for (const id of leadIds) if (available.has(id) && physioCampaignSelection.size < 40) physioCampaignSelection.add(id)
