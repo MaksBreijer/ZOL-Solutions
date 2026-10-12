@@ -207,7 +207,7 @@ async function previousMailings(db: Db) {
 async function status(db: Db) {
   const { enabledGroups, steps, leads, gold } = await loadSettings(db)
   const { data: enrollments, error } = await db.from("physio_sequence_enrollments")
-    .select("id,lead_id,email,practice_name,location,region,circle,steps_sent,next_send_at,status,last_sent_at,error_message,created_at")
+    .select("id,lead_id,email,practice_name,location,region,circle,steps_sent,next_send_at,status,last_sent_at,error_message,created_at,notes,updated_at")
     .order("created_at", { ascending: false })
   if (error) throw error
   const enrolledLeads = new Map((enrollments || []).map((row) => [row.lead_id, row.circle]))
@@ -331,6 +331,20 @@ Deno.serve(async (request) => {
       if (!patches[op]) return Response.json({ error: "Onbekende wijziging" }, { status: 400, headers })
       const { error } = await db.from("physio_sequence_enrollments").update({ ...patches[op], updated_at: new Date().toISOString() }).eq("id", id).neq("status", "sending")
       if (error) throw error
+      return Response.json({ success: true, ...await status(db) }, { headers })
+    }
+
+    // Interne notitie bij een praktijk: alleen voor ZOL, komt nooit in een mail.
+    if (action === "note") {
+      const id = clean(body.id)
+      const text = clean(body.body).slice(0, 2000)
+      if (!id || !text) return Response.json({ error: "Schrijf eerst een notitie." }, { status: 400, headers })
+      const { data: row, error: readError } = await db.from("physio_sequence_enrollments").select("notes").eq("id", id).maybeSingle()
+      if (readError) throw readError
+      if (!row) return Response.json({ error: "Praktijk niet gevonden." }, { status: 404, headers })
+      const notes = [{ body: text, author: clean(admin.full_name) || clean(admin.email) || "ZOL", created_at: new Date().toISOString() }, ...(Array.isArray(row.notes) ? row.notes : [])].slice(0, 200)
+      const { error: noteError } = await db.from("physio_sequence_enrollments").update({ notes }).eq("id", id)
+      if (noteError) throw noteError
       return Response.json({ success: true, ...await status(db) }, { headers })
     }
 

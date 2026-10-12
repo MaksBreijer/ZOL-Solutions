@@ -1737,6 +1737,31 @@ const PHYSIO_STATUS_PILL = { active: 'is-blue', sending: 'is-blue', paused: 'is-
 
 let physioEnrollmentFilter = 'all'
 
+// Interne notities per praktijk: wat is besproken, hoe en wat. Alleen voor ZOL, nooit in een mail.
+function openPhysioNotes(id) {
+  const row = physioSequence?.enrollments.find((item) => item.id === id)
+  if (!row) return
+  const notes = Array.isArray(row.notes) ? row.notes : []
+  const list = notes.length
+    ? `<ol class="physio-notes">${notes.map((note) => `<li><p>${escapeHtml(note.body).replaceAll('\n', '<br>')}</p><small>${escapeHtml(note.author || 'ZOL')} · ${formatDate(note.created_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small></li>`).join('')}</ol>`
+    : '<p class="physio-empty">Nog geen notities.</p>'
+  openDialog(row.practice_name, `${PHYSIO_ENROLLMENT_STATUS[row.status] || row.status} · ${row.email}`, `<p class="form-hint">Alleen voor ons: deze notities komen nooit in een mail.</p><form id="physio-note-form"><textarea name="body" rows="4" maxlength="2000" placeholder="Bijv. Gebeld met Jan, wil 5 paar proberen; terugbellen na de herfstvakantie." required></textarea><div class="dialog-actions"><button class="button button--primary" type="submit">Notitie opslaan</button></div></form>${list}`)
+  const form = document.querySelector('#physio-note-form')
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault()
+    const body = form.elements.body.value.trim()
+    if (!body) return
+    const button = form.querySelector('button[type="submit"]')
+    setBusy(button, true, 'Notitie opslaan')
+    try {
+      physioSequence = await physioSequenceCall({ action: 'note', id, body })
+      renderPhysioEnrollments()
+      openPhysioNotes(id)
+      toast('Notitie opgeslagen', row.practice_name)
+    } catch (error) { toast('Notitie opslaan mislukt', error.message, true); setBusy(button, false, 'Notitie opslaan') }
+  })
+}
+
 function renderPhysioEnrollments() {
   const target = document.querySelector('#physio-enrollments')
   if (!target || !physioSequence) return
@@ -1744,14 +1769,15 @@ function renderPhysioEnrollments() {
   if (!all.length) { target.innerHTML = '<p class="physio-empty">Nog niemand gemaild via de nieuwe Fysiomail.</p>'; return }
   // Gemaild: minstens mail 1 is verstuurd. Wachtrij: ingeschreven, maar mail 1 moet nog uit.
   const queued = (row) => row.steps_sent === 0 && ['active', 'sending', 'paused'].includes(row.status)
-  const counts = { all: all.length, sent: all.filter((row) => row.steps_sent > 0).length, queue: all.filter(queued).length }
-  const rows = all.filter((row) => physioEnrollmentFilter === 'sent' ? row.steps_sent > 0 : physioEnrollmentFilter === 'queue' ? queued(row) : true)
-  const filters = [['all', 'Alle'], ['sent', 'Gemaild'], ['queue', 'In wachtrij']].map(([key, label]) => `<button type="button" class="${physioEnrollmentFilter === key ? 'is-active' : ''}" data-physio-filter="${key}">${label} <b>${counts[key]}</b></button>`).join('')
+  const counts = { all: all.length, sent: all.filter((row) => row.steps_sent > 0).length, queue: all.filter(queued).length, replied: all.filter((row) => row.status === 'replied').length }
+  const rows = all.filter((row) => physioEnrollmentFilter === 'sent' ? row.steps_sent > 0 : physioEnrollmentFilter === 'queue' ? queued(row) : physioEnrollmentFilter === 'replied' ? row.status === 'replied' : true)
+  const filters = [['all', 'Alle'], ['sent', 'Gemaild'], ['queue', 'In wachtrij'], ['replied', 'Gereageerd']].map(([key, label]) => `<button type="button" class="${physioEnrollmentFilter === key ? 'is-active' : ''}" data-physio-filter="${key}">${label} <b>${counts[key]}</b></button>`).join('')
   target.innerHTML = `<nav class="finance-tabs physio-enrollment-filter" aria-label="Filter">${filters}</nav>${rows.length ? '' : '<p class="physio-empty">Niemand in deze lijst.</p>'}<div class="table-scroll"${rows.length ? '' : ' hidden'}><table class="data-table physio-table"><thead><tr><th>Praktijk</th><th>Groep</th><th>Mails</th><th>Status</th><th>Volgende mail</th><th></th></tr></thead><tbody>${rows.map((row) => {
     const open = ['active', 'paused', 'failed'].includes(row.status)
     const next = ['active', 'paused'].includes(row.status) && row.steps_sent < 4 ? `Mail ${row.steps_sent + 1} · ${formatDate(row.next_send_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : '—'
     const actions = open ? `<button class="button button--small" data-physio-op="replied" data-id="${escapeHtml(row.id)}">Gereageerd</button><button class="button button--small" data-physio-op="stop" data-id="${escapeHtml(row.id)}">Stop</button>` : ''
-    return `<tr><td><strong>${escapeHtml(row.practice_name)}</strong><small>${escapeHtml(row.email)}</small></td><td>${physioCircleBadge(row.circle)}</td><td><span class="physio-dots" aria-label="${row.steps_sent} van 4">${[1, 2, 3, 4].map((step) => `<i class="${step <= row.steps_sent ? 'is-done' : ''}"></i>`).join('')}</span></td><td><span class="status-pill ${PHYSIO_STATUS_PILL[row.status] ?? ''}">${escapeHtml(queued(row) ? 'In wachtrij' : PHYSIO_ENROLLMENT_STATUS[row.status] || row.status)}</span>${row.error_message ? `<small>${escapeHtml(row.error_message)}</small>` : ''}</td><td>${escapeHtml(next)}</td><td><div class="physio-row-actions">${actions}</div></td></tr>`
+    const noteCount = Array.isArray(row.notes) ? row.notes.length : 0
+    return `<tr><td><button class="physio-practice-link" type="button" data-physio-notes="${escapeHtml(row.id)}"><strong>${escapeHtml(row.practice_name)}</strong></button><small>${escapeHtml(row.email)}</small>${noteCount ? `<small class="physio-note-count">${noteCount} ${noteCount === 1 ? 'notitie' : 'notities'}</small>` : ''}</td><td>${physioCircleBadge(row.circle)}</td><td><span class="physio-dots" aria-label="${row.steps_sent} van 4">${[1, 2, 3, 4].map((step) => `<i class="${step <= row.steps_sent ? 'is-done' : ''}"></i>`).join('')}</span></td><td><span class="status-pill ${PHYSIO_STATUS_PILL[row.status] ?? ''}">${escapeHtml(queued(row) ? 'In wachtrij' : PHYSIO_ENROLLMENT_STATUS[row.status] || row.status)}</span>${row.error_message ? `<small>${escapeHtml(row.error_message)}</small>` : ''}</td><td>${escapeHtml(next)}</td><td><div class="physio-row-actions">${actions}</div></td></tr>`
   }).join('')}</tbody></table></div>`
 }
 
@@ -1780,6 +1806,8 @@ function renderPhysioCampaign() {
   document.querySelector('#physio-find-emails').addEventListener('click', (event) => findPhysioEmails(event.currentTarget, 'national'))
   document.querySelector('#physio-save-steps').addEventListener('click', (event) => savePhysioSequence(event.currentTarget))
   page.addEventListener('click', (event) => {
+    const notes = event.target.closest('[data-physio-notes]')
+    if (notes) { openPhysioNotes(notes.dataset.physioNotes); return }
     const filter = event.target.closest('[data-physio-filter]')
     if (filter) { physioEnrollmentFilter = filter.dataset.physioFilter; renderPhysioEnrollments(); return }
     const tab = event.target.closest('[data-physio-tab]')
