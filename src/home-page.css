@@ -204,3 +204,4 @@
 [data-inline="is-4"] { padding-top: 40px !important; }
 [data-inline="is-5"] { color: var(--ink) !important; }
 [data-inline="is-6"] { font-size: 13px !important; }
+.partners img.partner-round { height: 56px; }
