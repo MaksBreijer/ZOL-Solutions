@@ -1815,7 +1815,7 @@ function stripPhysioGreeting(body) {
 
 function physioStepValues() {
   return [...document.querySelectorAll('[data-physio-step]')].map((step, index) => {
-    const values = Object.fromEntries(new FormData(step.querySelector('form')))
+    const values = Object.fromEntries(new FormData(step))
     return { title: PHYSIO_STEP_TITLES[index], subject: String(values.subject || '').trim(), body: stripPhysioGreeting(values.body), wait_days: Math.max(0, Math.min(60, Number(values.wait_days) || 0)) }
   })
 }
