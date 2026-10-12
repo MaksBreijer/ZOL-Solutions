@@ -155,6 +155,7 @@ export const englishPatterns = [
   [/^Besteed minimaal €(.+) om deze kortingscode te gebruiken\.$/, (_, amount) => `Spend at least €${amount} to use this discount code.`],
   [/^Op voorraad — maat (.+)$/, (_, size) => `In stock — size ${size}`],
   [/^Nog maar (\d+) op voorraad — maat (.+)$/, (_, count, size) => `Only ${count} left in stock — size ${size}`],
+  [/^Bijna uitverkocht — maat (.+)$/, (_, size) => `Almost sold out — size ${size}`],
   [/^Maat (.+) is uitverkocht\.$/, (_, size) => `Size ${size} is sold out.`],
   [/^Maat (.+) is uitverkocht — kies deze maat voor een voorraadmelding$/, (_, size) => `Size ${size} is sold out — select it for a stock notification`],
   [/^Maat (.+), schoenmaat (.+?)(, uitverkocht)?$/, (_, size, shoe, sold) => `Size ${size}, shoe size ${shoe}${sold ? ', sold out' : ''}`],

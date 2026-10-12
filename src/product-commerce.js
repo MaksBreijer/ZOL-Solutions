@@ -111,7 +111,7 @@ async function initializeProductCommerce() {
       stockStatus.className = `stock-status ${stock > 4 ? 'is-available' : stock > 0 ? 'is-low' : 'is-unavailable'}`
       if (!variant) stockStatus.textContent = 'Deze maten zijn momenteel uitverkocht.'
       else if (stock > 4) stockStatus.textContent = `Op voorraad — maat ${variant.shoe_size || variant.size}`
-      else if (stock > 0) stockStatus.textContent = `Nog maar ${stock} op voorraad — maat ${variant.shoe_size || variant.size}`
+      else if (stock > 0) stockStatus.textContent = `Bijna uitverkocht — maat ${variant.shoe_size || variant.size}`
       else stockStatus.textContent = `Maat ${variant.shoe_size || variant.size} is uitverkocht.`
     }
 
