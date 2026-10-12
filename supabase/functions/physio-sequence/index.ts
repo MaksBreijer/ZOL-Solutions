@@ -32,7 +32,7 @@ async function loadSettings(db: Db) {
   return { enabledGroups, steps, leads, gold }
 }
 
-const isExcluded = (lead: Lead) => /^(smc|sport\s*medisch\s*centrum)\s+almere$/i.test(clean(lead.name).replace(/[-–]/g, " ")) || /@smcalmere\.nl$/i.test(clean(lead.email))
+const isExcluded = (lead: Lead) => /smc\s*almere|sport\s*medisch\s*centrum\s*almere/i.test(clean(lead.name).replace(/[-–]/g, " ")) || /smcalmere\.nl/i.test(`${clean(lead.email)} ${clean(lead.website)}`)
 // Gold en Silver zijn alleen voor praktijken in Amsterdam en Amstelveen; alles daarbuiten is Landelijk.
 const isHomeArea = (lead: Lead) => /\b(amsterdam|amstelveen)\b/i.test(clean(lead.city))
 // Gold: kinder- of sportfocus (of handmatig gekozen) binnen Amsterdam/Amstelveen. Silver: overige praktijken daar. Landelijk: de rest.
@@ -191,7 +191,8 @@ async function status(db: Db) {
       email: validEmail(email) ? email : "", circle: circleOf(lead, gold), status: clean(lead.status),
       opt_out: Boolean(lead.outreach_opt_out), has_opening: Boolean(clean(lead.personal_opening)),
       enrolled: enrolledLeads.has(clean(lead.id)) || (email && enrolledEmails.has(email)),
-      previous_mail_at: previous.get(email) || "",
+      // Amsterdam en Amstelveen mogen opnieuw: de oude fysiomail telt daar niet als eerder gemaild.
+      previous_mail_at: isHomeArea(lead) ? "" : previous.get(email) || "",
       enrolled_group: enrolledLeads.get(clean(lead.id)) || "",
       salutation: physioSalutationName({ contactPerson: clean(lead.contact_name), email, practiceName: clean(lead.name) }),
       found_at: clean(lead.email) ? clean(lead.email_scan_at) || clean(lead.created_at) : "",
@@ -257,13 +258,15 @@ Deno.serve(async (request) => {
       if (existingError) throw existingError
       const takenLeads = new Set((existing || []).map((row) => row.lead_id))
       // Ooit gemaild (oude fysiomail of eerdere reeks) telt als bezet: die praktijk krijgt niets opnieuw.
-      const takenEmails = new Set([...(existing || []).map((row) => clean(row.email).toLowerCase()), ...(await previousMailings(db)).keys()])
+      const enrolledEmails = new Set((existing || []).map((row) => clean(row.email).toLowerCase()))
+      const oldMailings = await previousMailings(db)
       const rows = []
       for (const lead of leads) {
         const email = clean(lead.email).toLowerCase()
         if ((!allReady && !wanted.has(clean(lead.id))) || lead.type !== "physio" || lead.outreach_opt_out || isExcluded(lead) || !validEmail(email) || !inGroup(lead)) continue
-        if (takenLeads.has(clean(lead.id)) || takenEmails.has(email)) continue
-        takenEmails.add(email)
+        // Amsterdam en Amstelveen mogen een tweede keer, ook als de oude fysiomail ze al had; de nieuwe reeks nooit dubbel.
+        if (takenLeads.has(clean(lead.id)) || enrolledEmails.has(email) || (!isHomeArea(lead) && oldMailings.has(email))) continue
+        enrolledEmails.add(email)
         rows.push({ lead_id: clean(lead.id), email, practice_name: clean(lead.name), location: clean(lead.city), region: clean(lead.region), specialization: clean(lead.specialization), contact_person: clean(lead.contact_name), personal_opening: clean(lead.personal_opening), circle: group, created_by: admin.id })
       }
       if (rows.length) {
