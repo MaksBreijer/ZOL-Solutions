@@ -1684,9 +1684,9 @@ const PHYSIO_STEP_HINTS = [
 ]
 const PHYSIO_ENROLLMENT_STATUS = { active: 'Loopt', sending: 'Wordt verstuurd', paused: 'Gepauzeerd', replied: 'Gereageerd', stopped: 'Gestopt', completed: 'Klaar (4 mails gehad)', failed: 'Mislukt' }
 const PHYSIO_GROUPS = [
-  ['gold', 'Gold Circle', 'Praktijken met kinder- of sportfocus: onze echte doelgroep.'],
-  ['silver', 'Silver Circle', 'Overige praktijken in Amsterdam.'],
-  ['national', 'Landelijk', 'Alle andere praktijken in Nederland.'],
+  ['gold', 'Gold Circle', 'Amsterdam en Amstelveen, met kinder- of sportfocus.'],
+  ['silver', 'Silver Circle', 'Overige praktijken in Amsterdam en Amstelveen.'],
+  ['national', 'Landelijk', 'Alle praktijken buiten Amsterdam en Amstelveen.'],
 ]
 const PHYSIO_GROUP_LABELS = Object.fromEntries(PHYSIO_GROUPS.map(([key, label]) => [key, label]))
 

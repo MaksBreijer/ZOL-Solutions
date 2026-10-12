@@ -33,17 +33,17 @@ async function loadSettings(db: Db) {
 }
 
 const isExcluded = (lead: Lead) => /^(smc|sport\s*medisch\s*centrum)\s+almere$/i.test(clean(lead.name).replace(/[-–]/g, " ")) || /@smcalmere\.nl$/i.test(clean(lead.email))
-const isAmsterdam = (lead: Lead) => /amsterdam/i.test(clean(lead.city))
-// Automatische indeling. Gold: praktijken met kinder- of sportfocus (onze echte doelgroep) of handmatig gekozen.
-// Silver: overige praktijken in Amsterdam. Landelijk: de rest.
+// Gold en Silver zijn alleen voor praktijken in Amsterdam en Amstelveen; alles daarbuiten is Landelijk.
+const isHomeArea = (lead: Lead) => /\b(amsterdam|amstelveen)\b/i.test(clean(lead.city))
+// Gold: kinder- of sportfocus (of handmatig gekozen) binnen Amsterdam/Amstelveen. Silver: overige praktijken daar. Landelijk: de rest.
 const goldSignals = /kinder|kids|jeugd|junior|sport|hielpijn|sever/i
 const circleOf = (lead: Lead, gold: Set<string>) => {
+  if (!isHomeArea(lead)) return "national"
   if (gold.has(clean(lead.id))) return "gold"
   // De standaardreden van de landelijke zoekactie ("Openbare vermelding…") noemt altijd sport en kinderen en telt dus niet mee.
   const reason = /^openbare vermelding/i.test(clean(lead.match_reason)) ? "" : lead.match_reason
   const profile = [lead.name, lead.specialization, reason, lead.website, ...(Array.isArray(lead.tags) ? lead.tags : [])].map(clean).join(" ")
-  if (goldSignals.test(profile)) return "gold"
-  return isAmsterdam(lead) ? "silver" : "national"
+  return goldSignals.test(profile) ? "gold" : "silver"
 }
 
 function personalize(template: string, enrollment: Enrollment) {
