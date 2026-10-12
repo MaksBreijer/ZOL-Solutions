@@ -173,17 +173,21 @@ async function fetchPage(url: string) {
   } catch { return null } finally { clearTimeout(timer) }
 }
 
-async function findPracticeEmail(website: string): Promise<{ result: string; email?: string; source_url?: string }> {
+// Een praktijk met kinder- of sportfocus op de eigen website komt automatisch in de Gold Circle van de Fysiomail.
+const FOCUS_SIGNALS = /kinderfysio|kinder\s*fysio|sportfysio|sport\s*fysio|sportblessure|ziekte van sever|morbus sever|groeipijn|jeugdsport|hielpijn/i
+
+async function findPracticeEmail(website: string): Promise<{ result: string; email?: string; source_url?: string; focus?: boolean }> {
   const home = await fetchPage(website)
   if (!home) return { result: "unreachable" }
+  const focus = FOCUS_SIGNALS.test(home.html)
   const fromHome = pickPracticeEmail(extractEmails(home.html), home.url)
-  if (fromHome) return { result: "found", email: fromHome, source_url: home.url }
+  if (fromHome) return { result: "found", email: fromHome, source_url: home.url, focus }
   for (const url of contactPageUrls(home.html, home.url)) {
     const page = await fetchPage(url)
     const email = page ? pickPracticeEmail(extractEmails(page.html), home.url) : ""
-    if (email) return { result: "found", email, source_url: page!.url }
+    if (email) return { result: "found", email, source_url: page!.url, focus }
   }
-  return { result: "none" }
+  return { result: "none", focus }
 }
 
 // Zoekt nieuwe adressen op praktijkwebsites en slaat ze op in Partner Scout. Verstuurt niets.
@@ -209,6 +213,8 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
   const inScope = await scopeFilter(db, scope)
   // Praktijken die al in de mailreeks zitten, houden hun adres; anders stopt hun reeks halverwege.
   const { data: enrolled } = await db.from("physio_sequence_enrollments").select("lead_id")
+  const { data: enrolledEmails } = await db.from("physio_sequence_enrollments").select("email")
+  for (const row of enrolledEmails || []) known.add(clean(row.email).toLowerCase())
   const enrolledIds = new Set((enrolled || []).map((row: { lead_id: string }) => row.lead_id))
   const pending = (leadsToScan(leads.filter((lead) => inScope(lead) && !enrolledIds.has(clean(lead.id))), { personal: true }) as Lead[])
     .sort((a, b) => Number(Boolean(clean(a.email))) - Number(Boolean(clean(b.email))))
@@ -237,6 +243,7 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
           patch = { ...patch, email, email_source_url: clean(outcome.source_url) }
         } else if (!rescan) patch.email_scan_result = known.has(email) ? "duplicate" : "no_mx"
       }
+      if (outcome.focus) patch.focus = "1"
       scanned++
       patches.set(clean(lead.id), patch)
     }
@@ -253,11 +260,14 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
     const nextLeads = (Array.isArray(value.leads) ? value.leads as Lead[] : []).map((lead) => {
       const patch = patches.get(clean(lead.id))
       if (!patch) return lead
-      const { email, ...scanFields } = patch
+      const { email, focus, ...rest } = patch
+      const scanFields: Record<string, unknown> = rest
+      const tags = Array.isArray(lead.tags) ? lead.tags as string[] : []
+      if (focus && !tags.includes("kinder-sport-focus")) scanFields.tags = [...tags, "kinder-sport-focus"].slice(0, 12)
       const previous = clean(lead.email)
       if (!email || (previous && !isGenericEmail(previous))) return { ...lead, ...scanFields, updated_at: stamp }
       interactions.push({ id: crypto.randomUUID(), lead_id: clean(lead.id), kind: "email_found", body: previous ? `Persoonlijk e-mailadres ${email} gevonden op de website (${patch.email_source_url}); vervangt ${previous}.` : `E-mailadres ${email} gevonden op de website (${patch.email_source_url}).`, author: "Fysiomail e-mailzoeker", created_at: stamp })
-      return { ...lead, ...patch, updated_at: stamp }
+      return { ...lead, ...scanFields, email, updated_at: stamp }
     })
     const nextInteractions = [...interactions, ...(Array.isArray(value.interactions) ? value.interactions : [])].slice(0, 1000)
     const { error: saveError } = await db.from("settings").update({ value: { ...value, leads: nextLeads, interactions: nextInteractions, updated_at: stamp } }).eq("key", "partner_scout")

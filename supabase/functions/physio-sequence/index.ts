@@ -33,7 +33,17 @@ async function loadSettings(db: Db) {
 
 const isExcluded = (lead: Lead) => /^(smc|sport\s*medisch\s*centrum)\s+almere$/i.test(clean(lead.name).replace(/[-–]/g, " ")) || /@smcalmere\.nl$/i.test(clean(lead.email))
 const isAmsterdam = (lead: Lead) => /amsterdam/i.test(clean(lead.city))
-const circleOf = (lead: Lead, gold: Set<string>) => gold.has(clean(lead.id)) ? "gold" : isAmsterdam(lead) ? "silver" : ""
+// Automatische indeling. Gold: praktijken met kinder- of sportfocus (onze echte doelgroep) of handmatig gekozen.
+// Silver: overige praktijken in Amsterdam. Landelijk: de rest.
+const goldSignals = /kinder|kids|jeugd|junior|sport|hielpijn|sever/i
+const circleOf = (lead: Lead, gold: Set<string>) => {
+  if (gold.has(clean(lead.id))) return "gold"
+  // De standaardreden van de landelijke zoekactie ("Openbare vermelding…") noemt altijd sport en kinderen en telt dus niet mee.
+  const reason = /^openbare vermelding/i.test(clean(lead.match_reason)) ? "" : lead.match_reason
+  const profile = [lead.name, lead.specialization, reason, lead.website, ...(Array.isArray(lead.tags) ? lead.tags : [])].map(clean).join(" ")
+  if (goldSignals.test(profile)) return "gold"
+  return isAmsterdam(lead) ? "silver" : "national"
+}
 
 function personalize(template: string, enrollment: Enrollment) {
   return template.replace(/{{\s*(praktijknaam|plaats|specialisatie|contactpersoon|persoonlijke_opening)\s*}}/gi, (_match, key: string) => {
@@ -180,6 +190,7 @@ async function status(db: Db) {
       enrolled: enrolledLeads.has(clean(lead.id)) || (email && enrolledEmails.has(email)),
       previous_mail_at: previous.get(email) || "",
       enrolled_group: enrolledLeads.get(clean(lead.id)) || "",
+      found_at: clean(lead.email) ? clean(lead.email_scan_at) || clean(lead.created_at) : "",
     }
   })
   const { count: sentToday } = await db.from("email_messages").select("id", { count: "exact", head: true }).eq("status", "sent")
@@ -230,21 +241,23 @@ Deno.serve(async (request) => {
     }
 
     if (action === "enroll") {
-      const ids = [...new Set((Array.isArray(body.lead_ids) ? body.lead_ids : []).map(clean).filter(Boolean))]
-      if (!ids.length || ids.length > 200) return Response.json({ error: "Kies 1 tot 200 praktijken." }, { status: 400, headers })
       const group = clean(body.group)
+      const allReady = body.all_ready === true
+      const ids = [...new Set((Array.isArray(body.lead_ids) ? body.lead_ids : []).map(clean).filter(Boolean))]
+      if (!allReady && (!ids.length || ids.length > 200)) return Response.json({ error: "Kies 1 tot 200 praktijken." }, { status: 400, headers })
       if (!groups.includes(group as typeof groups[number])) return Response.json({ error: "Kies een groep: Gold, Silver of Landelijk." }, { status: 400, headers })
       const { leads, gold } = await loadSettings(db)
-      const inGroup = (lead: Lead) => group === "gold" ? gold.has(clean(lead.id)) : group === "silver" ? isAmsterdam(lead) : true
+      const inGroup = (lead: Lead) => circleOf(lead, gold) === group
       const wanted = new Set(ids)
       const { data: existing, error: existingError } = await db.from("physio_sequence_enrollments").select("lead_id,email")
       if (existingError) throw existingError
       const takenLeads = new Set((existing || []).map((row) => row.lead_id))
-      const takenEmails = new Set((existing || []).map((row) => clean(row.email).toLowerCase()))
+      // Ooit gemaild (oude fysiomail of eerdere reeks) telt als bezet: die praktijk krijgt niets opnieuw.
+      const takenEmails = new Set([...(existing || []).map((row) => clean(row.email).toLowerCase()), ...(await previousMailings(db)).keys()])
       const rows = []
       for (const lead of leads) {
         const email = clean(lead.email).toLowerCase()
-        if (!wanted.has(clean(lead.id)) || lead.type !== "physio" || lead.outreach_opt_out || isExcluded(lead) || !validEmail(email) || !inGroup(lead)) continue
+        if ((!allReady && !wanted.has(clean(lead.id))) || lead.type !== "physio" || lead.outreach_opt_out || isExcluded(lead) || !validEmail(email) || !inGroup(lead)) continue
         if (takenLeads.has(clean(lead.id)) || takenEmails.has(email)) continue
         takenEmails.add(email)
         rows.push({ lead_id: clean(lead.id), email, practice_name: clean(lead.name), location: clean(lead.city), region: clean(lead.region), specialization: clean(lead.specialization), contact_person: clean(lead.contact_name), personal_opening: clean(lead.personal_opening), circle: group, created_by: admin.id })
@@ -253,7 +266,16 @@ Deno.serve(async (request) => {
         const { error: insertError } = await db.from("physio_sequence_enrollments").insert(rows)
         if (insertError) throw insertError
       }
-      return Response.json({ success: true, enrolled: rows.length, skipped: ids.length - rows.length, ...await status(db) }, { headers })
+      let delivery = null
+      if (body.send_now === true) {
+        const { data: current, error: settingsError } = await db.from("settings").select("value").eq("key", "physio_sequence").maybeSingle()
+        if (settingsError) throw settingsError
+        const value = current?.value || {}
+        const { error: saveError } = await db.from("settings").update({ value: { ...value, enabled_groups: { ...(value.enabled_groups || {}), [group]: true }, updated_at: new Date().toISOString() } }).eq("key", "physio_sequence")
+        if (saveError) throw saveError
+        delivery = await processDue(db, group)
+      }
+      return Response.json({ success: true, enrolled: rows.length, skipped: allReady ? 0 : ids.length - rows.length, delivery, ...await status(db) }, { headers })
     }
 
     if (action === "update") {

@@ -48,10 +48,6 @@ let partnerSelectedId = ''
 let partnerRefreshTimer = null
 let partnerPulseRunning = false
 let physioSequence = null
-const physioSequenceSelection = new Set()
-let physioSequenceCircle = 'gold'
-let physioSequenceSearch = ''
-let physioSequenceOnlyReady = false
 let apolloCandidates = new Map()
 const PARTNER_SCAN_PROFILE = 'no-foot-specialists-v3'
 
@@ -119,7 +115,7 @@ const routeMeta = {
   orders: ['Bestellingen', 'Beheer betalingen, verzending en orderdetails.'],
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
   partners: ['Partner Scout', 'Vind, kwalificeer en bereik scholen, zorgpraktijken en sportclubs.'],
-  'physio-campaign': ['Fysiomail', 'Vier mails per praktijk, ingedeeld in Gold Circle, Silver Circle en per provincie.'],
+  'physio-campaign': ['Fysiomail', 'Zoek adressen, schrijf de mail, verstuur. De opvolging gaat vanzelf.'],
   messages: ['Berichten', 'Vragen die via het contactformulier zijn binnengekomen.'],
   emails: ['E-mails', 'Bewerk automatische bestel-, bedank- en productmails in de ZOL-huisstijl.'],
   calendar: ['Teamagenda', 'Plan afspraken, opvolging en ZOL-momenten vanuit één centrale agenda.'],
@@ -1677,194 +1673,91 @@ function personalizedCampaignText(template, practice) {
   })[key.toLowerCase()] || '')
 }
 
+const PHYSIO_STEP_TITLES = ['Eerste contact', 'Geen reactie', 'Herhaling', 'Herhaling 2.0']
 const PHYSIO_STEP_HINTS = [
-  'Persoonlijke mail: wie zijn wij, waar hebben we een oplossing voor, de oplossing en voordelen, wanneer kunnen we bellen.',
-  'Geen reactie: verwijs naar de vorige mail en vraag om een gesprek.',
-  'Herhaling: we horen graag van u, mogelijk helpen in het behandelproces, meer kinderen laten sporten.',
-  'Herhaling 2.0: begrip voor de drukte, ondersteuning in het behandelproces. De laatste mail van de reeks.',
+  'Wie zijn wij, waar hebben we een oplossing voor, de oplossing en voordelen, wanneer kunnen we bellen.',
+  'Verwijs naar de vorige mail en vraag om een gesprek.',
+  'We horen graag van u, mogelijk helpen in het behandelproces, meer kinderen laten sporten.',
+  'Begrip voor de drukte, ondersteuning in het behandelproces. De laatste mail.',
 ]
-const PHYSIO_ENROLLMENT_STATUS = { active: 'Loopt', sending: 'Wordt verstuurd', paused: 'Gepauzeerd', replied: 'Gereageerd', stopped: 'Gestopt', completed: 'Reeks afgerond', failed: 'Mislukt' }
-const PHYSIO_CIRCLES = [['gold', 'Gold Circle', 'Zelf gekozen praktijken waar we echt heen willen'], ['silver', 'Silver Circle', 'Alle fysiopraktijken in Amsterdam'], ['national', 'Landelijk', 'Alle fysiopraktijken, ingedeeld per provincie']]
-const PHYSIO_GROUP_LABELS = { gold: 'Gold Circle', silver: 'Silver Circle', national: 'Landelijk' }
+const PHYSIO_ENROLLMENT_STATUS = { active: 'Loopt', sending: 'Wordt verstuurd', paused: 'Gepauzeerd', replied: 'Gereageerd', stopped: 'Gestopt', completed: 'Klaar (4 mails gehad)', failed: 'Mislukt' }
+const PHYSIO_GROUPS = [
+  ['gold', 'Gold Circle', 'Praktijken met kinder- of sportfocus: onze echte doelgroep.'],
+  ['silver', 'Silver Circle', 'Overige praktijken in Amsterdam.'],
+  ['national', 'Landelijk', 'Alle andere praktijken in Nederland.'],
+]
+const PHYSIO_GROUP_LABELS = Object.fromEntries(PHYSIO_GROUPS.map(([key, label]) => [key, label]))
+
+const physioReady = (practice) => practice.email && !practice.enrolled && !practice.opt_out && !practice.previous_mail_at
 
 function physioCircleBadge(circle) {
-  if (circle === 'gold') return '<span class="physio-circle-badge physio-circle-badge--gold">Gold</span>'
-  if (circle === 'silver') return '<span class="physio-circle-badge physio-circle-badge--silver">Silver</span>'
-  if (circle === 'national') return '<span class="physio-circle-badge physio-circle-badge--silver">Landelijk</span>'
-  return ''
-}
-
-function physioVisiblePractices() {
-  const practices = physioSequence?.practices || []
-  const query = physioSequenceSearch.trim().toLocaleLowerCase('nl-NL')
-  return practices.filter((practice) => {
-    if (physioSequenceCircle === 'gold' && practice.circle !== 'gold') return false
-    if (physioSequenceCircle === 'silver' && practice.circle !== 'silver') return false
-    if (physioSequenceOnlyReady && (!practice.email || practice.enrolled || practice.opt_out)) return false
-    return !query || [practice.name, practice.city, practice.region, practice.email].join(' ').toLocaleLowerCase('nl-NL').includes(query)
-  })
-}
-
-function physioPracticeRow(practice) {
-  const selectable = practice.email && !practice.enrolled && !practice.opt_out
-  const notes = [
-    practice.city,
-    practice.email || 'geen e-mailadres',
-    practice.enrolled ? `zit al in de reeks${practice.enrolled_group ? ` (${PHYSIO_GROUP_LABELS[practice.enrolled_group] || practice.enrolled_group})` : ''}` : '',
-    practice.opt_out ? 'afgemeld' : '',
-    practice.previous_mail_at ? `oude fysiomail ${formatDate(practice.previous_mail_at)}` : '',
-  ].filter(Boolean).join(' · ')
-  return `<div class="physio-practice-row${selectable ? '' : ' is-muted'}"><label><input type="checkbox" value="${escapeHtml(practice.id)}" ${selectable ? '' : 'disabled'} ${physioSequenceSelection.has(practice.id) ? 'checked' : ''}><span><strong>${escapeHtml(practice.name)} ${physioCircleBadge(practice.circle)}</strong><small>${escapeHtml(notes)}</small></span></label><button class="button button--small" type="button" data-physio-gold="${escapeHtml(practice.id)}" title="${practice.circle === 'gold' ? 'Uit de Gold Circle halen' : 'Toevoegen aan de Gold Circle'}">${practice.circle === 'gold' ? '★ Gold' : '☆ Gold'}</button></div>`
-}
-
-function renderPhysioPracticeList() {
-  const target = document.querySelector('#physio-practice-list')
-  if (!target) return
-  if (!physioSequence) { target.textContent = 'Praktijken laden…'; return }
-  const practices = physioVisiblePractices()
-  if (!practices.length) { target.innerHTML = '<p class="form-hint">Geen praktijken in deze selectie.</p>'; return }
-  const groups = new Map()
-  for (const practice of practices) {
-    const key = practice.region || 'Onbekend'
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key).push(practice)
-  }
-  const ordered = [...groups].sort(([a, listA], [b, listB]) => (b === 'Noord-Holland') - (a === 'Noord-Holland') || listB.length - listA.length || a.localeCompare(b, 'nl'))
-  target.innerHTML = ordered.map(([region, list]) => {
-    const sorted = [...list].sort((a, b) => (b.circle === 'gold') - (a.circle === 'gold') || (b.circle === 'silver') - (a.circle === 'silver') || a.name.localeCompare(b.name, 'nl'))
-    const ready = list.filter((practice) => practice.email && !practice.enrolled && !practice.opt_out).length
-    return `<details class="physio-region" ${ordered.length === 1 || region === 'Noord-Holland' ? 'open' : ''}><summary><strong>${escapeHtml(region)}</strong><span>${list.length} praktijken · ${ready} klaar om te starten</span><button class="button button--small" type="button" data-physio-select-region="${escapeHtml(region)}">Selecteer klaarstaande</button></summary>${sorted.map(physioPracticeRow).join('')}</details>`
-  }).join('')
-}
-
-function updatePhysioSelectionCount() {
-  const count = document.querySelector('#physio-selected-count')
-  if (count) count.textContent = physioSequenceSelection.size
-  const start = document.querySelector('#physio-enroll')
-  if (start) start.disabled = !physioSequenceSelection.size
-}
-
-function renderPhysioEnrollments() {
-  const target = document.querySelector('#physio-enrollments')
-  if (!target || !physioSequence) return
-  const rows = physioSequence.enrollments.filter((row) => row.circle === physioSequenceCircle)
-  const counts = rows.reduce((result, row) => ({ ...result, [row.status]: (result[row.status] || 0) + 1 }), {})
-  document.querySelector('#physio-enrollment-summary').textContent = rows.length
-    ? Object.entries(counts).map(([status, count]) => `${count} ${PHYSIO_ENROLLMENT_STATUS[status]?.toLowerCase() || status}`).join(' · ')
-    : `Nog geen praktijken in de reeks voor ${PHYSIO_GROUP_LABELS[physioSequenceCircle]}.`
-  target.innerHTML = rows.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Praktijk</th><th>Circle</th><th>Stap</th><th>Status</th><th>Volgende mail</th><th></th></tr></thead><tbody>${rows.map((row) => {
-    const next = ['active', 'paused'].includes(row.status) && row.steps_sent < 4 ? `Stap ${row.steps_sent + 1} · ${formatDate(row.next_send_at, { hour: '2-digit', minute: '2-digit' })}` : '—'
-    const actions = [
-      ['active', 'paused', 'failed'].includes(row.status) ? `<button class="button button--small" data-physio-op="replied" data-id="${escapeHtml(row.id)}">Gereageerd</button>` : '',
-      row.status === 'active' ? `<button class="button button--small" data-physio-op="pause" data-id="${escapeHtml(row.id)}">Pauzeer</button>` : '',
-      ['paused', 'failed'].includes(row.status) ? `<button class="button button--small" data-physio-op="resume" data-id="${escapeHtml(row.id)}">Hervat</button>` : '',
-      ['active', 'paused', 'failed'].includes(row.status) ? `<button class="button button--small" data-physio-op="stop" data-id="${escapeHtml(row.id)}">Stop</button>` : '',
-    ].join('')
-    return `<tr><td><strong>${escapeHtml(row.practice_name)}</strong><br><small>${escapeHtml(row.email)}${row.location ? ` · ${escapeHtml(row.location)}` : ''}</small></td><td>${physioCircleBadge(row.circle) || '—'}</td><td>${row.steps_sent} van 4</td><td>${escapeHtml(PHYSIO_ENROLLMENT_STATUS[row.status] || row.status)}${row.error_message ? `<br><small>${escapeHtml(row.error_message)}</small>` : ''}</td><td>${escapeHtml(next)}</td><td class="physio-enrollment-actions">${actions}</td></tr>`
-  }).join('')}</tbody></table></div>` : ''
+  const label = PHYSIO_GROUP_LABELS[circle]
+  return label ? `<span class="physio-circle-badge physio-circle-badge--${circle === 'gold' ? 'gold' : 'silver'}">${escapeHtml(label)}</span>` : ''
 }
 
 function renderPhysioSequenceState() {
   if (!physioSequence || currentRoute() !== 'physio-campaign') return
   const practices = physioSequence.practices
-  const counts = {
-    gold: practices.filter((practice) => practice.circle === 'gold').length,
-    silver: practices.filter((practice) => practice.circle === 'silver').length,
-    emails: practices.filter((practice) => practice.email).length,
-    active: physioSequence.enrollments.filter((row) => ['active', 'sending'].includes(row.status)).length,
-  }
-  document.querySelector('#physio-counts').innerHTML = `<strong>${counts.gold}<small>Gold Circle</small></strong><strong>${counts.silver}<small>Silver Circle (Amsterdam)</small></strong><strong>${counts.emails}<small>praktijken met e-mailadres</small></strong><strong>${counts.active}<small>lopen nu in de reeks</small></strong>`
-  const group = physioSequenceCircle
-  const label = PHYSIO_GROUP_LABELS[group]
-  const enabled = Boolean(physioSequence.enabled_groups?.[group])
-  document.querySelector('#physio-sequence-enabled').checked = enabled
-  document.querySelector('#physio-sequence-label').textContent = `Automatisch versturen voor ${label}`
-  document.querySelector('#physio-sequence-state').textContent = enabled
-    ? `Staat aan. Elk uur op werkdagen tussen 08:00 en 17:00, maximaal ${physioSequence.daily_limit} e-mails per dag voor alle groepen samen (vandaag ${physioSequence.sent_today} verstuurd).`
-    : `Staat uit. Je kunt praktijken al in de reeks voor ${label} zetten; er gaat niets de deur uit tot je dit aanzet. Andere groepen hebben hun eigen schakelaar.`
-  const on = Object.entries(physioSequence.enabled_groups || {}).filter(([, value]) => value).map(([key]) => PHYSIO_GROUP_LABELS[key])
-  document.querySelector('#physio-groups-on').textContent = on.length ? `Verzending aan voor: ${on.join(', ')}.` : 'Verzending staat voor alle groepen uit.'
-  document.querySelector('#physio-enroll').textContent = `Start de reeks voor ${label}`
-  document.querySelector('#physio-find-emails').textContent = `Zoek e-mailadressen in ${label}`
-  document.querySelector('#physio-region-scope').hidden = group !== 'national'
-  document.querySelectorAll('[data-physio-circle]').forEach((button) => button.classList.toggle('is-active', button.dataset.physioCircle === physioSequenceCircle))
-  renderPhysioPracticeList()
-  updatePhysioSelectionCount()
+  const ready = practices.filter(physioReady)
+  const mailed = practices.filter((practice) => practice.enrolled || practice.previous_mail_at).length
+  document.querySelector('#physio-scrape-note').textContent = `${practices.filter((practice) => practice.email).length} praktijken hebben een e-mailadres · ${mailed} zijn al eens gemaild en worden overgeslagen · ${ready.length} staan klaar.`
+
+  const recent = practices.filter((practice) => practice.email && practice.found_at).sort((a, b) => b.found_at.localeCompare(a.found_at)).slice(0, 40)
+  document.querySelector('#physio-recent').innerHTML = recent.length
+    ? `<details><summary>Laatst gevonden adressen (${recent.length})</summary><ul class="physio-recent-list">${recent.map((practice) => `<li><span><strong>${escapeHtml(practice.name)}</strong><small>${escapeHtml([practice.email, practice.city].filter(Boolean).join(' · '))}</small></span>${physioReady(practice) ? physioCircleBadge(practice.circle) : '<small>al gemaild</small>'}</li>`).join('')}</ul></details>`
+    : ''
+
+  const steps = physioSequence.steps || []
+  const firstReady = Boolean(steps[0]?.subject && steps[0]?.body)
+  document.querySelector('#physio-groups').innerHTML = PHYSIO_GROUPS.map(([key, label, hint]) => {
+    const count = ready.filter((practice) => practice.circle === key).length
+    const running = physioSequence.enrollments.filter((row) => row.circle === key && ['active', 'sending', 'paused'].includes(row.status)).length
+    const disabled = !count || !firstReady
+    return `<article class="physio-group-card${key === 'gold' ? ' is-gold' : ''}"><h3>${escapeHtml(label)}</h3><p>${escapeHtml(hint)}</p><strong>${count}<small>klaar om te mailen</small></strong><span class="form-hint">${running} lopen al in de reeks</span><button class="button ${key === 'gold' ? 'button--primary' : ''}" type="button" data-physio-send="${key}" ${disabled ? 'disabled' : ''}>Verstuur naar ${count} ${count === 1 ? 'praktijk' : 'praktijken'}</button></article>`
+  }).join('')
+  document.querySelector('#physio-send-hint').textContent = firstReady
+    ? 'Ze krijgen eerst mail 1. Mail 2, 3 en 4 gaan daarna vanzelf, alleen naar wie niet heeft gereageerd. We versturen op werkdagen tussen 08:00 en 17:00, maximaal 40 per dag; de rest gaat de volgende werkdag.'
+    : 'Vul eerst mail 1 in en sla op, dan kun je versturen.'
   renderPhysioEnrollments()
 }
 
+function renderPhysioEnrollments() {
+  const target = document.querySelector('#physio-enrollments')
+  if (!target || !physioSequence) return
+  const rows = physioSequence.enrollments
+  if (!rows.length) { target.innerHTML = '<p class="form-hint">Nog niemand gemaild via de nieuwe Fysiomail.</p>'; return }
+  target.innerHTML = `<p class="form-hint">Heeft een praktijk gereageerd? Klik op <strong>Gereageerd</strong>, dan krijgt ze geen opvolgmail meer.</p><div class="table-scroll"><table class="data-table"><thead><tr><th>Praktijk</th><th>Groep</th><th>Mails gehad</th><th>Status</th><th>Volgende mail</th><th></th></tr></thead><tbody>${rows.map((row) => {
+    const open = ['active', 'paused', 'failed'].includes(row.status)
+    const next = ['active', 'paused'].includes(row.status) && row.steps_sent < 4 ? `Mail ${row.steps_sent + 1} · ${formatDate(row.next_send_at, { hour: '2-digit', minute: '2-digit' })}` : '—'
+    const actions = open ? `<button class="button button--small" data-physio-op="replied" data-id="${escapeHtml(row.id)}">Gereageerd</button><button class="button button--small" data-physio-op="stop" data-id="${escapeHtml(row.id)}">Stop</button>` : ''
+    return `<tr><td><strong>${escapeHtml(row.practice_name)}</strong><br><small>${escapeHtml(row.email)}</small></td><td>${physioCircleBadge(row.circle)}</td><td>${row.steps_sent} van 4</td><td>${escapeHtml(PHYSIO_ENROLLMENT_STATUS[row.status] || row.status)}${row.error_message ? `<br><small>${escapeHtml(row.error_message)}</small>` : ''}</td><td>${escapeHtml(next)}</td><td class="physio-enrollment-actions">${actions}</td></tr>`
+  }).join('')}</tbody></table></div>`
+}
+
 function renderPhysioStepForms() {
-  const steps = physioSequence?.steps || PHYSIO_STEP_HINTS.map((_hint, index) => ({ subject: '', body: '', wait_days: [0, 7, 7, 14][index] }))
-  return steps.map((step, index) => `<form class="panel physio-step" data-physio-step="${index}"><div class="physio-step-head"><span>${index + 1}</span><div><h3>${escapeHtml(['Eerste contact', 'Geen reactie', 'Herhaling', 'Herhaling 2.0'][index])}</h3><p class="form-hint">${escapeHtml(PHYSIO_STEP_HINTS[index])}</p></div></div>${index ? `<label class="field physio-step-wait">Versturen na<span><input name="wait_days" type="number" min="0" max="60" value="${Number(step.wait_days) || 0}"> dagen zonder reactie op stap ${index}</span></label>` : '<input name="wait_days" type="hidden" value="0">'}<label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(step.subject || '')}" placeholder="Bijvoorbeeld: Vraag over {{praktijknaam}}"></label><label class="field">Tekst<textarea name="body" rows="9" maxlength="5000" placeholder="Beste {{contactpersoon}},&#10;&#10;...">${escapeHtml(step.body || '')}</textarea></label><div class="form-actions"><button class="button" type="button" data-physio-test="${index}">Testmail naar Thijn en Maks</button></div></form>`).join('')
+  const steps = physioSequence?.steps || PHYSIO_STEP_TITLES.map((_title, index) => ({ subject: '', body: '', wait_days: [0, 7, 7, 14][index] }))
+  return steps.map((step, index) => `<details class="panel physio-step" data-physio-step="${index}" ${index === 0 ? 'open' : ''}><summary class="physio-step-head"><span>${index + 1}</span><div><h3>${escapeHtml(PHYSIO_STEP_TITLES[index])}${index ? ` <small>· ${Number(step.wait_days) || 0} dagen na mail ${index}</small>` : ''}</h3><p class="form-hint">${escapeHtml(PHYSIO_STEP_HINTS[index])}</p></div></summary><form>${index ? `<label class="field physio-step-wait">Versturen na<span><input name="wait_days" type="number" min="0" max="60" value="${Number(step.wait_days) || 0}"> dagen zonder reactie</span></label>` : '<input name="wait_days" type="hidden" value="0">'}<label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(step.subject || '')}"></label><label class="field">Tekst<textarea name="body" rows="10" maxlength="5000" placeholder="Beste {{contactpersoon}},&#10;&#10;...">${escapeHtml(step.body || '')}</textarea></label><div class="form-actions"><button class="button" type="button" data-physio-test="${index}">Stuur mij een test</button></div></form></details>`).join('')
 }
 
 function renderPhysioCampaign() {
   elements.content.innerHTML = `<div class="page-container physio-campaign-page">
-    ${pageHeader('physio-campaign', '<a class="button" href="#partners">Partner Scout</a>')}
-    <section class="panel physio-campaign-intro"><h2>Outreach naar fysio’s</h2><p>Iedere praktijk krijgt maximaal vier mails. Reageert een praktijk, zet je haar op <strong>Gereageerd</strong>; dan stopt de reeks. Ook afmelden of een gesprek, test of besluit in Partner Scout stopt de reeks automatisch. Gebruik <code>{{contactpersoon}}</code>, <code>{{praktijknaam}}</code>, <code>{{plaats}}</code>, <code>{{specialisatie}}</code> en <code>{{persoonlijke_opening}}</code>. De mail gaat uit als een gewone, persoonlijke mail vanaf info@zolsolutions.nl: alleen jullie tekst en onderaan de foto van Maks en Thijn. Geen huisstijl, knop of afmeldregel.</p><div class="physio-campaign-counts" id="physio-counts"><strong>…<small>laden</small></strong></div><p class="form-hint" id="physio-groups-on">Status laden…</p></section>
-    <section class="physio-steps"><div class="physio-steps-head"><h2>De mailreeks</h2><button class="button button--primary" type="button" id="physio-save-steps">Teksten opslaan</button></div><div class="physio-step-grid" id="physio-step-grid">${renderPhysioStepForms()}</div></section>
-    <section class="panel physio-circles"><h2>Praktijken kiezen</h2><nav class="physio-circle-switch">${PHYSIO_CIRCLES.map(([key, label, hint]) => `<button type="button" data-physio-circle="${key}"><strong>${label}</strong><small>${hint}</small></button>`).join('')}</nav><div class="physio-circle-tools"><label class="field">Zoek praktijk, plaats of e-mailadres<input id="physio-practice-search" type="search" value="${escapeHtml(physioSequenceSearch)}"></label><label class="physio-ready-toggle"><input type="checkbox" id="physio-only-ready" ${physioSequenceOnlyReady ? 'checked' : ''}> Alleen praktijken die klaarstaan</label></div><p class="form-hint">Iedere groep heeft een eigen reeks, een eigen schakelaar en een eigen e-mailzoeker. Een praktijk zit maar in één groep, dus niemand krijgt dezelfde mail twee keer. Silver Circle is automatisch iedere fysiopraktijk in Amsterdam; met ☆ Gold zet je een praktijk in de Gold Circle.</p><div class="physio-group-tools"><label class="physio-sequence-switch"><input type="checkbox" id="physio-sequence-enabled"><span><strong id="physio-sequence-label">Automatisch versturen</strong><small id="physio-sequence-state">Status laden…</small></span></label><div class="physio-find-tools"><label class="field" id="physio-region-scope" hidden>Provincie<select id="physio-region-select"><option value="">Heel Nederland</option>${PARTNER_REGIONS.map(([, name]) => `<option>${escapeHtml(name)}</option>`).join('')}</select></label><button class="button" type="button" id="physio-find-emails">Zoek e-mailadressen</button><p class="form-hint">Zoekt op de praktijkwebsites binnen deze groep. Een persoonlijk adres (zoals jan@praktijk.nl) gaat voor op info@; praktijken met alleen een algemeen adres worden ook opnieuw bekeken. Er wordt niets verstuurd.</p></div></div><div id="physio-practice-list">Praktijken laden…</div><div class="physio-enroll-bar"><span><strong id="physio-selected-count">0</strong> geselecteerd</span><button class="button" type="button" id="physio-clear-selection">Selectie wissen</button><button class="button button--primary" type="button" id="physio-enroll" disabled>Start de reeks</button></div></section>
-    <section class="panel physio-campaign-progress"><h2>Lopende reeksen in deze groep</h2><p class="form-hint" id="physio-enrollment-summary">Laden…</p><div class="form-actions"><button class="button" type="button" id="physio-refresh">Vernieuwen</button><button class="button" type="button" id="physio-run-now">Nu versturen wat klaarstaat in deze groep</button></div><div id="physio-enrollments"></div></section>
-    <section class="panel physio-campaign-progress"><h2>Handmatig een adres toevoegen</h2><form id="physio-campaign-add-recipient" class="physio-add-recipient-form"><label class="field">E-mailadres<input name="email" type="email" maxlength="200" placeholder="naam@praktijk.nl" required></label><label class="field">Praktijknaam (optioneel)<input name="practice_name" maxlength="160" placeholder="Naam van de praktijk"></label><button class="button" type="submit">Adres toevoegen</button></form></section>
-    <section class="panel physio-campaign-progress"><h2>Geplande gesprekken</h2><p class="form-hint">Praktijken kiezen 10 minuten op maandag, woensdag, donderdag of vrijdag tussen 09:00 en 17:00. De melding met contactnaam, 06-nummer en tijd komt op info@zolsolutions.nl.</p><div id="physio-bookings-list">Gesprekken laden…</div><div class="form-actions"><a class="button" href="/kennismaking/" target="_blank" rel="noreferrer">Boekingspagina bekijken ↗</a><button class="button" type="button" id="physio-booking-test">Test boekingsbevestiging naar Thijn en Maks</button></div></section>
+    ${pageHeader('physio-campaign', '')}
+    <section class="panel physio-flow-step"><div class="physio-flow-num">1</div><div><h2>Zoek nieuwe mailadressen</h2><p>Eén klik zoekt 40 nieuwe fysiopraktijken met een e-mailadres op hun website. Persoonlijke adressen (jan@praktijk.nl) gaan voor op info@. Iedereen die ooit al een mail van ons kreeg, wordt overgeslagen. Wij delen ze zelf in.</p><button class="button button--primary" type="button" id="physio-find-emails">Scrape 40 mails</button><p class="form-hint" id="physio-scrape-note">Laden…</p><div id="physio-recent"></div></div></section>
+    <section class="panel physio-flow-step"><div class="physio-flow-num">2</div><div><h2>Schrijf de mail</h2><p>Jullie eigen tekst, verstuurd als gewone mail vanaf info@zolsolutions.nl met onderaan jullie foto. Geen opmaak, knop of sjabloon. Mail 2 tot en met 4 zijn de opvolgers voor wie niet reageert. Tip: <code>{{contactpersoon}}</code> en <code>{{praktijknaam}}</code> worden per praktijk ingevuld.</p><div class="physio-step-grid">${renderPhysioStepForms()}</div><div class="form-actions"><button class="button button--primary" type="button" id="physio-save-steps">Mails opslaan</button></div></div></section>
+    <section class="panel physio-flow-step"><div class="physio-flow-num">3</div><div><h2>Versturen</h2><p class="form-hint" id="physio-send-hint"></p><div class="physio-group-grid" id="physio-groups">Laden…</div></div></section>
+    <section class="panel physio-flow-step"><div class="physio-flow-num">4</div><div><h2>Wie is gemaild</h2><div id="physio-enrollments">Laden…</div></div></section>
+    <section class="panel physio-campaign-progress"><h2>Geplande gesprekken</h2><div id="physio-bookings-list">Gesprekken laden…</div></section>
   </div>`
   const page = elements.content.querySelector('.physio-campaign-page')
-  document.querySelector('#physio-find-emails').addEventListener('click', (event) => {
-    const region = document.querySelector('#physio-region-select').value
-    const scope = physioSequenceCircle === 'national' && region ? `region:${region}` : physioSequenceCircle
-    void findPhysioEmails(event.currentTarget, scope, region || PHYSIO_GROUP_LABELS[physioSequenceCircle])
-  })
-  document.querySelector('#physio-campaign-add-recipient').addEventListener('submit', addManualPhysioRecipient)
+  document.querySelector('#physio-find-emails').addEventListener('click', (event) => findPhysioEmails(event.currentTarget, 'national'))
   document.querySelector('#physio-save-steps').addEventListener('click', (event) => savePhysioSequence(event.currentTarget))
-  document.querySelector('#physio-sequence-enabled').addEventListener('change', (event) => togglePhysioSequence(event.currentTarget))
-  document.querySelector('#physio-refresh').addEventListener('click', loadPhysioSequence)
-  document.querySelector('#physio-run-now').addEventListener('click', async (event) => {
-    const button = event.currentTarget
-    setBusy(button, true, 'Nu versturen wat klaarstaat in deze groep')
-    try {
-      const data = await physioSequenceCall({ action: 'run', group: physioSequenceCircle })
-      const delivery = data.delivery || {}
-      toast('Verzending verwerkt', delivery.status === 'disabled' ? `Automatisch versturen staat uit voor ${PHYSIO_GROUP_LABELS[physioSequenceCircle]}; zet het eerst aan.` : delivery.status === 'outside_office_hours' ? 'Buiten kantoortijd (werkdagen 08:00–17:00) wordt niets verstuurd.' : `${delivery.sent || 0} verstuurd · ${delivery.failed || 0} mislukt · ${delivery.waiting || 0} wachten op tekst · ${delivery.stopped || 0} gestopt.`)
-    } catch (error) { toast('Versturen mislukt', error.message, true) }
-    finally { setBusy(button, false, 'Nu versturen wat klaarstaat in deze groep') }
-  })
-  document.querySelector('#physio-practice-search').addEventListener('input', (event) => { physioSequenceSearch = event.target.value; renderPhysioPracticeList() })
-  document.querySelector('#physio-only-ready').addEventListener('change', (event) => { physioSequenceOnlyReady = event.target.checked; renderPhysioPracticeList() })
-  document.querySelector('#physio-clear-selection').addEventListener('click', () => { physioSequenceSelection.clear(); renderPhysioPracticeList(); updatePhysioSelectionCount() })
-  document.querySelector('#physio-enroll').addEventListener('click', (event) => enrollPhysioSelection(event.currentTarget))
   page.addEventListener('click', (event) => {
-    const circle = event.target.closest('[data-physio-circle]')
-    if (circle) { physioSequenceCircle = circle.dataset.physioCircle; physioSequenceSelection.clear(); renderPhysioSequenceState(); return }
-    const gold = event.target.closest('[data-physio-gold]')
-    if (gold) { event.preventDefault(); void togglePhysioGold(gold.dataset.physioGold); return }
-    const region = event.target.closest('[data-physio-select-region]')
-    if (region) {
-      event.preventDefault()
-      for (const practice of physioVisiblePractices()) if (practice.region === region.dataset.physioSelectRegion && practice.email && !practice.enrolled && !practice.opt_out) physioSequenceSelection.add(practice.id)
-      renderPhysioPracticeList(); updatePhysioSelectionCount(); return
-    }
+    const send = event.target.closest('[data-physio-send]')
+    if (send) { void sendPhysioGroup(send.dataset.physioSend, send); return }
     const op = event.target.closest('[data-physio-op]')
     if (op) { void changePhysioEnrollment(op.dataset.id, op.dataset.physioOp, op); return }
     const test = event.target.closest('[data-physio-test]')
     if (test) void testPhysioStep(Number(test.dataset.physioTest), test)
-  })
-  page.addEventListener('change', (event) => {
-    if (!event.target.matches('#physio-practice-list input[type="checkbox"]')) return
-    if (event.target.checked) physioSequenceSelection.add(event.target.value)
-    else physioSequenceSelection.delete(event.target.value)
-    updatePhysioSelectionCount()
-  })
-  document.querySelector('#physio-booking-test').addEventListener('click', async (event) => {
-    const button = event.currentTarget
-    setBusy(button, true, 'Test boekingsbevestiging naar Thijn en Maks')
-    try {
-      const { data, error } = await supabase.functions.invoke('physio-booking', { body: { action: 'test_confirmation' } })
-      if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'Testbevestiging versturen mislukt.'))
-      const failed = (data.results || []).filter((result) => result.status !== 'sent')
-      if (failed.length) throw new Error(failed.map((result) => `${result.recipient}: ${result.error || 'niet verzonden'}`).join('; '))
-      toast('Testbevestiging verstuurd', 'Thijn en Maks ontvangen ieder de boekingsbevestiging met agenda-uitnodiging.')
-    } catch (error) { toast('Testbevestiging mislukt', error.message, true) }
-    finally { setBusy(button, false, 'Test boekingsbevestiging naar Thijn en Maks') }
   })
   renderPhysioSequenceState()
   void loadPhysioSequence()
@@ -1876,8 +1769,6 @@ async function physioSequenceCall(body) {
   if (error || data?.error) throw new Error(await edgeFunctionMessage(error, data, 'De fysiomail reageert nu niet.'))
   if (data.practices) {
     physioSequence = data
-    const selectable = new Set(data.practices.filter((practice) => practice.email && !practice.enrolled && !practice.opt_out).map((practice) => practice.id))
-    for (const id of [...physioSequenceSelection]) if (!selectable.has(id)) physioSequenceSelection.delete(id)
     renderPhysioSequenceState()
   }
   return data
@@ -1885,17 +1776,17 @@ async function physioSequenceCall(body) {
 
 async function loadPhysioSequence() {
   try { await physioSequenceCall({ action: 'status' }) }
-  catch (error) { const summary = document.querySelector('#physio-enrollment-summary'); if (summary) summary.textContent = error.message }
+  catch (error) { const target = document.querySelector('#physio-enrollments'); if (target) target.textContent = error.message }
 }
 
 function physioStepValues() {
-  return [...document.querySelectorAll('[data-physio-step]')].map((form, index) => {
-    const values = Object.fromEntries(new FormData(form))
-    return { title: ['Eerste contact', 'Geen reactie', 'Herhaling', 'Herhaling 2.0'][index], subject: String(values.subject || '').trim(), body: String(values.body || '').trim(), wait_days: Math.max(0, Math.min(60, Number(values.wait_days) || 0)) }
+  return [...document.querySelectorAll('[data-physio-step]')].map((step, index) => {
+    const values = Object.fromEntries(new FormData(step.querySelector('form')))
+    return { title: PHYSIO_STEP_TITLES[index], subject: String(values.subject || '').trim(), body: String(values.body || '').trim(), wait_days: Math.max(0, Math.min(60, Number(values.wait_days) || 0)) }
   })
 }
 
-// Leest de opgeslagen instellingen opnieuw vlak voor het schrijven, zodat een collega die tegelijk een Gold-praktijk zet niet wordt overschreven.
+// Leest de opgeslagen instellingen opnieuw vlak voor het schrijven, zodat een collega die tegelijk iets wijzigt niet wordt overschreven.
 async function updatePhysioSequenceSettings(change) {
   const { data, error } = await supabase.from('settings').select('value').eq('key', 'physio_sequence').maybeSingle()
   if (error) throw error
@@ -1907,72 +1798,38 @@ async function updatePhysioSequenceSettings(change) {
 }
 
 async function savePhysioSequence(button) {
-  setBusy(button, true, 'Teksten opslaan')
+  setBusy(button, true, 'Mails opslaan')
   try {
     const steps = physioStepValues()
     await updatePhysioSequenceSettings(() => ({ steps }))
     if (physioSequence) physioSequence.steps = steps
+    renderPhysioSequenceState()
     const empty = steps.filter((step) => !step.subject || !step.body).length
-    toast('Teksten opgeslagen', empty ? `${empty} van de 4 stappen zijn nog leeg. Praktijken wachten bij een lege stap tot die is ingevuld.` : 'Alle vier de stappen zijn ingevuld.')
+    toast('Mails opgeslagen', empty ? `${empty} van de 4 mails zijn nog leeg. Een praktijk wacht bij een lege mail tot die is ingevuld.` : 'Alle vier de mails zijn ingevuld.')
     await recordActivity('Fysiomail-teksten opgeslagen', 'partner', '', { empty_steps: empty })
   } catch (error) { toast('Opslaan mislukt', error.message, true) }
-  finally { setBusy(button, false, 'Teksten opslaan') }
+  finally { setBusy(button, false, 'Mails opslaan') }
 }
 
-async function togglePhysioSequence(input) {
-  const enabled = input.checked
-  const group = physioSequenceCircle
+async function sendPhysioGroup(group, button) {
   const label = PHYSIO_GROUP_LABELS[group]
-  if (enabled) {
-    const steps = physioStepValues()
-    if (!steps[0].subject || !steps[0].body) { input.checked = false; toast('Eerst de eerste mail invullen', 'Vul onderwerp en tekst van stap 1 in en sla de teksten op.', true); return }
-    if (!window.confirm(`Automatisch versturen aanzetten voor ${label}? Iedere praktijk in deze groep krijgt dan op werkdagen tussen 08:00 en 17:00 haar volgende mail vanaf info@zolsolutions.nl, maximaal 40 per dag voor alle groepen samen.`)) { input.checked = false; return }
-  }
-  input.disabled = true
-  try {
-    await updatePhysioSequenceSettings((current) => ({ enabled_groups: { ...(current.enabled_groups || {}), [group]: enabled } }))
-    await recordActivity(`Fysiomail ${label} ${enabled ? 'aangezet' : 'uitgezet'}`, 'partner', '', { group })
-    toast(enabled ? `${label} staat aan` : `${label} staat uit`, enabled ? 'De eerste mails gaan bij de volgende ronde (elk uur) de deur uit.' : 'Voor deze groep gaan geen fysiomails meer uit tot je dit weer aanzet.')
-    await loadPhysioSequence()
-  } catch (error) { input.checked = !enabled; toast('Wijzigen mislukt', error.message, true) }
-  finally { input.disabled = false }
-}
-
-async function togglePhysioGold(leadId) {
-  try {
-    const value = await updatePhysioSequenceSettings((current) => {
-      const ids = new Set(Array.isArray(current.gold_lead_ids) ? current.gold_lead_ids : [])
-      if (ids.has(leadId)) ids.delete(leadId)
-      else ids.add(leadId)
-      return { gold_lead_ids: [...ids] }
-    })
-    const gold = new Set(value.gold_lead_ids)
-    for (const practice of physioSequence?.practices || []) if (practice.id === leadId) practice.circle = gold.has(leadId) ? 'gold' : /amsterdam/i.test(practice.city) ? 'silver' : ''
-    renderPhysioSequenceState()
-  } catch (error) { toast('Gold Circle wijzigen mislukt', error.message, true) }
-}
-
-async function enrollPhysioSelection(button) {
-  const ids = [...physioSequenceSelection]
-  if (!ids.length) return
-  if (ids.length > 200) { toast('Te veel tegelijk', 'Start de reeks voor maximaal 200 praktijken per keer.', true); return }
-  const previous = (physioSequence?.practices || []).filter((practice) => physioSequenceSelection.has(practice.id) && practice.previous_mail_at).length
-  const group = physioSequenceCircle
-  const label = PHYSIO_GROUP_LABELS[group]
-  if (!window.confirm(`${ids.length} praktijken in de reeks voor ${label} zetten?${previous ? ` ${previous} daarvan kregen eerder de oude fysiomail.` : ''} ${physioSequence?.enabled_groups?.[group] ? 'Verzending voor deze groep staat aan: de eerste mail gaat bij de volgende ronde uit.' : 'Verzending voor deze groep staat uit: er gaat nog niets de deur uit.'}`)) return
+  const count = (physioSequence?.practices || []).filter((practice) => physioReady(practice) && practice.circle === group).length
+  if (!count) return
+  if (!window.confirm(`Mail 1 versturen naar ${count} praktijken in ${label}? De opvolgmails gaan daarna vanzelf naar wie niet reageert.`)) return
   const buttonLabel = button.textContent
   setBusy(button, true, buttonLabel)
   try {
-    const data = await physioSequenceCall({ action: 'enroll', lead_ids: ids, group })
-    physioSequenceSelection.clear()
-    renderPhysioSequenceState()
-    toast(`Reeks gestart voor ${label}`, `${data.enrolled} praktijken toegevoegd${data.skipped ? `, ${data.skipped} overgeslagen (al in een reeks, afgemeld, geen adres of niet in deze groep)` : ''}.`)
-  } catch (error) { toast('Reeks starten mislukt', error.message, true) }
-  finally { setBusy(button, false, buttonLabel) }
+    const data = await physioSequenceCall({ action: 'enroll', group, all_ready: true, send_now: true })
+    const delivery = data.delivery || {}
+    const later = delivery.status === 'outside_office_hours' ? ' Het is nu buiten werktijd: ze gaan de volgende werkdag vanaf 08:00 uit.' : delivery.sent < data.enrolled ? ' De rest gaat automatisch uit zodra de daglimiet het toelaat.' : ''
+    toast(`${label} verstuurd`, `${data.enrolled} praktijken staan in de reeks, ${delivery.sent || 0} mails zijn nu verstuurd.${later}`)
+    await recordActivity(`Fysiomail ${label} verstuurd`, 'partner', '', { group, enrolled: data.enrolled, sent: delivery.sent || 0 })
+  } catch (error) { toast('Versturen mislukt', error.message, true) }
+  finally { if (button.isConnected) setBusy(button, false, buttonLabel) }
 }
 
 async function changePhysioEnrollment(id, op, button) {
-  if (op === 'stop' && !window.confirm('De reeks voor deze praktijk stoppen? Ze krijgt dan geen mails meer.')) return
+  if (op === 'stop' && !window.confirm('Deze praktijk geen mails meer sturen?')) return
   button.disabled = true
   try { await physioSequenceCall({ action: 'update', id, op }) }
   catch (error) { toast('Wijzigen mislukt', error.message, true); button.disabled = false }
@@ -1980,13 +1837,13 @@ async function changePhysioEnrollment(id, op, button) {
 
 async function testPhysioStep(index, button) {
   const step = physioStepValues()[index]
-  const label = 'Testmail naar Thijn en Maks'
+  const label = 'Stuur mij een test'
   setBusy(button, true, label)
   try {
     const data = await physioSequenceCall({ action: 'test', step: index, subject: step.subject, body: step.body })
     const failed = (data.results || []).filter((result) => result.status !== 'sent')
     if (failed.length) throw new Error(failed.map((result) => `${result.recipient}: ${result.error || 'niet verzonden'}`).join('; '))
-    toast('Testmail verstuurd', `Thijn en Maks ontvangen stap ${index + 1} als voorbeeld.`)
+    toast('Testmail verstuurd', `Thijn en Maks ontvangen mail ${index + 1} als voorbeeld.`)
   } catch (error) { toast('Testmail mislukt', error.message, true) }
   finally { setBusy(button, false, label) }
 }
@@ -2008,41 +1865,6 @@ async function loadPhysioBookings() {
       return `<article class="physio-booking-row"><div><strong>${escapeHtml(booking.practice_name)}</strong><span>${escapeHtml(date)} · ${escapeHtml(booking.contact_name)} · ${escapeHtml(booking.phone)}</span></div><a class="button" href="https://calendar.google.com/calendar/render?${escapeHtml(params.toString())}" target="_blank" rel="noopener noreferrer">Zet in Teamagenda ↗</a></article>`
     }).join('')
   } catch (error) { if (currentRoute() === 'physio-campaign') list.textContent = error.message }
-}
-
-async function addManualPhysioRecipient(event) {
-  event.preventDefault()
-  const form = event.currentTarget
-  const button = form.querySelector('[type="submit"]')
-  const email = String(form.elements.email.value || '').trim().toLowerCase()
-  const practiceName = String(form.elements.practice_name.value || '').trim()
-  setBusy(button, true, 'Adres toevoegen')
-  try {
-    await verifyPartnerEmail(email)
-    const { data, error } = await supabase.from('settings').select('value').eq('key', 'partner_scout').maybeSingle()
-    if (error) throw error
-    const scout = normalizePartnerScoutState(data?.value || state.partnerScout)
-    let lead = scout.leads.find((item) => item.email.toLowerCase() === email)
-    if (lead?.outreach_opt_out) throw new Error('Dit adres staat op de uitsluitlijst.')
-    if (lead && lead.type !== 'physio') throw new Error('Dit adres staat al bij een andere partner in Partner Scout.')
-    if (!lead) {
-      const timestamp = new Date().toISOString()
-      lead = { id: crypto.randomUUID(), name: practiceName || email, type: 'physio', email, status: 'new', score: 0,
-        source_provider: 'Handmatig via Fysiomail', outreach_basis: 'none', outreach_opt_out: false,
-        created_at: timestamp, updated_at: timestamp }
-      await savePartnerScout({ ...scout, leads: [lead, ...scout.leads], interactions: [partnerInteraction(lead.id, 'created', 'E-mailadres handmatig toegevoegd via Fysiomail.'), ...scout.interactions] }, 'Fysiomailadres toegevoegd', { lead_id: lead.id, partner_name: lead.name })
-    }
-    await loadPhysioSequence()
-    const practice = physioSequence?.practices?.find((item) => item.id === lead.id)
-    if (practice?.enrolled) throw new Error('Deze praktijk zit al in de reeks.')
-    physioSequenceSelection.add(lead.id)
-    physioSequenceSearch = email
-    document.querySelector('#physio-practice-search').value = email
-    renderPhysioSequenceState()
-    form.reset()
-    toast('Adres geselecteerd', `${email} staat in de selectie. Kies de juiste groep en klik op "Start de reeks" om haar toe te voegen.`)
-  } catch (error) { toast('Adres toevoegen mislukt', error.message, true) }
-  finally { setBusy(button, false, 'Adres toevoegen') }
 }
 
 async function findPhysioEmails(button, scope = 'national', scopeLabel = '') {
