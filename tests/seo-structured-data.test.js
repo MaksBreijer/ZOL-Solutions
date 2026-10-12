@@ -1,11 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 
 import config from '../vite.config.js'
 
 test('product structured data includes complete variant and audience details', async () => {
-  const filename = new URL('../product/index.html', import.meta.url).pathname
+  const filename = fileURLToPath(new URL('../product/index.html', import.meta.url))
   const html = await readFile(filename, 'utf8')
   const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
   const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
@@ -25,7 +26,7 @@ test('product structured data includes complete variant and audience details', a
 })
 
 test('homepage structured data includes the visible heel-pain FAQ', async () => {
-  const filename = new URL('../index.html', import.meta.url).pathname
+  const filename = fileURLToPath(new URL('../index.html', import.meta.url))
   const html = await readFile(filename, 'utf8')
   const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
   const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
@@ -58,7 +59,7 @@ test('growth and new knowledge routes are listed in the sitemap', async () => {
 
 test('paid campaign landing page points search engines to the organic heel-pain page', async () => {
   const sitemap = await readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8')
-  const filename = new URL('../hielpijn-kind-sport/index.html', import.meta.url).pathname
+  const filename = fileURLToPath(new URL('../hielpijn-kind-sport/index.html', import.meta.url))
   const html = await readFile(filename, 'utf8')
   const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
   const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
@@ -69,7 +70,7 @@ test('paid campaign landing page points search engines to the organic heel-pain 
 })
 
 test('social titles escape ampersands exactly once', async () => {
-  const filename = new URL('../index.html', import.meta.url).pathname
+  const filename = fileURLToPath(new URL('../index.html', import.meta.url))
   const html = await readFile(filename, 'utf8')
   const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
   const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
