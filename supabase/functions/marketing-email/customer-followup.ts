@@ -53,13 +53,20 @@ const firstName = (order: Order, customerFirst?: string | null) => {
 const deliveredOn = (order: Order) => order.delivered_at ? new Date(order.delivered_at) : order.shipped_at ? new Date(new Date(order.shipped_at).getTime() + 2 * DAY) : null
 
 export function renderFollowup(followup: typeof followups[number], name: string) {
-  const text = followup.body.replaceAll("{{voornaam}}", name)
+  const text = followup.body.replace(/{{\s*(voornaam|customer_first_name)\s*}}/g, name)
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#222">${text.split(/\n{2,}/).map((part) => `<p style="margin:0 0 14px">${escapeEmailHtml(part).replaceAll("\n", "<br>")}</p>`).join("")}</div>`
   return { subject: followup.subject, text, html }
 }
 
 export async function sendCustomerFollowups(db: Db, config: Record<string, unknown>, now = new Date()) {
   const results: Record<string, unknown>[] = []
+  // Teksten komen uit E-mails in de admin; staat een opvolgmail daar uit, dan slaan we hem over.
+  const { data: templates } = await db.from("email_templates").select("template_key,subject_template,body_template,enabled").in("template_key", ["customer_followup_1", "customer_followup_2"])
+  const active = followups.flatMap((followup) => {
+    const template = (templates || []).find((row) => row.template_key === `customer_followup_${followup.step}`)
+    if (template && !template.enabled) return []
+    return [{ ...followup, subject: template?.subject_template?.trim() || followup.subject, body: template?.body_template?.trim() || followup.body }]
+  })
   const { data: orders, error } = await db.from("orders")
     .select("id,customer_id,customer_email,customer_name,delivered_at,shipped_at")
     .eq("order_type", "customer").eq("payment_status", "paid").eq("archived", false)
@@ -78,7 +85,7 @@ export async function sendCustomerFollowups(db: Db, config: Record<string, unkno
     const customer = order.customer_id ? byCustomer.get(order.customer_id) : null
     if (customer?.marketing_unsubscribed_at) continue
     // Alleen de laatste mail die nu aan de beurt is; een gemiste eerste mail sturen we niet meer na.
-    const due = [...followups].reverse().find((followup) => now.getTime() >= delivered.getTime() + followup.days * DAY)
+    const due = [...active].reverse().find((followup) => now.getTime() >= delivered.getTime() + followup.days * DAY)
     if (!due) continue
     const dedupeKey = `customer-followup-${order.id}-${due.step}`
     const { data: existing } = await db.from("email_messages").select("id,status").eq("dedupe_key", dedupeKey).maybeSingle()
