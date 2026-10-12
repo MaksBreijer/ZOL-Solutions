@@ -37,7 +37,7 @@ export function footerMarkup() {
           <div><p class="zf-h">Contact</p><a href="mailto:info@zolsolutions.nl">info@zolsolutions.nl</a><a href="/contact/">Contactformulier</a><a href="https://www.instagram.com/zolsolutions/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a href="https://www.linkedin.com/company/zolsolutions/" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a></div>
         </div>
         <div class="zf-pay" aria-label="Betaalmethoden"><span>Veilig betalen via Mollie</span><ul>${payments}</ul></div>
-        <div class="zf-legal"><span>© 2026 ZOL Solutions. Alle rechten voorbehouden.</span><span><a href="/privacy/">Privacy</a> · <a href="/algemene-voorwaarden/">Algemene voorwaarden</a></span></div>
+        <div class="zf-legal"><span>© 2026 ZOL Solutions. Alle rechten voorbehouden.</span><span><a href="/privacy/">Privacy</a> · <a href="/algemene-voorwaarden/">Algemene voorwaarden</a> · <button class="zf-cookie" data-cookie-preferences type="button">Cookievoorkeuren</button></span></div>
       </div>
     </footer>`
 }

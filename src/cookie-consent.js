@@ -40,6 +40,8 @@ function currentChoiceLabel() {
 
 function ensureConsentUi() {
   if (document.querySelector('[data-cookie-consent]')) return
+  // Pagina's met de nieuwe footer hebben daar een vaste link; anders een zwevende knop.
+  const hasFooterLink = Boolean(document.querySelector('[data-cookie-preferences]'))
   document.body.insertAdjacentHTML('beforeend', `
     <div class="cookie-consent" data-cookie-consent role="dialog" aria-modal="false" aria-labelledby="cookie-consent-title" hidden>
       <div class="cookie-consent-copy">
@@ -54,7 +56,7 @@ function ensureConsentUi() {
         <button type="button" data-cookie-choice="accepted">Alles accepteren</button>
       </div>
     </div>
-    <button class="cookie-preferences-trigger" data-cookie-preferences type="button">Cookievoorkeuren</button>
+    ${hasFooterLink ? '' : '<button class="cookie-preferences-trigger" data-cookie-preferences type="button">Cookievoorkeuren</button>'}
   `)
 
   const panel = document.querySelector('[data-cookie-consent]')
@@ -70,14 +72,14 @@ function ensureConsentUi() {
     preferencesOpener = null
   })
 
-  document.querySelector('[data-cookie-preferences]').addEventListener('click', (event) => {
+  document.querySelectorAll('[data-cookie-preferences]').forEach((opener) => opener.addEventListener('click', (event) => {
     preferencesOpener = event.currentTarget
     current.textContent = currentChoiceLabel()
     current.hidden = !current.textContent
     panel.hidden = false
     document.documentElement.classList.add('cookie-consent-open')
     panel.querySelector('[data-cookie-choice="necessary"]').focus()
-  })
+  }))
 
   if (!getCookieConsent()) {
     current.hidden = true

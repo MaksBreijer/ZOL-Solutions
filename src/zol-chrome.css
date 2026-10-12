@@ -59,3 +59,5 @@ body.has-zn { padding-top: 76px; }
 .zf-pay img { width: 40px; height: auto; }
 .zf-legal { margin-top: 26px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.1); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 13px; color: rgba(255,255,255,.5); }
 @media (max-width: 960px) { .zf { padding-top: 64px; } .zf-grid { grid-template-columns: 1fr 1fr; } .zf-grid > div:first-child { grid-column: 1 / -1; } }
+.zf-cookie { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.zf-cookie:hover { color: #fff; }
