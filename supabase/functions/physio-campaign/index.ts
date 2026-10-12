@@ -206,6 +206,8 @@ async function scopeFilter(db: ReturnType<typeof adminClient>, scope: string) {
   return () => true
 }
 
+const homeArea = (lead: Lead) => /\b(amsterdam|amstelveen)\b/i.test(clean(lead.city))
+
 async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchSize, siteLimit = 10, scope = "national") {
   const { data: settings, error } = await db.from("settings").select("value").eq("key", "partner_scout").maybeSingle()
   if (error) throw error
@@ -219,7 +221,8 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
   for (const row of enrolledEmails || []) known.add(clean(row.email).toLowerCase())
   const enrolledIds = new Set((enrolled || []).map((row: { lead_id: string }) => row.lead_id))
   const pending = (leadsToScan(leads.filter((lead) => inScope(lead) && !enrolledIds.has(clean(lead.id))), { personal: true }) as Lead[])
-    .sort((a, b) => Number(Boolean(clean(a.email))) - Number(Boolean(clean(b.email))))
+    // Eerst Amsterdam en Amstelveen (Gold/Silver), daarna praktijken zonder adres, dan de rest.
+    .sort((a, b) => Number(!homeArea(a)) - Number(!homeArea(b)) || Number(Boolean(clean(a.email))) - Number(Boolean(clean(b.email))))
   const queue = pending.slice(0, siteLimit)
   const patches = new Map<string, Record<string, string>>()
   const deadline = Date.now() + 45_000
