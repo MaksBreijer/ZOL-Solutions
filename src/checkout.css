@@ -69,3 +69,5 @@
 .payment-method-loading span{height:72px;border-radius:11px;background:linear-gradient(100deg,#f0f2f3 20%,#f8f9fa 45%,#f0f2f3 70%);background-size:200% 100%;animation:payment-loading 1.2s linear infinite}
 @keyframes payment-loading{to{background-position:-200% 0}}
 @media(max-width:560px){.payment-methods{padding:17px}.payment-method-card{grid-template-columns:18px 48px minmax(0,1fr);gap:10px}.payment-method-mark{width:48px}}
+.checkout-trust{margin:0 21px 21px;padding:16px 18px;border:1px solid #e7ecf0;border-radius:12px;background:#f7f9fb}.checkout-trust a{color:var(--blue-deep);font-size:12px;text-decoration:none}.checkout-trust a span{color:#f2a33a;letter-spacing:.06em}.checkout-trust blockquote{margin:9px 0 5px;color:var(--ink);font-size:13px;line-height:1.45}.checkout-trust p{margin:0;color:var(--muted);font-size:10px}
+@media(max-width:560px){.checkout-trust{margin-inline:17px}}
