@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { contactPageUrls, extractEmails, leadsToScan, normalizeWebsite, pickPracticeEmail } from '../supabase/functions/physio-campaign/email-finder.js'
+import { contactPageUrls, extractEmails, firstNameFromEmail, leadsToScan, normalizeWebsite, physioSalutationName, pickPracticeEmail } from '../supabase/functions/physio-campaign/email-finder.js'
 import { normalizePartnerScoutState } from '../src/partner-scout.js'
 
 test('extracts emails from mailto links, text and obfuscated notation', () => {
@@ -69,4 +69,14 @@ test('stays fast on large pages with long unbroken strings', () => {
   assert.ok(performance.now() - started < 200, 'email extraction should not scale quadratically')
   assert.deepEqual(emails, ['info@fysiodelinde.nl'])
   assert.deepEqual(pages, ['https://fysiodelinde.nl/contact'])
+})
+
+test('takes a first name from a personal address and falls back to the practice team', () => {
+  assert.equal(firstNameFromEmail('jan@fysio.nl'), 'Jan')
+  assert.equal(firstNameFromEmail('marieke.de-vries@fysio.nl'), 'Marieke')
+  assert.equal(firstNameFromEmail('j.devries@fysio.nl'), '')
+  assert.equal(firstNameFromEmail('jandevries@fysio.nl'), '')
+  assert.equal(firstNameFromEmail('info@fysio.nl'), '')
+  assert.equal(physioSalutationName({ email: 'info@fysio.nl', practiceName: 'Fysio Oost' }), 'team van Fysio Oost')
+  assert.equal(physioSalutationName({ contactPerson: 'Mevrouw Bakker', email: 'jan@fysio.nl' }), 'Mevrouw Bakker')
 })

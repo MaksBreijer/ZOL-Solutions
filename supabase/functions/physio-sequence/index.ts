@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { physioSalutationName } from "../physio-campaign/email-finder.js"
 import { adminClient, corsHeaders, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
 
 type Lead = Record<string, unknown>
@@ -50,7 +51,7 @@ function personalize(template: string, enrollment: Enrollment) {
     const name = key.toLowerCase()
     if (name === "praktijknaam") return enrollment.practice_name
     if (name === "plaats") return enrollment.location
-    if (name === "contactpersoon") return enrollment.contact_person || `praktijkhouder van ${enrollment.practice_name}`
+    if (name === "contactpersoon") return physioSalutationName({ contactPerson: enrollment.contact_person, email: enrollment.email, practiceName: enrollment.practice_name })
     if (name === "persoonlijke_opening") return enrollment.personal_opening
     return enrollment.specialization || "fysiotherapie"
   })
@@ -190,6 +191,7 @@ async function status(db: Db) {
       enrolled: enrolledLeads.has(clean(lead.id)) || (email && enrolledEmails.has(email)),
       previous_mail_at: previous.get(email) || "",
       enrolled_group: enrolledLeads.get(clean(lead.id)) || "",
+      salutation: physioSalutationName({ contactPerson: clean(lead.contact_name), email, practiceName: clean(lead.name) }),
       found_at: clean(lead.email) ? clean(lead.email_scan_at) || clean(lead.created_at) : "",
     }
   })

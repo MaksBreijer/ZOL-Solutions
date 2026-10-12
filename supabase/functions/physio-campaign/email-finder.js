@@ -113,3 +113,20 @@ export function leadsToScan(leads = [], { personal = false } = {}) {
     return personal && isGenericEmail(email) && lead.email_scan_result !== "personal_checked"
   })
 }
+
+// Gangbare voornamen. Alleen een herkende naam telt, zodat amsterdam@ of vraag@ nooit "Beste Amsterdam" wordt.
+const FIRST_NAMES = new Set("aad abdel abdul ad adam adriaan adrie agnes ahmed aimee alain albert alex alexander alexandra alice alicia alida alie aline amber amy ana andre andrea andreas angela angelique anita anja anke ankie ann anna anne anneke annelies annemarie annemieke annet annette anouk anton antoinette arend arie arjan arjen arnold arthur astrid babette barbara bart bas bastiaan bea beatrix ben benjamin bente bernadette bernard bert bianca bjorn bob boris bram brenda brigitte britt bruno carla carin carl carlijn carmen carolien caroline cas casper cathelijne cees celine charlotte chantal chris christa christian christiaan christine cindy claire claudia coen colin connie cor corina corine cornelis daan daisy dana daniel daniela danielle danny david debby demi dennis denise derk desiree dewi dick diederik dimitri dirk dominique dorien dorothea douwe dylan edwin eefje eelco egbert eline elise elisabeth ellen els elsa elske emiel emily emma erik erika erna esmee esther eva evelien evert ewout fabian fatima fenna femke fleur floor floris francis frank frans frederik freek frits gea geert gerard gerben gerda gerrit gert gijs gina greta guus hanna hanneke hannah hans harm harold harry hein hendrik henk henny herman hester hilde hugo ilse inge ingrid iris irma isabel isabelle ivo jaap jacco jacob jacqueline jan jana janine janneke jannes jasmijn jasper jeanette jelle jennifer jeroen jesse jet jim joanne jochem joep joey johan johanna john jolanda jolien jonas joost jop joris jos jose josephine joyce judith julia julian julie justin karin karen karel kees kevin kick kim klaas koen kees kris laura lars lea leon lex lieke lies lieve linda lisa lisanne liz lotte louise luc lucas lucy luuk maaike maarten madelon manon marc marcel marco margo maria marianne marieke marien marijke marijn marina mario marion marjolein mark marleen marloes martijn martin martine mathijs matthijs max maxime melanie melissa merel michael michel michelle miek mieke mike milan mirjam monique myrthe nadia natasja nathalie naomi niels nienke nick nico nicole niek nina noah noor olaf olivier pascal patrick paul paula peter petra pieter pim priscilla quinten rachel ramon raymond rebecca remco renate rene richard rick rik rob robert robbert robin roel roos rosa ruben rudi rutger ruud sabine sam samantha sander sandra sanne sara sarah saskia sebastiaan simon sjoerd sofie sophie stan stefan stefanie stephan steven susan suzanne sven tamara tanja tess teun thijs thomas tim timo tineke tirza tom tommy ton tonny twan valerie vera victor vincent wendy wesley wilco willem willemijn wim wouter yara yvonne zoe".split(" "))
+
+// Voornaam uit een persoonlijk adres: jan@, jan.devries@ of kim_rijswijk@ wordt "Jan" of "Kim". Anders leeg.
+export function firstNameFromEmail(email) {
+  const local = String(email || "").split("@")[0].toLowerCase()
+  const first = local.split(/[._\-0-9]+/).filter(Boolean)[0] || ""
+  if (!FIRST_NAMES.has(first)) return ""
+  return first.charAt(0).toUpperCase() + first.slice(1)
+}
+
+// Aanhef voor de fysiomail: eerst een handmatig ingevulde contactpersoon, dan een voornaam uit het adres, anders het team.
+export function physioSalutationName({ contactPerson = "", email = "", practiceName = "" } = {}) {
+  return String(contactPerson || "").trim() || firstNameFromEmail(email) || `team van ${String(practiceName || "").trim() || "de praktijk"}`
+}
+
