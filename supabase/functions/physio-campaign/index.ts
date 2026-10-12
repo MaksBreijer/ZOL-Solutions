@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, logEmail, markEmail, requireAdmin, sendEmail } from "../_shared/email.ts"
-import { contactPageUrls, extractEmails, isGenericEmail, leadsToScan, MAX_HTML, normalizeWebsite, pickPracticeEmail } from "./email-finder.js"
+import { cityFromHtml, contactPageUrls, extractEmails, isGenericEmail, leadsToScan, MAX_HTML, normalizeWebsite, pickPracticeEmail } from "./email-finder.js"
 
 type Lead = Record<string, unknown>
 type Recipient = { id: string; campaign_id: string; lead_id: string; practice_name: string; location: string; specialization: string; contact_person: string; personal_opening: string; email: string }
@@ -176,18 +176,20 @@ async function fetchPage(url: string) {
 // Een praktijk met kinder- of sportfocus op de eigen website komt automatisch in de Gold Circle van de Fysiomail.
 const FOCUS_SIGNALS = /kinderfysio|kinder\s*fysio|sportfysio|sport\s*fysio|sportblessure|ziekte van sever|morbus sever|groeipijn|jeugdsport|hielpijn/i
 
-async function findPracticeEmail(website: string): Promise<{ result: string; email?: string; source_url?: string; focus?: boolean }> {
+async function findPracticeEmail(website: string): Promise<{ result: string; email?: string; source_url?: string; focus?: boolean; city?: string }> {
   const home = await fetchPage(website)
   if (!home) return { result: "unreachable" }
   const focus = FOCUS_SIGNALS.test(home.html)
+  let city = cityFromHtml(home.html)
   const fromHome = pickPracticeEmail(extractEmails(home.html), home.url)
-  if (fromHome) return { result: "found", email: fromHome, source_url: home.url, focus }
+  if (fromHome) return { result: "found", email: fromHome, source_url: home.url, focus, city }
   for (const url of contactPageUrls(home.html, home.url)) {
     const page = await fetchPage(url)
+    if (!city && page) city = cityFromHtml(page.html)
     const email = page ? pickPracticeEmail(extractEmails(page.html), home.url) : ""
-    if (email) return { result: "found", email, source_url: page!.url, focus }
+    if (email) return { result: "found", email, source_url: page!.url, focus, city }
   }
-  return { result: "none", focus }
+  return { result: "none", focus, city }
 }
 
 // Zoekt nieuwe adressen op praktijkwebsites en slaat ze op in Partner Scout. Verstuurt niets.
@@ -244,6 +246,8 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
         } else if (!rescan) patch.email_scan_result = known.has(email) ? "duplicate" : "no_mx"
       }
       if (outcome.focus) patch.focus = "1"
+      // Zonder plaats kan de Fysiomail een praktijk niet indelen; die halen we dan van de website.
+      if (outcome.city && !clean(lead.city)) patch.city = outcome.city
       scanned++
       patches.set(clean(lead.id), patch)
     }

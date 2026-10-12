@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { contactPageUrls, extractEmails, firstNameFromEmail, leadsToScan, normalizeWebsite, physioSalutationName, pickPracticeEmail } from '../supabase/functions/physio-campaign/email-finder.js'
+import { cityFromHtml, contactPageUrls, extractEmails, firstNameFromEmail, leadsToScan, normalizeWebsite, physioSalutationName, pickPracticeEmail } from '../supabase/functions/physio-campaign/email-finder.js'
 import { normalizePartnerScoutState } from '../src/partner-scout.js'
 
 test('extracts emails from mailto links, text and obfuscated notation', () => {
@@ -79,4 +79,11 @@ test('takes a first name from a personal address and falls back to the practice 
   assert.equal(firstNameFromEmail('info@fysio.nl'), '')
   assert.equal(physioSalutationName({ email: 'info@fysio.nl', practiceName: 'Fysio Oost' }), 'team van Fysio Oost')
   assert.equal(physioSalutationName({ contactPerson: 'Mevrouw Bakker', email: 'jan@fysio.nl' }), 'Mevrouw Bakker')
+})
+
+test('de plaats komt uit de postcode in het adres op de website', () => {
+  assert.equal(cityFromHtml('<p>Kerkstraat 1<br>1071 AB Amsterdam</p>'), 'Amsterdam')
+  assert.equal(cityFromHtml('Laan 3, 1181AB, Amstelveen. Tel'), 'Amstelveen')
+  assert.equal(cityFromHtml('2908 KL Capelle aan den IJssel'), 'Capelle aan den IJssel')
+  assert.equal(cityFromHtml('Bel 020 1234 Amsterdam'), '')
 })

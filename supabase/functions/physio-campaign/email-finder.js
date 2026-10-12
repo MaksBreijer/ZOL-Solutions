@@ -130,3 +130,10 @@ export function physioSalutationName({ contactPerson = "", email = "", practiceN
   return String(contactPerson || "").trim() || firstNameFromEmail(email) || `team van ${String(practiceName || "").trim() || "de praktijk"}`
 }
 
+
+// Plaats uit het adres op de website: de eerste Nederlandse postcode gevolgd door een plaatsnaam ("1071 AB Amsterdam").
+export function cityFromHtml(html) {
+  const text = String(html || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ")
+  const match = text.match(/\b[1-9]\d{3}\s?[A-Z]{2}[,\s]+([A-Z][a-zA-Z'\u00C0-\u017F]+(?:[- ](?:aan|den|de|der|op|[A-Z][a-zA-Z'\u00C0-\u017F]+))*)/)
+  return match ? match[1].trim() : ""
+}
