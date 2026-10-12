@@ -60,7 +60,9 @@ function personalize(template: string, enrollment: Enrollment) {
 // Bewust een kale, persoonlijke mail: geen huisstijlkop, knop of afmeldregel, zodat het leest als een mail die we zelf typen.
 function renderMail(step: Step, enrollment: Enrollment) {
   const subject = personalize(step.subject, enrollment).slice(0, 180)
-  const body = personalize(step.body, enrollment).trim()
+  // De aanhef staat vast: een eventueel getypte aanhef vervangen we, zodat hij nooit ontbreekt of dubbel staat.
+  const text = String(step.body || "").replace(/^\s*(beste|hoi|hallo|dag)\s+[^\n]*,[ \t]*\n+/i, "").trim()
+  const body = personalize(`Beste {{contactpersoon}},\n\n${text}`, enrollment).trim()
   const paragraphs = body.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
     .map((paragraph) => `<p style="margin:0 0 14px">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
   const photo = `<img src="https://zolsolutions.nl/media/story-team.jpg" width="280" alt="Maks en Thijn" style="display:block;width:280px;max-width:100%;height:auto;margin-top:6px;border-radius:6px">`

@@ -1753,7 +1753,7 @@ let physioActiveStep = 0
 function renderPhysioStepForms() {
   const steps = physioSequence?.steps || PHYSIO_STEP_TITLES.map((_title, index) => ({ subject: '', body: '', wait_days: [0, 7, 7, 14][index] }))
   const tabs = steps.map((step, index) => `<button type="button" class="${index === physioActiveStep ? 'is-active' : ''}" data-physio-tab="${index}"><span>${index + 1}</span>${escapeHtml(PHYSIO_STEP_TITLES[index])}${step.subject && step.body ? '' : ' <em>leeg</em>'}</button>`).join('')
-  const forms = steps.map((step, index) => `<form class="physio-step" data-physio-step="${index}" ${index === physioActiveStep ? '' : 'hidden'}><p class="physio-step-hint">${escapeHtml(PHYSIO_STEP_HINTS[index])}</p>${index ? `<label class="field physio-step-wait">Versturen<span><input name="wait_days" type="number" min="0" max="60" value="${Number(step.wait_days) || 0}"> dagen na mail ${index}, als er geen reactie is</span></label>` : '<input name="wait_days" type="hidden" value="0">'}<label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(step.subject || '')}"></label><label class="field">Tekst<textarea name="body" rows="12" maxlength="5000" placeholder="Beste {{contactpersoon}},&#10;&#10;...">${escapeHtml(step.body || '')}</textarea></label><div class="physio-step-foot"><span>Onderaan komt vanzelf jullie foto. <code>{{contactpersoon}}</code> wordt de voornaam uit het e-mailadres (jan@ → Jan), anders "team van [praktijk]". <code>{{praktijknaam}}</code> wordt de naam van de praktijk.</span><button class="button" type="button" data-physio-test="${index}">Stuur mij een test</button></div></form>`).join('')
+  const forms = steps.map((step, index) => `<form class="physio-step" data-physio-step="${index}" ${index === physioActiveStep ? '' : 'hidden'}><p class="physio-step-hint">${escapeHtml(PHYSIO_STEP_HINTS[index])}</p>${index ? `<label class="field physio-step-wait">Versturen<span><input name="wait_days" type="number" min="0" max="60" value="${Number(step.wait_days) || 0}"> dagen na mail ${index}, als er geen reactie is</span></label>` : '<input name="wait_days" type="hidden" value="0">'}<label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(step.subject || '')}"></label><label class="field">Tekst<span class="physio-greeting">${PHYSIO_GREETING}</span><textarea name="body" rows="12" maxlength="5000" placeholder="Schrijf hier de mail, de aanhef staat er al boven.">${escapeHtml(stripPhysioGreeting(step.body))}</textarea></label><div class="physio-step-foot"><span>Onderaan komt vanzelf jullie foto. <code>{{contactpersoon}}</code> wordt de voornaam uit het e-mailadres (jan@ → Jan), anders "team van [praktijk]". <code>{{praktijknaam}}</code> wordt de naam van de praktijk.</span><button class="button" type="button" data-physio-test="${index}">Stuur mij een test</button></div></form>`).join('')
   return `<nav class="finance-tabs physio-step-tabs" aria-label="Mails">${tabs}</nav>${forms}`
 }
 
@@ -1807,10 +1807,16 @@ async function loadPhysioSequence() {
   catch (error) { const target = document.querySelector('#physio-enrollments'); if (target) target.textContent = error.message }
 }
 
+// De aanhef staat vast boven elke mail en wordt bij het versturen toegevoegd; een getypte aanhef halen we weg.
+const PHYSIO_GREETING = 'Beste {{contactpersoon}},'
+function stripPhysioGreeting(body) {
+  return String(body || '').replace(/^\s*(beste|hoi|hallo|dag)\s+[^\n]*,[ \t]*\n+/i, '').trim()
+}
+
 function physioStepValues() {
   return [...document.querySelectorAll('[data-physio-step]')].map((step, index) => {
     const values = Object.fromEntries(new FormData(step.querySelector('form')))
-    return { title: PHYSIO_STEP_TITLES[index], subject: String(values.subject || '').trim(), body: String(values.body || '').trim(), wait_days: Math.max(0, Math.min(60, Number(values.wait_days) || 0)) }
+    return { title: PHYSIO_STEP_TITLES[index], subject: String(values.subject || '').trim(), body: stripPhysioGreeting(values.body), wait_days: Math.max(0, Math.min(60, Number(values.wait_days) || 0)) }
   })
 }
 
