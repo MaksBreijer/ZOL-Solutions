@@ -133,7 +133,8 @@ function seoPlugin() {
           else if (isArticle) {
             const footTypes = route === '/kennisbank/voettypes-en-enkelstanden/'
             const expandedArticles = ['/kennisbank/hielpijn-tijdens-sporten/', '/kennisbank/kind-pijn-aan-hiel-na-sporten/', '/kennisbank/groeipijn-in-de-hiel/', '/kennisbank/oefeningen-bij-ziekte-van-sever/', '/kennisbank/sporten-met-ziekte-van-sever/', '/kennisbank/sportschoenen-bij-ziekte-van-sever/', '/kennisbank/ziekte-van-sever-voetbal/', '/kennisbank/ziekte-van-sever-hockey/']
-            const dateModified = ['/kennisbank/ziekte-van-sever/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(route) ? '2026-10-11' : route === '/kennisbank/inlegzolen-voor-kinderen/' ? '2026-10-03' : expandedArticles.includes(route) ? '2026-10-02' : route === '/kennisbank/hielpijn-bij-kinderen/' ? '2026-09-02' : '2026-09-01'
+            const newArticles = ['/kennisbank/hielspoor-bij-kinderen/', '/kennisbank/ziekte-van-sever-behandeling/', '/kennisbank/ziekte-van-sever-herkennen/', '/kennisbank/hielkussen-voor-kinderen/', '/kennisbank/steunzolen-voor-kinderen/', '/kennisbank/ziekte-van-sever-tapen/', '/kennisbank/achillespees-pijn-bij-kinderen/', '/kennisbank/hielpijn-kind-per-leeftijd/', '/kennisbank/groeipijn-in-de-voet/', '/kennisbank/ziekte-van-sever-turnen/']
+            const dateModified = newArticles.includes(route) ? '2026-10-12' : ['/kennisbank/ziekte-van-sever/', '/kennisbank/inlegzolen-bij-ziekte-van-sever/'].includes(route) ? '2026-10-11' : route === '/kennisbank/inlegzolen-voor-kinderen/' ? '2026-10-03' : expandedArticles.includes(route) ? '2026-10-02' : route === '/kennisbank/hielpijn-bij-kinderen/' ? '2026-09-02' : '2026-09-01'
             graph.push({ '@type': 'Article', '@id': `${canonical}#article`, headline: shortTitle, description, url: canonical, mainEntityOfPage: { '@id': `${canonical}#webpage` }, inLanguage: 'nl-NL', image: `${siteOrigin}/media/heel-anatomy.webp`, dateModified, author: { '@id': `${siteOrigin}/#organization` }, publisher: { '@id': `${siteOrigin}/#organization` }, about: footTypes ? ['Voettypes bij kinderen', 'Enkelstanden', 'Pronatie'] : ['Hielpijn bij kinderen', 'Ziekte van Sever'], citation: footTypes ? ['https://www.nhs.uk/conditions/flat-feet/', 'https://www.guysandstthomas.nhs.uk/health-information/flat-feet-children', 'https://www.nhs.uk/baby/health/leg-and-foot-problems-in-children/'] : ['https://www.cuh.nhs.uk/patient-information/severs-diseasesevers-disease/', 'https://www.clinicalguidelines.scot.nhs.uk/rhc-for-health-professionals/guidelines/primary-care-referral-guidelines/orthopaedic-pre-referral-guidance/heel-pain-in-children-advice-for-referrers/'] })
           }
           else graph.push({ '@type': isKnowledgeIndex ? 'CollectionPage' : route === '/contact/' ? 'ContactPage' : route === '/over-ons/' ? 'AboutPage' : 'WebPage', '@id': `${canonical}#webpage`, name: title, description, url: canonical, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: route === '/over-ons/' ? { '@id': `${siteOrigin}/#organization` } : undefined })
@@ -208,6 +209,16 @@ export default defineConfig({
         childInsoles: resolve(import.meta.dirname, 'kennisbank/inlegzolen-voor-kinderen/index.html'),
         severInsoles: resolve(import.meta.dirname, 'kennisbank/inlegzolen-bij-ziekte-van-sever/index.html'),
         footTypes: resolve(import.meta.dirname, 'kennisbank/voettypes-en-enkelstanden/index.html'),
+        heelSpurChildren: resolve(import.meta.dirname, 'kennisbank/hielspoor-bij-kinderen/index.html'),
+        severTreatment: resolve(import.meta.dirname, 'kennisbank/ziekte-van-sever-behandeling/index.html'),
+        severRecognise: resolve(import.meta.dirname, 'kennisbank/ziekte-van-sever-herkennen/index.html'),
+        heelCushionChildren: resolve(import.meta.dirname, 'kennisbank/hielkussen-voor-kinderen/index.html'),
+        archSupportsChildren: resolve(import.meta.dirname, 'kennisbank/steunzolen-voor-kinderen/index.html'),
+        severTaping: resolve(import.meta.dirname, 'kennisbank/ziekte-van-sever-tapen/index.html'),
+        achillesChildren: resolve(import.meta.dirname, 'kennisbank/achillespees-pijn-bij-kinderen/index.html'),
+        heelPainByAge: resolve(import.meta.dirname, 'kennisbank/hielpijn-kind-per-leeftijd/index.html'),
+        growingFootPain: resolve(import.meta.dirname, 'kennisbank/groeipijn-in-de-voet/index.html'),
+        severGymnastics: resolve(import.meta.dirname, 'kennisbank/ziekte-van-sever-turnen/index.html'),
         checkout: resolve(import.meta.dirname, 'checkout/index.html'),
         privacy: resolve(import.meta.dirname, 'privacy/index.html'),
         terms: resolve(import.meta.dirname, 'algemene-voorwaarden/index.html'),
