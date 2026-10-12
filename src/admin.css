@@ -1450,66 +1450,52 @@ svg { display: block; }
 .admin-review-card > footer small { color: var(--admin-muted); font-size: 9px; }
 .admin-review-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Fysiomail-reeks: vier stappen, Gold/Silver Circle en indeling per provincie */
-.physio-sequence-switch { display: flex; align-items: flex-start; gap: 12px; margin-top: 18px; padding: 14px; border: 1px solid #dce4eb; border-radius: 10px; cursor: pointer; }
-.physio-sequence-switch input { width: 18px; height: 18px; margin-top: 2px; }
-.physio-sequence-switch strong, .physio-sequence-switch small { display: block; }
-.physio-sequence-switch small { color: var(--admin-muted); margin-top: 3px; }
-.physio-steps { margin-top: 20px; }
-.physio-steps-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.physio-step-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-.physio-step { display: grid; gap: 12px; align-content: start; }
-.physio-step-head { display: flex; gap: 12px; align-items: flex-start; }
-.physio-step-head > span { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--admin-orange); color: #fff; font-weight: 700; }
-.physio-step-head h3 { margin: 0 0 4px; }
-.physio-step-wait span { display: flex; align-items: center; gap: 8px; color: var(--admin-muted); font-size: 13px; }
-.physio-step-wait input { width: 72px; }
-.physio-circles { margin-top: 20px; }
-.physio-circle-switch { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 12px 0 16px; }
-.physio-circle-switch button { display: grid; gap: 3px; text-align: left; padding: 12px 14px; border: 1px solid #dce4eb; border-radius: 10px; background: #fff; cursor: pointer; font: inherit; }
-.physio-circle-switch button small { color: var(--admin-muted); }
-.physio-circle-switch button.is-active { border-color: var(--admin-orange); box-shadow: inset 0 0 0 1px var(--admin-orange); }
-.physio-circle-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
-.physio-circle-tools .field { flex: 1 1 260px; }
-.physio-ready-toggle { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; }
-.physio-region { border: 1px solid #dce4eb; border-radius: 10px; margin-top: 10px; }
-.physio-region summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
-.physio-region summary span { color: var(--admin-muted); font-size: 13px; flex: 1; }
-.physio-practice-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 14px; border-top: 1px solid #eef2f5; }
-.physio-practice-row label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; min-width: 0; }
-.physio-practice-row input { margin-top: 3px; }
-.physio-practice-row strong, .physio-practice-row small { display: block; overflow-wrap: anywhere; }
-.physio-practice-row small { color: var(--admin-muted); }
-.physio-practice-row.is-muted label { opacity: .55; cursor: default; }
-.physio-circle-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; vertical-align: 1px; }
-.physio-circle-badge--gold { background: #fdecd9; color: #a24a0f; }
-.physio-circle-badge--silver { background: #e9eef3; color: #44596d; }
-.physio-enroll-bar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 0; background: #fff; border-top: 1px solid #e4e9ee; }
-.physio-enroll-bar span { flex: 1; }
-.physio-enrollment-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.physio-group-tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 4px 0 8px; }
-.physio-group-tools .physio-sequence-switch { margin-top: 0; }
-.physio-find-tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 14px; border: 1px solid #dce4eb; border-radius: 10px; }
-.physio-find-tools .field { flex: 1 1 180px; }
-.physio-find-tools .form-hint { flex-basis: 100%; margin: 0; }
-/* Vereenvoudigde Fysiomail: vier genummerde stappen */
-.physio-flow-step { display: grid; grid-template-columns: 40px 1fr; gap: 16px; margin-top: 18px; }
-.physio-flow-step h2 { margin: 4px 0 6px; }
-.physio-flow-step > div > p { max-width: 760px; }
-.physio-flow-num { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--admin-orange); color: #fff; font-weight: 700; font-size: 17px; }
-.physio-step summary { list-style: none; cursor: pointer; }
-.physio-step summary::-webkit-details-marker { display: none; }
-.physio-step h3 small { color: var(--admin-muted); font-weight: 400; }
-.physio-step form { display: grid; gap: 12px; margin-top: 12px; }
-.physio-group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 12px; }
-.physio-group-card { display: grid; gap: 8px; align-content: start; padding: 16px; border: 1px solid #dce4eb; border-radius: 12px; }
-.physio-group-card.is-gold { border-color: var(--admin-orange); background: var(--admin-orange-soft); }
-.physio-group-card h3, .physio-group-card p { margin: 0; }
-.physio-group-card p { color: var(--admin-muted); font-size: 13px; }
-.physio-group-card > strong { font-size: 30px; line-height: 1; }
-.physio-group-card > strong small { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--admin-muted); }
-.physio-recent-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow: auto; }
-.physio-recent-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid #eef2f5; border-radius: 8px; }
-.physio-recent-list strong, .physio-recent-list small { display: block; overflow-wrap: anywhere; }
-.physio-recent-list small { color: var(--admin-muted); }
-@media (max-width: 640px) { .physio-flow-step { grid-template-columns: 1fr; } }
+/* Fysiomail: kerncijfers, versturen per groep, mails als tabbladen */
+.physio-layout { margin-bottom: 16px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
+.physio-layout .panel + .panel { margin-top: 0; }
+.physio-groups { padding: 4px 16px; }
+.physio-group-row { padding: 13px 0; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; border-bottom: 1px solid #edf0f2; }
+.physio-group-row:last-child { border-bottom: 0; }
+.physio-group-row strong { display: block; color: #213443; font-size: 11px; }
+.physio-group-row small { display: block; margin-top: 3px; color: var(--admin-muted); font-size: 9px; line-height: 1.45; }
+.physio-group-row b { min-width: 32px; color: #172a3b; font-size: 20px; letter-spacing: -.03em; text-align: right; }
+.physio-group-row .button svg { width: 13px; height: 13px; }
+.physio-group-dot { width: 10px; height: 10px; border-radius: 50%; background: #9aa7b2; }
+.physio-group-dot.is-gold { background: var(--admin-orange); }
+.physio-group-dot.is-silver { background: var(--admin-blue); }
+.physio-panel-note { margin: 0; padding: 12px 16px 14px; border-top: 1px solid #edf0f2; background: #fafbfb; color: var(--admin-muted); font-size: 9px; line-height: 1.55; }
+.physio-recent-list { max-height: 286px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.physio-recent-list li { padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #edf0f2; }
+.physio-recent-list li:last-child { border-bottom: 0; }
+.physio-recent-list div { min-width: 0; }
+.physio-recent-list strong, .physio-recent-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.physio-recent-list strong { color: #213443; font-size: 10px; }
+.physio-recent-list small { margin-top: 2px; color: var(--admin-muted); font-size: 9px; }
+.physio-empty { margin: 0; padding: 22px 16px; color: var(--admin-muted); font-size: 10px; }
+.physio-circle-badge { flex: none; padding: 4px 8px; border-radius: 999px; font-size: 8px; font-weight: 750; white-space: nowrap; }
+.physio-circle-badge--gold { background: var(--admin-orange-soft); color: #a8401f; }
+.physio-circle-badge--silver { background: var(--admin-blue-soft); color: var(--admin-blue-dark); }
+.physio-steps-body { padding: 16px; }
+.physio-step-tabs { margin: 0 0 16px; }
+.physio-step-tabs button { display: inline-flex; align-items: center; gap: 7px; }
+.physio-step-tabs button span { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: #d5dbe0; color: #fff; font-size: 8px; }
+.physio-step-tabs button.is-active span { background: var(--admin-navy); }
+.physio-step-tabs em { color: var(--admin-orange); font-size: 8px; font-style: normal; font-weight: 700; }
+.physio-step { display: grid; gap: 12px; max-width: 760px; }
+.physio-step-hint { margin: 0; color: var(--admin-muted); font-size: 10px; line-height: 1.5; }
+.physio-step-wait span { display: flex; align-items: center; gap: 8px; color: var(--admin-muted); font-size: 9px; font-weight: 500; }
+.physio-step-wait input { width: 64px; }
+.physio-step-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--admin-muted); font-size: 9px; }
+.physio-table td small { display: block; margin-top: 3px; color: var(--admin-muted); font-size: 8px; white-space: normal; }
+.physio-table tbody tr { cursor: default; }
+.physio-dots { display: inline-flex; gap: 4px; }
+.physio-dots i { width: 8px; height: 8px; border-radius: 50%; background: #dfe4e8; }
+.physio-dots i.is-done { background: var(--admin-navy); }
+.physio-row-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.physio-bookings { padding: 0 16px; }
+.physio-bookings:empty, .physio-bookings:not(:has(article)) { padding: 16px; color: var(--admin-muted); font-size: 10px; }
+@media (max-width: 900px) {
+  .physio-layout { grid-template-columns: 1fr; }
+  .physio-step-foot { flex-direction: column; align-items: flex-start; }
+}
+.physio-campaign-page .panel-header .button--primary { color: #fff; font-size: 10px; }
