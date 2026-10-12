@@ -7,7 +7,7 @@ test('checkout goes straight from the cart to customer and payment details', asy
 
   assert.doesNotMatch(html, /checkout-intake|pain_moment|pain_duration|pain_side/)
   assert.match(html, /<section class="checkout-details" id="checkout-details">/)
-  assert.match(html, /<header><span>02<\/span><div><h2>Contact, bezorging & betaling<\/h2>/)
+  assert.match(html, /<header><div><h2>Contact, bezorging & betaling<\/h2>/)
 })
 
 test('checkout makes the discovery source optional and stores it outside customer data when supplied', async () => {
