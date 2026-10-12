@@ -1752,8 +1752,8 @@ let physioActiveStep = 0
 
 function renderPhysioStepForms() {
   const steps = physioSequence?.steps || PHYSIO_STEP_TITLES.map((_title, index) => ({ subject: '', body: '', wait_days: [0, 7, 7, 14][index] }))
-  const tabs = steps.map((step, index) => `<button type="button" class="${index === physioActiveStep ? 'is-active' : ''}" data-physio-tab="${index}"><span>${index + 1}</span>${escapeHtml(PHYSIO_STEP_TITLES[index])}${step.subject && step.body ? '' : ' <em>leeg</em>'}</button>`).join('')
-  const forms = steps.map((step, index) => `<form class="physio-step" data-physio-step="${index}" ${index === physioActiveStep ? '' : 'hidden'}><p class="physio-step-hint">${escapeHtml(PHYSIO_STEP_HINTS[index])}</p>${index ? `<label class="field physio-step-wait">Versturen<span><input name="wait_days" type="number" min="0" max="60" value="${Number(step.wait_days) || 0}"> dagen na mail ${index}, als er geen reactie is</span></label>` : '<input name="wait_days" type="hidden" value="0">'}<label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(step.subject || '')}"></label><label class="field">Tekst<span class="physio-greeting">${PHYSIO_GREETING}</span><textarea name="body" rows="12" maxlength="5000" placeholder="Schrijf hier de mail, de aanhef staat er al boven.">${escapeHtml(stripPhysioGreeting(step.body))}</textarea></label><div class="physio-step-foot"><span>Onderaan komt vanzelf jullie foto. <code>{{contactpersoon}}</code> wordt de voornaam uit het e-mailadres (jan@ → Jan), anders "team van [praktijk]". <code>{{praktijknaam}}</code> wordt de naam van de praktijk.</span><button class="button" type="button" data-physio-test="${index}">Stuur mij een test</button></div></form>`).join('')
+  const tabs = steps.map((step, index) => `<button type="button" class="${index === physioActiveStep ? 'is-active' : ''}" data-physio-tab="${index}"><span>${index + 1}</span>${escapeHtml(PHYSIO_STEP_TITLES[index])}${(index ? step.body : step.subject && step.body) ? '' : ' <em>leeg</em>'}</button>`).join('')
+  const forms = steps.map((step, index) => `<form class="physio-step" data-physio-step="${index}" ${index === physioActiveStep ? '' : 'hidden'}><p class="physio-step-hint">${escapeHtml(PHYSIO_STEP_HINTS[index])}</p>${index ? `<label class="field physio-step-wait">Versturen<span><input name="wait_days" type="number" min="0" max="60" value="${Number(step.wait_days) || 0}"> dagen na mail ${index}, als er geen reactie is</span></label>` : '<input name="wait_days" type="hidden" value="0">'}${index ? `<p class="physio-reply-note">Gaat als antwoord in hetzelfde gesprek: onderwerp "Re: ${escapeHtml(steps[0]?.subject || 'onderwerp van mail 1')}", met de vorige mail eronder.</p>` : `<label class="field">Onderwerp<input name="subject" maxlength="180" value="${escapeHtml(step.subject || '')}"></label>`}<label class="field">Tekst<span class="physio-greeting">${PHYSIO_GREETING}</span><textarea name="body" rows="12" maxlength="5000" placeholder="Schrijf hier de mail, de aanhef staat er al boven.">${escapeHtml(stripPhysioGreeting(step.body))}</textarea></label><div class="physio-step-foot"><span>Onderaan komt vanzelf jullie foto. <code>{{contactpersoon}}</code> wordt de voornaam uit het e-mailadres (jan@ → Jan), anders "team van [praktijk]". <code>{{praktijknaam}}</code> wordt de naam van de praktijk.</span><button class="button" type="button" data-physio-test="${index}">Stuur mij een test</button></div></form>`).join('')
   return `<nav class="finance-tabs physio-step-tabs" aria-label="Mails">${tabs}</nav>${forms}`
 }
 
@@ -1839,7 +1839,7 @@ async function savePhysioSequence(button) {
     if (physioSequence) physioSequence.steps = steps
     document.querySelector('#physio-steps').innerHTML = renderPhysioStepForms()
     renderPhysioSequenceState()
-    const empty = steps.filter((step) => !step.subject || !step.body).length
+    const empty = steps.filter((step, index) => (index ? !step.body : !step.subject || !step.body)).length
     toast('Mails opgeslagen', empty ? `${empty} van de 4 mails zijn nog leeg. Een praktijk wacht bij een lege mail tot die is ingevuld.` : 'Alle vier de mails zijn ingevuld.')
     await recordActivity('Fysiomail-teksten opgeslagen', 'partner', '', { empty_steps: empty })
   } catch (error) { toast('Opslaan mislukt', error.message, true) }
@@ -1875,10 +1875,10 @@ async function testPhysioStep(index, button) {
   const label = 'Stuur mij een test'
   setBusy(button, true, label)
   try {
-    const data = await physioSequenceCall({ action: 'test', step: index, subject: step.subject, body: step.body })
+    const data = await physioSequenceCall({ action: 'test', step: index, subject: step.subject, body: step.body, steps: physioStepValues() })
     const failed = (data.results || []).filter((result) => result.status !== 'sent')
     if (failed.length) throw new Error(failed.map((result) => `${result.recipient}: ${result.error || 'niet verzonden'}`).join('; '))
-    toast('Testmail verstuurd', `Thijn en Maks ontvangen mail ${index + 1} als voorbeeld.`)
+    toast('Testmail verstuurd', index ? `Thijn en Maks ontvangen mail ${index + 1} als antwoord, met de eerdere mails eronder.` : 'Thijn en Maks ontvangen mail 1 als voorbeeld.')
   } catch (error) { toast('Testmail mislukt', error.message, true) }
   finally { setBusy(button, false, label) }
 }

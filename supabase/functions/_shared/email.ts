@@ -135,6 +135,7 @@ export async function sendEmail(input: {
   text: string
   replyTo?: string
   idempotencyKey?: string
+  headers?: Record<string, string>
   attachments?: { filename: string; content: string; content_type?: string }[]
   config: EmailConfig
 }) {
@@ -157,6 +158,7 @@ export async function sendEmail(input: {
       html: input.html,
       text: input.text,
       ...(input.attachments?.length ? { attachments: input.attachments } : {}),
+      ...(input.headers && Object.keys(input.headers).length ? { headers: input.headers } : {}),
       reply_to: input.replyTo || input.config.reply_to || fromEmail,
     }),
   })

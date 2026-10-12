@@ -25,3 +25,4 @@ h1, h2, .page-header h1, .order-title-line h1 {
 .button--primary { background: var(--admin-blue); border-color: var(--admin-blue); color: #fff; }
 .button--primary:hover { background: var(--admin-navy); border-color: var(--admin-navy); }
 .physio-greeting { display: block; margin: 6px 0 -2px; padding: 10px 12px; border: 1px dashed var(--admin-line); border-radius: 10px; background: #f4f3ef; color: var(--admin-muted); font-weight: 600; }
+.physio-reply-note { margin: 4px 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--admin-blue-soft); color: var(--admin-navy); font-size: 14px; }

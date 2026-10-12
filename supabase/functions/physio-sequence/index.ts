@@ -58,17 +58,44 @@ function personalize(template: string, enrollment: Enrollment) {
 }
 
 // Bewust een kale, persoonlijke mail: geen huisstijlkop, knop of afmeldregel, zodat het leest als een mail die we zelf typen.
-function renderMail(step: Step, enrollment: Enrollment) {
-  const subject = personalize(step.subject, enrollment).slice(0, 180)
+// Mail 2 tot en met 4 zijn een antwoord op de vorige mail: zelfde onderwerp met "Re:", in hetzelfde gesprek, met de vorige mail eronder.
+const messageId = (id: string, step: number) => `<physio-${id}-${step}@zolsolutions.nl>`
+const mailDate = (iso: string) => new Intl.DateTimeFormat("nl-NL", { timeZone: "Europe/Amsterdam", weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
+
+function ownMessage(step: Step, enrollment: Enrollment, withPhoto: boolean) {
   // De aanhef staat vast: een eventueel getypte aanhef vervangen we, zodat hij nooit ontbreekt of dubbel staat.
-  const text = String(step.body || "").replace(/^\s*(beste|hoi|hallo|dag)\s+[^\n]*,[ \t]*\n+/i, "").trim()
-  const body = personalize(`Beste {{contactpersoon}},\n\n${text}`, enrollment).trim()
-  const paragraphs = body.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
+  const typed = String(step.body || "").replace(/^\s*(beste|hoi|hallo|dag)\s+[^\n]*,[ \t]*\n+/i, "").trim()
+  const text = personalize(`Beste {{contactpersoon}},\n\n${typed}`, enrollment).trim()
+  const paragraphs = text.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean)
     .map((paragraph) => `<p style="margin:0 0 14px">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
-  const photo = `<img src="https://zolsolutions.nl/media/story-team.jpg" width="280" alt="Maks en Thijn" style="display:block;width:280px;max-width:100%;height:auto;margin-top:6px;border-radius:6px">`
-  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#222">${paragraphs}${photo}</div>`
-  return { subject, text: body, html }
+  const photo = withPhoto ? `<img src="https://zolsolutions.nl/media/story-team.jpg" width="280" alt="Maks en Thijn" style="display:block;width:280px;max-width:100%;height:auto;margin-top:6px;border-radius:6px">` : ""
+  return { text, html: `${paragraphs}${photo}` }
 }
+
+function threadMessage(steps: Step[], index: number, enrollment: Enrollment, sentAt: string[]): { text: string; html: string } {
+  const own = ownMessage(steps[index], enrollment, index === 0)
+  if (index === 0) return own
+  const previous = threadMessage(steps, index - 1, enrollment, sentAt)
+  const intro = `Op ${mailDate(sentAt[index - 1] || new Date().toISOString())} schreef ZOL Solutions <info@zolsolutions.nl>:`
+  return {
+    text: `${own.text}\n\n${intro}\n${previous.text.split("\n").map((line) => `> ${line}`).join("\n")}`,
+    html: `${own.html}<div style="margin-top:22px;color:#666">${escapeEmailHtml(intro)}</div><blockquote style="margin:6px 0 0 4px;padding-left:12px;border-left:2px solid #ccc;color:#555">${previous.html}</blockquote>`,
+  }
+}
+
+function renderMail(steps: Step[], index: number, enrollment: Enrollment, sentAt: string[] = []) {
+  const first = personalize(steps[0].subject, enrollment).trim()
+  const subject = (index === 0 ? first : `Re: ${first}`).slice(0, 180)
+  const message = threadMessage(steps, index, enrollment, sentAt)
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#222">${message.html}</div>`
+  const earlier = Array.from({ length: index }, (_value, step) => messageId(enrollment.id, step + 1))
+  const headers: Record<string, string> = { "Message-ID": messageId(enrollment.id, index + 1) }
+  if (index > 0) { headers["In-Reply-To"] = earlier[earlier.length - 1]; headers["References"] = earlier.join(" ") }
+  return { subject, text: message.text, html, headers }
+}
+
+// Mail 1 heeft een onderwerp en tekst nodig; de opvolgmails alleen tekst (onderwerp wordt "Re: ...").
+const stepReady = (steps: Step[], index: number) => Boolean(steps[0]?.subject && steps[index]?.body)
 
 async function mxValid(email: string) {
   const domain = email.split("@")[1]
@@ -123,7 +150,7 @@ async function processDue(db: Db, onlyGroup = "") {
       counts.stopped++
       continue
     }
-    if (!step?.subject || !step?.body) {
+    if (!stepReady(steps, enrollment.steps_sent)) {
       await release(db, enrollment.id, { status: "active", error_message: `Tekst voor stap ${enrollment.steps_sent + 1} (${stepTitles[enrollment.steps_sent]}) ontbreekt` })
       counts.waiting++
       continue
@@ -136,12 +163,14 @@ async function processDue(db: Db, onlyGroup = "") {
         counts.failed++
         continue
       }
-      const mail = renderMail(step, enrollment)
+      const { data: earlier } = await db.from("physio_sequence_messages").select("step,sent_at").eq("enrollment_id", enrollment.id).eq("status", "sent")
+      const sentAt = Array.from({ length: 4 }, (_value, index) => clean((earlier || []).find((row) => row.step === index + 1)?.sent_at))
+      const mail = renderMail(steps, enrollment.steps_sent, enrollment, sentAt)
       const { data: existing } = await db.from("email_messages").select("id,status,provider_id").eq("dedupe_key", dedupeKey).maybeSingle()
       let providerId = existing?.provider_id || null
       if (existing?.status !== "sent") {
         const log = existing || await logEmail(db, { kind: "physio_campaign", recipient_email: enrollment.email, subject: mail.subject, body_preview: mail.text.slice(0, 500), dedupe_key: dedupeKey })
-        const sent = await sendEmail({ to: enrollment.email, subject: mail.subject, html: mail.html, text: mail.text, idempotencyKey: dedupeKey, config: { ...config, ...fromConfig } })
+        const sent = await sendEmail({ to: enrollment.email, subject: mail.subject, html: mail.html, text: mail.text, headers: mail.headers, idempotencyKey: dedupeKey, config: { ...config, ...fromConfig } })
         await markEmail(db, log.id, { status: "sent", providerId: sent.id })
         providerId = sent.id || null
       }
@@ -223,17 +252,24 @@ Deno.serve(async (request) => {
 
     if (action === "test") {
       const index = Math.max(0, Math.min(3, Number(body.step) || 0))
-      const step = { title: stepTitles[index], subject: clean(body.subject), body: clean(body.body), wait_days: 0 }
-      if (!step.subject || !step.body) return Response.json({ error: "Vul eerst onderwerp en tekst van deze stap in." }, { status: 400, headers })
+      // De admin stuurt alle vier de teksten mee, zodat een test van mail 2 tot en met 4 de hele draad laat zien.
+      const given = Array.isArray(body.steps) ? body.steps : []
+      const testSteps: Step[] = stepTitles.map((title, step) => ({ title, subject: clean(given[step]?.subject), body: clean(given[step]?.body), wait_days: 0 }))
+      if (!given.length) testSteps[index] = { ...testSteps[index], subject: clean(body.subject), body: clean(body.body) }
+      if (!testSteps[0].subject) return Response.json({ error: "Vul eerst het onderwerp van mail 1 in." }, { status: 400, headers })
+      const missing = testSteps.slice(0, index + 1).findIndex((step) => !step.body)
+      if (missing >= 0) return Response.json({ error: `Vul eerst de tekst van mail ${missing + 1} in.` }, { status: 400, headers })
       const config = await getEmailConfig(db)
       const results = []
       for (const person of [{ name: "Thijn", email: "thijn@zolsolutions.nl" }, { name: "Maks", email: "maks@zolsolutions.nl" }]) {
         const sample = { id: "", lead_id: "", email: person.email, practice_name: `Praktijk van ${person.name}`, location: "Amsterdam", region: "Noord-Holland", specialization: "fysiotherapie", contact_person: person.name, personal_opening: `Hoi ${person.name}, dit is een voorbeeld van een persoonlijke openingszin.`, circle: "", steps_sent: index }
-        const mail = renderMail(step, sample)
+        // Voorbeelddata: mail 1, 2 en 3 drie, twee en een week geleden verstuurd.
+        const fakeSent = [21, 14, 7].map((daysAgo) => new Date(Date.now() - daysAgo * 86_400_000).toISOString())
+        const mail = renderMail(testSteps, index, { ...sample, id: `test-${crypto.randomUUID()}` }, fakeSent)
         const dedupeKey = `physio-sequence-test-${crypto.randomUUID()}`
         const log = await logEmail(db, { kind: "physio_campaign", recipient_email: person.email, subject: `[TEST] ${mail.subject}`, body_preview: mail.text.slice(0, 500), dedupe_key: dedupeKey })
         try {
-          const sent = await sendEmail({ to: person.email, subject: `[TEST] ${mail.subject}`, html: mail.html, text: mail.text, idempotencyKey: dedupeKey, config: { ...config, ...fromConfig } })
+          const sent = await sendEmail({ to: person.email, subject: `[TEST] ${mail.subject}`, html: mail.html, text: mail.text, headers: mail.headers, idempotencyKey: dedupeKey, config: { ...config, ...fromConfig } })
           await markEmail(db, log.id, { status: "sent", providerId: sent.id })
           results.push({ recipient: person.email, status: "sent" })
         } catch (sendError) {
