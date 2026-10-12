@@ -1735,16 +1735,23 @@ function renderPhysioSequenceState() {
 
 const PHYSIO_STATUS_PILL = { active: 'is-blue', sending: 'is-blue', paused: 'is-orange', replied: 'is-green', completed: '', stopped: '', failed: 'is-red' }
 
+let physioEnrollmentFilter = 'all'
+
 function renderPhysioEnrollments() {
   const target = document.querySelector('#physio-enrollments')
   if (!target || !physioSequence) return
-  const rows = physioSequence.enrollments
-  if (!rows.length) { target.innerHTML = '<p class="physio-empty">Nog niemand gemaild via de nieuwe Fysiomail.</p>'; return }
-  target.innerHTML = `<div class="table-scroll"><table class="data-table physio-table"><thead><tr><th>Praktijk</th><th>Groep</th><th>Mails</th><th>Status</th><th>Volgende mail</th><th></th></tr></thead><tbody>${rows.map((row) => {
+  const all = physioSequence.enrollments
+  if (!all.length) { target.innerHTML = '<p class="physio-empty">Nog niemand gemaild via de nieuwe Fysiomail.</p>'; return }
+  // Gemaild: minstens mail 1 is verstuurd. Wachtrij: ingeschreven, maar mail 1 moet nog uit.
+  const queued = (row) => row.steps_sent === 0 && ['active', 'sending', 'paused'].includes(row.status)
+  const counts = { all: all.length, sent: all.filter((row) => row.steps_sent > 0).length, queue: all.filter(queued).length }
+  const rows = all.filter((row) => physioEnrollmentFilter === 'sent' ? row.steps_sent > 0 : physioEnrollmentFilter === 'queue' ? queued(row) : true)
+  const filters = [['all', 'Alle'], ['sent', 'Gemaild'], ['queue', 'In wachtrij']].map(([key, label]) => `<button type="button" class="${physioEnrollmentFilter === key ? 'is-active' : ''}" data-physio-filter="${key}">${label} <b>${counts[key]}</b></button>`).join('')
+  target.innerHTML = `<nav class="finance-tabs physio-enrollment-filter" aria-label="Filter">${filters}</nav>${rows.length ? '' : '<p class="physio-empty">Niemand in deze lijst.</p>'}<div class="table-scroll"${rows.length ? '' : ' hidden'}><table class="data-table physio-table"><thead><tr><th>Praktijk</th><th>Groep</th><th>Mails</th><th>Status</th><th>Volgende mail</th><th></th></tr></thead><tbody>${rows.map((row) => {
     const open = ['active', 'paused', 'failed'].includes(row.status)
     const next = ['active', 'paused'].includes(row.status) && row.steps_sent < 4 ? `Mail ${row.steps_sent + 1} · ${formatDate(row.next_send_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : '—'
     const actions = open ? `<button class="button button--small" data-physio-op="replied" data-id="${escapeHtml(row.id)}">Gereageerd</button><button class="button button--small" data-physio-op="stop" data-id="${escapeHtml(row.id)}">Stop</button>` : ''
-    return `<tr><td><strong>${escapeHtml(row.practice_name)}</strong><small>${escapeHtml(row.email)}</small></td><td>${physioCircleBadge(row.circle)}</td><td><span class="physio-dots" aria-label="${row.steps_sent} van 4">${[1, 2, 3, 4].map((step) => `<i class="${step <= row.steps_sent ? 'is-done' : ''}"></i>`).join('')}</span></td><td><span class="status-pill ${PHYSIO_STATUS_PILL[row.status] ?? ''}">${escapeHtml(PHYSIO_ENROLLMENT_STATUS[row.status] || row.status)}</span>${row.error_message ? `<small>${escapeHtml(row.error_message)}</small>` : ''}</td><td>${escapeHtml(next)}</td><td><div class="physio-row-actions">${actions}</div></td></tr>`
+    return `<tr><td><strong>${escapeHtml(row.practice_name)}</strong><small>${escapeHtml(row.email)}</small></td><td>${physioCircleBadge(row.circle)}</td><td><span class="physio-dots" aria-label="${row.steps_sent} van 4">${[1, 2, 3, 4].map((step) => `<i class="${step <= row.steps_sent ? 'is-done' : ''}"></i>`).join('')}</span></td><td><span class="status-pill ${PHYSIO_STATUS_PILL[row.status] ?? ''}">${escapeHtml(queued(row) ? 'In wachtrij' : PHYSIO_ENROLLMENT_STATUS[row.status] || row.status)}</span>${row.error_message ? `<small>${escapeHtml(row.error_message)}</small>` : ''}</td><td>${escapeHtml(next)}</td><td><div class="physio-row-actions">${actions}</div></td></tr>`
   }).join('')}</tbody></table></div>`
 }
 
@@ -1766,13 +1773,15 @@ function renderPhysioCampaign() {
       <section class="panel"><header class="panel-header"><div><h2>Laatst gevonden</h2><p>Persoonlijke adressen gaan voor op info@. Al gemailde praktijken worden overgeslagen.</p></div></header><div id="physio-recent"></div></section>
     </div>
     <section class="panel"><header class="panel-header"><div><h2>De mails</h2><p>Gewone mail vanaf info@zolsolutions.nl, zonder opmaak of knop. Mail 2 tot en met 4 alleen voor wie niet reageert.</p></div><button class="button button--primary" type="button" id="physio-save-steps">Mails opslaan</button></header><div class="physio-steps-body" id="physio-steps">${renderPhysioStepForms()}</div></section>
-    <section class="panel"><header class="panel-header"><div><h2>Wie is gemaild</h2><p>Reageert een praktijk? Klik op Gereageerd, dan stopt de opvolging.</p></div></header><div id="physio-enrollments"></div></section>
+    <section class="panel"><header class="panel-header"><div><h2>Wie is gemaild</h2><p>Filter op gemaild of in de wachtrij. Reageert een praktijk? Klik op Gereageerd, dan stopt de opvolging.</p></div></header><div id="physio-enrollments"></div></section>
     <section class="panel"><header class="panel-header"><div><h2>Geplande gesprekken</h2><p>Afspraken via de boekingspagina.</p></div></header><div class="physio-bookings" id="physio-bookings-list">Gesprekken laden…</div></section>
   </div>`
   const page = elements.content.querySelector('.physio-campaign-page')
   document.querySelector('#physio-find-emails').addEventListener('click', (event) => findPhysioEmails(event.currentTarget, 'national'))
   document.querySelector('#physio-save-steps').addEventListener('click', (event) => savePhysioSequence(event.currentTarget))
   page.addEventListener('click', (event) => {
+    const filter = event.target.closest('[data-physio-filter]')
+    if (filter) { physioEnrollmentFilter = filter.dataset.physioFilter; renderPhysioEnrollments(); return }
     const tab = event.target.closest('[data-physio-tab]')
     if (tab) {
       physioActiveStep = Number(tab.dataset.physioTab)
