@@ -39,13 +39,13 @@ h1 em, h2 em, h3 em, h1 b, h2 b {
 .section-index::before, .eyebrow::before { display: none !important; }
 
 /* Donkere kopblokken krijgen de blauwe hero van de homepage */
-.knowledge-hero, .page-hero, .legal-hero, .about-hero, .contact-hero, .price-comparison {
+.knowledge-hero, .page-hero, .about-hero, .price-comparison {
   margin: 10px !important;
   border-radius: 22px !important;
   background: radial-gradient(1200px 700px at 75% 40%, #45698f 0%, transparent 60%), radial-gradient(900px 600px at 10% 90%, #1d3550 0%, transparent 60%), #2f5274 !important;
   color: #fff;
 }
-.knowledge-hero h1 em, .knowledge-hero h1 b, .page-hero h1 em, .legal-hero h1 em, .about-hero h1 em, .contact-hero h1 em,
+.knowledge-hero h1 em, .knowledge-hero h1 b, .page-hero h1 em, .about-hero h1 em,
 .price-comparison h2 em, .price-comparison h2 b { color: #fff !important; }
 .knowledge-hero .section-index, .price-comparison .section-index { color: #f0a080 !important; }
 
