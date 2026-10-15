@@ -110,6 +110,7 @@ function seoPlugin() {
           const website = { '@type': 'WebSite', '@id': `${siteOrigin}/#website`, url: `${siteOrigin}/`, name: 'ZOL Solutions', inLanguage: 'nl-NL', publisher: { '@id': `${siteOrigin}/#organization` } }
           const graph = [organization, website]
           if (route === '/') {
+            graph.push({ '@type': 'VideoObject', '@id': `${canonical}#story-video`, name: 'Maak kennis met ZOL Solutions', description: 'Thijn Koelemij en Maks Breijer vertellen hoe ZOL is ontstaan: dempende 3/4 inlegzolen voor sportende kinderen met hielpijn of de ziekte van Sever.', thumbnailUrl: `${siteOrigin}/media/story-video-poster.jpg`, contentUrl: `${siteOrigin}/media/story-video-540.mp4`, uploadDate: '2026-10-12T12:00:00+02:00', duration: 'PT42S', inLanguage: 'nl-NL', publisher: { '@id': `${siteOrigin}/#organization` } })
             graph.push({ '@type': 'WebPage', '@id': `${canonical}#webpage`, url: canonical, name: title, description, inLanguage: 'nl-NL', isPartOf: { '@id': `${siteOrigin}/#website` }, about: { '@id': `${siteOrigin}/#organization` } })
             graph.push({
               '@type': 'FAQPage',
