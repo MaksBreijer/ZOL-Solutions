@@ -41,8 +41,8 @@ test('homepage structured data includes the visible heel-pain FAQ', async () => 
 test('shopping feed includes Google category and variant attributes', async () => {
   const feed = await readFile(new URL('../public/google-product-feed.xml', import.meta.url), 'utf8')
 
-  assert.equal((feed.match(/<item>/g) || []).length, 5)
-  assert.equal((feed.match(/<g:google_product_category>2801<\/g:google_product_category>/g) || []).length, 5)
+  assert.equal((feed.match(/<item>/g) || []).length, 6)
+  assert.equal((feed.match(/<g:google_product_category>2801<\/g:google_product_category>/g) || []).length, 6)
   assert.equal((feed.match(/<g:age_group>kids<\/g:age_group>/g) || []).length, 5)
   assert.match(feed, /ZOL-XS-3435[\s\S]*?<g:availability>in_stock<\/g:availability>/)
 })
