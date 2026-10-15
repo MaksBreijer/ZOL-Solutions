@@ -43,7 +43,7 @@ test('shopping feed includes Google category and variant attributes', async () =
 
   assert.equal((feed.match(/<item>/g) || []).length, 6)
   assert.equal((feed.match(/<g:google_product_category>2801<\/g:google_product_category>/g) || []).length, 6)
-  assert.equal((feed.match(/<g:age_group>kids<\/g:age_group>/g) || []).length, 5)
+  assert.equal((feed.match(/<g:age_group>kids<\/g:age_group>/g) || []).length, 6)
   assert.match(feed, /ZOL-XS-3435[\s\S]*?<g:availability>in_stock<\/g:availability>/)
 })
 
@@ -95,6 +95,6 @@ test('shopping feed availability follows live stock per SKU', async () => {
   assert.match(updated, /ZOL-XS-3435[\s\S]*?<g:availability>out_of_stock<\/g:availability>/)
   assert.match(updated, /ZOL-M-3839[\s\S]*?<g:availability>in_stock<\/g:availability>/)
   assert.match(updated, /ZOL-L-4041[\s\S]*?<g:availability>in_stock<\/g:availability>/)
-  assert.doesNotMatch(updated, /ZOL-XXL-4445/)
-  assert.equal((updated.match(/<item>/g) || []).length, 5)
+  assert.match(updated, /ZOL-XXL-4445[\s\S]*?<g:availability>in_stock<\/g:availability>/)
+  assert.equal((updated.match(/<item>/g) || []).length, 6)
 })
