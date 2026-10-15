@@ -144,6 +144,8 @@
 
       .buy { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
       .buy img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 26px; }
+      .buy .buy-photo { display: block; max-width: 440px; justify-self: center; width: 100%; }
+      .buy .buy-photo img { aspect-ratio: 4 / 5; object-position: center 60%; }
       .sizes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
       .sizes span { border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 10px 16px; font-weight: 600; font-size: 15px; }
 
