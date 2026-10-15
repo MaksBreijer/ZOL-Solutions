@@ -134,6 +134,7 @@ function seoPlugin() {
               ['ZOL-M-3839', '38/39', '38-39', 'InStock'],
               ['ZOL-L-4041', '40/41', '40-41', 'InStock'],
               ['ZOL-XL-4243', '42/43', '42-43', 'InStock'],
+              ['ZOL-XXL-4445', '44/45', '44-45', 'InStock'],
             ]
             graph.push({
               '@type': 'ProductGroup',

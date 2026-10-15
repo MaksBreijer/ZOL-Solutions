@@ -20,7 +20,7 @@ test('product structured data includes complete variant and audience details', a
   assert.match(productGroup.audience.audienceType, /hielpijn/i)
   assert.match(productGroup.description, /ziekte van Sever/i)
   assert.equal(productGroup.category.codeValue, '2801')
-  assert.equal(productGroup.hasVariant.length, 5)
+  assert.equal(productGroup.hasVariant.length, 6)
   assert.equal(productGroup.hasVariant[0].offers.price, '99.95')
   assert.equal(productGroup.hasVariant[0].offers.availability, 'https://schema.org/InStock')
 })
