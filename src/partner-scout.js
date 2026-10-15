@@ -375,12 +375,12 @@ export function buildOverpassQuery(regionCode, type = 'all', limit = 180) {
   const region = regionLabelMap[regionCode] ? regionCode : 'NL-NH'
   const safeLimit = Math.max(10, Math.min(2000, Number(limit) || 180))
   const blocks = {
-    physio: ['nwr["healthcare"="physiotherapist"](area.searchArea);', 'nwr["healthcare:speciality"~"physiotherapy"](area.searchArea);'],
+    physio: ['nwr["healthcare"="physiotherapist"](area.searchArea);', 'nwr["healthcare:speciality"~"physiotherapy"](area.searchArea);', 'nwr["name"~"fysio",i](area.searchArea);'],
     school: ['nwr["amenity"~"school|college"](area.searchArea);'],
     sports_club: ['nwr["leisure"~"sports_centre|sports_club"](area.searchArea);', 'nwr["club"="sport"](area.searchArea);'],
   }
   const selected = type === 'all' ? Object.values(blocks).flat() : (blocks[type] || blocks.physio)
-  return `[out:json][timeout:28];area["ISO3166-2"="${region}"][admin_level=4]->.searchArea;(${selected.join('')});out tags center ${safeLimit};`
+  return `[out:json][timeout:90];area["ISO3166-2"="${region}"][admin_level=4]->.searchArea;(${selected.join('')});out tags center ${safeLimit};`
 }
 
 export function partnerMailDraft(lead) {

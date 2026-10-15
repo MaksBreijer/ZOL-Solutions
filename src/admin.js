@@ -2046,9 +2046,9 @@ async function enrichApolloContact(lead, personId, button) {
 
 async function fetchOverpass(query) {
   let lastError
-  for (const endpoint of ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']) {
+  for (const endpoint of ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']) {
     try {
-      const controller = new AbortController(); const timer = window.setTimeout(() => controller.abort(), 32000)
+      const controller = new AbortController(); const timer = window.setTimeout(() => controller.abort(), 100000)
       const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: `data=${encodeURIComponent(query)}`, signal: controller.signal })
       window.clearTimeout(timer)
       if (!response.ok) throw new Error(`Databron reageert met ${response.status}`)
