@@ -81,7 +81,7 @@ function seoPlugin() {
         const noIndex = /<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(html)
         const isKnowledgeIndex = route === '/kennisbank/'
         const isArticle = route.startsWith('/kennisbank/') && !isKnowledgeIndex
-        const image = route === '/product/' ? `${siteOrigin}/images/zol-familie.jpg` : `${siteOrigin}/og-zol.jpg`
+        const image = route === '/product/' ? `${siteOrigin}/images/zol-familie.jpg` : `${siteOrigin}/og-zol.jpg?v=2`
         const additions = [
           '<link rel="icon" href="/favicon.ico" sizes="any">',
           '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">',
