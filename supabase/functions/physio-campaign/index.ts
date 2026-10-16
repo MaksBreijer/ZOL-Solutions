@@ -195,11 +195,17 @@ async function findPracticeEmail(website: string): Promise<{ result: string; ema
 // Zoekt nieuwe adressen op praktijkwebsites en slaat ze op in Partner Scout. Verstuurt niets.
 // Doorzoekt per aanroep maximaal `siteLimit` websites; de admin roept herhaald aan tot er genoeg adressen zijn.
 // Groep om te doorzoeken: "national" (heel Nederland), "silver" (Amsterdam), "gold" (zelf gekozen) of "region:<provincie>".
-async function scopeFilter(db: ReturnType<typeof adminClient>, scope: string) {
+const SEGMENT_SCAN: Record<string, { type: string; key: string }> = {
+  physio: { type: "physio", key: "physio_sequence" },
+  club: { type: "sports_club", key: "club_sequence" },
+  retail: { type: "retail", key: "retail_sequence" },
+}
+
+async function scopeFilter(db: ReturnType<typeof adminClient>, scope: string, settingsKey = "physio_sequence") {
   if (scope === "silver") return (lead: Lead) => /amsterdam/i.test(clean(lead.city))
   if (scope.startsWith("region:")) { const region = scope.slice(7).toLowerCase(); return (lead: Lead) => clean(lead.region).toLowerCase() === region }
   if (scope === "gold") {
-    const { data } = await db.from("settings").select("value").eq("key", "physio_sequence").maybeSingle()
+    const { data } = await db.from("settings").select("value").eq("key", settingsKey).maybeSingle()
     const gold = new Set((Array.isArray(data?.value?.gold_lead_ids) ? data.value.gold_lead_ids : []).map(clean))
     return (lead: Lead) => gold.has(clean(lead.id))
   }
@@ -208,19 +214,20 @@ async function scopeFilter(db: ReturnType<typeof adminClient>, scope: string) {
 
 const homeArea = (lead: Lead) => /\b(amsterdam|amstelveen)\b/i.test(clean(lead.city))
 
-async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchSize, siteLimit = 10, scope = "national") {
+async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchSize, siteLimit = 10, scope = "national", segment = "physio") {
+  const scan = SEGMENT_SCAN[segment] || SEGMENT_SCAN.physio
   const { data: settings, error } = await db.from("settings").select("value").eq("key", "partner_scout").maybeSingle()
   if (error) throw error
   const leads = Array.isArray(settings?.value?.leads) ? settings.value.leads as Lead[] : []
   const history = await deliveryHistory(db)
   const known = new Set([...leads.map((lead) => clean(lead.email).toLowerCase()).filter(validEmail), ...history.sent, ...history.pending, ...history.skipped])
-  const inScope = await scopeFilter(db, scope)
+  const inScope = await scopeFilter(db, scope, scan.key)
   // Praktijken die al in de mailreeks zitten, houden hun adres; anders stopt hun reeks halverwege.
   const { data: enrolled } = await db.from("physio_sequence_enrollments").select("lead_id")
   const { data: enrolledEmails } = await db.from("physio_sequence_enrollments").select("email")
   for (const row of enrolledEmails || []) known.add(clean(row.email).toLowerCase())
   const enrolledIds = new Set((enrolled || []).map((row: { lead_id: string }) => row.lead_id))
-  const pending = (leadsToScan(leads.filter((lead) => inScope(lead) && !enrolledIds.has(clean(lead.id))), { personal: true }) as Lead[])
+  const pending = (leadsToScan(leads.filter((lead) => inScope(lead) && !enrolledIds.has(clean(lead.id))), { personal: true, type: scan.type }) as Lead[])
     // Eerst Amsterdam en Amstelveen (Gold/Silver), daarna praktijken zonder adres, dan de rest.
     .sort((a, b) => Number(!homeArea(a)) - Number(!homeArea(b)) || Number(Boolean(clean(a.email))) - Number(Boolean(clean(b.email))))
   const queue = pending.slice(0, siteLimit)
@@ -248,7 +255,7 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
           patch = { ...patch, email, email_source_url: clean(outcome.source_url) }
         } else if (!rescan) patch.email_scan_result = known.has(email) ? "duplicate" : "no_mx"
       }
-      if (outcome.focus) patch.focus = "1"
+      if (outcome.focus && scan.type === "physio") patch.focus = "1"
       // Zonder plaats kan de Fysiomail een praktijk niet indelen; die halen we dan van de website.
       if (outcome.city && !clean(lead.city)) patch.city = outcome.city
       scanned++
@@ -273,7 +280,7 @@ async function findNewEmails(db: ReturnType<typeof adminClient>, target = batchS
       if (focus && !tags.includes("kinder-sport-focus")) scanFields.tags = [...tags, "kinder-sport-focus"].slice(0, 12)
       const previous = clean(lead.email)
       if (!email || (previous && !isGenericEmail(previous))) return { ...lead, ...scanFields, updated_at: stamp }
-      interactions.push({ id: crypto.randomUUID(), lead_id: clean(lead.id), kind: "email_found", body: previous ? `Persoonlijk e-mailadres ${email} gevonden op de website (${patch.email_source_url}); vervangt ${previous}.` : `E-mailadres ${email} gevonden op de website (${patch.email_source_url}).`, author: "Fysiomail e-mailzoeker", created_at: stamp })
+      interactions.push({ id: crypto.randomUUID(), lead_id: clean(lead.id), kind: "email_found", body: previous ? `Persoonlijk e-mailadres ${email} gevonden op de website (${patch.email_source_url}); vervangt ${previous}.` : `E-mailadres ${email} gevonden op de website (${patch.email_source_url}).`, author: scan.type === "physio" ? "Fysiomail e-mailzoeker" : "Mailreeks e-mailzoeker", created_at: stamp })
       return { ...lead, ...scanFields, email, updated_at: stamp }
     })
     const nextInteractions = [...interactions, ...(Array.isArray(value.interactions) ? value.interactions : [])].slice(0, 1000)
@@ -334,7 +341,7 @@ Deno.serve(async (request) => {
       }
       return Response.json({ success: results.every((result) => result.status === "sent"), results }, { headers })
     }
-    if (action === "find-emails") return Response.json({ success: true, ...await findNewEmails(db, Math.min(batchSize, Math.max(1, Number(body.target) || batchSize)), 10, clean(body.scope) || "national") }, { headers })
+    if (action === "find-emails") return Response.json({ success: true, ...await findNewEmails(db, Math.min(batchSize, Math.max(1, Number(body.target) || batchSize)), 10, clean(body.scope) || "national", clean(body.segment) || "physio") }, { headers })
     if (action === "status") return Response.json({ success: true, ...await campaignStatus(db) }, { headers })
     if (action === "run") return Response.json({ success: true, ...await processBatch(db) }, { headers })
     if (action === "pause" || action === "resume") {

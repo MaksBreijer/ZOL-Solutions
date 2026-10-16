@@ -229,6 +229,7 @@ function leadCategory(element) {
   if (['podiatrist', 'chiropodist'].includes(tags.healthcare) || /podotherap|podolog/i.test(tags.name || '')) return 'excluded'
   if (tags.healthcare === 'physiotherapist' || /fysio/i.test(`${tags.name || ''} ${tags['healthcare:speciality'] || ''}`)) return 'physio'
   if (['school', 'college'].includes(tags.amenity)) return 'school'
+  if (['sports', 'shoes', 'outdoor'].includes(tags.shop)) return 'retail'
   if (tags.club === 'sport' || ['sports_centre', 'sports_club'].includes(tags.leisure)) return 'sports_club'
   return 'other'
 }
@@ -260,12 +261,13 @@ export function parseOverpassLeads(payload, regionCode, stamp = now()) {
     const sport = clean(tags.sport).replaceAll(';', ', ')
     const reason = type === 'physio' ? 'Openbare vermelding als fysiopraktijk; relevant voor kinderen met sportgerelateerde hielklachten.'
       : type === 'school' ? 'School met bereik onder leerlingen; kansrijk via LO-docent, zorgcoördinator of sportprogramma.'
+        : type === 'retail' ? 'Sportspeciaalzaak met direct contact met sportende ouders en kinderen in de winkel.'
         : `Sportorganisatie${sport ? ` voor ${sport}` : ''} met direct bereik onder sporters en begeleiders.`
     return {
       id: `osm-${element.type}-${element.id}`, external_id: `osm:${element.type}:${element.id}`, name, type, city, region,
       website, email, phone, specialization: clean(tags['healthcare:speciality']), score, status: 'new', contact_name: '',
-      contact_role: type === 'school' ? 'LO-docent / zorgcoördinator' : type === 'sports_club' ? 'Jeugdcoördinator / medische staf' : 'Kinder- of sportfysiotherapeut',
-      match_reason: reason, angle: type === 'school' ? 'Sportende leerlingen met terugkerende hielpijn eerder herkennen.' : type === 'sports_club' ? 'Jeugdleden langer verantwoord laten sporten.' : 'Ondersteuning bij sportende kinderen met hielpijn.',
+      contact_role: type === 'school' ? 'LO-docent / zorgcoördinator' : type === 'sports_club' ? 'Jeugdcoördinator / medische staf' : type === 'retail' ? 'Eigenaar / inkoper' : 'Kinder- of sportfysiotherapeut',
+      match_reason: reason, angle: type === 'school' ? 'Sportende leerlingen met terugkerende hielpijn eerder herkennen.' : type === 'sports_club' ? 'Jeugdleden langer verantwoord laten sporten.' : type === 'retail' ? 'Een oplossing voor ouders die met hielpijn bij hun kind in de winkel staan.' : 'Ondersteuning bij sportende kinderen met hielpijn.',
       notes: '', next_action_at: '', last_contacted_at: '', tags: sport ? sport.split(',').map(clean) : [],
       source_provider: 'OpenStreetMap', source_url: `https://www.openstreetmap.org/${element.type}/${element.id}`,
       last_verified_at: stamp, estimated_units: type === 'school' ? 10 : type === 'sports_club' ? 12 : 6,
@@ -378,6 +380,7 @@ export function buildOverpassQuery(regionCode, type = 'all', limit = 180) {
     physio: ['nwr["healthcare"="physiotherapist"](area.searchArea);', 'nwr["healthcare:speciality"~"physiotherapy"](area.searchArea);', 'nwr["name"~"fysio",i](area.searchArea);'],
     school: ['nwr["amenity"~"school|college"](area.searchArea);'],
     sports_club: ['nwr["leisure"~"sports_centre|sports_club"](area.searchArea);', 'nwr["club"="sport"](area.searchArea);'],
+    retail: ['nwr["shop"="sports"](area.searchArea);', 'nwr["shop"="shoes"]["name"~"sport|run|voetbal|hockey",i](area.searchArea);'],
   }
   const selected = type === 'all' ? Object.values(blocks).flat() : (blocks[type] || blocks.physio)
   return `[out:json][timeout:90];area["ISO3166-2"="${region}"][admin_level=4]->.searchArea;(${selected.join('')});out tags center ${safeLimit};`

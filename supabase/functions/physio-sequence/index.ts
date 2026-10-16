@@ -4,7 +4,7 @@ import { adminClient, corsHeaders, escapeEmailHtml, getEmailConfig, logEmail, ma
 
 type Lead = Record<string, unknown>
 type Step = { title: string; subject: string; body: string; wait_days: number }
-type Enrollment = { id: string; lead_id: string; email: string; practice_name: string; location: string; region: string; specialization: string; contact_person: string; personal_opening: string; circle: string; steps_sent: number }
+type Enrollment = { id: string; lead_id: string; email: string; practice_name: string; location: string; region: string; specialization: string; contact_person: string; personal_opening: string; circle: string; steps_sent: number; segment?: string }
 type Db = ReturnType<typeof adminClient>
 
 const clean = (value: unknown) => String(value ?? "").trim()
@@ -16,16 +16,26 @@ const stopStatuses = new Set(["meeting", "pilot", "won", "lost"])
 const groups = ["gold", "silver", "national"] as const
 const fromConfig = { from_email: "info@zolsolutions.nl", reply_to: "info@zolsolutions.nl" }
 
-async function loadSettings(db: Db) {
-  const { data, error } = await db.from("settings").select("key,value").in("key", ["physio_sequence", "partner_scout"])
+// Drie doelgroepen met dezelfde reeks: elk een eigen Partner Scout-type, eigen teksten en eigen Gold-signalen.
+const SEGMENTS = {
+  physio: { type: "physio", key: "physio_sequence", gold: /kinder|kids|jeugd|junior|sport|hielpijn|sever/i, sample: "Praktijk", fallback: "fysiotherapie" },
+  club: { type: "sports_club", key: "club_sequence", gold: /jeugd|junior|kids|voetbal|hockey|korfbal|handbal|atletiek|basketbal|turn|gymnastiek/i, sample: "Club", fallback: "sport" },
+  retail: { type: "retail", key: "retail_sequence", gold: /voetbal|hardloop|running|run|schoen|kids|kinder|junior|voet|podo|bootfit/i, sample: "Winkel", fallback: "sportartikelen" },
+} as const
+type Segment = keyof typeof SEGMENTS
+const segmentOf = (value: unknown): Segment => (clean(value) in SEGMENTS ? clean(value) : "physio") as Segment
+
+async function loadSettings(db: Db, segment: Segment = "physio") {
+  const key = SEGMENTS[segment].key
+  const { data, error } = await db.from("settings").select("key,value").in("key", [key, "partner_scout"])
   if (error) throw error
   const byKey = Object.fromEntries((data || []).map((row) => [row.key, row.value || {}]))
-  const sequence = byKey.physio_sequence || {}
+  const sequence = byKey[key] || {}
   const steps: Step[] = stepTitles.map((title, index) => {
     const step = Array.isArray(sequence.steps) ? sequence.steps[index] || {} : {}
     return { title, subject: clean(step.subject), body: clean(step.body), wait_days: Math.max(0, Math.min(60, Number(step.wait_days ?? defaultWait[index]) || 0)) }
   })
-  const leads = Array.isArray(byKey.partner_scout?.leads) ? byKey.partner_scout.leads as Lead[] : []
+  const leads = (Array.isArray(byKey.partner_scout?.leads) ? byKey.partner_scout.leads as Lead[] : []).filter((lead) => lead.type === SEGMENTS[segment].type)
   const gold = new Set((Array.isArray(sequence.gold_lead_ids) ? sequence.gold_lead_ids : []).map(clean))
   const flags = sequence.enabled_groups || {}
   const enabledGroups = Object.fromEntries(groups.map((group) => [group, Boolean(flags[group])])) as Record<string, boolean>
@@ -36,14 +46,13 @@ const isExcluded = (lead: Lead) => /smc\s*almere|sport\s*medisch\s*centrum\s*alm
 // Gold en Silver zijn alleen voor praktijken in Amsterdam en Amstelveen; alles daarbuiten is Landelijk.
 const isHomeArea = (lead: Lead) => /\b(amsterdam|amstelveen)\b/i.test(clean(lead.city))
 // Gold: kinder- of sportfocus (of handmatig gekozen) binnen Amsterdam/Amstelveen. Silver: overige praktijken daar. Landelijk: de rest.
-const goldSignals = /kinder|kids|jeugd|junior|sport|hielpijn|sever/i
-const circleOf = (lead: Lead, gold: Set<string>) => {
+const circleOf = (lead: Lead, gold: Set<string>, segment: Segment = "physio") => {
   if (!isHomeArea(lead)) return "national"
   if (gold.has(clean(lead.id))) return "gold"
   // De standaardreden van de landelijke zoekactie ("Openbare vermelding…") noemt altijd sport en kinderen en telt dus niet mee.
   const reason = /^openbare vermelding/i.test(clean(lead.match_reason)) ? "" : lead.match_reason
   const profile = [lead.name, lead.specialization, reason, lead.website, ...(Array.isArray(lead.tags) ? lead.tags : [])].map(clean).join(" ")
-  return goldSignals.test(profile) ? "gold" : "silver"
+  return SEGMENTS[segment].gold.test(profile) ? "gold" : "silver"
 }
 
 function personalize(template: string, enrollment: Enrollment) {
@@ -53,7 +62,7 @@ function personalize(template: string, enrollment: Enrollment) {
     if (name === "plaats") return enrollment.location
     if (name === "contactpersoon") return physioSalutationName({ contactPerson: enrollment.contact_person, email: enrollment.email, practiceName: enrollment.practice_name })
     if (name === "persoonlijke_opening") return enrollment.personal_opening
-    return enrollment.specialization || "fysiotherapie"
+    return enrollment.specialization || SEGMENTS[segmentOf(enrollment.segment)].fallback
   })
 }
 
@@ -125,14 +134,14 @@ async function release(db: Db, id: string, patch: Record<string, unknown>) {
 }
 
 // Verstuurt alleen voor de groepen die aan staan; met `onlyGroup` alleen voor die ene groep.
-async function processDue(db: Db, onlyGroup = "") {
-  const { enabledGroups, steps, leads } = await loadSettings(db)
+async function processDue(db: Db, onlyGroup = "", segment: Segment = "physio") {
+  const { enabledGroups, steps, leads } = await loadSettings(db, segment)
   const active = groups.filter((group) => enabledGroups[group] && (!onlyGroup || group === onlyGroup))
   if (!active.length) return { sent: 0, status: "disabled" }
   if (!withinOfficeHours()) return { sent: 0, status: "outside_office_hours" }
   const config = await getEmailConfig(db)
   if (!config.enabled) return { sent: 0, status: "email_disabled" }
-  const { data: claimed, error } = await db.rpc("claim_physio_sequence_due", { p_groups: active, p_limit: 40 })
+  const { data: claimed, error } = await db.rpc("claim_physio_sequence_due", { p_segment: segment, p_groups: active, p_limit: 40 })
   if (error) throw error
   const byId = new Map(leads.map((lead) => [clean(lead.id), lead]))
   const counts = { sent: 0, failed: 0, stopped: 0, waiting: 0 }
@@ -156,7 +165,7 @@ async function processDue(db: Db, onlyGroup = "") {
       continue
     }
     const stepNumber = enrollment.steps_sent + 1
-    const dedupeKey = `physio-sequence-${enrollment.id}-${stepNumber}`
+    const dedupeKey = `${segment}-sequence-${enrollment.id}-${stepNumber}`
     try {
       if (enrollment.steps_sent === 0 && !await mxValid(enrollment.email)) {
         await release(db, enrollment.id, { status: "failed", error_message: "Geen bruikbaar MX-record" })
@@ -193,7 +202,15 @@ async function processDue(db: Db, onlyGroup = "") {
   return counts
 }
 
-async function previousMailings(db: Db) {
+// Het uurlijkse cronjob verstuurt voor alle doelgroepen; de daglimiet is gedeeld, fysio gaat voor.
+async function processAll(db: Db) {
+  const result: Record<string, unknown> = {}
+  for (const segment of Object.keys(SEGMENTS) as Segment[]) result[segment] = await processDue(db, "", segment)
+  return result
+}
+
+async function previousMailings(db: Db, segment: Segment = "physio") {
+  if (segment !== "physio") return new Map<string, string>()
   const sent = new Map<string, string>()
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await db.from("physio_campaign_recipients").select("email,sent_at").eq("status", "sent").range(offset, offset + 999)
@@ -204,20 +221,22 @@ async function previousMailings(db: Db) {
   return sent
 }
 
-async function status(db: Db) {
-  const { enabledGroups, steps, leads, gold } = await loadSettings(db)
-  const { data: enrollments, error } = await db.from("physio_sequence_enrollments")
-    .select("id,lead_id,email,practice_name,location,region,circle,steps_sent,next_send_at,status,last_sent_at,error_message,created_at,notes,updated_at")
+async function status(db: Db, segment: Segment = "physio") {
+  const { enabledGroups, steps, leads, gold } = await loadSettings(db, segment)
+  const { data: allEnrollments, error } = await db.from("physio_sequence_enrollments")
+    .select("id,lead_id,email,practice_name,location,region,circle,steps_sent,next_send_at,status,last_sent_at,error_message,created_at,notes,updated_at,segment")
     .order("created_at", { ascending: false })
   if (error) throw error
-  const enrolledLeads = new Map((enrollments || []).map((row) => [row.lead_id, row.circle]))
-  const enrolledEmails = new Set((enrollments || []).map((row) => clean(row.email).toLowerCase()))
-  const previous = await previousMailings(db)
-  const practices = leads.filter((lead) => lead.type === "physio" && !isExcluded(lead)).map((lead) => {
+  const enrollments = (allEnrollments || []).filter((row) => row.segment === segment)
+  const enrolledLeads = new Map(enrollments.map((row) => [row.lead_id, row.circle]))
+  // Een adres dat al in een andere reeks zit, telt ook als gemaild.
+  const enrolledEmails = new Set((allEnrollments || []).map((row) => clean(row.email).toLowerCase()))
+  const previous = await previousMailings(db, segment)
+  const practices = leads.filter((lead) => !isExcluded(lead)).map((lead) => {
     const email = clean(lead.email).toLowerCase()
     return {
       id: clean(lead.id), name: clean(lead.name), city: clean(lead.city), region: clean(lead.region) || "Onbekend",
-      email: validEmail(email) ? email : "", circle: circleOf(lead, gold), status: clean(lead.status),
+      email: validEmail(email) ? email : "", circle: circleOf(lead, gold, segment), status: clean(lead.status),
       opt_out: Boolean(lead.outreach_opt_out), has_opening: Boolean(clean(lead.personal_opening)),
       enrolled: enrolledLeads.has(clean(lead.id)) || (email && enrolledEmails.has(email)),
       // Amsterdam en Amstelveen mogen opnieuw: de oude fysiomail telt daar niet als eerder gemaild.
@@ -229,7 +248,7 @@ async function status(db: Db) {
   })
   const { count: sentToday } = await db.from("email_messages").select("id", { count: "exact", head: true }).eq("status", "sent")
     .gte("sent_at", amsterdamDayStart().toISOString())
-  return { enabled_groups: enabledGroups, steps, practices, enrollments: enrollments || [], sent_today: sentToday || 0, daily_limit: 40, office_hours: withinOfficeHours() }
+  return { segment, enabled_groups: enabledGroups, steps, practices, enrollments, sent_today: sentToday || 0, daily_limit: 40, office_hours: withinOfficeHours() }
 }
 
 Deno.serve(async (request) => {
@@ -243,12 +262,13 @@ Deno.serve(async (request) => {
     if (action === "run" && request.headers.get("x-zol-marketing-secret")) {
       const { data: verified, error } = await db.rpc("verify_marketing_cron_secret", { p_secret: request.headers.get("x-zol-marketing-secret") })
       if (error || !verified) return Response.json({ error: "Niet toegestaan" }, { status: 401, headers })
-      return Response.json({ success: true, ...await processDue(db) }, { headers })
+      return Response.json({ success: true, ...await processAll(db) }, { headers })
     }
     const admin = await requireAdmin(request, db)
     if (!["owner", "admin"].includes(clean(admin.role))) return Response.json({ error: "Geen toegang" }, { status: 403, headers })
 
-    if (action === "status") return Response.json({ success: true, ...await status(db) }, { headers })
+    const segment = segmentOf(body.segment)
+    if (action === "status") return Response.json({ success: true, ...await status(db, segment) }, { headers })
 
     if (action === "test") {
       const index = Math.max(0, Math.min(3, Number(body.step) || 0))
@@ -262,7 +282,7 @@ Deno.serve(async (request) => {
       const config = await getEmailConfig(db)
       const results = []
       for (const person of [{ name: "Thijn", email: "thijn@zolsolutions.nl" }, { name: "Maks", email: "maks@zolsolutions.nl" }]) {
-        const sample = { id: "", lead_id: "", email: person.email, practice_name: `Praktijk van ${person.name}`, location: "Amsterdam", region: "Noord-Holland", specialization: "fysiotherapie", contact_person: person.name, personal_opening: `Hoi ${person.name}, dit is een voorbeeld van een persoonlijke openingszin.`, circle: "", steps_sent: index }
+        const sample = { id: "", lead_id: "", email: person.email, practice_name: `${SEGMENTS[segment].sample} van ${person.name}`, location: "Amsterdam", region: "Noord-Holland", specialization: "", contact_person: person.name, personal_opening: `Hoi ${person.name}, dit is een voorbeeld van een persoonlijke openingszin.`, circle: "", steps_sent: index, segment }
         // Voorbeelddata: mail 1, 2 en 3 drie, twee en een week geleden verstuurd.
         const fakeSent = [21, 14, 7].map((daysAgo) => new Date(Date.now() - daysAgo * 86_400_000).toISOString())
         const mail = renderMail(testSteps, index, { ...sample, id: `test-${crypto.randomUUID()}` }, fakeSent)
@@ -287,23 +307,23 @@ Deno.serve(async (request) => {
       const ids = [...new Set((Array.isArray(body.lead_ids) ? body.lead_ids : []).map(clean).filter(Boolean))]
       if (!allReady && (!ids.length || ids.length > 200)) return Response.json({ error: "Kies 1 tot 200 praktijken." }, { status: 400, headers })
       if (!groups.includes(group as typeof groups[number])) return Response.json({ error: "Kies een groep: Gold, Silver of Landelijk." }, { status: 400, headers })
-      const { leads, gold } = await loadSettings(db)
-      const inGroup = (lead: Lead) => circleOf(lead, gold) === group
+      const { leads, gold } = await loadSettings(db, segment)
+      const inGroup = (lead: Lead) => circleOf(lead, gold, segment) === group
       const wanted = new Set(ids)
       const { data: existing, error: existingError } = await db.from("physio_sequence_enrollments").select("lead_id,email")
       if (existingError) throw existingError
       const takenLeads = new Set((existing || []).map((row) => row.lead_id))
       // Ooit gemaild (oude fysiomail of eerdere reeks) telt als bezet: die praktijk krijgt niets opnieuw.
       const enrolledEmails = new Set((existing || []).map((row) => clean(row.email).toLowerCase()))
-      const oldMailings = await previousMailings(db)
+      const oldMailings = await previousMailings(db, segment)
       const rows = []
       for (const lead of leads) {
         const email = clean(lead.email).toLowerCase()
-        if ((!allReady && !wanted.has(clean(lead.id))) || lead.type !== "physio" || lead.outreach_opt_out || isExcluded(lead) || !validEmail(email) || !inGroup(lead)) continue
+        if ((!allReady && !wanted.has(clean(lead.id))) || lead.outreach_opt_out || isExcluded(lead) || !validEmail(email) || !inGroup(lead)) continue
         // Amsterdam en Amstelveen mogen een tweede keer, ook als de oude fysiomail ze al had; de nieuwe reeks nooit dubbel.
         if (takenLeads.has(clean(lead.id)) || enrolledEmails.has(email) || (!isHomeArea(lead) && oldMailings.has(email))) continue
         enrolledEmails.add(email)
-        rows.push({ lead_id: clean(lead.id), email, practice_name: clean(lead.name), location: clean(lead.city), region: clean(lead.region), specialization: clean(lead.specialization), contact_person: clean(lead.contact_name), personal_opening: clean(lead.personal_opening), circle: group, created_by: admin.id })
+        rows.push({ lead_id: clean(lead.id), email, practice_name: clean(lead.name), location: clean(lead.city), region: clean(lead.region), specialization: clean(lead.specialization), contact_person: clean(lead.contact_name), personal_opening: clean(lead.personal_opening), circle: group, segment, created_by: admin.id })
       }
       if (rows.length) {
         const { error: insertError } = await db.from("physio_sequence_enrollments").insert(rows)
@@ -311,14 +331,14 @@ Deno.serve(async (request) => {
       }
       let delivery = null
       if (body.send_now === true) {
-        const { data: current, error: settingsError } = await db.from("settings").select("value").eq("key", "physio_sequence").maybeSingle()
+        const { data: current, error: settingsError } = await db.from("settings").select("value").eq("key", SEGMENTS[segment].key).maybeSingle()
         if (settingsError) throw settingsError
         const value = current?.value || {}
-        const { error: saveError } = await db.from("settings").update({ value: { ...value, enabled_groups: { ...(value.enabled_groups || {}), [group]: true }, updated_at: new Date().toISOString() } }).eq("key", "physio_sequence")
+        const { error: saveError } = await db.from("settings").update({ value: { ...value, enabled_groups: { ...(value.enabled_groups || {}), [group]: true }, updated_at: new Date().toISOString() } }).eq("key", SEGMENTS[segment].key)
         if (saveError) throw saveError
-        delivery = await processDue(db, group)
+        delivery = await processDue(db, group, segment)
       }
-      return Response.json({ success: true, enrolled: rows.length, skipped: allReady ? 0 : ids.length - rows.length, delivery, ...await status(db) }, { headers })
+      return Response.json({ success: true, enrolled: rows.length, skipped: allReady ? 0 : ids.length - rows.length, delivery, ...await status(db, segment) }, { headers })
     }
 
     if (action === "update") {
@@ -331,7 +351,7 @@ Deno.serve(async (request) => {
       if (!patches[op]) return Response.json({ error: "Onbekende wijziging" }, { status: 400, headers })
       const { error } = await db.from("physio_sequence_enrollments").update({ ...patches[op], updated_at: new Date().toISOString() }).eq("id", id).neq("status", "sending")
       if (error) throw error
-      return Response.json({ success: true, ...await status(db) }, { headers })
+      return Response.json({ success: true, ...await status(db, segment) }, { headers })
     }
 
     // Interne notitie bij een praktijk: alleen voor ZOL, komt nooit in een mail.
@@ -345,10 +365,10 @@ Deno.serve(async (request) => {
       const notes = [{ body: text, author: clean(admin.full_name) || clean(admin.email) || "ZOL", created_at: new Date().toISOString() }, ...(Array.isArray(row.notes) ? row.notes : [])].slice(0, 200)
       const { error: noteError } = await db.from("physio_sequence_enrollments").update({ notes }).eq("id", id)
       if (noteError) throw noteError
-      return Response.json({ success: true, ...await status(db) }, { headers })
+      return Response.json({ success: true, ...await status(db, segment) }, { headers })
     }
 
-    if (action === "run") return Response.json({ success: true, delivery: await processDue(db, clean(body.group)), ...await status(db) }, { headers })
+    if (action === "run") return Response.json({ success: true, delivery: await processDue(db, clean(body.group), segment), ...await status(db, segment) }, { headers })
     return Response.json({ error: "Onbekende actie" }, { status: 400, headers })
   } catch (error) {
     const message = error instanceof Error ? error.message : "De fysiomail kon niet worden verwerkt"

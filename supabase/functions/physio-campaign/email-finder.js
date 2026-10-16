@@ -105,9 +105,9 @@ export function contactPageUrls(html, baseUrl, max = 2) {
 
 // Praktijken die nog geen e-mailadres hebben, wel een website, en nog niet eerder zijn doorzocht.
 // Met `personal` ook praktijken met alleen een algemeen adres, zodat we daar nog een persoonlijk adres zoeken.
-export function leadsToScan(leads = [], { personal = false } = {}) {
+export function leadsToScan(leads = [], { personal = false, type = "physio" } = {}) {
   return leads.filter((lead) => {
-    if (lead?.type !== "physio" || lead.outreach_opt_out || !normalizeWebsite(lead.website)) return false
+    if (lead?.type !== type || lead.outreach_opt_out || !normalizeWebsite(lead.website)) return false
     const email = String(lead.email || "").trim()
     if (!email) return !lead.email_scan_at
     return personal && isGenericEmail(email) && lead.email_scan_result !== "personal_checked"
