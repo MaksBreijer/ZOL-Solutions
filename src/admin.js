@@ -2313,10 +2313,15 @@ function fillEmailVariables(value = '', variables = emailSampleVariables) {
   return String(value).replace(/{{\s*([a-z0-9_]+)\s*}}/gi, (_, key) => String(variables[key] ?? `{{${key}}}`))
 }
 
+// Losse https-adressen in de mailtekst worden klikbaar (zelfde regel als in de edge function).
+function linkifyEmailText(html) {
+  return html.replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)]/g, (url) => `<a href="${url}" style="color:#33669b">${url}</a>`)
+}
+
 function emailPreviewDocument(template) {
   const email = settingsValue('email_config')
   const logoUrl = email.logo_url || '/media/zol-logo.png'
-  const body = fillEmailVariables(template.body_template).split(/\n{2,}/).map((part) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeHtml(part).replaceAll('\n', '<br>')}</p>`).join('')
+  const body = fillEmailVariables(template.body_template).split(/\n{2,}/).map((part) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${linkifyEmailText(escapeHtml(part)).replaceAll('\n', '<br>')}</p>`).join('')
   const label = fillEmailVariables(template.button_label_template)
   const url = fillEmailVariables(template.button_url_template) || '#'
   const automaticDetails = template.template_key === 'marketing_product_update'
