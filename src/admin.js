@@ -1020,7 +1020,7 @@ function orderAmountEditBlock(order) {
   const payments = state.payments.filter(item => item.order_id === order.id)
   if (order.source !== 'admin') return 'Bedragen wijzigen kan bij handmatig aangemaakte bestellingen.'
   if (order.status === 'cancelled' || order.fulfillment_status === 'returned') return 'Deze bestelling is geannuleerd of geretourneerd.'
-  if (!['pending', 'failed'].includes(order.payment_status) || payments.some(item => !['open', 'pending', 'failed', 'cancelled', 'expired'].includes(item.status) || item.refunded_cents > 0)) return 'Deze bestelling heeft al een betaling of terugbetaling. Gebruik daarvoor een terugbetaling of boekhoudkundige correctie.'
+  if (!['pending', 'failed', 'paid'].includes(order.payment_status) || payments.some(item => !['open', 'pending', 'failed', 'cancelled', 'expired', 'paid'].includes(item.status) || item.refunded_cents > 0 || (order.payment_status === 'paid') !== (item.status === 'paid'))) return 'Deze bestelling is al (deels) terugbetaald of via een betaalprovider afgerekend. Gebruik daarvoor een terugbetaling of boekhoudkundige correctie.'
   if (payments.length !== 1 || payments[0].provider !== 'manual' || payments[0].provider_payment_id) return 'De gekoppelde betaling kan niet handmatig worden aangepast.'
   if (!order.order_items?.length) return 'Deze bestelling heeft geen artikelregels.'
   return ''
@@ -1032,7 +1032,7 @@ function editOrderAmountForm(order) {
   if (blocked) { toast('Bedrag niet aanpasbaar', blocked, true); return }
   const items = order.order_items
   openDialog('Bedrag wijzigen', `Bestelling #${order.order_number}`, `<form id="order-amount-form">
-    <p class="form-hint">Pas de prijzen inclusief btw aan. Het openstaande bedrag wordt bijgewerkt.</p>
+    <p class="form-hint">Pas de prijzen inclusief btw aan. ${order.payment_status === 'paid' ? 'De bestelling is al betaald: het betaalde bedrag wordt aangepast en in de boekhouding komt automatisch een correctieboeking.' : 'Het openstaande bedrag wordt bijgewerkt.'}</p>
     <div class="form-grid">${items.map((item, index) => `<label class="field field--full">${escapeHtml(item.product_name)} · ${escapeHtml(item.variant_name || '')} · ${item.quantity} × stukprijs (€)<input data-amount-price="${index}" type="number" min="0" max="10000" step="0.01" value="${(item.unit_price_cents / 100).toFixed(2)}" required></label>`).join('')}
     <label class="field">Verzendkosten (€)<input name="shipping" type="number" min="0" max="10000" step="0.01" value="${(order.shipping_cents / 100).toFixed(2)}" required></label>
     <label class="field">Korting op artikelen (€)<input name="discount" type="number" min="0" step="0.01" value="${((order.discount_cents || 0) / 100).toFixed(2)}" required></label>

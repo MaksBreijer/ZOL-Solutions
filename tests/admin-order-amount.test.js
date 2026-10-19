@@ -35,3 +35,9 @@ scenario('paid and provider-managed orders cannot open amount editing', async h 
   h.db.orders[0].payment_status='paid'; await h.detail(); assert.equal(h.q('[data-action="edit-order-amount"]').disabled,true)
   h.db.orders[0].payment_status='pending'; h.db.payments[0].provider='mollie'; await h.detail(); assert.equal(h.q('[data-action="edit-order-amount"]').disabled,true)
 })
+scenario('a paid manual order can be edited, a refunded or provider-paid one cannot', async h => {
+  h.db.orders[0].payment_status='paid'; h.db.payments[0].status='paid'; await h.detail(); assert.equal(h.q('[data-action="edit-order-amount"]').disabled,false)
+  await h.click('[data-action="edit-order-amount"]'); assert.match(h.q('#admin-dialog').textContent,/correctieboeking/); await h.click('[data-close-dialog]')
+  h.db.payments[0].refunded_cents=100; await h.detail(); assert.equal(h.q('[data-action="edit-order-amount"]').disabled,true)
+  h.db.payments[0].refunded_cents=0; h.db.payments[0].provider='mollie'; await h.detail(); assert.equal(h.q('[data-action="edit-order-amount"]').disabled,true)
+})
