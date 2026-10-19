@@ -52,7 +52,9 @@ const firstName = (order: Order, customerFirst?: string | null) => {
 // Bezorgdatum; zonder bezorgmelding rekenen we twee dagen na verzending.
 const deliveredOn = (order: Order) => order.delivered_at ? new Date(order.delivered_at) : order.shipped_at ? new Date(new Date(order.shipped_at).getTime() + 2 * DAY) : null
 
-const paragraphsHtml = (text: string) => text.split(/\n{2,}/).map((part) => `<p style="margin:0 0 14px">${escapeEmailHtml(part).replaceAll("\n", "<br>")}</p>`).join("")
+// Losse https-adressen in de tekst worden klikbaar, zodat de admin geen opmaak nodig heeft voor bv. een reviewlink.
+const linkify = (html: string) => html.replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)]/g, (url) => `<a href="${url}" style="color:#33669b">${url}</a>`)
+const paragraphsHtml = (text: string) => text.split(/\n{2,}/).map((part) => `<p style="margin:0 0 14px">${linkify(escapeEmailHtml(part)).replaceAll("\n", "<br>")}</p>`).join("")
 const mailDate = (iso: string) => new Intl.DateTimeFormat("nl-NL", { timeZone: "Europe/Amsterdam", weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
 const messageId = (orderId: string, step: number) => `<customer-followup-${orderId}-${step}@zolsolutions.nl>`
 const fill = (text: string, name: string) => text.replace(/{{\s*(voornaam|customer_first_name)\s*}}/g, name)
