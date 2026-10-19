@@ -1,16 +1,16 @@
 import { escapeEmailHtml, logEmail, markEmail, sendEmail } from "../_shared/email.ts"
 
 // Persoonlijke opvolging na een bestelling: kale mail zonder opmaak, alsof we hem zelf typen.
-// Mail 1 een week na bezorging (ook voor alle eerdere klanten), mail 2 een maand na bezorging.
-// Mail 2 geldt alleen voor bestellingen vanaf de startdatum, zodat oudere klanten geen maandmail krijgen.
-const START = "2026-10-12T00:00:00Z"
+// Mail 1 een week na bezorging, mail 2 een maand na bezorging.
+// Elke opvolgmail geldt alleen voor bestellingen die zijn bezorgd vanaf zijn eigen startdatum (`from`):
+// mail 1 vanaf de bestelling van Thomas Hartjes (8 oktober), oudere klanten krijgen hem niet meer; mail 2 vanaf 12 oktober.
 const DAY = 86_400_000
 
 export const followups = [
   {
     step: 1,
     days: 7,
-    sinceStart: false,
+    from: "2026-10-08T00:00:00Z",
     subject: "Hoe bevallen de ZOL'tjes?",
     body: `Hoi {{voornaam}},
 
@@ -27,7 +27,7 @@ ZOL Solutions`,
   {
     step: 2,
     days: 30,
-    sinceStart: true,
+    from: "2026-10-12T00:00:00Z",
     subject: "Hoe staat het er nu mee?",
     body: `Hoi {{voornaam}},
 
@@ -102,11 +102,10 @@ export async function sendCustomerFollowups(db: Db, config: Record<string, unkno
     const delivered = deliveredOn(order)
     const email = String(order.customer_email || "").trim().toLowerCase()
     if (!delivered || !email) continue
-    const afterStart = delivered.getTime() >= new Date(START).getTime()
     const customer = order.customer_id ? byCustomer.get(order.customer_id) : null
     if (customer?.marketing_unsubscribed_at) continue
     // Alleen de laatste mail die nu aan de beurt is; een gemiste eerste mail sturen we niet meer na.
-    const due = [...active].reverse().find((followup) => (afterStart || !followup.sinceStart) && now.getTime() >= delivered.getTime() + followup.days * DAY)
+    const due = [...active].reverse().find((followup) => delivered.getTime() >= new Date(followup.from).getTime() && now.getTime() >= delivered.getTime() + followup.days * DAY)
     if (!due) continue
     const dedupeKey = `customer-followup-${order.id}-${due.step}`
     const { data: existing } = await db.from("email_messages").select("id,status").eq("dedupe_key", dedupeKey).maybeSingle()
