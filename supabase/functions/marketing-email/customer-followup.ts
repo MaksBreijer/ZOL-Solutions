@@ -1,19 +1,20 @@
 import { escapeEmailHtml, logEmail, markEmail, sendEmail } from "../_shared/email.ts"
 
 // Persoonlijke opvolging na een bestelling: kale mail zonder opmaak, alsof we hem zelf typen.
-// Mail 1 twee weken na bezorging, mail 2 een maand na bezorging. Alleen bestellingen vanaf de startdatum,
-// zodat oudere klanten niet ineens allemaal een mail krijgen.
+// Mail 1 een week na bezorging (ook voor alle eerdere klanten), mail 2 een maand na bezorging.
+// Mail 2 geldt alleen voor bestellingen vanaf de startdatum, zodat oudere klanten geen maandmail krijgen.
 const START = "2026-10-12T00:00:00Z"
 const DAY = 86_400_000
 
 export const followups = [
   {
     step: 1,
-    days: 14,
+    days: 7,
+    sinceStart: false,
     subject: "Hoe bevallen de ZOL'tjes?",
     body: `Hoi {{voornaam}},
 
-Twee weken geleden kwamen de ZOL'tjes bij jullie binnen, dus we zijn benieuwd: hoe bevallen ze?
+Een paar dagen geleden kwamen de ZOL'tjes bij je binnen, dus we zijn benieuwd: hoe bevallen ze?
 
 Merk je al verschil tijdens of na het sporten? En zitten ze lekker in de schoen? Alles is welkom, ook als het (nog) niet goed gaat. Dan denken we graag met je mee.
 
@@ -26,6 +27,7 @@ ZOL Solutions`,
   {
     step: 2,
     days: 30,
+    sinceStart: true,
     subject: "Hoe staat het er nu mee?",
     body: `Hoi {{voornaam}},
 
@@ -90,8 +92,7 @@ export async function sendCustomerFollowups(db: Db, config: Record<string, unkno
     .select("id,customer_id,customer_email,customer_name,delivered_at,shipped_at")
     .eq("order_type", "customer").eq("payment_status", "paid").eq("archived", false)
     .is("returned_at", null)
-    .or(`delivered_at.gte.${START},shipped_at.gte.${START}`)
-    .limit(200)
+    .limit(500)
   if (error) throw error
   const customerIds = [...new Set((orders || []).map((order) => order.customer_id).filter(Boolean))]
   const { data: customers } = customerIds.length ? await db.from("customers").select("id,first_name,marketing_unsubscribed_at").in("id", customerIds) : { data: [] }
@@ -100,11 +101,12 @@ export async function sendCustomerFollowups(db: Db, config: Record<string, unkno
   for (const order of (orders || []) as Order[]) {
     const delivered = deliveredOn(order)
     const email = String(order.customer_email || "").trim().toLowerCase()
-    if (!delivered || !email || delivered.getTime() < new Date(START).getTime()) continue
+    if (!delivered || !email) continue
+    const afterStart = delivered.getTime() >= new Date(START).getTime()
     const customer = order.customer_id ? byCustomer.get(order.customer_id) : null
     if (customer?.marketing_unsubscribed_at) continue
     // Alleen de laatste mail die nu aan de beurt is; een gemiste eerste mail sturen we niet meer na.
-    const due = [...active].reverse().find((followup) => now.getTime() >= delivered.getTime() + followup.days * DAY)
+    const due = [...active].reverse().find((followup) => (afterStart || !followup.sinceStart) && now.getTime() >= delivered.getTime() + followup.days * DAY)
     if (!due) continue
     const dedupeKey = `customer-followup-${order.id}-${due.step}`
     const { data: existing } = await db.from("email_messages").select("id,status").eq("dedupe_key", dedupeKey).maybeSingle()
