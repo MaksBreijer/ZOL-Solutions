@@ -28,6 +28,8 @@ h1, h2, .page-header h1, .order-title-line h1 {
 .physio-reply-note { margin: 4px 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--admin-blue-soft); color: var(--admin-navy); font-size: 14px; }
 .physio-enrollment-filter { margin: 0 0 14px; }
 .physio-enrollment-filter b { margin-left: 4px; opacity: .7; }
+.physio-search { margin: 0 0 14px; }
+.physio-search input { width: 100%; max-width: 360px; padding: 10px 14px; border: 1px solid var(--line, #d9dee3); border-radius: 999px; font: inherit; background: #fff; }
 .physio-practice-link { padding: 0; border: 0; background: none; color: var(--admin-blue); font: inherit; text-align: left; cursor: pointer; }
 .physio-practice-link:hover strong { text-decoration: underline; }
 .physio-note-count { color: var(--admin-orange) !important; font-weight: 600; }

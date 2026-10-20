@@ -1752,6 +1752,7 @@ function renderPhysioSequenceState() {
 const PHYSIO_STATUS_PILL = { active: 'is-blue', sending: 'is-blue', paused: 'is-orange', replied: 'is-green', completed: '', stopped: '', failed: 'is-red' }
 
 let physioEnrollmentFilter = 'all'
+let physioEnrollmentSearch = ''
 
 // Interne notities per praktijk: wat is besproken, hoe en wat. Alleen voor ZOL, nooit in een mail.
 function openPhysioNotes(id) {
@@ -1786,15 +1787,23 @@ function renderPhysioEnrollments() {
   // Gemaild: minstens mail 1 is verstuurd. Wachtrij: ingeschreven, maar mail 1 moet nog uit.
   const queued = (row) => row.steps_sent === 0 && ['active', 'sending', 'paused'].includes(row.status)
   const counts = { all: all.length, sent: all.filter((row) => row.steps_sent > 0).length, queue: all.filter(queued).length, replied: all.filter((row) => row.status === 'replied').length }
-  const rows = all.filter((row) => physioEnrollmentFilter === 'sent' ? row.steps_sent > 0 : physioEnrollmentFilter === 'queue' ? queued(row) : physioEnrollmentFilter === 'replied' ? row.status === 'replied' : true)
+  const needle = physioEnrollmentSearch.trim().toLowerCase()
+  const matches = (row) => !needle || `${row.practice_name} ${row.email}`.toLowerCase().includes(needle)
+  const searchHadFocus = document.activeElement?.id === 'physio-enrollment-search'
+  const rows = all.filter(matches).filter((row) => physioEnrollmentFilter === 'sent' ? row.steps_sent > 0 : physioEnrollmentFilter === 'queue' ? queued(row) : physioEnrollmentFilter === 'replied' ? row.status === 'replied' : true)
   const filters = [['all', 'Alle'], ['sent', 'Gemaild'], ['queue', 'In wachtrij'], ['replied', 'Gereageerd']].map(([key, label]) => `<button type="button" class="${physioEnrollmentFilter === key ? 'is-active' : ''}" data-physio-filter="${key}">${label} <b>${counts[key]}</b></button>`).join('')
-  target.innerHTML = `<nav class="finance-tabs physio-enrollment-filter" aria-label="Filter">${filters}</nav>${rows.length ? '' : '<p class="physio-empty">Niemand in deze lijst.</p>'}<div class="table-scroll"${rows.length ? '' : ' hidden'}><table class="data-table physio-table"><thead><tr><th>Praktijk</th><th>Groep</th><th>Mails</th><th>Status</th><th>Volgende mail</th><th></th></tr></thead><tbody>${rows.map((row) => {
+  target.innerHTML = `<nav class="finance-tabs physio-enrollment-filter" aria-label="Filter">${filters}</nav><div class="physio-search"><input type="search" id="physio-enrollment-search" placeholder="Zoek op naam of e-mailadres" autocomplete="off" value="${escapeHtml(physioEnrollmentSearch)}"></div>${rows.length ? '' : `<p class="physio-empty">${needle ? 'Geen resultaten voor deze zoekopdracht.' : 'Niemand in deze lijst.'}</p>`}<div class="table-scroll"${rows.length ? '' : ' hidden'}><table class="data-table physio-table"><thead><tr><th>Praktijk</th><th>Groep</th><th>Mails</th><th>Status</th><th>Volgende mail</th><th></th></tr></thead><tbody>${rows.map((row) => {
     const open = ['active', 'paused', 'failed'].includes(row.status)
     const next = ['active', 'paused'].includes(row.status) && row.steps_sent < 4 ? `Mail ${row.steps_sent + 1} · ${formatDate(row.next_send_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : '—'
     const actions = open ? `<button class="button button--small" data-physio-op="replied" data-id="${escapeHtml(row.id)}">Gereageerd</button><button class="button button--small" data-physio-op="stop" data-id="${escapeHtml(row.id)}">Stop</button>` : ''
     const noteCount = Array.isArray(row.notes) ? row.notes.length : 0
     return `<tr><td><button class="physio-practice-link" type="button" data-physio-notes="${escapeHtml(row.id)}"><strong>${escapeHtml(row.practice_name)}</strong></button><small>${escapeHtml(row.email)}</small>${noteCount ? `<small class="physio-note-count">${noteCount} ${noteCount === 1 ? 'notitie' : 'notities'}</small>` : ''}</td><td>${physioCircleBadge(row.circle)}</td><td><span class="physio-dots" aria-label="${row.steps_sent} van 4">${[1, 2, 3, 4].map((step) => `<i class="${step <= row.steps_sent ? 'is-done' : ''}"></i>`).join('')}</span></td><td><span class="status-pill ${PHYSIO_STATUS_PILL[row.status] ?? ''}">${escapeHtml(queued(row) ? 'In wachtrij' : PHYSIO_ENROLLMENT_STATUS[row.status] || row.status)}</span>${row.error_message ? `<small>${escapeHtml(row.error_message)}</small>` : ''}</td><td>${escapeHtml(next)}</td><td><div class="physio-row-actions">${actions}</div></td></tr>`
   }).join('')}</tbody></table></div>`
+  if (searchHadFocus) {
+    const input = target.querySelector('#physio-enrollment-search')
+    input.focus()
+    input.setSelectionRange(input.value.length, input.value.length)
+  }
 }
 
 let physioActiveStep = 0
@@ -1826,6 +1835,11 @@ function renderPhysioCampaign() {
   document.querySelector('#physio-find-emails').addEventListener('click', (event) => findPhysioEmails(event.currentTarget, 'national'))
   document.querySelector('#physio-discover')?.addEventListener('click', (event) => discoverPhysiosNational(event.currentTarget, seg.type))
   document.querySelector('#physio-save-steps').addEventListener('click', (event) => savePhysioSequence(event.currentTarget))
+  page.addEventListener('input', (event) => {
+    if (event.target.id !== 'physio-enrollment-search') return
+    physioEnrollmentSearch = event.target.value
+    renderPhysioEnrollments()
+  })
   page.addEventListener('click', (event) => {
     const notes = event.target.closest('[data-physio-notes]')
     if (notes) { openPhysioNotes(notes.dataset.physioNotes); return }
