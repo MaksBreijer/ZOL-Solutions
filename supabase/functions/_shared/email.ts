@@ -107,7 +107,7 @@ export function safeEmailUrl(value: string, fallback: string) {
 
 export function emailShell(content: string, options: { eyebrow: string; title: string; intro?: string; websiteUrl?: string; logoUrl?: string; buttonLabel?: string; buttonUrl?: string; compact?: boolean }) {
   const websiteUrl = options.websiteUrl || "https://zolsolutions.nl"
-  const logoUrl = safeEmailUrl(options.logoUrl || `${websiteUrl.replace(/\/$/, "")}/media/zol-logo.png`, `${websiteUrl.replace(/\/$/, "")}/media/zol-logo.png`)
+  const logoUrl = safeEmailUrl(options.logoUrl || `${websiteUrl.replace(/\/$/, "")}/media/zol-logo-email.png`, `${websiteUrl.replace(/\/$/, "")}/media/zol-logo-email.png`)
   const buttonUrl = options.buttonLabel && options.buttonUrl ? safeEmailUrl(options.buttonUrl, websiteUrl) : ""
   const compact = Boolean(options.compact)
   return `<!doctype html><html lang="nl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

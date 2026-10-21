@@ -2335,7 +2335,7 @@ function linkifyEmailText(html) {
 
 function emailPreviewDocument(template) {
   const email = settingsValue('email_config')
-  const logoUrl = email.logo_url || '/media/zol-logo.png'
+  const logoUrl = email.logo_url || '/media/zol-logo-email.png'
   const body = fillEmailVariables(template.body_template).split(/\n{2,}/).map((part) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${linkifyEmailText(escapeHtml(part)).replaceAll('\n', '<br>')}</p>`).join('')
   const label = fillEmailVariables(template.button_label_template)
   const url = fillEmailVariables(template.button_url_template) || '#'

@@ -32,7 +32,7 @@ button, textarea { font: inherit; }
   margin: 0 auto 28px;
 }
 
-.measurement-brand img { display: block; width: 116px; height: auto; }
+.measurement-brand img { display: block; width: 64px; height: auto; }
 
 .measurement-card {
   overflow: hidden;

@@ -4,7 +4,7 @@
 .zn { position: fixed; top: 10px; left: 10px; right: 10px; z-index: 100; display: flex; align-items: center; gap: 22px; padding: 14px 18px 14px 28px; border-radius: 22px 22px 0 0; background: transparent; border: 1px solid transparent; color: #fff; font-family: "Barlow Semi Condensed", Arial, sans-serif; transition: background .25s, color .25s, border-color .25s, border-radius .25s, box-shadow .25s; }
 .zn a { color: inherit; text-decoration: none; }
 .zn-logo { display: block; flex: none; background: #fff; -webkit-mask: url(/media/zol-logo.png) left center / contain no-repeat; mask: url(/media/zol-logo.png) left center / contain no-repeat; }
-.zn-logo img { display: block; height: 26px; width: auto; opacity: 0; }
+.zn-logo img { display: block; height: 32px; width: auto; opacity: 0; }
 .zn-links { display: flex; gap: 30px; margin-left: auto; font-size: 15px; font-weight: 500; }
 .zn-links a { opacity: .85; } .zn-links a:hover { opacity: 1; }
 .zn-mobile-only { display: none; }
@@ -48,7 +48,7 @@ body.has-zn { padding-top: 76px; }
 .zf-title b { font-weight: 700; color: #d96d4b; }
 .zf-btn { background: #fff; color: #161b20 !important; }
 .zf-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 40px; font-size: 14px; }
-.zf-grid img { height: 26px; width: auto; margin-bottom: 18px; }
+.zf-grid img { height: 40px; width: auto; margin-bottom: 18px; }
 .zf-grid p { color: rgba(255,255,255,.6); max-width: 320px; margin: 0 0 14px; }
 .zf-grid .zf-h { font-size: 13px; font-weight: 600; color: #fff; margin: 0 0 14px; }
 .zf-grid a { display: block; color: rgba(255,255,255,.65); margin-bottom: 8px; } .zf-grid a:hover { color: #fff; }
