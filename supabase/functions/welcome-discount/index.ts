@@ -22,7 +22,11 @@ Deno.serve(async (request) => {
     if (!allowed) return Response.json({ error: "Te veel pogingen. Probeer het over 15 minuten opnieuw." }, { status: 429, headers })
 
     const { data: issued, error: issueError } = await db.rpc("issue_welcome_discount", { p_email: email, p_first_name: firstName })
-    if (issueError) return Response.json({ error: issueError.message || "De korting kon niet worden aangemaakt." }, { status: issueError.code === "22023" ? 400 : 500, headers })
+    if (issueError) {
+      if (issueError.code === "22023") return Response.json({ error: issueError.message || "De korting kon niet worden aangemaakt." }, { status: 400, headers })
+      console.error("welcome-discount", issueError)
+      return Response.json({ error: "De korting kon niet worden aangemaakt." }, { status: 500, headers })
+    }
 
     const code = String(issued.code)
     const endsAt = new Date(issued.ends_at)
@@ -68,6 +72,7 @@ Deno.serve(async (request) => {
 
     return Response.json({ success: true, code, valid_until: validUntil, mailed }, { headers })
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Er ging iets mis." }, { status: 500, headers })
+    console.error("welcome-discount", error)
+    return Response.json({ error: "Er ging iets mis." }, { status: 500, headers })
   }
 })

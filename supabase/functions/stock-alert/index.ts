@@ -201,6 +201,7 @@ Deno.serve(async (request) => {
     if (body.action === "dispatch") return await dispatch(request, headers)
     return await subscribe(request, body, headers)
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "De voorraadmelding kon niet worden verwerkt." }, { status: 500, headers })
+    console.error("stock-alert", error)
+    return Response.json({ error: "De voorraadmelding kon niet worden verwerkt." }, { status: 500, headers })
   }
 })

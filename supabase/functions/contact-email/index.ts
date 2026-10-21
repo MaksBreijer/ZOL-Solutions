@@ -97,6 +97,7 @@ Deno.serve(async (request) => {
       return Response.json({ error: errorMessage, saved: true }, { status: 503, headers })
     }
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Je bericht kon niet worden verstuurd." }, { status: 500, headers })
+    console.error("contact-email", error)
+    return Response.json({ error: "Je bericht kon niet worden verstuurd." }, { status: 500, headers })
   }
 })

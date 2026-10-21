@@ -33,6 +33,7 @@ Deno.serve(async (request) => {
 
     return Response.json({ success: true, already_unsubscribed: !customer.marketing_opt_in }, { headers })
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Afmelden is niet gelukt." }, { status: 500, headers })
+    console.error("marketing-unsubscribe", error)
+    return Response.json({ error: "Afmelden is niet gelukt." }, { status: 500, headers })
   }
 })
