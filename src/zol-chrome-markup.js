@@ -7,7 +7,7 @@ const payments = [
 export function navMarkup({ overHero = false } = {}) {
   return `<a class="zn-skip" href="#main-content">Meteen naar de inhoud</a>
     <nav class="zn${overHero ? ' zn--hero' : ' is-solid'}" aria-label="Hoofdnavigatie">
-      <a class="zn-logo" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo-v2.png" alt="ZOL Solutions" /></a>
+      <a class="zn-logo" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo-v4.png" alt="ZOL Solutions" /></a>
       <div class="zn-links" id="zn-links">
         <a href="/#werking">Hoe het werkt</a>
         <a href="/product/">De ZOL'tjes</a>
@@ -30,7 +30,7 @@ export function footerMarkup() {
           <a class="zn-btn zf-btn" href="/product/">Bekijk de ZOL'tjes →</a>
         </div>
         <div class="zf-grid">
-          <div><img src="/media/zol-logo-v2.png" alt="ZOL Solutions" /><p>Dempende 3/4 inlegzolen voor kinderen met hielpijn. Extra comfort, demping en stabiliteit voor jonge sporters in de groei.</p>
+          <div><img src="/media/zol-logo-v4.png" alt="ZOL Solutions" /><p>Dempende 3/4 inlegzolen voor kinderen met hielpijn. Extra comfort, demping en stabiliteit voor jonge sporters in de groei.</p>
             <a class="zf-rating" href="https://maps.google.com/?cid=654808623137506283" target="_blank" rel="noopener noreferrer">★ 4,9/5 uit 12 Google-reviews ↗</a></div>
           <div><p class="zf-h">Snelle links</p><a href="/#werking">Hoe het werkt</a><a href="/product/">De ZOL'tjes</a><a href="/#prijs">Prijs</a><a href="/checkout/">Winkelwagen</a></div>
           <div><p class="zf-h">Info</p><a href="/kennisbank/">Kennisbank</a><a href="/#faq">Veelgestelde vragen</a><a href="/over-ons/">Ons verhaal</a></div>
