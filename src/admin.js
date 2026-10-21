@@ -45,6 +45,7 @@ const GOOGLE_CALENDAR_URL = `https://calendar.google.com/calendar/u/0/r?cid=${en
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
 let calendarRefreshTimer = null
 let calendarShowSetup = false
+let discountTab = 'manual'
 let partnerFilters = { query: '', type: 'sports_club', status: '', flow: 'todo', priority: '' }
 let partnerSelectedId = ''
 let partnerRefreshTimer = null
@@ -3800,8 +3801,10 @@ function discountValue(discount) {
 
 function renderDiscounts() {
   const canManage = ['owner', 'admin'].includes(state.profile?.role)
-  const rows = state.discounts.map((discount) => `<tr data-action="open-discount" data-id="${discount.id}"><td><strong class="discount-code">${escapeHtml(discount.code || discount.title)}</strong><small class="table-subline">${escapeHtml(discount.title)}</small></td><td>${statusPill(discountStatus(discount))}</td><td>${discount.method === 'automatic' ? 'Automatisch' : 'Code'}</td><td>Alle klanten</td><td>${escapeHtml(discountValue(discount))}</td><td>${discount.usage_count}${discount.usage_limit ? ` / ${discount.usage_limit}` : ''}</td><td>${discount.ends_at ? formatDate(discount.ends_at) : 'Geen einddatum'}</td></tr>`).join('')
-  elements.content.innerHTML = `<div class="page-container discounts-page">${pageHeader('discounts', `${canManage ? '<button class="button button--primary" data-action="new-discount"><i data-lucide="plus"></i> Korting aanmaken</button>' : ''}`)}<section class="panel"><div class="discount-toolbar"><label><i data-lucide="search"></i><input type="search" data-filter="discounts" placeholder="Zoeken en filteren"></label><select data-filter-status="discounts"><option value="">Alle statussen</option><option value="active">Actief</option><option value="pending">Gepland</option><option value="expired">Verlopen</option><option value="inactive">Uitgeschakeld</option></select></div>${rows ? `<div class="table-scroll"><table class="data-table discount-table"><thead><tr><th>Titel</th><th>Status</th><th>Methode</th><th>Geschiktheid</th><th>Waarde</th><th>Gebruikt</th><th>Einddatum</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen kortingen', 'Maak een kortingscode of automatische korting voor de webshop.', '%')}</section></div>`
+  const popupCount = state.discounts.filter((discount) => discount.issued_to_email).length
+  const visibleDiscounts = state.discounts.filter((discount) => discountTab === 'popup' ? discount.issued_to_email : !discount.issued_to_email)
+  const rows = visibleDiscounts.map((discount) => `<tr data-action="open-discount" data-id="${discount.id}"><td><strong class="discount-code">${escapeHtml(discount.code || discount.title)}</strong><small class="table-subline">${escapeHtml(discount.title)}</small></td><td>${statusPill(discountStatus(discount))}</td><td>${discount.method === 'automatic' ? 'Automatisch' : 'Code'}</td><td>Alle klanten</td><td>${escapeHtml(discountValue(discount))}</td><td>${discount.usage_count}${discount.usage_limit ? ` / ${discount.usage_limit}` : ''}</td><td>${discount.ends_at ? formatDate(discount.ends_at) : 'Geen einddatum'}</td></tr>`).join('')
+  elements.content.innerHTML = `<div class="page-container discounts-page">${pageHeader('discounts', `${canManage ? '<button class="button button--primary" data-action="new-discount"><i data-lucide="plus"></i> Korting aanmaken</button>' : ''}`)}<section class="panel"><div class="discount-tabs" role="tablist"><button type="button" role="tab" aria-selected="${discountTab === 'manual'}" data-action="discount-tab" data-id="manual">Handmatige codes</button><button type="button" role="tab" aria-selected="${discountTab === 'popup'}" data-action="discount-tab" data-id="popup">Welkomstcodes (popup) <span>${popupCount}</span></button></div><div class="discount-toolbar"><label><i data-lucide="search"></i><input type="search" data-filter="discounts" placeholder="Zoeken en filteren"></label><select data-filter-status="discounts"><option value="">Alle statussen</option><option value="active">Actief</option><option value="pending">Gepland</option><option value="expired">Verlopen</option><option value="inactive">Uitgeschakeld</option></select></div>${rows ? `<div class="table-scroll"><table class="data-table discount-table"><thead><tr><th>Titel</th><th>Status</th><th>Methode</th><th>Geschiktheid</th><th>Waarde</th><th>Gebruikt</th><th>Einddatum</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState(discountTab === 'popup' ? 'Nog geen welkomstcodes' : 'Nog geen kortingen', discountTab === 'popup' ? 'Persoonlijke codes verschijnen hier zodra iemand zich via de popup inschrijft.' : 'Maak een kortingscode of automatische korting voor de webshop.', '%')}</section></div>`
 }
 
 function discountForm(discount = null) {
@@ -4250,6 +4253,7 @@ async function handleContentClick(event) {
   if (action === 'open-product') productForm(state.products.find((item) => item.id === id))
   if (action === 'new-product') productForm()
   if (action === 'delete-product') await deleteProduct(id)
+  if (action === 'discount-tab') { discountTab = id === 'popup' ? 'popup' : 'manual'; renderDiscounts(); refreshIcons(); return }
   if (action === 'new-discount') discountForm()
   if (action === 'open-discount') discountForm(state.discounts.find((item) => item.id === id))
   if (action === 'delete-discount') await deleteDiscount(id)
