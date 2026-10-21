@@ -83,10 +83,10 @@ function seoPlugin() {
         const isArticle = route.startsWith('/kennisbank/') && !isKnowledgeIndex
         const image = route === '/product/' ? `${siteOrigin}/images/zol-familie.jpg` : `${siteOrigin}/og-zol.jpg?v=2`
         const additions = [
-          '<link rel="icon" href="/favicon.ico?v=4" sizes="any">',
-          '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=4">',
-          '<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=4">',
-          '<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=4">',
+          '<link rel="icon" href="/favicon.ico?v=5" sizes="any">',
+          '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=5">',
+          '<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=5">',
+          '<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=5">',
           '<link rel="manifest" href="/site.webmanifest">',
         ]
         if (!noIndex) {
