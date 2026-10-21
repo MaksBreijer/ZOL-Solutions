@@ -1,5 +1,5 @@
 import './welcome-popup.css'
-import { rpcPublic } from './public-api.js'
+import { invokePublicFunction } from './public-api.js'
 
 const CODE_KEY = 'zol-welcome-code'
 const DISMISS_KEY = 'zol-welcome-dismissed'
@@ -27,19 +27,22 @@ function build() {
         <div data-wp-step="form">
           <p class="wp-kicker">Welkomstkorting</p>
           <h2 id="wp-title">10% korting op je eerste ZOL'tjes</h2>
-          <p class="wp-lead">Laat je e-mailadres achter en ontvang direct je kortingscode.</p>
+          <p class="wp-lead">Schrijf je in voor onze nieuwsbrief en ontvang een persoonlijke kortingscode, plus onze founder story in een mailtje.</p>
           <form class="wp-form" novalidate>
+            <input type="text" name="first_name" autocomplete="given-name" placeholder="Je voornaam" aria-label="Voornaam" maxlength="60">
+            <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" class="wp-trap">
             <input type="email" name="email" autocomplete="email" placeholder="Jouw e-mailadres" aria-label="E-mailadres" required>
-            <button type="submit">Geef mij 10% korting</button>
+            <button type="submit">Ja, stuur mij mijn korting</button>
             <p class="wp-error" role="alert" hidden></p>
           </form>
-          <p class="wp-fine">We sturen je af en toe tips en aanbiedingen. Uitschrijven kan altijd. Lees ons <a href="/privacy/">privacybeleid</a>.</p>
+          <p class="wp-fine">Met inschrijven doe je mee aan de ZOL-nieuwsbrief. Uitschrijven kan altijd. Lees ons <a href="/privacy/">privacybeleid</a>.</p>
         </div>
         <div data-wp-step="done" hidden>
           <p class="wp-kicker">Gelukt</p>
-          <h2>Jouw kortingscode</h2>
+          <h2>Jouw persoonlijke code</h2>
           <p class="wp-code" data-wp-code></p>
-          <p class="wp-lead">We passen de code automatisch toe als je afrekent.</p>
+          <p class="wp-lead" data-wp-valid></p>
+          <p class="wp-lead">We passen de code automatisch toe als je afrekent. Je ontvangt ook een mail met onze founder story.</p>
           <a class="wp-cta" href="/product/">Bekijk de ZOL'tjes</a>
         </div>
       </div>
@@ -74,15 +77,16 @@ function init() {
       event.preventDefault()
       error.hidden = true
       submit.disabled = true
-      const { data, error: failure } = await rpcPublic('claim_welcome_discount', { p_email: form.elements.email.value })
+      const { data, error: failure } = await invokePublicFunction('welcome-discount', { email: form.elements.email.value, first_name: form.elements.first_name.value, company: form.elements.company.value })
       submit.disabled = false
       if (failure || !data?.code) {
-        error.textContent = /geldig e-mailadres/i.test(failure?.message || '') ? 'Vul een geldig e-mailadres in.' : 'Er ging iets mis. Probeer het zo nog eens.'
+        error.textContent = /geldig e-mailadres|al ontvangen/i.test(failure?.message || '') ? failure.message : 'Er ging iets mis. Probeer het zo nog eens.'
         error.hidden = false
         return
       }
       write(CODE_KEY, data.code)
       root.querySelector('[data-wp-code]').textContent = data.code
+      root.querySelector('[data-wp-valid]').textContent = `Eenmalig te gebruiken en geldig tot ${data.valid_until}.`
       root.querySelector('[data-wp-step="form"]').hidden = true
       root.querySelector('[data-wp-step="done"]').hidden = false
     })
