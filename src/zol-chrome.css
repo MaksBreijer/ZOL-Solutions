@@ -74,3 +74,4 @@ body.has-zn { padding-top: 76px; }
 @media (max-width: 760px) { .zf-review { margin: 10px 0 0; flex-basis: 100%; } }
 .zf-grid a.zf-social { display: flex; align-items: center; gap: 10px; }
 .zf-social svg { flex: none; }
+@media (max-width: 600px) { .zn-logo img { height: 34px; } .zf-grid img { height: 44px; } }
