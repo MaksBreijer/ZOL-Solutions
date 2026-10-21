@@ -230,5 +230,3 @@
       .social-phones:hover .social-phone-b { transform: rotate(10deg) translate3d(14px, -14px, 0) rotateY(calc(var(--mx) * 12deg)) rotateX(calc(var(--my) * -6deg)); filter: drop-shadow(0 30px 34px rgba(16,43,74,.28)); }
       @media (prefers-reduced-motion: reduce) { .social-phone { transition: none; } .social-phones:hover .social-phone-a { transform: rotate(-8deg); } .social-phones:hover .social-phone-b { transform: rotate(7deg); } }
 
-      .buy .zol-look { position: relative; aspect-ratio: 3 / 4; border-radius: 26px; overflow: hidden; background: #0f1d14; touch-action: pan-y; cursor: grab; }
-      .buy .zol-look .look-fb, .buy .zol-look .look-gl { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; object-fit: cover; display: block; }
