@@ -230,10 +230,5 @@
       .social-phones:hover .social-phone-b { transform: rotate(10deg) translate3d(14px, -14px, 0) rotateY(calc(var(--mx) * 12deg)) rotateX(calc(var(--my) * -6deg)); filter: drop-shadow(0 30px 34px rgba(16,43,74,.28)); }
       @media (prefers-reduced-motion: reduce) { .social-phone { transition: none; } .social-phones:hover .social-phone-a { transform: rotate(-8deg); } .social-phones:hover .social-phone-b { transform: rotate(7deg); } }
 
-      .buy .zol-hang { position: relative; aspect-ratio: 3 / 4; border-radius: 26px; overflow: hidden; background: #0f1d14; touch-action: pan-y; cursor: grab; --rot: 0; --ry: 0; --tx: 0; --bgx: 0; }
-      .buy .zol-hang .hang-bg { position: absolute; inset: -3%; width: 106%; height: 106%; aspect-ratio: auto; border-radius: 0; object-fit: cover; transform: translate3d(calc(var(--bgx) * 1px), 0, 0); transition: transform .6s cubic-bezier(.2,.7,.2,1); }
-      .buy .zol-hang .hang-pivot { position: absolute; left: 28.533%; top: 25.4%; width: 37.444%; height: 61.583%; transform-origin: 50% 4%; transform: translate3d(calc(var(--tx) * 1px), 0, 0) rotate(calc(var(--rot) * 1deg)) rotateY(calc(var(--ry) * 1deg)); transition: transform .7s cubic-bezier(.2,1.4,.3,1); }
-      .buy .zol-hang .hang-swing { width: 100%; height: 100%; transform-origin: 50% 4%; animation: zolSwing 5.5s ease-in-out infinite alternate; }
-      .buy .zol-hang .hang-zol { display: block; width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; object-fit: fill; filter: drop-shadow(0 22px 22px rgba(0,0,0,.45)); pointer-events: none; user-select: none; }
-      @keyframes zolSwing { from { transform: rotate(-2.2deg); } to { transform: rotate(2.2deg); } }
-      @media (prefers-reduced-motion: reduce) { .buy .zol-hang .hang-swing { animation: none; } }
+      .buy .zol-look { position: relative; aspect-ratio: 3 / 4; border-radius: 26px; overflow: hidden; background: #0f1d14; touch-action: pan-y; cursor: grab; }
+      .buy .zol-look .look-fb, .buy .zol-look .look-gl { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; object-fit: cover; display: block; }
