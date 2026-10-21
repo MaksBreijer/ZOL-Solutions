@@ -65,5 +65,5 @@ body.has-zn { padding-top: 76px; }
   .zn { top: 0; left: 0; right: 0; border-radius: 0; padding-top: calc(14px + env(safe-area-inset-top)); }
   .arr { display: none; }
 }
-.zn .language-switcher { margin-left: 4px; }
+@media (min-width: 601px) { .zn .language-switcher { margin-left: 4px; } }
 .zn:not(.is-solid) .language-switcher { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); color: #fff; }
