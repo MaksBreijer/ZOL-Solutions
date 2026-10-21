@@ -216,7 +216,7 @@
         .arr { display: none; }
       }
 
-      .social-phones { display: block; width: min(760px, 100%); margin: 0 auto; }
+      .social-phones { display: block; width: min(640px, 100%); margin: 0 auto; }
       .social-phones img { width: 100%; height: auto; }
       .social-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 36px; }
       .social-actions .btn svg { flex: none; }
