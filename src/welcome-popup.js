@@ -80,7 +80,7 @@ function init() {
       const { data, error: failure } = await invokePublicFunction('welcome-discount', { email: form.elements.email.value, first_name: form.elements.first_name.value, company: form.elements.company.value })
       submit.disabled = false
       if (failure || !data?.code) {
-        error.textContent = /geldig e-mailadres|al ontvangen/i.test(failure?.message || '') ? failure.message : 'Er ging iets mis. Probeer het zo nog eens.'
+        error.textContent = /geldig e-mailadres|al ontvangen|te veel pogingen/i.test(failure?.message || '') ? failure.message : 'Er ging iets mis. Probeer het zo nog eens.'
         error.hidden = false
         return
       }
