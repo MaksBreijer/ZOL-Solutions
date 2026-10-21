@@ -36,7 +36,7 @@ export function footerMarkup() {
           <div><p class="zf-h">Info</p><a href="/kennisbank/">Kennisbank</a><a href="/#faq">Veelgestelde vragen</a><a href="/over-ons/">Ons verhaal</a></div>
           <div><p class="zf-h">Contact</p><a href="mailto:info@zolsolutions.nl">info@zolsolutions.nl</a><a href="/contact/">Contactformulier</a><a href="https://www.instagram.com/zolsolutions/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a href="https://www.linkedin.com/company/zolsolutions/" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a></div>
         </div>
-        <div class="zf-pay" aria-label="Betaalmethoden"><span>Veilig betalen via Mollie</span><ul>${payments}</ul><a class="zf-review" href="https://g.page/r/CetD-TH5WBYJEBM/review" target="_blank" rel="noopener noreferrer"><img src="/media/google-review-qr.svg" alt="QR-code om een Google-review achter te laten" width="72" height="72" loading="lazy"><span>Scan en laat een Google-review achter</span></a></div>
+        <div class="zf-pay" aria-label="Betaalmethoden"><span>Veilig betalen via Mollie</span><ul>${payments}</ul><a class="zf-review" href="https://g.page/r/CetD-TH5WBYJEBM/review" target="_blank" rel="noopener noreferrer"><img src="/media/google-review-qr.svg" alt="QR-code om een Google-review achter te laten" width="72" height="72" loading="lazy"></a></div>
         <div class="zf-legal"><span>© 2026 ZOL Solutions. Alle rechten voorbehouden.</span><span><a href="/privacy/">Privacy</a> · <a href="/algemene-voorwaarden/">Algemene voorwaarden</a> · <button class="zf-cookie" data-cookie-preferences type="button">Cookievoorkeuren</button></span></div>
       </div>
     </footer>`
