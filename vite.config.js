@@ -59,7 +59,7 @@ function chromePlugin() {
         const mainEnd = html.lastIndexOf('</main>')
         const at = mainEnd >= 0 ? mainEnd + '</main>'.length : html.lastIndexOf('</body>')
         html = `${html.slice(0, at)}\n    ${footerMarkup()}${html.slice(at)}`
-        const scripts = `    <script type="module" src="/src/zol-chrome.js"></script>${overHero ? '' : '\n    <script type="module" src="/src/zol-design.js"></script>'}`
+        const scripts = `    <script type="module" src="/src/zol-chrome.js"></script>\n    <script type="module" src="/src/welcome-popup.js"></script>${overHero ? '' : '\n    <script type="module" src="/src/zol-design.js"></script>'}`
         return html.replace('</body>', `${scripts}\n  </body>`)
       },
     },

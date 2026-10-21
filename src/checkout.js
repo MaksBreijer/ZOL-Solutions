@@ -23,7 +23,8 @@ let commerce = { shipping_cents: 0, belgium_shipping_cents: 495, free_shipping_t
 const returnParams = new URLSearchParams(window.location.search)
 const returnOrderId = returnParams.get('ref')
 const returnToken = returnParams.get('token')
-const linkedDiscountCode = String(returnParams.get('discount') || '').trim().toUpperCase().slice(0, 40)
+function storedWelcomeCode() { try { return localStorage.getItem('zol-welcome-code') || '' } catch { return '' } }
+const linkedDiscountCode = String(returnParams.get('discount') || storedWelcomeCode()).trim().toUpperCase().slice(0, 40)
 const linkedPartnerCode = getPartnerAttributionCode()
 let currentQuote = null
 let quotedCart = ''
