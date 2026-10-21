@@ -29,7 +29,6 @@ function build() {
           <h2 id="wp-title">10% korting op je eerste ZOL'tjes</h2>
           <p class="wp-lead">Schrijf je in voor onze nieuwsbrief en ontvang een persoonlijke kortingscode, plus onze founder story in een mailtje.</p>
           <form class="wp-form" novalidate>
-            <input type="text" name="first_name" autocomplete="given-name" placeholder="Je voornaam" aria-label="Voornaam" maxlength="60">
             <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" class="wp-trap">
             <input type="email" name="email" autocomplete="email" placeholder="Jouw e-mailadres" aria-label="E-mailadres" required>
             <button type="submit">Ja, stuur mij mijn korting</button>
@@ -77,7 +76,7 @@ function init() {
       event.preventDefault()
       error.hidden = true
       submit.disabled = true
-      const { data, error: failure } = await invokePublicFunction('welcome-discount', { email: form.elements.email.value, first_name: form.elements.first_name.value, company: form.elements.company.value })
+      const { data, error: failure } = await invokePublicFunction('welcome-discount', { email: form.elements.email.value, company: form.elements.company.value })
       submit.disabled = false
       if (failure || !data?.code) {
         error.textContent = /geldig e-mailadres|al ontvangen|te veel pogingen/i.test(failure?.message || '') ? failure.message : 'Er ging iets mis. Probeer het zo nog eens.'
