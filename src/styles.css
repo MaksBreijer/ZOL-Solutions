@@ -6907,5 +6907,17 @@ blockquote {
 .mail-phones:hover .mail-phone-a { transform: rotate(10deg) translate3d(14px, -14px, 0) rotateY(calc(var(--mx) * 12deg)) rotateX(calc(var(--my) * -6deg)); }
 .mail-tag { position: absolute; z-index: 3; padding: 9px 20px; border: 1px solid rgb(51 102 155 / 18%); border-radius: 999px; background: rgb(250 249 247 / 96%); box-shadow: 0 14px 30px rgb(16 43 74 / 14%); color: var(--navy, #102b4a); font: 700 clamp(14px, 1.6vw, 19px)/1 "Barlow Condensed", "Arial Narrow", sans-serif; white-space: nowrap; }
 .mail-phone-q .mail-tag { left: -6%; bottom: 8%; }
-.mail-phone-a .mail-tag { right: -6%; bottom: 14%; }
+.mail-phone-a .mail-tag { right: -6%; bottom: 2%; }
 @media (prefers-reduced-motion: reduce) { .mail-phone { transition: none; } .mail-phones:hover .mail-phone-q { transform: rotate(-8deg); } .mail-phones:hover .mail-phone-a { transform: rotate(7deg); } }
+
+.contact-hero { overflow-x: clip; }
+@media (max-width: 600px) {
+  .mail-phones { width: 86%; }
+  .mail-phone-q { transform: rotate(-5deg) translate3d(calc(var(--mx) * -4px), calc(var(--my) * -3px), 0) rotateY(calc(var(--mx) * 8deg)) rotateX(calc(var(--my) * -5deg)); }
+  .mail-phone-a { transform: rotate(4deg) translate3d(calc(var(--mx) * 5px), calc(var(--my) * -4px), 0) rotateY(calc(var(--mx) * 8deg)) rotateX(calc(var(--my) * -5deg)); }
+  .mail-phones:hover .mail-phone-q { transform: rotate(-5deg); }
+  .mail-phones:hover .mail-phone-a { transform: rotate(4deg); }
+  .mail-tag { padding: 7px 14px; font-size: 14px; }
+  .mail-phone-q .mail-tag { left: -4%; }
+  .mail-phone-a .mail-tag { right: -4%; }
+}

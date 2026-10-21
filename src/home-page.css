@@ -230,3 +230,15 @@
       .social-phones:hover .social-phone-b { transform: rotate(10deg) translate3d(14px, -14px, 0) rotateY(calc(var(--mx) * 12deg)) rotateX(calc(var(--my) * -6deg)); filter: drop-shadow(0 30px 34px rgba(16,43,74,.28)); }
       @media (prefers-reduced-motion: reduce) { .social-phone { transition: none; } .social-phones:hover .social-phone-a { transform: rotate(-8deg); } .social-phones:hover .social-phone-b { transform: rotate(7deg); } }
 
+
+      #volg-ons { overflow-x: clip; }
+      @media (max-width: 600px) {
+        .social-phones { width: 86%; }
+        .social-actions { gap: 10px; }
+        .social-actions .btn-brand { flex: 1 0 100%; justify-content: center; }
+        .social-actions .btn-line { flex: 1 1 0; justify-content: center; }
+        .social-phone-a { transform: rotate(-5deg) translate3d(calc(var(--mx) * -4px), calc(var(--my) * -3px), 0) rotateY(calc(var(--mx) * 8deg)) rotateX(calc(var(--my) * -5deg)); }
+        .social-phone-b { transform: rotate(4deg) translate3d(calc(var(--mx) * 5px), calc(var(--my) * -4px), 0) rotateY(calc(var(--mx) * 8deg)) rotateX(calc(var(--my) * -5deg)); }
+        .social-phones:hover .social-phone-a, .social-phones:focus-within .social-phone-a { transform: rotate(-5deg); }
+        .social-phones:hover .social-phone-b, .social-phones:focus-within .social-phone-b { transform: rotate(4deg); }
+      }
