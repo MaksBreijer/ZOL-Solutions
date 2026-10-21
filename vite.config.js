@@ -4,7 +4,7 @@ import { footerMarkup, navMarkup } from './src/zol-chrome-markup.js'
 
 const siteOrigin = 'https://zolsolutions.nl'
 const imageDimensions = new Map([
-  ['/media/zol-logo.png', [600, 333]],
+  ['/media/zol-logo-v2.png', [600, 333]],
   ['/media/story-team.jpg', [1000, 667]],
   ['/media/product-blue.jpg', [960, 1200]],
   ['/media/product-detail.jpg', [960, 1200]],
