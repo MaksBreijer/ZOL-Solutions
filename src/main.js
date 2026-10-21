@@ -182,3 +182,17 @@ if (contactForm) {
     button.innerHTML = 'Verstuur bericht <span>→</span>'
   })
 }
+
+
+const mailPhones = document.querySelector('.mail-phones')
+if (mailPhones && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  mailPhones.addEventListener('pointermove', (event) => {
+    const box = mailPhones.getBoundingClientRect()
+    mailPhones.style.setProperty('--mx', (((event.clientX - box.left) / box.width) * 2 - 1).toFixed(3))
+    mailPhones.style.setProperty('--my', (((event.clientY - box.top) / box.height) * 2 - 1).toFixed(3))
+  })
+  mailPhones.addEventListener('pointerleave', () => {
+    mailPhones.style.setProperty('--mx', '0')
+    mailPhones.style.setProperty('--my', '0')
+  })
+}

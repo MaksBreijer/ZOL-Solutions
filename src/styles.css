@@ -6896,3 +6896,16 @@ blockquote {
     aspect-ratio: 4 / 5;
   }
 }
+
+.mail-phones { --mx: 0; --my: 0; position: relative; width: min(500px, 100%); aspect-ratio: 500 / 560; margin: 0 auto; perspective: 1400px; }
+.mail-phones::before { position: absolute; top: 50%; left: 50%; width: 76%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgb(51 102 155 / 26%), rgb(51 102 155 / 7%) 48%, transparent 72%); filter: blur(10px); transform: translate(-50%, -50%); content: ""; }
+.mail-phone { position: absolute; width: 50%; filter: drop-shadow(0 22px 26px rgba(16,43,74,.22)); transition: transform .45s cubic-bezier(.2,.7,.2,1), filter .45s ease; will-change: transform; }
+.mail-phone img { display: block; width: 100%; height: auto; }
+.mail-phone-q { left: 0; top: 14%; z-index: 2; transform: rotate(-8deg) translate3d(calc(var(--mx) * -6px), calc(var(--my) * -4px), 0) rotateY(calc(var(--mx) * 10deg)) rotateX(calc(var(--my) * -6deg)); }
+.mail-phone-a { right: 0; top: 0; z-index: 1; transform: rotate(7deg) translate3d(calc(var(--mx) * 8px), calc(var(--my) * -6px), 0) rotateY(calc(var(--mx) * 12deg)) rotateX(calc(var(--my) * -6deg)); }
+.mail-phones:hover .mail-phone-q { transform: rotate(-11deg) translate3d(-14px, -10px, 0) rotateY(calc(var(--mx) * 10deg)) rotateX(calc(var(--my) * -6deg)); }
+.mail-phones:hover .mail-phone-a { transform: rotate(10deg) translate3d(14px, -14px, 0) rotateY(calc(var(--mx) * 12deg)) rotateX(calc(var(--my) * -6deg)); }
+.mail-tag { position: absolute; z-index: 3; padding: 9px 20px; border: 1px solid rgb(51 102 155 / 18%); border-radius: 999px; background: rgb(250 249 247 / 96%); box-shadow: 0 14px 30px rgb(16 43 74 / 14%); color: var(--navy, #102b4a); font: 700 clamp(14px, 1.6vw, 19px)/1 "Barlow Condensed", "Arial Narrow", sans-serif; white-space: nowrap; }
+.mail-phone-q .mail-tag { left: -6%; bottom: 8%; }
+.mail-phone-a .mail-tag { right: -6%; bottom: 14%; }
+@media (prefers-reduced-motion: reduce) { .mail-phone { transition: none; } .mail-phones:hover .mail-phone-q { transform: rotate(-8deg); } .mail-phones:hover .mail-phone-a { transform: rotate(7deg); } }
