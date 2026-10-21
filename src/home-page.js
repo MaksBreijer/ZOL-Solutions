@@ -30,3 +30,21 @@ if (socialPhones && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
     socialPhones.style.setProperty('--my', '0')
   })
 }
+
+const zolHang = document.querySelector('#zolHang')
+if (zolHang && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const setHang = (event) => {
+    const box = zolHang.getBoundingClientRect()
+    const x = ((event.clientX - box.left) / box.width) * 2 - 1
+    zolHang.style.setProperty('--rot', (x * 16).toFixed(2))
+    zolHang.style.setProperty('--ry', (x * 18).toFixed(2))
+    zolHang.style.setProperty('--tx', (x * 14).toFixed(2))
+    zolHang.style.setProperty('--bgx', (-x * 10).toFixed(2))
+  }
+  const resetHang = () => ['--rot', '--ry', '--tx', '--bgx'].forEach((name) => zolHang.style.setProperty(name, '0'))
+  zolHang.addEventListener('pointermove', (event) => { if (event.pointerType === 'mouse') setHang(event) })
+  zolHang.addEventListener('pointerleave', resetHang)
+  zolHang.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'mouse') setHang(event) })
+  zolHang.addEventListener('pointerup', resetHang)
+  zolHang.addEventListener('pointercancel', resetHang)
+}
