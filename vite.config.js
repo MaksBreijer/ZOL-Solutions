@@ -1,6 +1,6 @@
 import { relative, resolve } from 'node:path'
 import { defineConfig } from 'vite'
-import { footerMarkup, navMarkup, sourceBannerMarkup } from './src/zol-chrome-markup.js'
+import { footerMarkup, navMarkup } from './src/zol-chrome-markup.js'
 
 const siteOrigin = 'https://zolsolutions.nl'
 const imageDimensions = new Map([
@@ -56,10 +56,9 @@ function chromePlugin() {
           .replace(/<header class="(?:site-header|checkout-header)"[\s\S]*?<\/header>/, '')
           .replace(/<footer class="(?:site-footer|checkout-footer)"[\s\S]*?<\/footer>/, '')
         html = html.replace(/<body([^>]*)>/, (tag) => `${tag}\n    ${navMarkup({ overHero })}`)
-        const showSourceBanner = route === '/over-ons/'
         const mainEnd = html.lastIndexOf('</main>')
         const at = mainEnd >= 0 ? mainEnd + '</main>'.length : html.lastIndexOf('</body>')
-        html = `${html.slice(0, at)}\n    ${showSourceBanner ? sourceBannerMarkup() + '\n    ' : ''}${footerMarkup()}${html.slice(at)}`
+        html = `${html.slice(0, at)}\n    ${footerMarkup()}${html.slice(at)}`
         const scripts = `    <script type="module" src="/src/zol-chrome.js"></script>\n    <script type="module" src="/src/welcome-popup.js"></script>${route.startsWith('/kennisbank/') && route !== '/kennisbank/' ? '\n    <script type="module" src="/src/source-nudge.js"></script>' : ''}${overHero ? '' : '\n    <script type="module" src="/src/zol-design.js"></script>'}`
         return html.replace('</body>', `${scripts}\n  </body>`)
       },
