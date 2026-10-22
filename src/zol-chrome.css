@@ -74,4 +74,7 @@ body.has-zn { padding-top: 76px; }
 @media (max-width: 760px) { .zf-review { margin: 10px 0 0; flex-basis: 100%; } }
 .zf-grid a.zf-social { display: flex; align-items: center; gap: 10px; }
 .zf-social svg { flex: none; }
+.zf-grid a.zf-source { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); color: #fff; font-size: 13px; font-weight: 500; }
+.zf-grid a.zf-source svg { color: #d96d4b; flex: none; }
+.zf-grid a.zf-source:hover { background: rgba(255,255,255,.1); }
 @media (max-width: 600px) { .zn-logo img { height: 34px; } .zf-grid img { height: 44px; } }
