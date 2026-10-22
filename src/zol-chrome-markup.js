@@ -31,12 +31,12 @@ const stripReviews = [
 ]
 const stripSkip = ['/', '/product/', '/checkout/', '/privacy/', '/algemene-voorwaarden/', '/uitschrijven/']
 
-export function reviewStripMarkup(route) {
+export function reviewStripMarkup(route, variant = '') {
   if (stripSkip.includes(route)) return ''
   let hash = 0
   for (const char of route) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
   const [quote, name, source] = stripReviews[hash % stripReviews.length]
-  return `<aside class="zr" aria-label="Ervaring van een ouder">
+  return `<aside class="zr${variant ? ` ${variant}` : ''}" aria-label="Ervaring van een ouder">
       <div class="zr-wrap">
         <span class="zr-stars" aria-hidden="true">★★★★★</span>
         <blockquote translate="no">“${quote}”</blockquote>

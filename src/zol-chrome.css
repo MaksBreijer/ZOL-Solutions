@@ -87,3 +87,6 @@ body.has-zn { padding-top: 76px; }
 .zr p strong { color: #102b4a; }
 .zr a { color: #bf512f; text-decoration: none; font-weight: 600; }
 .zr a:hover { text-decoration: underline; }
+.zr--side { margin: 28px 0 0; padding: 0; text-align: left; }
+.zr--side .zr-wrap { width: 100%; padding: 24px; }
+.zr--side blockquote { font-size: clamp(24px, 2.4vw, 30px); }

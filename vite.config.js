@@ -62,7 +62,9 @@ function chromePlugin() {
         // De review komt direct onder de bovenste sectie (hero) van de pagina.
         const mainStart = html.indexOf('<main')
         const heroEnd = mainStart >= 0 ? html.indexOf('</section>', mainStart) : -1
-        if (heroEnd >= 0) html = `${html.slice(0, heroEnd + 10)}\n    ${reviewStripMarkup(route)}${html.slice(heroEnd + 10)}`
+        // Op Ons verhaal staat de review onder de foto in de kolom naast de tekst.
+        if (route === '/over-ons/' && html.includes('</figcaption>')) html = html.replace('</figcaption>', `</figcaption>\n    ${reviewStripMarkup(route, 'zr--side')}`)
+        else if (heroEnd >= 0) html = `${html.slice(0, heroEnd + 10)}\n    ${reviewStripMarkup(route)}${html.slice(heroEnd + 10)}`
         const scripts = `    <script type="module" src="/src/zol-chrome.js"></script>\n    <script type="module" src="/src/welcome-popup.js"></script>${route.startsWith('/kennisbank/') && route !== '/kennisbank/' ? '\n    <script type="module" src="/src/source-nudge.js"></script>' : ''}${overHero ? '' : '\n    <script type="module" src="/src/zol-design.js"></script>'}`
         return html.replace('</body>', `${scripts}\n  </body>`)
       },
