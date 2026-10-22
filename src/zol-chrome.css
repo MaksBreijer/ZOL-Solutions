@@ -78,3 +78,19 @@ body.has-zn { padding-top: 76px; }
 .zf-grid a.zf-source svg { color: #d96d4b; flex: none; }
 .zf-grid a.zf-source:hover { background: rgba(255,255,255,.1); }
 @media (max-width: 600px) { .zn-logo img { height: 34px; } .zf-grid img { height: 44px; } }
+
+/* Voorkeursbron-balk */
+.zs { width: min(1200px, 100% - 32px); margin: 48px auto; font-family: "Barlow Semi Condensed", Arial, sans-serif; }
+.zs-card { display: flex; align-items: center; gap: 28px; padding: 32px 36px; border-radius: 22px; background: #102b4a; color: #fff; position: relative; overflow: hidden; }
+.zs-card::after { content: ""; position: absolute; right: -60px; top: -80px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(217,109,75,.35), transparent 70%); pointer-events: none; }
+.zs-icon { flex: none; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #bf512f; color: #fff; animation: zs-pulse 2.6s ease-in-out infinite; }
+.zs-text { flex: 1; min-width: 0; position: relative; z-index: 1; }
+.zs-eyebrow { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #d96d4b; }
+.zs-title { margin: 0 0 8px; font: 400 clamp(28px, 3.4vw, 40px)/1.08 "Barlow Condensed", "Arial Narrow", sans-serif; }
+.zs-title b { font-weight: 700; color: #d96d4b; }
+.zs-sub { margin: 0; max-width: 620px; font-size: 15px; color: rgba(255,255,255,.72); }
+.zs-btn { flex: none; position: relative; z-index: 1; padding: 14px 24px; border-radius: 999px; background: #bf512f; color: #fff; font-size: 16px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform .2s, background .2s; }
+.zs-btn:hover { background: #d96d4b; transform: translateY(-2px); }
+@keyframes zs-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(217,109,75,.55); } 50% { box-shadow: 0 0 0 14px rgba(217,109,75,0); } }
+@media (prefers-reduced-motion: reduce) { .zs-icon { animation: none; } .zs-btn { transition: none; } }
+@media (max-width: 760px) { .zs-card { flex-direction: column; align-items: flex-start; padding: 26px 22px; gap: 18px; } .zs-btn { width: 100%; text-align: center; box-sizing: border-box; } }
