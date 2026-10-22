@@ -128,6 +128,22 @@ export function mountZol3d(stage, { top, mask }) {
       renderer.render(scene, camera)
     }
     frame()
+
+    // Alleen tijdens ontwikkelen: losse beelden renderen voor een video (scripts/render-draaivideo.mjs).
+    if (import.meta.env.DEV) {
+      window.__zol3d = {
+        shot(angle, w, h, bob = 0) {
+          renderer.setSize(w, h, false)
+          camera.aspect = w / h
+          camera.position.set(0, (1.35 + bob) * 1.75, 2.1 * 1.75)
+          camera.lookAt(0, 0, 0)
+          camera.updateProjectionMatrix()
+          pivot.rotation.y = angle
+          renderer.render(scene, camera)
+          return canvas.toDataURL('image/png')
+        },
+      }
+    }
     return true
   })
 }
