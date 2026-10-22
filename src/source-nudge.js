@@ -4,8 +4,8 @@ import './source-nudge.css'
 // Rustig houden: pas na de cookiekeuze, niet naast de kortingspopup, en terug tot de bezoeker erop klikt.
 const KEY = 'zol-source-nudge'
 const REMEMBER_DAYS = 180
-const MIN_SECONDS = 25
-const MIN_PROGRESS = 0.7
+const MIN_SECONDS = 12
+const MIN_PROGRESS = 0.4
 const sourceUrl = 'https://www.google.com/preferences/source?q=zolsolutions.nl'
 
 function read(key) { try { return localStorage.getItem(key) } catch { return null } }
@@ -48,9 +48,10 @@ function init() {
       <button class="sn-close" type="button" aria-label="Sluiten">×</button>
       <p class="sn-title">Vond je dit nuttig?</p>
       <p class="sn-text">Kies ZOL als voorkeursbron, dan laat Google onze nieuwe artikelen vaker aan je zien.</p>
+      <a class="sn-row" href="${sourceUrl}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true"><img src="/favicon-192.png" alt="" width="34" height="34"><span><b>ZOL Solutions</b><small>zolsolutions.nl</small></span><u></u></a>
       <a class="sn-btn" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">Ja, laat ZOL vaker zien ↗</a>`
     card.querySelector('.sn-close').addEventListener('click', () => close(false))
-    card.querySelector('.sn-btn').addEventListener('click', () => setTimeout(() => close(true), 0))
+    card.querySelectorAll('.sn-btn, .sn-row').forEach((link) => link.addEventListener('click', () => setTimeout(() => close(true), 0)))
     document.body.append(card)
     requestAnimationFrame(() => card.classList.add('is-in'))
   }

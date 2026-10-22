@@ -1,10 +1,19 @@
 .sn { position: fixed; z-index: 110; right: 18px; bottom: 18px; width: min(340px, calc(100% - 36px)); padding: 20px 22px 22px; border-radius: 18px; background: #102b4a; color: #fff; font-family: "Barlow Semi Condensed", Arial, sans-serif; box-shadow: 0 24px 60px rgba(9, 29, 50, .35); opacity: 0; transform: translateY(16px); transition: opacity .3s, transform .3s; }
 .sn.is-in { opacity: 1; transform: none; }
-.sn-close { position: absolute; top: 8px; right: 10px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: rgba(255, 255, 255, .7); font-size: 22px; line-height: 1; cursor: pointer; }
-.sn-close:hover { color: #fff; }
+.sn-close { position: absolute; top: 8px; right: 10px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: rgba(255, 255, 255, .7); font-size: 15px; line-height: 1; cursor: pointer; opacity: .35; transition: opacity .2s; }
+.sn-close:hover, .sn-close:focus-visible { opacity: .9; color: #fff; }
 .sn-title { margin: 0 0 6px; font: 700 26px/1 "Barlow Condensed", "Arial Narrow", sans-serif; color: #d96d4b; }
 .sn-text { margin: 0 0 14px; font-size: 15px; line-height: 1.4; color: rgba(255, 255, 255, .8); }
-.sn-btn { display: inline-block; padding: 11px 20px; border-radius: 999px; background: #bf512f; color: #fff; font-size: 15px; font-weight: 600; text-decoration: none; }
+.sn-row { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .1); color: #fff; text-decoration: none; animation: sn-row 5s ease-in-out infinite; }
+.sn-row img { border-radius: 50%; flex: none; }
+.sn-row span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sn-row b { font-size: 16px; line-height: 1.1; } .sn-row small { font-size: 13px; color: rgba(255, 255, 255, .65); }
+.sn-row u { flex: none; position: relative; width: 42px; height: 24px; border-radius: 999px; background: #b9b4ab; animation: sn-sw 5s ease-in-out infinite; }
+.sn-row u::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; animation: sn-knob 5s ease-in-out infinite; }
+@keyframes sn-sw { 0%, 25% { background: #b9b4ab; } 35%, 90% { background: #bf512f; } 100% { background: #b9b4ab; } }
+@keyframes sn-knob { 0%, 25% { transform: none; } 35%, 90% { transform: translateX(18px); } 100% { transform: none; } }
+@keyframes sn-row { 0%, 25% { background: rgba(255, 255, 255, .1); } 35%, 90% { background: rgba(217, 109, 75, .3); } 100% { background: rgba(255, 255, 255, .1); } }
+.sn-btn { display: block; text-align: center; padding: 13px 20px; border-radius: 999px; background: #bf512f; color: #fff; font-size: 15px; font-weight: 600; text-decoration: none; }
 .sn-btn:hover { background: #d96d4b; }
-@media (max-width: 720px) { .sn { right: 9px; left: 9px; width: auto; bottom: calc(9px + env(safe-area-inset-bottom)); } .sn-btn { display: block; text-align: center; } }
-@media (prefers-reduced-motion: reduce) { .sn { transition: none; } }
+@media (max-width: 720px) { .sn { right: 9px; left: 9px; width: auto; bottom: calc(9px + env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .sn { transition: none; } .sn-row, .sn-row u, .sn-row u::after { animation: none; } .sn-row u { background: #bf512f; } .sn-row u::after { transform: translateX(18px); } }
