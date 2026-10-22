@@ -1,0 +1,65 @@
+import './source-nudge.css'
+
+// Kleine uitnodiging om ZOL als voorkeursbron op Google te kiezen, onderaan een gelezen kennisbank-artikel.
+// Rustig houden: pas na de cookiekeuze, niet naast de kortingspopup, en één keer per bezoeker.
+const KEY = 'zol-source-nudge'
+const REMEMBER_DAYS = 180
+const MIN_SECONDS = 25
+const MIN_PROGRESS = 0.7
+const sourceUrl = 'https://www.google.com/preferences/source?q=zolsolutions.nl'
+
+function read(key) { try { return localStorage.getItem(key) } catch { return null } }
+function write(key, value) { try { localStorage.setItem(key, value) } catch { /* opslag niet beschikbaar */ } }
+
+function handledRecently() {
+  const at = Number(read(KEY))
+  return Boolean(at) && Date.now() - at < REMEMBER_DAYS * 864e5
+}
+
+function init() {
+  const article = document.querySelector('.article-content')
+  if (!article || handledRecently()) return
+  const started = Date.now()
+  let card = null
+
+  function progress() {
+    const box = article.getBoundingClientRect()
+    return (innerHeight - box.top) / box.height
+  }
+
+  function close() {
+    write(KEY, String(Date.now()))
+    card?.classList.remove('is-in')
+    setTimeout(() => card?.remove(), 300)
+    removeEventListener('scroll', check)
+  }
+
+  function show() {
+    card = document.createElement('aside')
+    card.className = 'sn'
+    card.setAttribute('aria-label', 'ZOL als voorkeursbron op Google')
+    card.innerHTML = `
+      <button class="sn-close" type="button" aria-label="Sluiten">×</button>
+      <p class="sn-title">Vond je dit nuttig?</p>
+      <p class="sn-text">Kies ZOL als voorkeursbron, dan laat Google onze nieuwe artikelen vaker aan je zien.</p>
+      <a class="sn-btn" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">Ja, laat ZOL vaker zien ↗</a>`
+    card.querySelector('.sn-close').addEventListener('click', close)
+    card.querySelector('.sn-btn').addEventListener('click', () => setTimeout(close, 0))
+    document.body.append(card)
+    requestAnimationFrame(() => card.classList.add('is-in'))
+  }
+
+  function check() {
+    if (card) return
+    const html = document.documentElement
+    if (html.classList.contains('cookie-consent-open') || html.classList.contains('wp-open') || document.querySelector('.wp')) return
+    if (Date.now() - started < MIN_SECONDS * 1000 || progress() < MIN_PROGRESS) return
+    show()
+  }
+
+  addEventListener('scroll', check, { passive: true })
+  setTimeout(check, MIN_SECONDS * 1000 + 200)
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true })
+else init()
