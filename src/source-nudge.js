@@ -47,7 +47,7 @@ function init() {
     card.innerHTML = `
       <button class="sn-close" type="button" aria-label="Sluiten">×</button>
       <p class="sn-title">Vond je dit nuttig?</p>
-      <p class="sn-text">Kies ZOL als voorkeursbron, dan laat Google onze nieuwe artikelen vaker aan je zien.</p>
+      <p class="sn-text">Laat Google onze artikelen vaker voor je kiezen. Het is alleen een voorkeur in je zoekresultaten: je geeft ons geen toegang tot iets.</p>
       <a class="sn-row" href="${sourceUrl}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true"><img src="/favicon-192.png" alt="" width="34" height="34"><span><b>ZOL Solutions</b><small>zolsolutions.nl</small></span><u></u></a>
       <a class="sn-btn" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">Ja, laat ZOL vaker zien ↗</a>`
     card.querySelector('.sn-close').addEventListener('click', () => close(false))

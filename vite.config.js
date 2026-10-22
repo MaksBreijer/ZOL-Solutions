@@ -56,7 +56,7 @@ function chromePlugin() {
           .replace(/<header class="(?:site-header|checkout-header)"[\s\S]*?<\/header>/, '')
           .replace(/<footer class="(?:site-footer|checkout-footer)"[\s\S]*?<\/footer>/, '')
         html = html.replace(/<body([^>]*)>/, (tag) => `${tag}\n    ${navMarkup({ overHero })}`)
-        const showSourceBanner = route === '/over-ons/' || (route.startsWith('/kennisbank/') && route !== '/kennisbank/')
+        const showSourceBanner = route === '/over-ons/'
         const mainEnd = html.lastIndexOf('</main>')
         const at = mainEnd >= 0 ? mainEnd + '</main>'.length : html.lastIndexOf('</body>')
         html = `${html.slice(0, at)}\n    ${showSourceBanner ? sourceBannerMarkup() + '\n    ' : ''}${footerMarkup()}${html.slice(at)}`
