@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test",
-    "check": "npm test && npm run build"
+    "check": "npm test && npm run build",
+    "draai": "./scripts/maak-draaiviewer.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

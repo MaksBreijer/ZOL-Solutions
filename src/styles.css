@@ -6922,3 +6922,48 @@ blockquote {
   .mail-phone-q .mail-tag { left: -4%; }
   .mail-phone-a .mail-tag { right: -4%; }
 }
+
+/* 360° productviewer */
+.spin-section[hidden] { display: none; }
+.spin-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: clamp(40px, 8vw, 120px);
+}
+.spin-copy > p:not(.section-index) { max-width: 420px; margin: 24px 0 0; }
+.spin-stage {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin-inline: auto;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.spin-stage.is-dragging { cursor: grabbing; }
+.spin-stage:focus-visible { outline: 3px solid var(--orange-light); outline-offset: 3px; }
+.spin-frame { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.spin-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(22, 27, 32, 0.72);
+  color: #fff;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: opacity 0.3s;
+}
+.spin-hint.is-gone { opacity: 0; }
+@media (max-width: 800px) {
+  .spin-section { grid-template-columns: 1fr; gap: 28px; }
+}
