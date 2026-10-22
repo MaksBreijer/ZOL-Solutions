@@ -44,16 +44,24 @@ export function footerMarkup() {
 }
 
 // Uitnodiging om ZOL als voorkeursbron op Google te kiezen (kennisbank, over-ons en homepage).
-export function sourceBannerMarkup() {
-  return `<aside class="zs" aria-label="ZOL als voorkeursbron op Google">
+const sourceUrl = 'https://www.google.com/preferences/source?q=zolsolutions.nl'
+const star = '<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.1 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>'
+
+export function sourceBannerMarkup({ home = false } = {}) {
+  const mock = `<a class="zs-mock" href="${sourceUrl}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">
+          <span class="zs-mock-head">Jouw voorkeursbronnen</span>
+          <span class="zs-mock-row zs-mock-row--ghost"><i></i><span><em></em><em></em></span><u class="zs-switch"></u></span>
+          <span class="zs-mock-row zs-mock-row--zol"><img src="/favicon-192.png" alt="" width="36" height="36" /><span><b>ZOL Solutions</b><small>zolsolutions.nl</small></span><u class="zs-switch"></u></span>
+        </a>`
+  return `<aside class="zs${home ? ' zs--home' : ''}" aria-label="ZOL als voorkeursbron op Google">
       <div class="zs-card">
-        <span class="zs-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.1 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg></span>
         <div class="zs-text">
-          <p class="zs-eyebrow">Google-tip</p>
+          <p class="zs-eyebrow"><span class="zs-icon" aria-hidden="true">${star}</span>Google-tip</p>
           <p class="zs-title">Mis geen tips over hielpijn bij kinderen. <b>Eén klik.</b></p>
           <p class="zs-sub">Kies ZOL als voorkeursbron, dan laat Google onze nieuwe artikelen vaker aan je zien. Gratis, en je zet het zo weer uit.</p>
+          <a class="zs-btn" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">Ja, laat ZOL vaker zien ↗</a>
         </div>
-        <a class="zs-btn" href="https://www.google.com/preferences/source?q=zolsolutions.nl" target="_blank" rel="noopener noreferrer">Ja, laat ZOL vaker zien ↗</a>
+        ${mock}
       </div>
     </aside>`
 }

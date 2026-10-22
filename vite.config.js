@@ -61,7 +61,7 @@ function chromePlugin() {
         if (showSourceBanner && route === '/') {
           const anchor = html.indexOf('<section class="s" id="volg-ons"')
           if (anchor >= 0) {
-            html = `${html.slice(0, anchor)}${sourceBannerMarkup()}\n    ${html.slice(anchor)}`
+            html = `${html.slice(0, anchor)}${sourceBannerMarkup({ home: true })}\n    ${html.slice(anchor)}`
             bannerPlaced = true
           }
         }
