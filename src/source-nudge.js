@@ -1,7 +1,7 @@
 import './source-nudge.css'
 
 // Kleine uitnodiging om ZOL als voorkeursbron op Google te kiezen, onderaan een gelezen kennisbank-artikel.
-// Rustig houden: pas na de cookiekeuze, niet naast de kortingspopup, en één keer per bezoeker.
+// Rustig houden: pas na de cookiekeuze, niet naast de kortingspopup, en terug tot de bezoeker erop klikt.
 const KEY = 'zol-source-nudge'
 const REMEMBER_DAYS = 180
 const MIN_SECONDS = 25
@@ -11,9 +11,13 @@ const sourceUrl = 'https://www.google.com/preferences/source?q=zolsolutions.nl'
 function read(key) { try { return localStorage.getItem(key) } catch { return null } }
 function write(key, value) { try { localStorage.setItem(key, value) } catch { /* opslag niet beschikbaar */ } }
 
+function readSession(key) { try { return sessionStorage.getItem(key) } catch { return null } }
+function writeSession(key, value) { try { sessionStorage.setItem(key, value) } catch { /* opslag niet beschikbaar */ } }
+
+// Alleen een klik op de knop telt als afgehandeld; wegklikken verbergt de melding tot het volgende bezoek.
 function handledRecently() {
   const at = Number(read(KEY))
-  return Boolean(at) && Date.now() - at < REMEMBER_DAYS * 864e5
+  return (Boolean(at) && Date.now() - at < REMEMBER_DAYS * 864e5) || Boolean(readSession(KEY))
 }
 
 function init() {
@@ -27,8 +31,9 @@ function init() {
     return (innerHeight - box.top) / box.height
   }
 
-  function close() {
-    write(KEY, String(Date.now()))
+  function close(clicked) {
+    if (clicked === true) write(KEY, String(Date.now()))
+    else writeSession(KEY, '1')
     card?.classList.remove('is-in')
     setTimeout(() => card?.remove(), 300)
     removeEventListener('scroll', check)
@@ -43,8 +48,8 @@ function init() {
       <p class="sn-title">Vond je dit nuttig?</p>
       <p class="sn-text">Kies ZOL als voorkeursbron, dan laat Google onze nieuwe artikelen vaker aan je zien.</p>
       <a class="sn-btn" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">Ja, laat ZOL vaker zien ↗</a>`
-    card.querySelector('.sn-close').addEventListener('click', close)
-    card.querySelector('.sn-btn').addEventListener('click', () => setTimeout(close, 0))
+    card.querySelector('.sn-close').addEventListener('click', () => close(false))
+    card.querySelector('.sn-btn').addEventListener('click', () => setTimeout(() => close(true), 0))
     document.body.append(card)
     requestAnimationFrame(() => card.classList.add('is-in'))
   }
