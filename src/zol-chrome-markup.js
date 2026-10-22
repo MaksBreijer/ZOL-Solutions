@@ -50,10 +50,10 @@ export function sourceBannerMarkup() {
         <span class="zs-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.1 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg></span>
         <div class="zs-text">
           <p class="zs-eyebrow">Google-tip</p>
-          <p class="zs-title">Zie je ons liever vaker in Google? <b>Eén klik.</b></p>
-          <p class="zs-sub">Kies ZOL als voorkeursbron, dan laat Google onze artikelen over hielpijn bij kinderen vaker aan je zien. Je kunt het altijd weer uitzetten.</p>
+          <p class="zs-title">Mis geen tips over hielpijn bij kinderen. <b>Eén klik.</b></p>
+          <p class="zs-sub">Kies ZOL als voorkeursbron, dan laat Google onze nieuwe artikelen vaker aan je zien. Gratis, en je zet het zo weer uit.</p>
         </div>
-        <a class="zs-btn" href="https://www.google.com/preferences/source?q=zolsolutions.nl" target="_blank" rel="noopener noreferrer">Kies ZOL als voorkeursbron ↗</a>
+        <a class="zs-btn" href="https://www.google.com/preferences/source?q=zolsolutions.nl" target="_blank" rel="noopener noreferrer">Ja, laat ZOL vaker zien ↗</a>
       </div>
     </aside>`
 }
