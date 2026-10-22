@@ -37,6 +37,7 @@ function init() {
     card?.classList.remove('is-in')
     setTimeout(() => card?.remove(), 300)
     removeEventListener('scroll', check)
+    clearInterval(timer)
   }
 
   function show() {
@@ -57,13 +58,13 @@ function init() {
   function check() {
     if (card) return
     const html = document.documentElement
-    if (html.classList.contains('cookie-consent-open') || html.classList.contains('wp-open') || document.querySelector('.wp')) return
+    if (html.classList.contains('cookie-consent-open') || html.classList.contains('wp-open')) return
     if (Date.now() - started < MIN_SECONDS * 1000 || progress() < MIN_PROGRESS) return
     show()
   }
 
   addEventListener('scroll', check, { passive: true })
-  setTimeout(check, MIN_SECONDS * 1000 + 200)
+  const timer = setInterval(check, 3000)
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true })

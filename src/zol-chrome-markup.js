@@ -47,13 +47,13 @@ export function footerMarkup() {
 const sourceUrl = 'https://www.google.com/preferences/source?q=zolsolutions.nl'
 const star = '<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.1 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>'
 
-export function sourceBannerMarkup({ home = false } = {}) {
+export function sourceBannerMarkup() {
   const mock = `<a class="zs-mock" href="${sourceUrl}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">
           <span class="zs-mock-head">Jouw voorkeursbronnen</span>
           <span class="zs-mock-row zs-mock-row--ghost"><i></i><span><em></em><em></em></span><u class="zs-switch"></u></span>
           <span class="zs-mock-row zs-mock-row--zol"><img src="/favicon-192.png" alt="" width="36" height="36" /><span><b>ZOL Solutions</b><small>zolsolutions.nl</small></span><u class="zs-switch"></u></span>
         </a>`
-  return `<aside class="zs${home ? ' zs--home' : ''}" aria-label="ZOL als voorkeursbron op Google">
+  return `<aside class="zs" aria-label="ZOL als voorkeursbron op Google">
       <div class="zs-card">
         <div class="zs-text">
           <p class="zs-eyebrow"><span class="zs-icon" aria-hidden="true">${star}</span>Google-tip</p>

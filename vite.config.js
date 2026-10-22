@@ -56,18 +56,10 @@ function chromePlugin() {
           .replace(/<header class="(?:site-header|checkout-header)"[\s\S]*?<\/header>/, '')
           .replace(/<footer class="(?:site-footer|checkout-footer)"[\s\S]*?<\/footer>/, '')
         html = html.replace(/<body([^>]*)>/, (tag) => `${tag}\n    ${navMarkup({ overHero })}`)
-        const showSourceBanner = route === '/' || route === '/over-ons/' || (route.startsWith('/kennisbank/') && route !== '/kennisbank/')
-        let bannerPlaced = false
-        if (showSourceBanner && route === '/') {
-          const anchor = html.indexOf('<section class="s" id="volg-ons"')
-          if (anchor >= 0) {
-            html = `${html.slice(0, anchor)}${sourceBannerMarkup({ home: true })}\n    ${html.slice(anchor)}`
-            bannerPlaced = true
-          }
-        }
+        const showSourceBanner = route === '/over-ons/' || (route.startsWith('/kennisbank/') && route !== '/kennisbank/')
         const mainEnd = html.lastIndexOf('</main>')
         const at = mainEnd >= 0 ? mainEnd + '</main>'.length : html.lastIndexOf('</body>')
-        html = `${html.slice(0, at)}\n    ${showSourceBanner && !bannerPlaced ? sourceBannerMarkup() + '\n    ' : ''}${footerMarkup()}${html.slice(at)}`
+        html = `${html.slice(0, at)}\n    ${showSourceBanner ? sourceBannerMarkup() + '\n    ' : ''}${footerMarkup()}${html.slice(at)}`
         const scripts = `    <script type="module" src="/src/zol-chrome.js"></script>\n    <script type="module" src="/src/welcome-popup.js"></script>${route.startsWith('/kennisbank/') && route !== '/kennisbank/' ? '\n    <script type="module" src="/src/source-nudge.js"></script>' : ''}${overHero ? '' : '\n    <script type="module" src="/src/zol-design.js"></script>'}`
         return html.replace('</body>', `${scripts}\n  </body>`)
       },
