@@ -27,7 +27,8 @@ const stripReviews = [
   ['Sinds mijn zoon zooltjes draagt van ZOL heeft hij veel minder last van pijn. Ook erg fijn advies van de jongens erachter.', 'Sophie van Ham', 'Google-review'],
   ['Ik heb de zooltjes gekocht voor mijn dochter die al maanden rondliep met hielpijn. Ze is er mega blij mee en kan eindelijk weer meedoen met de hockey!', 'Zonne Kreikamp', 'Google-review'],
   ['Nu ze de zolen draagt, is haar voet direct ontlast. We zijn super snel geholpen, echt heel tevreden!', 'Carlijn Stevens', 'Google-review'],
-  ['Mijn kinderen hadden na twee weken geen last meer.', 'Selma Cool', 'Google-review'],
+  ['Positief verrast! Mijn dochtertje heeft geen last meer tijdens het sporten.', 'R. de Vries', 'Google-review'],
+  ['M’n zoontje kan nu eindelijk weer tennissen dankzij deze zooltjes.', 'Marcus Witkamp', 'Google-review'],
 ]
 const stripSkip = ['/', '/product/', '/checkout/', '/privacy/', '/algemene-voorwaarden/', '/uitschrijven/']
 
