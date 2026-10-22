@@ -1,5 +1,5 @@
 // 360° product viewer: drag (or swipe) to turn the product. Frames live in /media/360/ and are listed in frames.json.
-// Zonder frames.json kantelt één foto (data-still) mee met slepen. Frames maken: npm run draai -- pad/naar/filmpje.mov
+// Zonder frames.json: 3D-model uit één foto (data-model-top/mask), en als WebGL niet kan kantelt de foto (data-still). Frames maken: npm run draai -- pad/naar/filmpje.mov
 const viewer = document.querySelector('[data-spin]')
 
 if (viewer) {
@@ -55,7 +55,17 @@ if (viewer) {
   }
 
   load().then((meta) => {
-    if (!meta) return tilt()
+    if (!meta) {
+      const top = viewer.dataset.modelTop
+      const mask = viewer.dataset.modelMask
+      if (!top || !mask) return tilt()
+      img.hidden = true
+      hint?.remove()
+      return import('./zol-3d.js')
+        .then(({ mountZol3d }) => mountZol3d(stage, { top, mask }))
+        .then(() => { viewer.hidden = false })
+        .catch(() => { img.hidden = false; tilt() })
+    }
     const { count } = meta
     const ext = meta.ext || 'jpg'
     const urls = Array.from({ length: count }, (_, i) => `${base}${String(i + 1).padStart(3, '0')}.${ext}`)
