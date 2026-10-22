@@ -58,7 +58,11 @@ function chromePlugin() {
         html = html.replace(/<body([^>]*)>/, (tag) => `${tag}\n    ${navMarkup({ overHero })}`)
         const mainEnd = html.lastIndexOf('</main>')
         const at = mainEnd >= 0 ? mainEnd + '</main>'.length : html.lastIndexOf('</body>')
-        html = `${html.slice(0, at)}\n    ${reviewStripMarkup(route)}${footerMarkup()}${html.slice(at)}`
+        html = `${html.slice(0, at)}\n    ${footerMarkup()}${html.slice(at)}`
+        // De review komt direct onder de bovenste sectie (hero) van de pagina.
+        const mainStart = html.indexOf('<main')
+        const heroEnd = mainStart >= 0 ? html.indexOf('</section>', mainStart) : -1
+        if (heroEnd >= 0) html = `${html.slice(0, heroEnd + 10)}\n    ${reviewStripMarkup(route)}${html.slice(heroEnd + 10)}`
         const scripts = `    <script type="module" src="/src/zol-chrome.js"></script>\n    <script type="module" src="/src/welcome-popup.js"></script>${route.startsWith('/kennisbank/') && route !== '/kennisbank/' ? '\n    <script type="module" src="/src/source-nudge.js"></script>' : ''}${overHero ? '' : '\n    <script type="module" src="/src/zol-design.js"></script>'}`
         return html.replace('</body>', `${scripts}\n  </body>`)
       },
