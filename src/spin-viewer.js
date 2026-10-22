@@ -1,5 +1,5 @@
 // 360° product viewer: drag (or swipe) to turn the product. Frames live in /media/360/ and are listed in frames.json.
-// Zonder frames.json blijft de sectie verborgen. Frames maken: npm run draai -- pad/naar/filmpje.mov
+// Zonder frames.json kantelt één foto (data-still) mee met slepen. Frames maken: npm run draai -- pad/naar/filmpje.mov
 const viewer = document.querySelector('[data-spin]')
 
 if (viewer) {
@@ -16,8 +16,46 @@ if (viewer) {
     return meta && Number.isInteger(meta.count) && meta.count > 1 ? meta : null
   }
 
+  // Zonder frames: één foto die meekantelt met vinger of muis.
+  const tilt = () => {
+    const still = viewer.dataset.still
+    if (!still) return
+    img.src = still
+    img.classList.add('is-tilt')
+    img.addEventListener('load', () => { viewer.hidden = false }, { once: true })
+    let dragging = false
+    let startX = 0
+    let angle = 0
+    let base = 0
+    const set = (deg, animate) => {
+      angle = Math.max(-70, Math.min(70, deg))
+      img.style.transition = animate ? 'transform 0.7s cubic-bezier(.2,1.3,.3,1)' : 'none'
+      img.style.transform = `perspective(900px) rotateY(${angle}deg) rotateX(${Math.abs(angle) / 10}deg)`
+    }
+    stage.addEventListener('pointerdown', (event) => {
+      dragging = true
+      startX = event.clientX
+      base = angle
+      stage.setPointerCapture(event.pointerId)
+      stage.classList.add('is-dragging')
+      hint?.classList.add('is-gone')
+    })
+    stage.addEventListener('pointermove', (event) => {
+      if (dragging) set(base + ((event.clientX - startX) / stage.clientWidth) * 140, false)
+    })
+    const end = () => { dragging = false; stage.classList.remove('is-dragging'); set(0, true) }
+    stage.addEventListener('pointerup', end)
+    stage.addEventListener('pointercancel', end)
+    stage.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+      event.preventDefault()
+      set(event.key === 'ArrowRight' ? 35 : -35, true)
+      setTimeout(() => set(0, true), 500)
+    })
+  }
+
   load().then((meta) => {
-    if (!meta) return
+    if (!meta) return tilt()
     const { count } = meta
     const ext = meta.ext || 'jpg'
     const urls = Array.from({ length: count }, (_, i) => `${base}${String(i + 1).padStart(3, '0')}.${ext}`)

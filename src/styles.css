@@ -6967,3 +6967,4 @@ blockquote {
 @media (max-width: 800px) {
   .spin-section { grid-template-columns: 1fr; gap: 28px; }
 }
+.spin-frame.is-tilt { object-fit: contain; filter: drop-shadow(0 24px 22px rgba(16, 43, 74, 0.25)); will-change: transform; }
