@@ -21,6 +21,31 @@ export function navMarkup({ overHero = false } = {}) {
     </nav>`
 }
 
+// Echte reviews die al op de site staan. Elke pagina krijgt er bij de build een andere uit.
+const stripReviews = [
+  ['Mijn dochter had vaak last van haar hiel en enkel met handbal, maar nu gaat het veel beter. De zooltjes zitten ook prettig.', 'Eelco Groen', 'Ouder van jonge sporter'],
+  ['Sinds mijn zoon zooltjes draagt van ZOL heeft hij veel minder last van pijn. Ook erg fijn advies van de jongens erachter.', 'Sophie van Ham', 'Google-review'],
+  ['Ik heb de zooltjes gekocht voor mijn dochter die al maanden rondliep met hielpijn. Ze is er mega blij mee en kan eindelijk weer meedoen met de hockey!', 'Zonne Kreikamp', 'Google-review'],
+  ['Nu ze de zolen draagt, is haar voet direct ontlast. We zijn super snel geholpen, echt heel tevreden!', 'Carlijn Stevens', 'Google-review'],
+  ['Mijn kinderen hadden na twee weken geen last meer.', 'Selma Cool', 'Google-review'],
+]
+const stripSkip = ['/', '/product/', '/checkout/', '/privacy/', '/algemene-voorwaarden/', '/uitschrijven/']
+
+export function reviewStripMarkup(route) {
+  if (stripSkip.includes(route)) return ''
+  let hash = 0
+  for (const char of route) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  const [quote, name, source] = stripReviews[hash % stripReviews.length]
+  return `<aside class="zr" aria-label="Ervaring van een ouder">
+      <div class="zr-wrap">
+        <span class="zr-stars" aria-hidden="true">★★★★★</span>
+        <blockquote translate="no">“${quote}”</blockquote>
+        <p><strong translate="no">${name}</strong> · ${source} · <a href="https://maps.google.com/?cid=654808623137506283" target="_blank" rel="noopener noreferrer">Alle reviews op Google ↗</a></p>
+      </div>
+    </aside>
+    `
+}
+
 export function footerMarkup() {
   return `<footer class="zf">
       <div class="zf-wrap">
