@@ -346,7 +346,7 @@ function closeDialog() {
   elements.dialogBody.innerHTML = ''
 }
 
-const HIDDEN_ROUTES = new Set(['pilot', 'marketing', 'payments', 'live', 'activity'])
+const HIDDEN_ROUTES = new Set(['pilot', 'marketing', 'payments', 'live', 'activity', 'calendar'])
 
 function currentRoute() {
   const route = window.location.hash.replace('#', '') || 'dashboard'
