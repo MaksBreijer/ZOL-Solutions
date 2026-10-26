@@ -17,6 +17,7 @@ export const DEFAULT_REGISTER = {
 
 const ID_PATTERN = /^[a-zA-Z0-9_-]{1,150}$/
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/
 
 export function validateRecord(collection, record) {
   if (!COLLECTIONS.includes(collection) || !record || typeof record !== 'object' || Array.isArray(record)) throw new Error('Ongeldig record.')
@@ -26,6 +27,7 @@ export function validateRecord(collection, record) {
   for (const key of ['due', 'date', 'nextDate']) {
     if (record[key] && (!DATE_PATTERN.test(record[key]) || Number.isNaN(Date.parse(record[key])) || new Date(record[key]).toISOString().slice(0, 10) !== record[key])) throw new Error('Ongeldige datum.')
   }
+  if (record.time && !TIME_PATTERN.test(record.time)) throw new Error('Ongeldige tijd.')
   if (collection === 'tasks' && !TASK_STATUSES.includes(record.status)) throw new Error('Ongeldige taakstatus.')
   if (collection === 'deals' && !STAGES.includes(record.stage)) throw new Error('Ongeldige pipelinefase.')
   if (record.value !== undefined && record.value !== null && (typeof record.value !== 'number' || !Number.isFinite(record.value) || record.value < 0)) throw new Error('Vul een geldig bedrag in.')
@@ -298,4 +300,26 @@ export function today() {
 
 export function activityRecord(text, relatedIds = [], type = 'wijziging', extra = {}) {
   return { id: crypto.randomUUID(), date: today(), createdAt: new Date().toISOString(), type, text, relatedIds, source: 'CRM', ...extra }
+}
+
+// --- Agenda: afgeleid uit bestaande datums (taken, volgende contactmomenten van kansen, evenementen); er wordt niets dubbel opgeslagen ---
+export function agendaItems(state, now = today()) {
+  const orgName = (id) => state.organizations.find((item) => item.id === id)?.name
+  const contactName = (id) => state.contacts.find((item) => item.id === id)?.name
+  const items = []
+  for (const task of state.tasks) {
+    if (!['afgerond', 'vervallen'].includes(task.status) && task.due) {
+      items.push({ date: task.due, time: task.time || '', kind: 'taak', title: task.title, how: task.channel || '', organizations: (task.organizationIds || []).map(orgName).filter(Boolean), contacts: (task.contactIds || []).map(contactName).filter(Boolean), collection: 'tasks', id: task.id })
+    }
+  }
+  for (const deal of state.deals) {
+    if (!['gewonnen', 'verloren'].includes(deal.stage) && deal.nextDate) {
+      items.push({ date: deal.nextDate, time: deal.time || '', kind: 'kans', title: deal.nextAction || deal.title, subtitle: deal.nextAction ? deal.title : '', how: deal.channel || '', organizations: [orgName(deal.organizationId)].filter(Boolean), contacts: (deal.contactIds || []).map(contactName).filter(Boolean), collection: 'deals', id: deal.id })
+    }
+  }
+  for (const event of state.events) {
+    if (event.date) items.push({ date: event.date, time: event.time || '', kind: 'evenement', title: event.title, how: 'evenement', location: event.city || '', organizations: [orgName(event.organizationId) || event.club].filter(Boolean), contacts: [], collection: 'events', id: event.id })
+  }
+  items.sort((a, b) => `${a.date} ${a.time || '99:99'}`.localeCompare(`${b.date} ${b.time || '99:99'}`))
+  return { overdue: items.filter((item) => item.date < now), upcoming: items.filter((item) => item.date >= now) }
 }

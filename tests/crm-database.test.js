@@ -228,3 +228,12 @@ test('direct table access is limited by row level security policies', async () =
   assert.deepEqual(grants.rows.map((r) => r.privilege_type), ['SELECT'])
   assert.equal((await env.db.query("select relrowsecurity from pg_class where oid = 'public.crm_records'::regclass")).rows[0].relrowsecurity, true)
 })
+
+test('the database rejects an invalid time and accepts HH:MM', async () => {
+  const env = await ready()
+  const state = await env.store.loadState()
+  await assert.rejects(() => env.store.saveRecord(state, 'tasks', { id: 't-time', title: 'Call', status: 'open', time: '9u' }), /tijd/)
+  const saved = await env.client.rpc('crm_commit', { p_action: 'record.write', p_writes: [{ collection: 'tasks', id: 't-time', data: { id: 't-time', title: 'Call', status: 'open', time: '25:99' }, expectedRevision: null }] })
+  assert.match(saved.error.message, /tijd/)
+  await env.store.saveRecord(state, 'tasks', { id: 't-time', title: 'Call', status: 'open', time: '13:00', due: '2026-10-28' })
+})

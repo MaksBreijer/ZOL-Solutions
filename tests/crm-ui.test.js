@@ -122,3 +122,15 @@ test('without a login the CRM shows an error and no data', async () => {
   assert.match(t.content.textContent, /geen toestemming/)
   assert.doesNotMatch(t.content.textContent, /Testclub Alpha/)
 })
+
+test('agenda tab shows when, what, who and how and opens the dossier', async () => {
+  const t = await setup()
+  await t.db.query("update public.crm_records set data = data || '{\"time\":\"13:00\",\"channel\":\"telefoon\",\"due\":\"2099-01-02\"}' where id = 'task-1'")
+  t.view.reload(); await t.flush()
+  await t.click('[data-tab="agenda"]')
+  assert.match(t.content.textContent, /Opvolgen voorstel/)
+  assert.match(t.content.textContent, /13:00/)
+  assert.match(t.content.textContent, /Telefoon/)
+  assert.match(t.content.textContent, /Testclub Alpha/)
+  assert.match(t.content.textContent, /Clubdag/)
+})

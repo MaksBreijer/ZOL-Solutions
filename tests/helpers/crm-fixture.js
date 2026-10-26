@@ -54,6 +54,7 @@ export async function crmDatabase() {
     create function private.is_admin(allowed text[] default array['owner','admin','editor','viewer']) returns boolean language sql as $$ select coalesce(current_setting('test.role', true), '') = any(allowed) $$;
   `)
   await db.exec(await readFile(new URL('../../supabase/migrations/20261026120000_add_crm.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../../supabase/migrations/20261026130000_crm_time_field.sql', import.meta.url), 'utf8'))
   const as = async (role) => {
     await db.query("select set_config('test.role', $1, false), set_config('test.uid', $2, false), set_config('test.email', $3, false)", [role, role ? '20000000-0000-4000-8000-000000000001' : '', role ? `${role}@example.invalid` : ''])
   }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { syntheticExport } from './helpers/crm-fixture.js'
 import { checkExpectations, compareWithDatabase, contentHash, planImport } from '../src/crm/import.js'
-import { diffStates, erasureKey, normalizeState, sha256Hex, validateRecord } from '../src/crm/model.js'
+import { agendaItems, diffStates, erasureKey, normalizeState, sha256Hex, validateRecord } from '../src/crm/model.js'
 
 test('browser sha256 matches node crypto, so erasure keys equal those of the source system', () => {
   for (const text of ['', 'abc', 'con-1', 'Ünïcode — €', 'x'.repeat(1000), 'y'.repeat(55), 'z'.repeat(56), 'w'.repeat(64)]) {
@@ -73,4 +73,22 @@ test('state diff produces minimal writes with the revision the user saw', () => 
   const { writes, deletes } = diffStates(before, after)
   assert.deepEqual(writes.map((w) => [w.collection, w.id, w.expectedRevision]), [['organizations', 'org-alpha', 'r-org-alpha'], ['contacts', 'con-new', null]])
   assert.deepEqual(deletes.map((d) => [d.collection, d.id]), [['tasks', 'task-3']])
+})
+
+test('agenda lists open tasks, next contact moments and events with when, what, who and how', () => {
+  const state = normalizeState(syntheticExport())
+  state.tasks[0].time = '13:00'; state.tasks[0].channel = 'telefoon'
+  state.deals[0].nextDate = '2026-10-29'; state.deals[0].nextAction = 'Voorstel bespreken'
+  const { overdue, upcoming } = agendaItems(state, '2026-10-30')
+  assert.deepEqual(overdue.map((item) => [item.kind, item.title]), [['kans', 'Voorstel bespreken']])
+  assert.deepEqual(upcoming.map((item) => [item.date, item.time, item.kind]), [['2026-10-30', '13:00', 'taak'], ['2026-11-01', '', 'evenement']])
+  assert.equal(upcoming[0].how, 'telefoon')
+  assert.deepEqual(upcoming[0].organizations, ['Testclub Alpha', 'Testpraktijk Beta'])
+  assert.deepEqual(upcoming[0].contacts, ['Pat Voorbeeld'])
+  assert.equal(agendaItems(state, '2026-10-30').upcoming.some((item) => item.title === 'Oude taak'), false, 'afgeronde taken staan niet in de agenda')
+})
+
+test('time must be HH:MM', () => {
+  assert.throws(() => validateRecord('tasks', { id: 't', title: 'x', status: 'open', time: '25:00' }), /tijd/)
+  assert.doesNotThrow(() => validateRecord('tasks', { id: 't', title: 'x', status: 'open', time: '13:00' }))
 })
