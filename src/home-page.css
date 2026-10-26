@@ -99,7 +99,7 @@
       .kv strong { font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
       .blueprint { position: relative; border-radius: 26px; background: linear-gradient(180deg, #edf2f7, #dbe6f0); padding: 50px 40px; }
       .blueprint img { border-radius: 18px; width: 100%; height: 460px; object-fit: cover; }
-      .bedenk-badge { position: absolute; bottom: -22px; right: -22px; width: 104px; height: 104px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 12px 28px rgba(191,81,47,.35); transform: rotate(8deg); z-index: 2; }
+      .bedenk-badge { position: absolute; top: -22px; right: -22px; width: 104px; height: 104px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 12px 28px rgba(191,81,47,.35); transform: rotate(8deg); z-index: 2; }
       .bedenk-badge strong { font-family: "Barlow Condensed", sans-serif; font-size: 38px; line-height: .9; }
       .bedenk-badge span { font-size: 12px; line-height: 1.15; font-weight: 600; margin-top: 2px; }
       .blueprint .f1 { top: 24px; left: -20px; } .blueprint .f2 { top: 46%; right: -24px; } .blueprint .f3 { bottom: -18px; left: 16%; }
@@ -166,7 +166,7 @@
         .scard { position: relative; top: 0 !important; padding: 64px 22px 22px; min-height: 0; }
         .scard-media { height: 320px; } .scard-media .pic { inset: 0; }
         section.s { padding: 80px 0; }
-        .bedenk-badge { right: 8px; bottom: -26px; width: 88px; height: 88px; } .bedenk-badge strong { font-size: 32px; } .blueprint .f1 { left: 8px; } .blueprint .f2 { right: 8px; }
+        .bedenk-badge { right: 8px; top: -26px; width: 88px; height: 88px; } .bedenk-badge strong { font-size: 32px; } .blueprint .f1 { left: 8px; } .blueprint .f2 { right: 8px; }
         .press { grid-template-columns: 1fr; }
       }
 
