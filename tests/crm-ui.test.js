@@ -134,3 +134,41 @@ test('agenda tab shows when, what, who and how and opens the dossier', async () 
   assert.match(t.content.textContent, /Testclub Alpha/)
   assert.match(t.content.textContent, /Clubdag/)
 })
+
+test('quick entry: type a sentence, review the proposal, confirm, and it is stored and linked', async () => {
+  const t = await setup()
+  const input = t.q('#crm-quick-text')
+  input.value = 'Joh, we hebben 18 november bij Testclub Alpha een evenement om 14:00'
+  input.dispatchEvent(new t.window.Event('input', { bubbles: true }))
+  t.q('#crm-quick-form').dispatchEvent(new t.window.Event('submit', { bubbles: true, cancelable: true }))
+  await t.flush()
+  assert.match(t.content.textContent, /Organisatie gekoppeld: Testclub Alpha/)
+  assert.equal((await t.db.query("select count(*)::int as n from public.crm_records where collection = 'events'")).rows[0].n, 1, 'nog niets opgeslagen')
+  await t.click('[data-crm-action="quick-save"]')
+  const { rows } = await t.db.query("select data from public.crm_records where collection = 'events' and data->>'source' = 'Snelle invoer'")
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].data.date, '2026-11-18'.replace('2026', rows[0].data.date.slice(0, 4)))
+  assert.equal(rows[0].data.time, '14:00')
+  assert.equal(rows[0].data.organizationId, 'org-alpha')
+  assert.match(t.toasts.at(-1).title, /Vastgelegd/)
+})
+
+test('quick entry creates an unknown organisation only when confirmed and links the event to it', async () => {
+  const t = await setup()
+  t.q('#crm-quick-text').value = 'Evenement bij Hockeyclub Nieuwveld op 20 december'
+  t.q('#crm-quick-text').dispatchEvent(new t.window.Event('input', { bubbles: true }))
+  t.q('#crm-quick-form').dispatchEvent(new t.window.Event('submit', { bubbles: true, cancelable: true }))
+  await t.flush()
+  assert.match(t.content.textContent, /staat nog niet in het CRM/)
+  await t.click('[data-crm-action="quick-save"]')
+  const org = (await t.db.query("select id from public.crm_records where collection = 'organizations' and data->>'name' = 'Hockeyclub Nieuwveld'")).rows[0]
+  assert.ok(org)
+  const event = (await t.db.query("select data from public.crm_records where collection = 'events' and data->>'source' = 'Snelle invoer'")).rows[0].data
+  assert.equal(event.organizationId, org.id)
+  assert.equal(event.club, undefined)
+})
+
+test('quick entry is not offered to viewers', async () => {
+  const t = await setup('viewer')
+  assert.equal(t.q('#crm-quick-form'), null)
+})

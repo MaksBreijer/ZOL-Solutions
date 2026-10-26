@@ -2,6 +2,7 @@
 // Rechten (owner/admin -> beheerder, editor -> medewerker, viewer -> leesrechten) worden in de database afgedwongen; de UI toont alleen wat past.
 import { agendaItems, reviewCandidates, today, visibleOrganizations } from './model.js'
 import { createCrmStore } from './store.js'
+import { parseEntry } from './quick-entry.js'
 
 const STAGE_LABELS = { onbekend: 'Onbekend', 'te-benaderen': 'Te benaderen', 'contact-gelegd': 'Contact gelegd', voorstel: 'Voorstel', onderhandeling: 'In gesprek', gewonnen: 'Samenwerking', verloren: 'Afgesloten' }
 const TASK_LABELS = { open: 'Open', bezig: 'Bezig', 'wacht-op-reactie': 'Wacht op reactie', afgerond: 'Afgerond', vervallen: 'Vervallen' }
@@ -26,7 +27,7 @@ const taskOrder = (a, b) => ({ hoog: 0, normaal: 1, laag: 2 }[a.priority ?? 'nor
 
 export function createCrmView(ctx) {
   const store = createCrmStore(ctx.supabase)
-  const view = { state: null, tab: 'overview', search: '', segment: '', status: '', taskMode: 'active', error: '', loading: false, busy: false, audit: null }
+  const view = { state: null, tab: 'overview', search: '', segment: '', status: '', taskMode: 'active', error: '', loading: false, busy: false, audit: null, quick: { text: '', entry: null, include: {} } }
   const content = ctx.content
   const can = {
     write: () => ['admin', 'member'].includes(view.state?.me?.role),
@@ -55,10 +56,28 @@ export function createCrmView(ctx) {
     content.innerHTML = `<div class="page-container crm-page">
       <header class="page-header"><div><div class="page-breadcrumb"><span>ZOL Solutions</span><i data-lucide="chevron-right"></i><strong>CRM</strong></div><h1>CRM</h1><p>Relaties, opvolging en samenwerkingen op één plek.</p></div><div class="page-actions">${view.state ? button('Vernieuwen', 'refresh') : ''}${view.state && can.write() ? button('Organisatie toevoegen', 'new', 'data-collection="organizations"', 'primary') : ''}</div></header>
       ${view.state ? `<nav class="finance-tabs" aria-label="CRM-onderdelen">${tabs.map(([id, label]) => `<button type="button" data-crm-action="tab" data-tab="${id}" class="${view.tab === id ? 'is-active' : ''}">${esc(label)}${tabCount(id)}</button>`).join('')}</nav>` : ''}
+      ${view.state && can.write() ? quickBlock() : ''}
       ${view.state && view.state.me.role === 'viewer' ? '<p class="form-hint">Dit account heeft alleen leesrechten in het CRM.</p>' : ''}
       <div id="crm-body">${body}</div></div>`
     renderResults()
     ctx.refreshIcons?.()
+  }
+
+  // Snelle invoer: typ een zin, controleer het voorstel, bevestig. Er wordt niets opgeslagen zonder klik op Opslaan.
+  function quickBlock() {
+    const { entry } = view.quick
+    const proposalCard = (item, key, extra = '') => {
+      const record = item.record
+      const editable = item.collection !== 'organizations' && item.collection !== 'activities'
+      return `<div class="crm-proposal"><label class="crm-proposal-head"><input type="checkbox" data-quick-include="${key}" ${view.quick.include[key] !== false ? 'checked' : ''}> <strong>${esc(item.summary)}</strong></label>
+        ${editable ? `<div class="crm-proposal-fields"><label>Titel<input data-quick-field="${key}:title" value="${esc(record.title)}"></label><label>Datum<input type="date" data-quick-field="${key}:${item.collection === 'tasks' ? 'due' : item.collection === 'deals' ? 'nextDate' : 'date'}" value="${esc(record.date || record.due || record.nextDate || '')}"></label><label>Tijd<input type="time" data-quick-field="${key}:time" value="${esc(record.time || '')}"></label></div>` : ''}
+        ${item.collection === 'activities' ? `<div class="crm-proposal-fields"><label class="crm-wide">Tekst<input data-quick-field="${key}:text" value="${esc(record.text)}"></label><label>Datum<input type="date" data-quick-field="${key}:date" value="${esc(record.date)}"></label></div>` : ''}${extra}</div>`
+    }
+    return `<section class="panel crm-quick"><form id="crm-quick-form"><label class="crm-quick-label">Snelle invoer <small>Typ wat je wilt vastleggen. Het CRM vult het formulier voor je in.</small></label>
+      <div class="crm-quick-row"><textarea id="crm-quick-text" rows="2" placeholder="Bijv. 18 november evenement bij Testclub Alpha om 14:00 · Bel Pat Voorbeeld donderdag over het voorstel">${esc(view.quick.text)}</textarea><button class="button button--primary" type="submit">Vul in</button></div></form>
+      ${entry ? `<div class="crm-quick-result">${entry.proposals.length ? `<p class="crm-meta">${entry.notes.map((note) => `<span>${esc(note)}</span>`).join(' · ')}</p>${entry.warnings.map((text) => `<p class="crm-overdue">${esc(text)}</p>`).join('')}
+        ${entry.proposals.map((item, index) => proposalCard(item, `p${index}`)).join('')}${entry.created.map((item, index) => proposalCard(item, `c${index}`)).join('')}
+        <div class="crm-actions">${button('Opslaan in CRM', 'quick-save', '', 'primary')}${button('Annuleren', 'quick-cancel')}</div>` : entry.warnings.map((text) => `<p class="crm-overdue">${esc(text)}</p>`).join('')}</div>` : ''}</section>`
   }
 
   function tabCount(id) {
@@ -377,6 +396,42 @@ export function createCrmView(ctx) {
     }),
     'load-audit': memberless(async () => { try { view.audit = await store.audit(100); render() } catch (error) { ctx.toast('Logboek laden mislukt', error.message, true) } }),
   }
+  actions['quick-cancel'] = () => { view.quick = { text: '', entry: null, include: {} }; render() }
+  actions['quick-save'] = async () => {
+    const { entry, include } = view.quick
+    if (!entry || view.busy) return
+    view.busy = true
+    try {
+      let state = view.state
+      const saved = []
+      const created = new Map()
+      for (const [index, item] of entry.created.entries()) {
+        if (include[`c${index}`] === false) continue
+        state = (await store.saveRecord(state, 'organizations', item.record, null)).state
+        created.set(item.record.name, item.record.id)
+      }
+      for (const [index, item] of entry.proposals.entries()) {
+        if (include[`p${index}`] === false) continue
+        const record = { ...item.record }
+        const newOrg = created.get(record.club) || (created.size === 1 && !record.organizationId && !record.organizationIds?.length ? [...created.values()][0] : null)
+        if (newOrg) {
+          if (item.collection === 'tasks') record.organizationIds = [...(record.organizationIds || []), newOrg]
+          else if (item.collection === 'activities') record.relatedIds = [...record.relatedIds, newOrg]
+          else { record.organizationId = newOrg; delete record.club }
+        }
+        for (const key of ['time', 'date', 'due', 'nextDate']) if (record[key] === '') delete record[key]
+        state = (await store.saveRecord(state, item.collection, record, null)).state
+        saved.push(item.summary)
+      }
+      view.state = state
+      view.quick = { text: '', entry: null, include: {} }
+      render()
+      ctx.toast('Vastgelegd in het CRM', saved.join(' · ') || 'Niets geselecteerd.')
+    } catch (error) {
+      ctx.toast('Opslaan mislukt', error.message, true)
+      await load(false)
+    } finally { view.busy = false }
+  }
   const writeActions = new Set(['new', 'edit', 'new-related', 'toggle-task', 'upload'])
 
   // Eén gedelegeerde luisteraar voor het scherm en het gedeelde dialoogvenster.
@@ -390,8 +445,27 @@ export function createCrmView(ctx) {
   }
   content.addEventListener('click', onClick)
   ctx.dialog.addEventListener('click', onClick)
-  content.addEventListener('input', (event) => { if (event.target.id === 'crm-search') { view.search = event.target.value; renderResults() } })
+  content.addEventListener('input', (event) => {
+    if (event.target.id === 'crm-search') { view.search = event.target.value; renderResults() }
+    if (event.target.id === 'crm-quick-text') view.quick.text = event.target.value
+    const field = event.target.dataset?.quickField
+    if (field) {
+      const [key, name] = field.split(':')
+      const item = key.startsWith('p') ? view.quick.entry.proposals[Number(key.slice(1))] : view.quick.entry.created[Number(key.slice(1))]
+      item.record[name] = event.target.value
+    }
+  })
+  content.addEventListener('submit', (event) => {
+    if (event.target.id !== 'crm-quick-form') return
+    event.preventDefault()
+    view.quick = { text: view.quick.text, entry: parseEntry(view.quick.text, view.state), include: {} }
+    render()
+  })
+  content.addEventListener('keydown', (event) => {
+    if (event.target.id === 'crm-quick-text' && event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.target.form.requestSubmit?.() ?? event.target.form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) }
+  })
   content.addEventListener('change', (event) => {
+    if (event.target.dataset?.quickInclude) view.quick.include[event.target.dataset.quickInclude] = event.target.checked
     if (event.target.id === 'crm-segment') { view.segment = event.target.value; renderResults() }
     if (event.target.id === 'crm-status') { view.status = event.target.value; renderResults() }
   })

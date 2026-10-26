@@ -52,3 +52,17 @@
 .crm-when small { color: var(--admin-muted); font-size: 9px; }
 .crm-day { margin: 16px 0 2px; color: #253745; font-size: 10px; text-transform: capitalize; }
 .crm-day.is-today { color: var(--admin-orange); }
+
+.crm-quick { padding: 14px 16px; }
+.crm-quick-label { display: block; margin-bottom: 6px; color: #253745; font-size: 11px; font-weight: 750; }
+.crm-quick-label small { margin-left: 6px; color: var(--admin-muted); font-size: 9px; font-weight: 500; }
+.crm-quick-row { display: flex; gap: 8px; align-items: stretch; }
+.crm-quick-row textarea { flex: 1; min-height: 44px; padding: 9px 11px; border: 1px solid var(--admin-line); border-radius: 8px; font: inherit; font-size: 11px; resize: vertical; }
+.crm-quick-result { margin-top: 12px; }
+.crm-proposal { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--admin-line); border-radius: 9px; background: #f7f9fa; font-size: 10px; }
+.crm-proposal-head { display: flex; align-items: center; gap: 7px; }
+.crm-proposal-fields { margin-top: 8px; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+.crm-proposal-fields label { display: grid; gap: 3px; color: var(--admin-muted); font-size: 8px; }
+.crm-proposal-fields .crm-wide { grid-column: span 2; }
+.crm-proposal-fields input { min-height: 30px; padding: 0 8px; border: 1px solid var(--admin-line); border-radius: 7px; font: inherit; font-size: 10px; }
+@media (max-width: 760px) { .crm-proposal-fields { grid-template-columns: 1fr; } .crm-quick-row { flex-direction: column; } }
