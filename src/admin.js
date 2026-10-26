@@ -346,9 +346,11 @@ function closeDialog() {
   elements.dialogBody.innerHTML = ''
 }
 
+const HIDDEN_ROUTES = new Set(['pilot', 'marketing', 'payments', 'live', 'activity'])
+
 function currentRoute() {
   const route = window.location.hash.replace('#', '') || 'dashboard'
-  return routeMeta[route] ? route : 'dashboard'
+  return routeMeta[route] && !HIDDEN_ROUTES.has(route) ? route : 'dashboard'
 }
 
 function globalSearchItems(query) {
@@ -590,6 +592,8 @@ function renderDashboard() {
     return { label: date.toLocaleDateString('nl-NL', { weekday: 'short' }), value: dayRevenue }
   })
   const maxRevenue = Math.max(...lastSevenDays.map((day) => day.value), 100)
+  const finance = financeSummary(financeRows(state.orders, state.payments, financeMonthKey()))
+  const financeMonthName = financeMonthLabel(financeMonthKey())
 
   elements.content.innerHTML = `<div class="page-container">
     ${pageHeader('dashboard', `<button class="button" data-action="refresh">Vernieuwen</button>${canManageOrders ? '<button class="button button--primary" data-action="new-order">Bestelling maken</button>' : ''}`)}
@@ -598,6 +602,12 @@ function renderDashboard() {
       <article class="metric-card"><header><span>Open bestellingen</span><span class="metric-icon"><i data-lucide="shopping-bag"></i></span></header><strong>${openOrders}</strong><footer><span>${orders.filter((order) => order.fulfillment_status === 'unfulfilled').length} nog te verzenden</span><span>Actueel</span></footer></article>
       <article class="metric-card"><header><span>Conversie</span><span class="metric-icon"><i data-lucide="trending-up"></i></span></header><strong>${conversionRate.toFixed(1)}%</strong><footer><span>${sessions} sessies gemeten</span><span>30 dagen</span></footer></article>
       <article class="metric-card"><header><span>Nieuwe klanten</span><span class="metric-icon"><i data-lucide="user-plus"></i></span></header><strong>${newCustomers}</strong><footer><span>${state.customers.length} klanten totaal</span><span>Maand</span></footer></article>
+    </section>
+    <section class="metric-grid" aria-label="Financiën">
+      <article class="metric-card"><header><span>Omzet incl. btw</span><span class="metric-icon"><i data-lucide="circle-euro"></i></span></header><strong>${formatMoney(finance.revenueIncludingTaxCents)}</strong><footer><span>Na refunds</span><span>${escapeHtml(financeMonthName)}</span></footer></article>
+      <article class="metric-card"><header><span>Omzet excl. btw</span><span class="metric-icon"><i data-lucide="file-text"></i></span></header><strong>${formatMoney(finance.revenueExcludingTaxCents)}</strong><footer><span>${formatMoney(finance.taxCents)} btw</span><span>${finance.orderCount} orders</span></footer></article>
+      <article class="metric-card"><header><span>Ontvangen</span><span class="metric-icon"><i data-lucide="credit-card"></i></span></header><strong>${formatMoney(finance.receivedCents)}</strong><footer><span>Netto kas ${formatMoney(finance.netCashCents)}</span><span>${escapeHtml(financeMonthName)}</span></footer></article>
+      <article class="metric-card"><header><span>Terugbetaald</span><span class="metric-icon"><i data-lucide="rotate-ccw"></i></span></header><strong>${formatMoney(finance.refundedCents)}</strong><footer><span>${finance.openCount} openstaand</span><span>${finance.anomalyCount} afwijkingen</span></footer></article>
     </section>
     <a class="partner-dashboard-strip" href="#partners"><span><i data-lucide="sparkles"></i></span><div><small>PARTNER SCOUT · REVENUE SPRINT</small><strong>${salesPartners.due ? `${salesPartners.due} verkoopactie${salesPartners.due === 1 ? '' : 's'} wacht${salesPartners.due === 1 ? '' : 'en'} op jullie` : `${salesPartners.hot} high-fit matches staan klaar`}</strong><p>${partnerRevenue.orders} partnerbestellingen · ${formatMoney(partnerRevenue.revenueCents)} echte partneromzet</p></div><b>Open saleswerkbank →</b></a>
     <div class="dashboard-grid">
@@ -608,7 +618,7 @@ function renderDashboard() {
         <section class="panel"><header class="panel-header"><div><h2>Recente bestellingen</h2><p>De laatste vijf orders</p></div><a href="#orders">Alles bekijken →</a></header>${ordersTable(orders.slice(0, 5), false)}</section>
       </div>
       <aside class="dashboard-side">
-        <section class="panel"><header class="panel-header"><div><h2>Recente activiteit</h2><p>Wijzigingen in de admin</p></div><a href="#activity">Logboek →</a></header>${activityList(state.activity.slice(0, 7))}</section>
+        <section class="panel"><header class="panel-header"><div><h2>Recente activiteit</h2><p>Wijzigingen in de admin</p></div></header>${activityList(state.activity.slice(0, 7))}</section>
         <section class="panel"><header class="panel-header"><div><h2>Snel beheren</h2><p>Direct naar een veelgebruikte actie</p></div></header><div class="quick-actions">
           <button data-action="new-product"><span><i data-lucide="package"></i></span>Product toevoegen</button><button data-route-jump="partners"><span><i data-lucide="target"></i></span>Partner Scout</button><button data-route-jump="media"><span><i data-lucide="images"></i></span>Media uploaden</button><button data-route-jump="content"><span><i data-lucide="panels-top-left"></i></span>Website bewerken</button><button data-route-jump="settings"><span><i data-lucide="settings"></i></span>Instellingen</button>
         </div></section>
