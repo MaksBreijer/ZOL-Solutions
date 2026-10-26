@@ -221,7 +221,17 @@ export function createCrmView(ctx) {
 
   function dataView() {
     const { state } = view
-    return `<section class="panel"><header class="panel-header"><div><h2>Gegevens meenemen</h2><p>Een JSON-export (versie 1) met organisaties, personen, taken, kansen, activiteiten, evenementen en inbox. Bijlagen en privacybeheer zitten er niet in.</p></div>${can.admin() ? button('Gegevens exporteren', 'export', '', 'primary') : ''}</header>
+    const total = (list) => list.length
+    const rows = [
+      ['Organisaties', `${visibleOrganizations(state).length} zichtbaar${state.organizations.length - visibleOrganizations(state).length ? `, ${state.organizations.length - visibleOrganizations(state).length} samengevoegd en verborgen` : ''}`],
+      ['Contactpersonen', total(state.contacts)],
+      ['Taken', `${total(state.tasks)} (${state.tasks.filter(isOpen).length} open, ${state.tasks.filter((task) => task.status === 'afgerond').length} afgerond, ${state.tasks.filter((task) => task.status === 'vervallen').length} vervallen)`],
+      ['Samenwerkingen', total(state.deals)], ['Activiteiten', total(state.activities)], ['Evenementen', total(state.events)],
+      ['Inbox en bijlagen', `${total(state.inbox)} items, ${state.inbox.filter((item) => item.fileKey).length} met bijlage`],
+      ...(state.privacy ? [['Privacyverzoeken', total(state.privacy.requests)], ['Incidenten', total(state.privacy.incidents)], ['Verwijderlijst', total(state.privacy.erasedIds)]] : []),
+    ]
+    return `<section class="panel"><header class="panel-header"><div><h2>Alles wat in het CRM staat</h2><p>Totaal overzicht van wat is omgezet en sindsdien is toegevoegd. Het oorspronkelijke bron-ID en de herkomst staan bij elk dossier.</p></div></header><div class="table-scroll"><table class="data-table"><tbody>${rows.map(([label, value]) => `<tr><td><strong>${esc(label)}</strong></td><td>${esc(value)}</td></tr>`).join('')}</tbody></table></div></section>
+      <section class="panel"><header class="panel-header"><div><h2>Gegevens meenemen</h2><p>Een JSON-export (versie 1) met organisaties, personen, taken, kansen, activiteiten, evenementen en inbox. Bijlagen en privacybeheer zitten er niet in.</p></div>${can.admin() ? button('Gegevens exporteren', 'export', '', 'primary') : ''}</header>
       <div class="crm-pad"><p class="form-hint">De export bevat leesbare persoonsgegevens en wordt in het controlelogboek vastgelegd. De oorspronkelijke gegevens migreer je met <code>scripts/crm-import.mjs</code>, niet met een bestandsupload.</p></div></section>
       <section class="panel"><header class="panel-header"><div><h2>Aandacht voor gegevenskwaliteit</h2></div></header><div class="crm-pad"><ul class="crm-list"><li>${visibleOrganizations(state).filter((item) => !item.email && !item.phone).length} organisaties zonder e-mail of telefoon.</li><li>${state.tasks.filter((task) => isOpen(task) && !task.due).length} open taken zonder deadline.</li><li>${state.contacts.filter((item) => !item.organizationId).length} personen zonder bevestigde organisatie.</li></ul>${state.uncertainties.length ? `<h3>Nog te verduidelijken</h3><ul class="crm-list">${state.uncertainties.map((text) => `<li>${esc(text)}</li>`).join('')}</ul>` : ''}</div></section>`
   }

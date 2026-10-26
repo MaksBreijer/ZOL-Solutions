@@ -206,3 +206,11 @@ test('to-do board: Maks and Thijn columns with their own colour, assigning, and 
   assert.ok(!t.q('details.crm-done').open)
   assert.match(t.q('details.crm-done').textContent, /Oude taak/)
 })
+
+test('data tab shows a total overview of everything in the CRM', async () => {
+  const t = await setup()
+  await t.click('[data-tab="data"]')
+  assert.match(t.content.textContent, /Alles wat in het CRM staat/)
+  assert.match(t.content.textContent, /2 zichtbaar, 1 samengevoegd en verborgen/)
+  assert.match(t.content.textContent, /3 \(1 open, 1 afgerond, 1 vervallen\)/)
+})
