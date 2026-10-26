@@ -112,7 +112,6 @@ const state = {
   reviewFilter: 'pending',
   orderNotes: [],
   partnerScout: defaultPartnerScoutState(),
-  crmSummary: null,
   search: '',
 }
 
@@ -573,29 +572,6 @@ async function fetchAllData() {
   if (reviewCount) reviewCount.textContent = pendingReviews || ''
 }
 
-function crmHomeMarkup() {
-  const summary = state.crmSummary
-  const card = (label, value, note) => `<article class="metric-card"><header><span>${label}</span><span class="metric-icon"><i data-lucide="building-2"></i></span></header><strong>${value}</strong><footer><span>${note}</span><span>CRM</span></footer></article>`
-  const body = !summary ? '<p class="form-hint">CRM-gegevens laden…</p>'
-    : `<section class="metric-grid" aria-label="CRM">${card('Organisaties', summary.organizations, summary.merged ? `${summary.merged} samengevoegd en verborgen` : 'Relaties in het CRM')}${card('Contactpersonen', summary.contacts, 'In het CRM')}${card('Taken', summary.tasksOpen, `${summary.tasksDone} afgerond · ${summary.tasksClosed - summary.tasksDone} vervallen`)}${card('Activiteiten', summary.activities, `${summary.events} evenementen · ${summary.deals} samenwerkingen`)}</section>`
-  return `<div id="crm-home"><header class="panel-header crm-home-head"><div><h2>CRM: wat we hebben omgezet</h2><p>Alles uit het oude CRM staat hier, plus wat sindsdien is toegevoegd.</p></div><a href="#crm">Naar het CRM →</a></header>${body}</div>`
-}
-
-async function loadCrmSummary() {
-  try {
-    const { data, error } = await supabase.from('crm_records').select('collection,status:data->>status,merged:data->>mergedInto').in('collection', ['organizations', 'contacts', 'tasks', 'activities', 'events', 'deals']).limit(10000)
-    if (error || !data) return
-    const count = (collection, test = () => true) => data.filter((row) => row.collection === collection && test(row)).length
-    state.crmSummary = {
-      organizations: count('organizations', (row) => !row.merged), merged: count('organizations', (row) => row.merged), contacts: count('contacts'),
-      tasksOpen: count('tasks', (row) => !['afgerond', 'vervallen'].includes(row.status)), tasksDone: count('tasks', (row) => row.status === 'afgerond'), tasksClosed: count('tasks', (row) => ['afgerond', 'vervallen'].includes(row.status)),
-      activities: count('activities'), events: count('events'), deals: count('deals'),
-    }
-    const target = document.querySelector('#crm-home')
-    if (target && currentRoute() === 'dashboard') { target.outerHTML = crmHomeMarkup(); refreshIcons() }
-  } catch { /* Het CRM-blok blijft dan op "laden" staan; de rest van Home werkt gewoon. */ }
-}
-
 function renderDashboard() {
   const canManageOrders = ['owner', 'admin'].includes(state.profile?.role)
   const orders = visibleOrders()
@@ -636,7 +612,9 @@ function renderDashboard() {
       <article class="metric-card"><header><span>Ontvangen</span><span class="metric-icon"><i data-lucide="credit-card"></i></span></header><strong>${formatMoney(finance.receivedCents)}</strong><footer><span>Netto kas ${formatMoney(finance.netCashCents)}</span><span>${escapeHtml(financeMonthName)}</span></footer></article>
       <article class="metric-card"><header><span>Terugbetaald</span><span class="metric-icon"><i data-lucide="rotate-ccw"></i></span></header><strong>${formatMoney(finance.refundedCents)}</strong><footer><span>${finance.openCount} openstaand</span><span>${finance.anomalyCount} afwijkingen</span></footer></article>
     </section>
-    ${crmHomeMarkup()}
+    <section class="metric-grid metric-grid--total" aria-label="Totale omzet">
+      <article class="metric-card"><header><span>Totale omzet tot nu toe</span><span class="metric-icon"><i data-lucide="circle-euro"></i></span></header><strong>${formatMoney(totalRevenue)}</strong><footer><span>${paid.length} betaalde bestelling${paid.length === 1 ? '' : 'en'}${paid.length ? ` · gemiddeld ${formatMoney(Math.round(totalRevenue / paid.length))}` : ''}</span><span>Incl. btw</span></footer></article>
+    </section>
     <a class="partner-dashboard-strip" href="#partners"><span><i data-lucide="sparkles"></i></span><div><small>PARTNER SCOUT · REVENUE SPRINT</small><strong>${salesPartners.due ? `${salesPartners.due} verkoopactie${salesPartners.due === 1 ? '' : 's'} wacht${salesPartners.due === 1 ? '' : 'en'} op jullie` : `${salesPartners.hot} high-fit matches staan klaar`}</strong><p>${partnerRevenue.orders} partnerbestellingen · ${formatMoney(partnerRevenue.revenueCents)} echte partneromzet</p></div><b>Open saleswerkbank →</b></a>
     <div class="dashboard-grid">
       <div>
@@ -4048,7 +4026,6 @@ function renderRoute(route = currentRoute(), option) {
   const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, crm: renderCrm, partners: renderPartners, 'physio-campaign': renderPhysioCampaign, 'club-campaign': renderPhysioCampaign, 'retail-campaign': renderPhysioCampaign, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, reviews: renderProductReviews, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'marketing') void loadMarketingPlatformStats()
-  if (route === 'dashboard') void loadCrmSummary()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()
   if (route === 'calendar' && !calendarRefreshTimer) startCalendarUpdates()
   if (route === 'partners' && !partnerRefreshTimer) startPartnerUpdates()
