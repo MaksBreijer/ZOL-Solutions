@@ -66,3 +66,41 @@
 .crm-proposal-fields .crm-wide { grid-column: span 2; }
 .crm-proposal-fields input { min-height: 30px; padding: 0 8px; border: 1px solid var(--admin-line); border-radius: 7px; font: inherit; font-size: 10px; }
 @media (max-width: 760px) { .crm-proposal-fields { grid-template-columns: 1fr; } .crm-quick-row { flex-direction: column; } }
+
+/* Categorieën en eigenaren */
+.crm-cat { padding: 2px 7px; border-radius: 999px; font-size: 8px; font-weight: 750; background: #eef0f2; color: #58636e; }
+.crm-cat--evenementen { --cat: #6b4fa0; --cat-soft: #efe9f8; }
+.crm-cat--relaties { --cat: #24704f; --cat-soft: #e2f2e9; }
+.crm-cat--afspraken { --cat: #1b7a8c; --cat-soft: #dff1f4; }
+.crm-cat--intern { --cat: #667583; --cat-soft: #eceff1; }
+.crm-cat[class*="crm-cat--"] { background: var(--cat-soft); color: var(--cat); }
+.crm-owner { padding: 2px 7px; border-radius: 999px; background: var(--owner); color: #fff; font-size: 8px; font-weight: 750; }
+.crm-task.has-owner, .crm-todo.has-owner { border-left: 3px solid var(--owner); padding-left: 9px; }
+.crm-check-spacer { width: 20px; flex: 0 0 auto; }
+.is-struck { text-decoration: line-through; color: var(--admin-muted); }
+.crm-filters { margin: 0 0 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.crm-filter-chip { min-height: 28px; padding: 0 11px; border: 1px solid var(--admin-line); border-radius: 999px; background: #fff; color: #4a5865; font-size: 9px; font-weight: 750; }
+.crm-filter-chip.is-active { border-color: transparent; background: var(--cat, var(--admin-navy)); color: #fff; }
+.crm-filters .button { margin-left: auto; }
+/* Weekoverzicht */
+.crm-week { padding: 12px; display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 8px; overflow-x: auto; }
+.crm-weekday { min-width: 0; padding: 8px; border: 1px solid #e3e7ea; border-radius: 9px; background: #fafbfc; }
+.crm-weekday.is-today { border-color: var(--admin-orange); background: var(--admin-orange-soft); }
+.crm-weekday h3 { margin: 0 0 6px; color: #334552; font-size: 9px; text-transform: capitalize; }
+.crm-chip { width: 100%; margin-bottom: 5px; padding: 5px 7px; display: block; border: 0; border-left: 3px solid var(--owner, var(--cat)); border-radius: 6px; background: var(--cat-soft); color: #162636; font: inherit; font-size: 9px; font-weight: 700; text-align: left; line-height: 1.35; }
+.crm-chip small { display: block; color: var(--cat); font-size: 8px; font-weight: 750; }
+.crm-empty-day { margin: 0; color: #b0bac2; font-size: 10px; }
+/* To-do's */
+.crm-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; margin-bottom: 14px; }
+.crm-column { padding: 12px; border: 1px solid var(--admin-line); border-radius: 10px; background: #fff; }
+.crm-column h3 { margin: 0 0 8px; display: flex; align-items: center; gap: 7px; font-size: 11px; }
+.crm-column h3 i { width: 10px; height: 10px; border-radius: 50%; background: var(--owner); }
+.crm-column h3.has-owner { color: var(--owner); }
+.crm-todo { padding: 9px 0; display: flex; align-items: flex-start; gap: 9px; border-bottom: 1px solid #edf0f2; }
+.crm-todo > div { min-width: 0; flex: 1; }
+.crm-owner-select { max-width: 94px; min-height: 28px; border: 1px solid var(--admin-line); border-radius: 7px; background: #fff; font: inherit; font-size: 9px; }
+.crm-count-chip { padding: 1px 7px; border-radius: 999px; background: #e8ebed; color: #4a5865; font-size: 9px; font-weight: 750; }
+.crm-done summary { padding: 13px 16px; cursor: pointer; font-size: 11px; list-style: none; }
+.crm-done summary::before { content: "▸"; margin-right: 8px; color: var(--admin-muted); }
+.crm-done[open] summary::before { content: "▾"; }
+@media (max-width: 900px) { .crm-columns { grid-template-columns: 1fr; } .crm-week { grid-template-columns: repeat(7, 140px); } }

@@ -302,24 +302,68 @@ export function activityRecord(text, relatedIds = [], type = 'wijziging', extra 
   return { id: crypto.randomUUID(), date: today(), createdAt: new Date().toISOString(), type, text, relatedIds, source: 'CRM', ...extra }
 }
 
-// --- Agenda: afgeleid uit bestaande datums (taken, volgende contactmomenten van kansen, evenementen); er wordt niets dubbel opgeslagen ---
+// --- Agenda en to-do's: afgeleid uit bestaande datums (taken, volgende contactmomenten van kansen, evenementen); er wordt niets dubbel opgeslagen ---
+export const CATEGORIES = { evenementen: 'Evenementen', relaties: 'Relaties', afspraken: 'Afspraken', intern: 'Intern' }
+export const PEOPLE = { maks: { name: 'Maks', color: '#116eaa' }, thijn: { name: 'Thijn', color: '#cc502c' } }
+export const ownerKey = (owner) => (/maks/i.test(owner || '') ? 'maks' : /thijn|tijn/i.test(owner || '') ? 'thijn' : '')
+const CLOSED_TASK = ['afgerond', 'vervallen']
+
+// Expliciete categorie wint; anders afgeleid: evenement -> evenementen, afspraak -> afspraken, met organisatie/contact -> relaties, de rest intern.
+export function categoryOf(collection, record) {
+  if (CATEGORIES[record.category]) return record.category
+  if (collection === 'events') return 'evenementen'
+  if (record.channel === 'afspraak') return 'afspraken'
+  if (collection === 'deals' || (record.organizationIds || []).length || (record.contactIds || []).length || record.organizationId) return 'relaties'
+  return 'intern'
+}
+
 export function agendaItems(state, now = today()) {
   const orgName = (id) => state.organizations.find((item) => item.id === id)?.name
   const contactName = (id) => state.contacts.find((item) => item.id === id)?.name
-  const items = []
+  const items = [], done = []
+  const push = (item, closed) => (closed ? done : items).push(item)
   for (const task of state.tasks) {
-    if (!['afgerond', 'vervallen'].includes(task.status) && task.due) {
-      items.push({ date: task.due, time: task.time || '', kind: 'taak', title: task.title, how: task.channel || '', organizations: (task.organizationIds || []).map(orgName).filter(Boolean), contacts: (task.contactIds || []).map(contactName).filter(Boolean), collection: 'tasks', id: task.id })
+    const closed = CLOSED_TASK.includes(task.status)
+    if (task.due || closed) {
+      push({ date: task.due || '', time: task.time || '', kind: 'taak', title: task.title, how: task.channel || '', category: categoryOf('tasks', task), owner: ownerKey(task.owner), status: task.status, organizations: (task.organizationIds || []).map(orgName).filter(Boolean), contacts: (task.contactIds || []).map(contactName).filter(Boolean), collection: 'tasks', id: task.id }, closed)
     }
   }
   for (const deal of state.deals) {
-    if (!['gewonnen', 'verloren'].includes(deal.stage) && deal.nextDate) {
-      items.push({ date: deal.nextDate, time: deal.time || '', kind: 'kans', title: deal.nextAction || deal.title, subtitle: deal.nextAction ? deal.title : '', how: deal.channel || '', organizations: [orgName(deal.organizationId)].filter(Boolean), contacts: (deal.contactIds || []).map(contactName).filter(Boolean), collection: 'deals', id: deal.id })
+    if (deal.nextDate && !['gewonnen', 'verloren'].includes(deal.stage)) {
+      items.push({ date: deal.nextDate, time: deal.time || '', kind: 'kans', title: deal.nextAction || deal.title, subtitle: deal.nextAction ? deal.title : '', how: deal.channel || '', category: categoryOf('deals', deal), owner: ownerKey(deal.owner), organizations: [orgName(deal.organizationId)].filter(Boolean), contacts: (deal.contactIds || []).map(contactName).filter(Boolean), collection: 'deals', id: deal.id })
     }
   }
   for (const event of state.events) {
-    if (event.date) items.push({ date: event.date, time: event.time || '', kind: 'evenement', title: event.title, how: 'evenement', location: event.city || '', organizations: [orgName(event.organizationId) || event.club].filter(Boolean), contacts: [], collection: 'events', id: event.id })
+    if (!event.date) continue
+    push({ date: event.date, time: event.time || '', kind: 'evenement', title: event.title, how: 'evenement', category: categoryOf('events', event), owner: ownerKey(event.owner), location: event.city || '', organizations: [orgName(event.organizationId) || event.club].filter(Boolean), contacts: [], collection: 'events', id: event.id }, event.date < now)
   }
-  items.sort((a, b) => `${a.date} ${a.time || '99:99'}`.localeCompare(`${b.date} ${b.time || '99:99'}`))
-  return { overdue: items.filter((item) => item.date < now), upcoming: items.filter((item) => item.date >= now) }
+  const byDate = (a, b) => `${a.date} ${a.time || '99:99'}`.localeCompare(`${b.date} ${b.time || '99:99'}`)
+  items.sort(byDate); done.sort((a, b) => byDate(b, a))
+  return { overdue: items.filter((item) => item.date < now), upcoming: items.filter((item) => item.date >= now), done }
+}
+
+export const weekStart = (now = today()) => {
+  const date = new Date(`${now}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7))
+  return date.toISOString().slice(0, 10)
+}
+export const addDaysIso = (iso, days) => { const date = new Date(`${iso}T12:00:00Z`); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10) }
+
+// Zeven dagen vanaf `monday`, met de agendapunten per dag (alles wat op die dag staat, ook als het al afgerond is wordt apart getoond).
+export function weekOverview(state, monday, now = today()) {
+  const { overdue, upcoming, done } = agendaItems(state, now)
+  const all = [...overdue, ...upcoming, ...done.filter((item) => item.date)]
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDaysIso(monday, index)
+    return { date, today: date === now, items: all.filter((item) => item.date === date).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99')) }
+  })
+}
+
+export function todoGroups(state) {
+  const order = (a, b) => ({ hoog: 0, normaal: 1, laag: 2 }[a.priority ?? 'normaal'] - { hoog: 0, normaal: 1, laag: 2 }[b.priority ?? 'normaal']) || (a.due || '9999').localeCompare(b.due || '9999')
+  const open = state.tasks.filter((task) => !CLOSED_TASK.includes(task.status)).sort(order)
+  return {
+    maks: open.filter((task) => ownerKey(task.owner) === 'maks'), thijn: open.filter((task) => ownerKey(task.owner) === 'thijn'), none: open.filter((task) => !ownerKey(task.owner)),
+    done: state.tasks.filter((task) => CLOSED_TASK.includes(task.status)).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))),
+  }
 }

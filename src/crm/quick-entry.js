@@ -1,6 +1,6 @@
 // Snelle invoer: zet een getypte Nederlandse zin om in een voorstel voor CRM-records, zonder AI of externe dienst.
 // Alles draait in de browser; er wordt niets opgeslagen voordat de gebruiker het voorstel bevestigt.
-import { today, visibleOrganizations } from './model.js'
+import { CATEGORIES, categoryOf, today, visibleOrganizations } from './model.js'
 
 const MONTHS = { jan: 1, januari: 1, feb: 2, februari: 2, mrt: 3, maart: 3, apr: 4, april: 4, mei: 5, jun: 6, juni: 6, jul: 7, juli: 7, aug: 8, augustus: 8, sep: 9, sept: 9, september: 9, okt: 10, oktober: 10, nov: 11, november: 11, dec: 12, december: 12 }
 const WEEKDAYS = { zondag: 0, maandag: 1, dinsdag: 2, woensdag: 3, donderdag: 4, vrijdag: 5, zaterdag: 6 }
@@ -153,6 +153,8 @@ export function parseEntry(text, state, now = today()) {
   const organizations = matches.organizations.length ? matches.organizations : (contactOrg ? [contactOrg] : [])
   const orgName = (id) => state.organizations.find((organization) => organization.id === id)?.name || id
   const contactName = (id) => state.contacts.find((contact) => contact.id === id)?.name || id
+  const ownerMatch = input.match(/\b(maks|thijn)\b/i)
+  const owner = ownerMatch ? ownerMatch[1][0].toUpperCase() + ownerMatch[1].slice(1).toLowerCase() : ''
   const priority = /\b(urgent|dringend|belangrijk|asap)\b/i.test(input) ? 'hoog' : undefined
   const title = cleanTitle(input, [date?.span, time?.span])
 
@@ -161,28 +163,35 @@ export function parseEntry(text, state, now = today()) {
   if (time) notes.push(`Tijd: ${time.time}`)
   for (const id of organizations) notes.push(`Organisatie gekoppeld: ${orgName(id)}${matches.derived.includes(id) ? ' (afgeleid, controleer)' : ''}`)
   for (const id of matches.contacts) notes.push(`Contactpersoon gekoppeld: ${contactName(id)}${matches.derived.includes(id) ? ' (afgeleid, controleer)' : ''}`)
+  if (owner) notes.push(`Voor: ${owner}`)
   const warnings = []
   if (kind !== 'activities' && !date) warnings.push('Geen datum herkend. Vul die zelf in als het nodig is.')
   for (const phrase of unknown) warnings.push(`"${phrase}" staat nog niet in het CRM. Je kunt die organisatie hieronder meteen laten aanmaken.`)
 
   const base = { source: 'Snelle invoer' }
+  const internal = /\b(intern|boekhouding|belasting|aangifte|administratie|factuur|planning|overleg|website|bijwerken)\b/i.test(input)
+  const withCategory = (collection, record) => {
+    const category = collection === 'events' ? 'evenementen' : record.channel === 'afspraak' ? 'afspraken' : internal && !record.organizationIds?.length && !record.organizationId && !record.contactIds?.length ? 'intern' : categoryOf(collection, record)
+    return { ...record, category }
+  }
   const proposals = []
   const id = () => crypto.randomUUID()
   if (kind === 'events') {
     const targets = organizations.length ? organizations : [null]
     for (const orgId of targets) {
       const club = !orgId && unknown.length ? unknown[0] : undefined
-      proposals.push({ collection: 'events', summary: `Evenement${orgId ? ` bij ${orgName(orgId)}` : club ? ` bij ${club}` : ''}`, record: { id: id(), title: title || `Evenement${orgId ? ` bij ${orgName(orgId)}` : ''}`, ...(date ? { date: date.date } : {}), ...(time ? { time: time.time } : {}), ...(orgId ? { organizationId: orgId } : {}), ...(club ? { club } : {}), ...base } })
+      proposals.push({ collection: 'events', summary: `Evenement${orgId ? ` bij ${orgName(orgId)}` : club ? ` bij ${club}` : ''}`, record: withCategory('events', { id: id(), title: title || `Evenement${orgId ? ` bij ${orgName(orgId)}` : ''}`, ...(date ? { date: date.date } : {}), ...(time ? { time: time.time } : {}), ...(orgId ? { organizationId: orgId } : {}), ...(club ? { club } : {}), ...base }) })
     }
   } else if (kind === 'activities') {
     const type = /\bgebeld|telefoon\b/i.test(input) ? 'telefoon' : /\bgemaild|mail\b/i.test(input) ? 'mail' : /\bappte|whatsapp\b/i.test(input) ? 'whatsapp' : 'notitie'
     proposals.push({ collection: 'activities', summary: 'Contactmoment', record: { id: id(), type, date: date?.date || now, text: input.replace(/^[\s,.:;-]+/, ''), relatedIds: [...organizations, ...matches.contacts], ...base } })
   } else if (kind === 'deals') {
-    proposals.push({ collection: 'deals', summary: 'Samenwerking', record: { id: id(), title: title || `Samenwerking${organizations[0] ? ` ${orgName(organizations[0])}` : ''}`, stage: 'te-benaderen', ...(organizations[0] ? { organizationId: organizations[0] } : {}), contactIds: matches.contacts, ...(date ? { nextDate: date.date } : {}), ...(time ? { time: time.time } : {}), ...(channel ? { channel } : {}), ...base } })
+    proposals.push({ collection: 'deals', summary: 'Samenwerking', record: withCategory('deals', { id: id(), title: title || `Samenwerking${organizations[0] ? ` ${orgName(organizations[0])}` : ''}`, stage: 'te-benaderen', ...(organizations[0] ? { organizationId: organizations[0] } : {}), contactIds: matches.contacts, ...(date ? { nextDate: date.date } : {}), ...(time ? { time: time.time } : {}), ...(channel ? { channel } : {}), ...(owner ? { owner } : {}), ...base }) })
   } else {
-    proposals.push({ collection: 'tasks', summary: 'Taak', record: { id: id(), title: title || `Taak${organizations[0] ? ` ${orgName(organizations[0])}` : ''}`, status: 'open', priority: priority || 'normaal', ...(date ? { due: date.date } : {}), ...(time ? { time: time.time } : {}), ...(channel ? { channel } : {}), organizationIds: organizations, contactIds: matches.contacts, ...base } })
+    proposals.push({ collection: 'tasks', summary: 'Taak', record: withCategory('tasks', { id: id(), title: title || `Taak${organizations[0] ? ` ${orgName(organizations[0])}` : ''}`, status: 'open', priority: priority || 'normaal', ...(date ? { due: date.date } : {}), ...(time ? { time: time.time } : {}), ...(channel ? { channel } : {}), ...(owner ? { owner } : {}), organizationIds: organizations, contactIds: matches.contacts, ...base }) })
   }
   // Nieuwe organisaties alleen als voorstel; ze worden pas aangemaakt na bevestiging en nooit op basis van alleen een naam gekoppeld.
   const created = unknown.map((name) => ({ collection: 'organizations', optionalCreate: true, summary: `Nieuwe organisatie: ${name}`, record: { id: id(), name, segment: 'Onbekend', ...base } }))
-  return { kind, kindLabel: KIND_LABEL[kind], proposals, created, notes, warnings }
+  for (const item of proposals) if (item.record.category) notes.push(`Categorie: ${CATEGORIES[item.record.category]}`)
+  return { kind, kindLabel: KIND_LABEL[kind], proposals, created, notes: [...new Set(notes)], warnings }
 }

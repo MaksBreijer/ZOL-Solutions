@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { syntheticExport } from './helpers/crm-fixture.js'
 import { checkExpectations, compareWithDatabase, contentHash, planImport } from '../src/crm/import.js'
-import { agendaItems, diffStates, erasureKey, normalizeState, sha256Hex, validateRecord } from '../src/crm/model.js'
+import { agendaItems, categoryOf, diffStates, ownerKey, todoGroups, weekOverview, weekStart, erasureKey, normalizeState, sha256Hex, validateRecord } from '../src/crm/model.js'
 
 test('browser sha256 matches node crypto, so erasure keys equal those of the source system', () => {
   for (const text of ['', 'abc', 'con-1', 'Ünïcode — €', 'x'.repeat(1000), 'y'.repeat(55), 'z'.repeat(56), 'w'.repeat(64)]) {
@@ -91,4 +91,29 @@ test('agenda lists open tasks, next contact moments and events with when, what, 
 test('time must be HH:MM', () => {
   assert.throws(() => validateRecord('tasks', { id: 't', title: 'x', status: 'open', time: '25:00' }), /tijd/)
   assert.doesNotThrow(() => validateRecord('tasks', { id: 't', title: 'x', status: 'open', time: '13:00' }))
+})
+
+test('categories are explicit or derived, owners map to Maks and Thijn', () => {
+  assert.equal(categoryOf('events', { title: 'x' }), 'evenementen')
+  assert.equal(categoryOf('tasks', { channel: 'afspraak', organizationIds: ['o'] }), 'afspraken')
+  assert.equal(categoryOf('tasks', { organizationIds: ['o'] }), 'relaties')
+  assert.equal(categoryOf('tasks', { title: 'Boekhouding' }), 'intern')
+  assert.equal(categoryOf('tasks', { category: 'intern', organizationIds: ['o'] }), 'intern', 'expliciete keuze wint')
+  assert.equal(ownerKey('Thijn'), 'thijn'); assert.equal(ownerKey('maks'), 'maks'); assert.equal(ownerKey('iemand'), '')
+})
+
+test('week overview places items on their day, to-do groups split by owner and closed items are separate', () => {
+  const state = normalizeState(syntheticExport())
+  state.tasks[0].owner = 'Thijn'; state.tasks[1].owner = 'Maks'
+  state.tasks.push({ id: 't-open-maks', title: 'Boekhouding', status: 'open', owner: 'Maks', due: '2026-10-28' })
+  const week = weekOverview(state, weekStart('2026-10-28'), '2026-10-28')
+  assert.equal(week.length, 7)
+  assert.equal(week[0].date, '2026-10-26'); assert.equal(week[2].today, true)
+  assert.deepEqual(week[2].items.map((item) => [item.title, item.category, item.owner]), [['Boekhouding', 'intern', 'maks']])
+  assert.deepEqual(week[4].items.map((item) => item.title), ['Opvolgen voorstel'])
+  const groups = todoGroups(state)
+  assert.deepEqual(groups.thijn.map((t) => t.id), ['task-1'])
+  assert.deepEqual(groups.maks.map((t) => t.id), ['t-open-maks'])
+  assert.deepEqual(groups.done.map((t) => t.id).sort(), ['task-2', 'task-3'])
+  assert.ok(agendaItems(state, '2026-10-28').done.some((item) => item.title === 'Oude taak'))
 })

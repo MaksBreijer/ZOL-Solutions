@@ -1,6 +1,6 @@
 // CRM-scherm voor de admin: organisaties, contactpersonen, samenwerkingen, taken, activiteiten, inbox, evenementen en privacybeheer.
 // Rechten (owner/admin -> beheerder, editor -> medewerker, viewer -> leesrechten) worden in de database afgedwongen; de UI toont alleen wat past.
-import { agendaItems, reviewCandidates, today, visibleOrganizations } from './model.js'
+import { CATEGORIES, PEOPLE, addDaysIso, agendaItems, categoryOf, ownerKey, reviewCandidates, today, todoGroups, visibleOrganizations, weekOverview, weekStart } from './model.js'
 import { createCrmStore } from './store.js'
 import { parseEntry } from './quick-entry.js'
 
@@ -9,7 +9,7 @@ const TASK_LABELS = { open: 'Open', bezig: 'Bezig', 'wacht-op-reactie': 'Wacht o
 const SEGMENTS = ['Sportvereniging', 'Fysiopraktijk', 'Medische organisatie', 'Partner', 'Intern', 'Onbekend']
 const ACTIVITY_TYPES = { notitie: 'Notitie', mail: 'E-mail verstuurd', telefoon: 'Telefoongesprek', whatsapp: 'WhatsApp', afspraak: 'Afspraak', wijziging: 'Wijziging', bestand: 'Bestand' }
 const TABS = [
-  ['overview', 'Overzicht'], ['agenda', 'Agenda'], ['organizations', 'Organisaties'], ['contacts', 'Contactpersonen'], ['deals', 'Samenwerkingen'], ['tasks', 'Taken & opvolging'],
+  ['overview', 'Overzicht'], ['agenda', 'Agenda'], ['todo', "To-do's"], ['organizations', 'Organisaties'], ['contacts', 'Contactpersonen'], ['deals', 'Samenwerkingen'], ['tasks', 'Taken & opvolging'],
   ['activities', 'Activiteiten'], ['inbox', 'Inbox & bestanden'], ['events', 'Evenementen'], ['data', 'Gegevens'], ['privacy', 'Beheer & privacy'],
 ]
 const CHANNELS = { mail: 'E-mail', telefoon: 'Telefoon', afspraak: 'Afspraak / bezoek', whatsapp: 'WhatsApp', evenement: 'Evenement' }
@@ -27,7 +27,7 @@ const taskOrder = (a, b) => ({ hoog: 0, normaal: 1, laag: 2 }[a.priority ?? 'nor
 
 export function createCrmView(ctx) {
   const store = createCrmStore(ctx.supabase)
-  const view = { state: null, tab: 'overview', search: '', segment: '', status: '', taskMode: 'active', error: '', loading: false, busy: false, audit: null, quick: { text: '', entry: null, include: {} } }
+  const view = { state: null, tab: 'overview', search: '', segment: '', status: '', taskMode: 'active', error: '', loading: false, busy: false, audit: null, weekOffset: 0, category: '', quick: { text: '', entry: null, include: {} } }
   const content = ctx.content
   const can = {
     write: () => ['admin', 'member'].includes(view.state?.me?.role),
@@ -87,7 +87,7 @@ export function createCrmView(ctx) {
   }
 
   function bodyFor(tab) {
-    const renderers = { overview, agenda: agendaView, organizations: () => listShell('Zoek in organisaties…', selectFilter('crm-segment', 'Alle segmenten', Object.fromEntries(SEGMENTS.map((item) => [item, item])), view.segment) + (can.admin() ? button('Organisaties samenvoegen', 'merge-form') : '')), contacts: () => listShell('Zoek in contactpersonen…', can.write() ? button('Contactpersoon toevoegen', 'new', 'data-collection="contacts"', 'primary') : ''), deals: () => listShell('Zoek in samenwerkingen…', can.write() ? button('Samenwerking toevoegen', 'new', 'data-collection="deals"', 'primary') : ''), tasks: tasksShell, activities: () => listShell('Zoek in activiteiten…', can.write() ? button('Contactmoment vastleggen', 'new', 'data-collection="activities"', 'primary') : ''), inbox: inboxShell, events: () => listShell('Zoek in evenementen…', can.write() ? button('Evenement toevoegen', 'new', 'data-collection="events"', 'primary') : ''), data: dataView, privacy: privacyView }
+    const renderers = { overview, agenda: agendaView, todo: todoView, organizations: () => listShell('Zoek in organisaties…', selectFilter('crm-segment', 'Alle segmenten', Object.fromEntries(SEGMENTS.map((item) => [item, item])), view.segment) + (can.admin() ? button('Organisaties samenvoegen', 'merge-form') : '')), contacts: () => listShell('Zoek in contactpersonen…', can.write() ? button('Contactpersoon toevoegen', 'new', 'data-collection="contacts"', 'primary') : ''), deals: () => listShell('Zoek in samenwerkingen…', can.write() ? button('Samenwerking toevoegen', 'new', 'data-collection="deals"', 'primary') : ''), tasks: tasksShell, activities: () => listShell('Zoek in activiteiten…', can.write() ? button('Contactmoment vastleggen', 'new', 'data-collection="activities"', 'primary') : ''), inbox: inboxShell, events: () => listShell('Zoek in evenementen…', can.write() ? button('Evenement toevoegen', 'new', 'data-collection="events"', 'primary') : ''), data: dataView, privacy: privacyView }
     return renderers[tab]()
   }
 
@@ -123,12 +123,55 @@ export function createCrmView(ctx) {
       <section class="panel"><header class="panel-header"><div><h2>Samenwerkingspipeline</h2><p>Alleen vastgelegde kansen; organisaties worden niet automatisch als verkoopkans geteld.</p></div>${button('Bekijk pipeline', 'tab', 'data-tab="deals"')}</header><div class="crm-stages">${stages.map((stage) => `<div><strong>${state.deals.filter((deal) => deal.stage === stage).length}</strong><span>${STAGE_LABELS[stage]}</span></div>`).join('')}</div></section>`
   }
 
+  const ownerDot = (key) => (key ? `<span class="crm-owner" style="--owner:${PEOPLE[key].color}" title="${PEOPLE[key].name}">${PEOPLE[key].name}</span>` : '')
+  const catPill = (key) => `<span class="crm-cat crm-cat--${key}">${esc(CATEGORIES[key])}</span>`
+
+  function agendaRow(item, { compact = false } = {}) {
+    const done = item.status === 'afgerond'
+    const check = item.collection === 'tasks' ? `<button class="crm-check${done ? ' is-done' : ''}" type="button" data-crm-action="toggle-task" data-id="${esc(item.id)}" aria-label="${done ? 'Heropen' : 'Rond af'}: ${esc(item.title)}" ${can.write() ? '' : 'disabled'}>${done ? '✓' : ''}</button>` : '<span class="crm-check-spacer"></span>'
+    return `<div class="crm-task${item.owner ? ' has-owner' : ''}" ${item.owner ? `style="--owner:${PEOPLE[item.owner].color}"` : ''}>${check}<div class="crm-when"><strong>${item.date ? fmtDate(item.date) : 'Geen datum'}</strong><small>${item.time ? esc(item.time) : 'Hele dag'}</small></div><div><button class="crm-link${done ? ' is-struck' : ''}" type="button" data-crm-action="edit" data-collection="${item.collection}" data-id="${esc(item.id)}">${esc(item.title)}</button>${item.subtitle ? `<div class="crm-meta"><span>${esc(item.subtitle)}</span></div>` : ''}<div class="crm-meta">${catPill(item.category)}${ownerDot(item.owner)}${item.how && !compact ? pill(CHANNELS[item.how] || item.how, 'orange') : ''}${item.organizations.map((name) => `<span>${esc(name)}</span>`).join(' · ')}${item.contacts.length ? `<span>· ${esc(item.contacts.join(', '))}</span>` : ''}${item.location ? `<span>· ${esc(item.location)}</span>` : ''}</div></div></div>`
+  }
+
+  function weekBlock(items) {
+    const monday = addDaysIso(weekStart(today()), view.weekOffset * 7)
+    const days = weekOverview({ ...view.state }, monday)
+    const visible = (item) => !view.category || item.category === view.category
+    const label = `${fmtDate(monday)} – ${fmtDate(addDaysIso(monday, 6))}`
+    return `<section class="panel"><header class="panel-header"><div><h2>Weekoverzicht</h2><p>${esc(label)}${view.weekOffset === 0 ? ' · deze week' : ''}</p></div><div>${button('‹ Vorige', 'week', 'data-dir="-1"', 'small')} ${button('Deze week', 'week', 'data-dir="0"', 'small')} ${button('Volgende ›', 'week', 'data-dir="1"', 'small')}</div></header>
+      <div class="crm-week">${days.map((day) => `<div class="crm-weekday${day.today ? ' is-today' : ''}"><h3>${new Date(`${day.date}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })}</h3>${day.items.filter(visible).map((item) => `<button type="button" class="crm-chip crm-cat--${item.category}${item.status === 'afgerond' ? ' is-struck' : ''}" ${item.owner ? `style="--owner:${PEOPLE[item.owner].color}"` : ''} data-crm-action="edit" data-collection="${item.collection}" data-id="${esc(item.id)}"><small>${item.time ? esc(item.time) : 'Hele dag'}${item.owner ? ` · ${PEOPLE[item.owner].name}` : ''}</small>${esc(item.title)}</button>`).join('') || '<p class="crm-empty-day">–</p>'}</div>`).join('')}</div></section>`
+  }
+
+  const categoryChips = () => `<div class="crm-filters"><button type="button" class="crm-filter-chip${view.category ? '' : ' is-active'}" data-crm-action="cat-filter" data-cat="">Alles</button>${Object.entries(CATEGORIES).map(([key, label]) => `<button type="button" class="crm-filter-chip crm-cat--${key}${view.category === key ? ' is-active' : ''}" data-crm-action="cat-filter" data-cat="${key}">${esc(label)}</button>`).join('')}${can.write() ? button('+ Agendapunt', 'new-agenda', '', 'primary') : ''}</div>`
+
+  const doneBlock = (inner, count, title) => `<details class="panel crm-done"${view.openDone?.[title] ? ' open' : ''} data-done="${esc(title)}"><summary><strong>${esc(title)}</strong> <span class="crm-count-chip">${count}</span></summary><div class="crm-pad">${inner || empty('Nog niets behandeld')}</div></details>`
+
   function agendaView() {
-    const { overdue, upcoming } = agendaItems(view.state)
-    const row = (item) => `<div class="crm-task"><div class="crm-when"><strong>${fmtDate(item.date)}</strong><small>${item.time ? esc(item.time) : 'Hele dag'}</small></div><div><button class="crm-link" type="button" data-crm-action="edit" data-collection="${item.collection}" data-id="${esc(item.id)}">${esc(item.title)}</button>${item.subtitle ? `<div class="crm-meta"><span>${esc(item.subtitle)}</span></div>` : ''}<div class="crm-meta">${pill({ taak: 'Taak', kans: 'Samenwerking', evenement: 'Evenement' }[item.kind], item.kind === 'evenement' ? 'blue' : '')}${item.how ? pill(CHANNELS[item.how] || item.how, 'orange') : ''}${item.organizations.map((name) => `<span>${esc(name)}</span>`).join(' · ')}${item.contacts.length ? `<span>· ${esc(item.contacts.join(', '))}</span>` : ''}${item.location ? `<span>· ${esc(item.location)}</span>` : ''}</div></div></div>`
-    const days = [...new Set(upcoming.map((item) => item.date))]
-    return `${overdue.length ? `<section class="panel"><header class="panel-header"><div><h2>Achterstallig</h2><p>Deadlines en contactmomenten die al voorbij zijn.</p></div>${pill(`${overdue.length}`, 'red')}</header><div class="crm-pad">${overdue.map(row).join('')}</div></section>` : ''}
-      <section class="panel"><header class="panel-header"><div><h2>Komende dagen</h2><p>Wanneer, wat, bij wie en hoe. Afgeleid uit taken, volgende contactmomenten en evenementen; pas ze aan in het dossier zelf.</p></div></header><div class="crm-pad">${days.map((day) => `<h3 class="crm-day${day === today() ? ' is-today' : ''}">${day === today() ? 'Vandaag · ' : ''}${new Date(`${day}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>${upcoming.filter((item) => item.date === day).map(row).join('')}`).join('') || empty('Niets gepland', 'Geef een taak een deadline of een kans een volgende contactdatum om hier iets te zien.')}</div></section>`
+    const { overdue, upcoming, done } = agendaItems(view.state)
+    const keep = (item) => !view.category || item.category === view.category
+    const days = [...new Set(upcoming.filter(keep).map((item) => item.date))]
+    const doneItems = done.filter(keep)
+    return `${weekBlock()}${categoryChips()}
+      ${overdue.filter(keep).length ? `<section class="panel"><header class="panel-header"><div><h2>Achterstallig</h2><p>Deadlines en contactmomenten die al voorbij zijn.</p></div>${pill(`${overdue.filter(keep).length}`, 'red')}</header><div class="crm-pad">${overdue.filter(keep).map((item) => agendaRow(item)).join('')}</div></section>` : ''}
+      <section class="panel"><header class="panel-header"><div><h2>Komende dagen</h2><p>Wanneer, wat, bij wie en hoe. Afgeleid uit taken, volgende contactmomenten en evenementen; pas ze aan in het dossier zelf.</p></div></header><div class="crm-pad">${days.map((day) => `<h3 class="crm-day${day === today() ? ' is-today' : ''}">${day === today() ? 'Vandaag · ' : ''}${new Date(`${day}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>${upcoming.filter((item) => item.date === day && keep(item)).map((item) => agendaRow(item)).join('')}`).join('') || empty('Niets gepland', 'Geef een taak een deadline of een kans een volgende contactdatum om hier iets te zien.')}</div></section>
+      ${doneBlock(doneItems.map((item) => agendaRow(item, { compact: true })).join(''), doneItems.length, 'Behandeld')}`
+  }
+
+  function todoCard(task) {
+    const key = ownerKey(task.owner)
+    return `<div class="crm-todo${key ? ' has-owner' : ''}" ${key ? `style="--owner:${PEOPLE[key].color}"` : ''}><button class="crm-check${task.status === 'afgerond' ? ' is-done' : ''}" type="button" data-crm-action="toggle-task" data-id="${esc(task.id)}" aria-label="Rond af: ${esc(task.title)}" ${can.write() ? '' : 'disabled'}>${task.status === 'afgerond' ? '✓' : ''}</button>
+      <div><button class="crm-link${task.status === 'afgerond' ? ' is-struck' : ''}" type="button" data-crm-action="edit" data-collection="tasks" data-id="${esc(task.id)}">${esc(task.title)}</button>
+      <div class="crm-meta">${catPill(categoryOf('tasks', task))}<span class="${isOpen(task) && task.due && task.due < today() ? 'crm-overdue' : ''}">${task.due ? `${fmtDate(task.due)}${task.time ? ` ${esc(task.time)}` : ''}` : 'Geen deadline'}</span>${(task.organizationIds || []).map((id) => `<span>${esc(org(id)?.name || id)}</span>`).join(' · ')}${task.priority === 'hoog' ? pill('Hoog', 'orange') : ''}${task.status !== 'open' ? pill(TASK_LABELS[task.status] || task.status, task.status === 'afgerond' ? 'green' : '') : ''}</div></div>
+      ${can.write() ? `<select class="crm-owner-select" data-owner-select="${esc(task.id)}" aria-label="Toewijzen: ${esc(task.title)}"><option value="">Niemand</option>${Object.values(PEOPLE).map((person) => `<option value="${person.name}" ${key && PEOPLE[key].name === person.name ? 'selected' : ''}>${person.name}</option>`).join('')}${task.owner && !key ? `<option value="${esc(task.owner)}" selected>${esc(task.owner)}</option>` : ''}</select>` : ''}</div>`
+  }
+
+  function todoView() {
+    const groups = todoGroups(view.state)
+    const keep = (task) => !view.category || categoryOf('tasks', task) === view.category
+    const column = (title, key, tasks) => `<section class="crm-column"><h3 style="${key ? `--owner:${PEOPLE[key].color}` : ''}" class="${key ? 'has-owner' : ''}">${key ? '<i></i>' : ''}${esc(title)} <span class="crm-count-chip">${tasks.filter(keep).length}</span></h3>${tasks.filter(keep).map(todoCard).join('') || '<p class="form-hint">Niets open.</p>'}</section>`
+    const doneList = groups.done.filter(keep)
+    return `<div class="crm-filters">${categoryChips().replace(/<button class="button button--primary"[^>]*data-crm-action="new-agenda".*?<\/button>/, '')}${can.write() ? button('+ To-do', 'new-todo', '', 'primary') : ''}</div>
+      <div class="crm-columns">${column('Maks', 'maks', groups.maks)}${column('Thijn', 'thijn', groups.thijn)}${column('Niet toegewezen', '', groups.none)}</div>
+      ${doneBlock(doneList.map(todoCard).join(''), doneList.length, "Behandelde to-do's")}`
   }
 
   function orgResults() {
@@ -227,16 +270,18 @@ export function createCrmView(ctx) {
     return result
   }
 
+  const ownerOptions = (value) => options('owner', 'Toegewezen aan', { ...Object.fromEntries(Object.values(PEOPLE).map((person) => [person.name, person.name])), ...(value && !ownerKey(value) ? { [value]: value } : {}) }, ownerKey(value) ? PEOPLE[ownerKey(value)].name : value)
+
   function recordForm(collection, id, defaults = {}) {
     const existing = id ? view.state[collection].find((item) => item.id === id) : null
     const r = existing || defaults
     let fields = ''
     if (collection === 'organizations') fields = field('name', 'Naam *', r.name) + options('segment', 'Segment', Object.fromEntries(SEGMENTS.map((item) => [item, item])), r.segment || 'Onbekend') + field('city', 'Plaats', r.city) + field('sport', 'Sport', r.sport) + field('email', 'E-mail organisatie', r.email, 'email') + field('phone', 'Telefoon', r.phone, 'tel') + field('website', 'Website', r.website, 'url', true) + area('notes', 'Notities', r.notes)
     if (collection === 'contacts') fields = field('name', 'Naam *', r.name) + options('organizationId', 'Organisatie', orgOptions(), r.organizationId) + field('email', 'Persoonlijk e-mailadres', r.email, 'email') + field('phone', 'Telefoon', r.phone, 'tel') + field('role', 'Functie', r.role, 'text', true) + options('legalBasis', 'Grondslag (na beoordeling)', { 'te-beoordelen': 'Nog te beoordelen', overeenkomst: 'Uitvoering overeenkomst', toestemming: 'Toestemming', gerechtvaardigd_belang: 'Gerechtvaardigd belang, onderbouwd' }, r.legalBasis || 'te-beoordelen') + field('noticeProvidedAt', 'Privacyinformatie verstrekt op', r.noticeProvidedAt, 'date') + checkbox('marketingObjection', 'Geen commerciële benadering / bezwaar vastgelegd', r.marketingObjection) + area('notes', 'Notities / context', r.notes)
-    if (collection === 'deals') fields = field('title', 'Samenwerking *', r.title, 'text', true) + options('organizationId', 'Organisatie', orgOptions(), r.organizationId) + options('stage', 'Fase', STAGE_LABELS, r.stage || 'te-benaderen') + field('value', 'Waarde (€, optioneel)', r.value, 'number') + field('nextDate', 'Volgende contactdatum', r.nextDate, 'date') + field('time', 'Tijd (optioneel)', r.time, 'time') + options('channel', 'Hoe (optioneel)', CHANNELS, r.channel) + field('nextAction', 'Volgende actie', r.nextAction, 'text', true) + options('contactIds', 'Betrokken personen', contactOptions(), r.contactIds || [], true) + area('notes', 'Notities', r.notes)
-    if (collection === 'tasks') fields = field('title', 'Actie *', r.title, 'text', true) + options('status', 'Status', TASK_LABELS, r.status || 'open') + options('priority', 'Prioriteit', { laag: 'Laag', normaal: 'Normaal', hoog: 'Hoog' }, r.priority || 'normaal') + field('due', 'Deadline', r.due, 'date') + field('time', 'Tijd (optioneel)', r.time, 'time') + options('channel', 'Hoe (optioneel)', CHANNELS, r.channel) + field('owner', 'Verantwoordelijke', r.owner) + options('organizationIds', 'Organisaties', orgOptions(), r.organizationIds || [], true) + options('contactIds', 'Contactpersonen', contactOptions(), r.contactIds || [], true) + area('notes', 'Toelichting', r.notes)
+    if (collection === 'deals') fields = field('title', 'Samenwerking *', r.title, 'text', true) + options('organizationId', 'Organisatie', orgOptions(), r.organizationId) + options('stage', 'Fase', STAGE_LABELS, r.stage || 'te-benaderen') + field('value', 'Waarde (€, optioneel)', r.value, 'number') + field('nextDate', 'Volgende contactdatum', r.nextDate, 'date') + field('time', 'Tijd (optioneel)', r.time, 'time') + options('channel', 'Hoe (optioneel)', CHANNELS, r.channel) + options('category', 'Categorie', CATEGORIES, r.category || categoryOf('deals', r)) + ownerOptions(r.owner) + field('nextAction', 'Volgende actie', r.nextAction, 'text', true) + options('contactIds', 'Betrokken personen', contactOptions(), r.contactIds || [], true) + area('notes', 'Notities', r.notes)
+    if (collection === 'tasks') fields = field('title', 'Actie *', r.title, 'text', true) + options('status', 'Status', TASK_LABELS, r.status || 'open') + options('priority', 'Prioriteit', { laag: 'Laag', normaal: 'Normaal', hoog: 'Hoog' }, r.priority || 'normaal') + field('due', 'Deadline', r.due, 'date') + field('time', 'Tijd (optioneel)', r.time, 'time') + options('channel', 'Hoe (optioneel)', CHANNELS, r.channel) + options('category', 'Categorie', CATEGORIES, r.category || categoryOf('tasks', r)) + ownerOptions(r.owner) + options('organizationIds', 'Organisaties', orgOptions(), r.organizationIds || [], true) + options('contactIds', 'Contactpersonen', contactOptions(), r.contactIds || [], true) + area('notes', 'Toelichting', r.notes)
     if (collection === 'activities') fields = options('type', 'Contacttype', ACTIVITY_TYPES, r.type || 'notitie') + field('date', 'Datum *', r.date || today(), 'date') + options('relatedIds', 'Gekoppelde dossiers', Object.fromEntries([...visibleOrganizations(view.state).map((item) => [item.id, `Organisatie · ${item.name}`]), ...view.state.contacts.map((item) => [item.id, `Persoon · ${item.name}`]), ...view.state.tasks.map((item) => [item.id, `Taak · ${item.title}`]), ...view.state.deals.map((item) => [item.id, `Kans · ${item.title}`])]), r.relatedIds || [], true) + area('text', 'Wat is besproken of gedaan? *', r.text, true)
-    if (collection === 'events') fields = field('title', 'Evenement *', r.title, 'text', true) + field('date', 'Datum', r.date, 'date') + field('time', 'Tijd (optioneel)', r.time, 'time') + options('organizationId', 'Organisatie', orgOptions(), r.organizationId) + field('club', 'Clubnaam (als niet gekoppeld)', r.club) + field('city', 'Locatie', r.city) + field('sport', 'Sport', r.sport, 'text', true) + area('notes', 'Notities / deelname', r.notes)
+    if (collection === 'events') fields = field('title', 'Evenement *', r.title, 'text', true) + field('date', 'Datum', r.date, 'date') + field('time', 'Tijd (optioneel)', r.time, 'time') + options('category', 'Categorie', CATEGORIES, r.category || 'evenementen') + options('organizationId', 'Organisatie', orgOptions(), r.organizationId) + field('club', 'Clubnaam (als niet gekoppeld)', r.club) + field('city', 'Locatie', r.city) + field('sport', 'Sport', r.sport, 'text', true) + area('notes', 'Notities / deelname', r.notes)
     if (collection === 'inbox') fields = field('title', 'Titel *', r.title, 'text', true) + options('organizationId', 'Organisatie', orgOptions(), r.organizationId) + options('status', 'Verwerkingsstatus', { 'te-verwerken': 'Te verwerken', verwerkt: 'Verwerkt' }, r.status || 'te-verwerken') + area('notes', 'Informatie / verwerking', r.notes)
     if (collection === 'contacts' && existing && can.admin()) fields += `<div class="field field--full">${button('Privacyopties voor dit contact', 'subject-options', `data-id="${esc(id)}"`)}</div>`
     fields += field('source', 'Bron / herkomst', r.source || 'Handmatig ingevoerd in CRM', 'text', true)
@@ -396,6 +441,10 @@ export function createCrmView(ctx) {
     }),
     'load-audit': memberless(async () => { try { view.audit = await store.audit(100); render() } catch (error) { ctx.toast('Logboek laden mislukt', error.message, true) } }),
   }
+  actions.week = (el) => { view.weekOffset = el.dataset.dir === '0' ? 0 : view.weekOffset + Number(el.dataset.dir); render() }
+  actions['cat-filter'] = (el) => { view.category = el.dataset.cat; render() }
+  actions['new-agenda'] = () => recordForm('tasks', null, { due: today(), category: view.category || undefined })
+  actions['new-todo'] = () => recordForm('tasks', null, { category: view.category || undefined })
   actions['quick-cancel'] = () => { view.quick = { text: '', entry: null, include: {} }; render() }
   actions['quick-save'] = async () => {
     const { entry, include } = view.quick
@@ -455,6 +504,7 @@ export function createCrmView(ctx) {
       item.record[name] = event.target.value
     }
   })
+  content.addEventListener('toggle', (event) => { if (event.target.dataset?.done) (view.openDone ||= {})[event.target.dataset.done] = event.target.open }, true)
   content.addEventListener('submit', (event) => {
     if (event.target.id !== 'crm-quick-form') return
     event.preventDefault()
@@ -465,6 +515,14 @@ export function createCrmView(ctx) {
     if (event.target.id === 'crm-quick-text' && event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.target.form.requestSubmit?.() ?? event.target.form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) }
   })
   content.addEventListener('change', (event) => {
+    if (event.target.dataset?.ownerSelect) {
+      const task = view.state.tasks.find((item) => item.id === event.target.dataset.ownerSelect)
+      if (task) {
+        store.saveRecord(view.state, 'tasks', { ...task, owner: event.target.value }, task.revision || task.updatedAt || null)
+          .then((result) => { view.state = result.state; render(); ctx.toast('Toegewezen', event.target.value ? `${task.title} → ${event.target.value}` : `${task.title}: niemand`) })
+          .catch((error) => { ctx.toast('Toewijzen mislukt', error.message, true); load(false) })
+      }
+    }
     if (event.target.dataset?.quickInclude) view.quick.include[event.target.dataset.quickInclude] = event.target.checked
     if (event.target.id === 'crm-segment') { view.segment = event.target.value; renderResults() }
     if (event.target.id === 'crm-status') { view.status = event.target.value; renderResults() }

@@ -85,3 +85,16 @@ test('empty input and merged (hidden) organisations', () => {
   const entry = parseEntry('Taak: Gamma dubbel bellen morgen', state, NOW)
   assert.deepEqual(entry.proposals[0].record.organizationIds, [], 'samengevoegde organisaties worden niet gekoppeld')
 })
+
+test('quick entry assigns a category and an owner', () => {
+  const event = parseEntry('18 november evenement bij Testclub Alpha', state, NOW)
+  assert.equal(event.proposals[0].record.category, 'evenementen')
+  const task = parseEntry('Thijn moet de boekhouding bijwerken voor 30 november', state, NOW)
+  assert.equal(task.proposals[0].record.owner, 'Thijn')
+  assert.equal(task.proposals[0].record.category, 'intern')
+  assert.ok(task.notes.includes('Voor: Thijn'))
+  const meeting = parseEntry('Afspraak met Pat Voorbeeld donderdag 11:00', state, NOW)
+  assert.equal(meeting.proposals[0].record.category, 'afspraken')
+  const relation = parseEntry('Bel Pat Voorbeeld morgen', state, NOW)
+  assert.equal(relation.proposals[0].record.category, 'relaties')
+})
