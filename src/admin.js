@@ -1,6 +1,7 @@
 import './font-faces.css'
 import './admin.css'
 import './admin-theme.css'
+import './crm.css'
 import { calculateVatBreakdown, ledgerExcelCsv, matchBankTransactions, parseBankCsv, vatSummary } from './accounting.js'
 import { appleCalendarSubscriptionUrl, calendarGridRange, eventsForDay, parseCalendarEvents } from './calendar-feed.js'
 import { customerImportTemplateCsv, parseCustomerCsv } from './csv-customers.js'
@@ -21,6 +22,7 @@ import {
   partnerStatusLabel, partnerTypeLabel,
 } from './partner-scout.js'
 import { formatDate, formatMoney, supabase } from './supabase-client.js'
+import { createCrmView } from './crm/ui.js'
 import {
   Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
@@ -117,6 +119,7 @@ const routeMeta = {
   dashboard: ['Home', 'Alles wat vandaag aandacht nodig heeft, op één plek.'],
   orders: ['Bestellingen', 'Beheer betalingen, verzending en orderdetails.'],
   customers: ['Klanten', 'Klantgegevens, bestelgeschiedenis en interne notities.'],
+  crm: ['CRM', 'Relaties, opvolging en samenwerkingen op één plek.'],
   partners: ['Partner Scout', 'Vind, kwalificeer en bereik scholen, zorgpraktijken en sportclubs.'],
   'physio-campaign': ['Fysiomail', 'Zoek adressen, schrijf de mail, verstuur. De opvolging gaat vanzelf.'],
   'club-campaign': ['Clubmail', 'Mailreeks voor sportclubs: zoek clubs en adressen, schrijf de mail, verstuur. De opvolging gaat vanzelf.'],
@@ -4002,13 +4005,22 @@ function bindSettingsForms(category) {
   })
 }
 
+let crmView = null
+function renderCrm() {
+  crmView ||= createCrmView({
+    content: elements.content, supabase, toast, openDialog, closeDialog, dialog: elements.dialog, dialogBody: () => elements.dialogBody,
+    setWide: (wide) => elements.dialog.classList.toggle('admin-dialog--wide', wide), refreshIcons, isActive: () => currentRoute() === 'crm',
+  })
+  crmView.show()
+}
+
 function renderRoute(route = currentRoute(), option) {
   if (route !== 'live') stopLiveUpdates()
   if (route !== 'calendar') stopCalendarUpdates()
   if (route !== 'partners') stopPartnerUpdates()
   document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('is-active', link.dataset.route === route))
   elements.sidebar.classList.remove('is-open')
-  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, partners: renderPartners, 'physio-campaign': renderPhysioCampaign, 'club-campaign': renderPhysioCampaign, 'retail-campaign': renderPhysioCampaign, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, reviews: renderProductReviews, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
+  const renderers = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers, crm: renderCrm, partners: renderPartners, 'physio-campaign': renderPhysioCampaign, 'club-campaign': renderPhysioCampaign, 'retail-campaign': renderPhysioCampaign, messages: renderMessages, emails: renderEmails, calendar: renderCalendar, pilot: renderPilot, products: renderProducts, reviews: renderProductReviews, discounts: renderDiscounts, content: renderContent, media: renderMedia, payments: renderPayments, marketing: renderMarketing, analytics: renderAnalytics, live: renderLive, activity: renderActivity, team: renderTeam, settings: () => renderSettings(option) }
   renderers[route]?.()
   if (route === 'marketing') void loadMarketingPlatformStats()
   if (route === 'live' && !liveRefreshTimer) startLiveUpdates()

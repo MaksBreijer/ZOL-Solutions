@@ -7,3 +7,7 @@ dist/
 .dev.vars
 .DS_Store
 supabase/.temp/
+
+# CRM-migratie: nooit klantgegevens in Git
+crm-migratie*/
+*.crm-export.json
