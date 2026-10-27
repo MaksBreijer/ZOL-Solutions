@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import {
-  adminClient, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, getEmailTemplate,
+  adminClient, adminRecipients, corsHeaders, emailShell, escapeEmailHtml, getEmailConfig, getEmailTemplate,
   logEmail, markEmail, money, renderTemplate, requireAdmin, safeEmailUrl, sendEmail,
   templateParagraphs,
 } from "../_shared/email.ts"
@@ -113,7 +113,7 @@ Deno.serve(async (request) => {
     for (const key of templateKeys) {
       const template = await getEmailTemplate(key, db)
       if (!template.enabled) { results.push({ kind: key, status: "disabled" }); continue }
-      const recipient = template.audience === "admin" ? (config.admin_email || "info@zolsolutions.nl") : order.customer_email
+      const recipient = template.audience === "admin" ? adminRecipients(config) : order.customer_email
       const subject = renderTemplate(template.subject_template, variables).slice(0, 240)
       const dedupe = dedupeKey(key, order, payment || {})
       const { data: existing } = await db.from("email_messages").select("id,status").eq("dedupe_key", dedupe).maybeSingle()
@@ -131,7 +131,7 @@ Deno.serve(async (request) => {
         websiteUrl, logoUrl: config.logo_url, buttonLabel, buttonUrl,
       })
       const text = [renderTemplate(template.title_template, variables), renderTemplate(template.intro_template, variables), renderTemplate(template.body_template, variables), key === "order_shipped" ? `Trackingcode: ${order.tracking_code}\n${trackingUrl}` : "", key === "refund_confirmed" ? `Terugbetaald: ${money(refundAmountCents, order.currency)}` : "", buttonLabel && buttonUrl ? `${buttonLabel}: ${buttonUrl}` : ""].filter(Boolean).join("\n\n")
-      const log = existing || await logEmail(db, { kind: key, recipient_email: recipient, subject, body_preview: text.slice(0, 280), order_id: order.id, customer_id: order.customer_id, dedupe_key: dedupe })
+      const log = existing || await logEmail(db, { kind: key, recipient_email: [recipient].flat().join(", "), subject, body_preview: text.slice(0, 280), order_id: order.id, customer_id: order.customer_id, dedupe_key: dedupe })
       try {
         // Trustpilot's Automatic Feedback Service receives only the delivery confirmation,
         // so invitations are based on fulfilled orders rather than on a checkout or payment.
