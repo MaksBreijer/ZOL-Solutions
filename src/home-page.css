@@ -246,3 +246,4 @@
         .social-phones:hover .social-phone-b, .social-phones:focus-within .social-phone-b { transform: rotate(4deg); }
       }
       .press .press-wide { grid-column: 1 / -1; }
+      .press .press-wide img { height: 44px; }
