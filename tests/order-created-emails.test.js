@@ -110,7 +110,7 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
       }
       runInNewContext(stripTypeScriptTypes(source), {
         Deno:{serve(fn) { handler = fn }}, Response,
-        adminClient:() => db, corsHeaders:() => ({}), requireAdmin:async () => ({}),
+        adminClient:() => db, adminRecipients:config => [config.admin_email], corsHeaders:() => ({}), requireAdmin:async () => ({}),
         getEmailConfig:async () => ({enabled:true,admin_email:'admin@example.invalid'}),
         getEmailTemplate:async key => ({enabled:true,audience:key === 'new_order_admin' ? 'admin' : 'customer',subject_template:key}),
         renderTemplate:value => value || '', templateParagraphs:() => '', emailShell:html => html,
@@ -121,7 +121,7 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
       })
       const request = (action, extra = {}, internal = false) => new Request('https://example.invalid/order-email',{method:'POST',headers:{'Content-Type':'application/json',...(internal ? {'x-zol-email-secret':'test-internal'} : {})},body:JSON.stringify({order_id:customer,action,...extra})})
       assert.equal((await handler(request('created'))).status,200)
-      const expected = orderSource === 'admin' ? [] : [['admin@example.invalid','new_order_admin']]
+      const expected = orderSource === 'admin' ? [] : [[['admin@example.invalid'],'new_order_admin']]
       assert.deepEqual(sent.map(email => [email.to,email.subject]),expected)
       assert.equal((await handler(request('created'))).status,200)
       assert.equal(sent.length,expected.length,'a retry must not send another confirmation')
@@ -169,7 +169,7 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
           assert.equal((await (await handler(request(action,{},true))).json()).skipped,'manual_order_waiting_for_shipping')
         }
       } else assert.equal(direct.results[0].status,'already_sent')
-      assert.equal(sent.filter(email => email.to === 'admin@example.invalid').length,orderSource === 'admin' ? 0 : 1)
+      assert.equal(sent.filter(email => [email.to].flat().includes('admin@example.invalid')).length,orderSource === 'admin' ? 0 : 1)
       assert.equal([...logs.values()].filter(log => log.kind === 'new_order_admin').length,orderSource === 'admin' ? 0 : 1)
       const delayed = await (await handler(request('delayed',{},true))).json()
       if (orderSource === 'admin') {
@@ -183,4 +183,13 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
       }
     }
   }
+})
+
+test('internal notifications go to every configured admin address', () => {
+  const shared = readFileSync(new URL('../supabase/functions/_shared/email.ts', import.meta.url), 'utf8')
+  const helper = shared.match(/export function adminRecipients[\s\S]*?\n}\n/)[0].replace('export ', '')
+  const adminRecipients = runInNewContext(`${stripTypeScriptTypes(helper.replace('config: EmailConfig', 'config'))}; adminRecipients`)
+  assert.deepEqual([...adminRecipients({ admin_email: 'Maks@zolsolutions.nl, thijn@zolsolutions.nl;maks@zolsolutions.nl' })], ['maks@zolsolutions.nl', 'thijn@zolsolutions.nl'])
+  assert.deepEqual([...adminRecipients({ admin_email: 'geen-adres' })], ['info@zolsolutions.nl'])
+  assert.deepEqual([...adminRecipients({})], ['info@zolsolutions.nl'])
 })

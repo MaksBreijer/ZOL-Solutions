@@ -127,6 +127,17 @@ export function emailShell(content: string, options: { eyebrow: string; title: s
   </body></html>`
 }
 
+// Internal notifications may go to several inboxes ("info@..., maks@gmail.com"),
+// so a mailbox that quietly filters mail sent "from itself" never hides an order.
+export function adminRecipients(config: EmailConfig) {
+  const addresses = String(config.admin_email || "")
+    .split(/[\s,;]+/)
+    .map((address) => address.trim().toLowerCase())
+    .filter((address) => /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address))
+  const unique = [...new Set(addresses)].slice(0, 10)
+  return unique.length ? unique : ["info@zolsolutions.nl"]
+}
+
 export async function sendEmail(input: {
   to: string | string[]
   bcc?: string | string[]

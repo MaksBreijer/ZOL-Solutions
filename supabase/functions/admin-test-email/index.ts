@@ -39,8 +39,11 @@ Deno.serve(async (request) => {
     const config = setting?.value || {}
     const apiKey = Deno.env.get("RESEND_API_KEY") || ""
     if (!config.enabled || !apiKey) return Response.json({ error: "E-mailverzending is nog niet geactiveerd." }, { status: 503, headers })
-    const recipient = String(config.admin_email || "info@zolsolutions.nl").trim().toLowerCase()
-    if (recipient !== "info@zolsolutions.nl") return Response.json({ error: "De testmail mag alleen naar info@zolsolutions.nl worden gestuurd." }, { status: 409, headers })
+    // Same list as order-email: every inbox that receives internal notifications gets the test.
+    const recipients = [...new Set(String(config.admin_email || "").split(/[\s,;]+/).map((address) => address.trim().toLowerCase()).filter((address) => /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)))].slice(0, 10)
+    if (!recipients.length) recipients.push("info@zolsolutions.nl")
+    if (!recipients.every((address) => address.endsWith("@zolsolutions.nl"))) return Response.json({ error: "De testmail mag alleen naar adressen van zolsolutions.nl worden gestuurd." }, { status: 409, headers })
+    const recipient = recipients.join(", ")
     const subject = "[TEST] Je aankoop bij ZOL Solutions is gelukt"
     const sentAt = new Intl.DateTimeFormat("nl-NL", { dateStyle: "full", timeStyle: "short", timeZone: "Europe/Amsterdam" }).format(new Date())
     const text = `Dit is een veilige test van de aankoopbevestiging vanuit ZOL Admin. Er is geen echte bestelling geplaatst en er is niets afgeschreven. De e-mailkoppeling werkt. Test uitgevoerd op ${sentAt}.`
@@ -55,7 +58,7 @@ Deno.serve(async (request) => {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": dedupe },
-        body: JSON.stringify({ from: `${fromName} <${fromEmail}>`, to: recipient, subject, html, text, reply_to: String(config.reply_to || fromEmail) }),
+        body: JSON.stringify({ from: `${fromName} <${fromEmail}>`, to: recipients, subject, html, text, reply_to: String(config.reply_to || fromEmail) }),
       })
       const sent = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(sent.message || "De e-mailprovider heeft de verzending geweigerd.")
