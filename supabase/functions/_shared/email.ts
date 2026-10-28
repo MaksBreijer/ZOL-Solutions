@@ -134,6 +134,7 @@ export async function sendEmail(input: {
   html: string
   text: string
   replyTo?: string
+  fromEmail?: string
   idempotencyKey?: string
   headers?: Record<string, string>
   attachments?: { filename: string; content: string; content_type?: string }[]
@@ -141,7 +142,7 @@ export async function sendEmail(input: {
 }) {
   const apiKey = Deno.env.get("RESEND_API_KEY")
   if (!input.config.enabled || !apiKey) throw new Error("E-mailverzending is nog niet geactiveerd.")
-  const fromEmail = input.config.from_email || "info@zolsolutions.nl"
+  const fromEmail = input.fromEmail || input.config.from_email || "info@zolsolutions.nl"
   const fromName = input.config.from_name || "ZOL Solutions"
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",

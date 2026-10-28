@@ -136,7 +136,9 @@ Deno.serve(async (request) => {
         // Trustpilot's Automatic Feedback Service receives only the delivery confirmation,
         // so invitations are based on fulfilled orders rather than on a checkout or payment.
         const trustpilotBcc = key === "order_delivered" ? Deno.env.get("TRUSTPILOT_AFS_EMAIL")?.trim() : ""
-        const sent = await sendEmail({ to: recipient, bcc: trustpilotBcc || undefined, subject, html, text, idempotencyKey: dedupe, config })
+        const sent = await sendEmail({ to: recipient, bcc: trustpilotBcc || undefined, subject, html, text, idempotencyKey: dedupe, config,
+          // Admin notices use a different sender than the inbox that receives them, so the mailbox host doesn't treat them as spoofed self-mail.
+          ...(template.audience === "admin" ? { fromEmail: "bestellingen@zolsolutions.nl", replyTo: recipient } : {}) })
         await markEmail(db, log.id, { status: "sent", providerId: sent.id })
         results.push({ kind: key, status: "sent" })
       } catch (sendError) {
