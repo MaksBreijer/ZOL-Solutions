@@ -251,10 +251,26 @@
       .anatomy { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
       .anatomy h2 { font-size: clamp(32px, 4vw, 48px); font-weight: 500; margin: 10px 0 24px; }
       .anatomy h2 b { color: var(--brand); }
-      .anat-media { background: #fff; border: 1px solid var(--line); border-radius: 26px; padding: 20px; overflow: hidden; }
+      .anat-stage { position: relative; }
+      .anat-media { background: #fff; border: 1px solid var(--line); border-radius: 26px; padding: 0 0 8px; }
       .anat-img { width: 100%; height: auto; display: block; }
       .anat-list { list-style: none; counter-reset: anat; margin: 0 0 28px; padding: 0; display: grid; gap: 18px; }
       .anat-list li { counter-increment: anat; position: relative; padding-left: 46px; color: var(--muted); font-size: 16px; }
       .anat-list li::before { content: counter(anat); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 9px; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; }
       .anat-list strong { display: block; color: var(--ink); font-size: 18px; margin-bottom: 4px; }
       @media (max-width: 900px) { .anatomy { grid-template-columns: 1fr; gap: 32px; } }
+
+      .hs { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; padding: 0; border: 0; background: none; cursor: pointer; z-index: 2; }
+      .hs-dot { position: absolute; inset: 6px; border-radius: 50%; background: #d96d4b; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(217,109,75,.5); }
+      .hs-dot::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid rgba(217,109,75,.55); animation: hsPulse 2.2s ease-out infinite; }
+      @keyframes hsPulse { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { .hs-dot::after { animation: none; } }
+      .hs-tip { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translate(-50%, 6px); width: 230px; padding: 12px 14px; border-radius: 12px; background: var(--dark); color: rgba(255,255,255,.85); font-size: 13px; line-height: 1.45; text-align: left; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; box-shadow: 0 12px 30px rgba(20,27,34,.25); }
+      .hs-tip strong { display: block; color: #fff; font-size: 15px; margin-bottom: 3px; }
+      .hs:hover .hs-tip, .hs:focus-visible .hs-tip, .hs.is-open .hs-tip { opacity: 1; transform: translate(-50%, 0); }
+      .hs.is-open, .hs:hover { z-index: 3; }
+      .hs-1 .hs-tip, .hs-2 .hs-tip, .hs-4 .hs-tip { left: -12px; transform: translate(0, 6px); }
+      .hs-1:hover .hs-tip, .hs-1:focus-visible .hs-tip, .hs-1.is-open .hs-tip,
+      .hs-2:hover .hs-tip, .hs-2:focus-visible .hs-tip, .hs-2.is-open .hs-tip,
+      .hs-4:hover .hs-tip, .hs-4:focus-visible .hs-tip, .hs-4.is-open .hs-tip { transform: translate(0, 0); }
+      .hs-hint { margin: 12px 0 0; text-align: center; font-size: 13px; color: var(--muted); }

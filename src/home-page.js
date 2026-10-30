@@ -30,3 +30,24 @@ if (socialPhones && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
     socialPhones.style.setProperty('--my', '0')
   })
 }
+
+
+const hotspots = document.querySelectorAll('.hs')
+hotspots.forEach((spot) => {
+  spot.addEventListener('click', (event) => {
+    event.stopPropagation()
+    const open = !spot.classList.contains('is-open')
+    hotspots.forEach((other) => {
+      other.classList.remove('is-open')
+      other.setAttribute('aria-expanded', 'false')
+    })
+    spot.classList.toggle('is-open', open)
+    spot.setAttribute('aria-expanded', String(open))
+  })
+})
+document.addEventListener('click', () => {
+  hotspots.forEach((spot) => {
+    spot.classList.remove('is-open')
+    spot.setAttribute('aria-expanded', 'false')
+  })
+})
