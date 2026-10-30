@@ -77,10 +77,11 @@ Deno.serve(async (request) => {
       <tr><td style="padding:0 0 18px"><strong style="display:block;color:#33669b;font-size:11px;letter-spacing:1px;text-transform:uppercase">Contactgegevens</strong>${escapeHtml(name)}<br><a href="mailto:${escapeHtml(email)}" style="color:#33669b">${escapeHtml(email)}</a>${phone ? `<br>${escapeHtml(phone)}` : ""}</td></tr>
       <tr><td style="padding:22px;border-radius:14px;background:#f3f6f8;white-space:pre-wrap">${escapeHtml(message)}</td></tr>
     </table>`
-    const emailLog = await logEmail(db, { kind: "contact_notification", recipient_email: config.admin_email || "info@zolsolutions.nl", subject, body_preview: message.slice(0, 500), contact_message_id: contact.id })
+    const recipients = String(config.admin_email || "info@zolsolutions.nl").split(",").map((address) => address.trim()).filter(Boolean)
+    const emailLog = await logEmail(db, { kind: "contact_notification", recipient_email: recipients.join(", "), subject, body_preview: message.slice(0, 500), contact_message_id: contact.id })
     try {
       const sent = await sendEmail({
-        to: config.admin_email || "info@zolsolutions.nl",
+        to: recipients,
         subject,
         html: emailShell(content, { eyebrow: "Nieuw contactbericht", title: topic, intro: `${name} heeft via zolsolutions.nl een vraag gesteld.`, websiteUrl: config.website_url }),
         text: `Nieuw contactbericht\n\nNaam: ${name}\nE-mail: ${email}\nTelefoon: ${phone || "Niet ingevuld"}\nOnderwerp: ${topic}\n\n${message}`,

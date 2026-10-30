@@ -119,7 +119,7 @@ async function notify(db: ReturnType<typeof adminClient>, booking: Record<string
   const guestParagraphs = guestText.split(/\n{2,}/).map((paragraph) => `<p style="margin:0 0 16px;color:#334a5e;font-size:16px;line-height:1.55">${escapeEmailHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("")
   const guestCalendarHtml = `${guestParagraphs}<p style="margin:22px 0 10px;color:#102b4a;font-size:16px;font-weight:700">Zet het gesprek in je agenda</p><p style="margin:0 0 10px;line-height:1.8"><a href="${escapeEmailHtml(guestCalendar)}" style="color:#33669b">Google Agenda</a> &nbsp;·&nbsp; <a href="${escapeEmailHtml(outlookCalendar)}" style="color:#33669b">Outlook</a></p><p style="margin:0;color:#66798c;font-size:13px;line-height:1.5">Je kunt ook de bijgevoegde agenda-uitnodiging (.ics) openen. Die bevat een herinnering 30 minuten vooraf.</p>`
   const items = [
-    { kind: "physio_booking_admin", to: config.admin_email || "info@zolsolutions.nl", subject, text, html: emailShell(`<p style="white-space:pre-wrap;line-height:1.7">${escapeEmailHtml(text)}</p>`, { eyebrow: "Nieuwe afspraak", title: "10 minuten met een praktijk" }), column: "admin_notified_at" },
+    { kind: "physio_booking_admin", to: String(config.admin_email || "info@zolsolutions.nl").split(",").map((address) => address.trim()).filter(Boolean), subject, text, html: emailShell(`<p style="white-space:pre-wrap;line-height:1.7">${escapeEmailHtml(text)}</p>`, { eyebrow: "Nieuwe afspraak", title: "10 minuten met een praktijk" }), column: "admin_notified_at" },
     { kind: "physio_booking_guest", to: booking.email, subject: testOnly ? "[TEST] Bevestiging van je gesprek met ZOL" : `Afgesproken: ${start} met ZOL`, text: guestCalendarText, html: emailShell(guestCalendarHtml, { eyebrow: testOnly ? "Test boekingsbevestiging" : "Tot snel", title: testOnly ? "Zo ziet je bevestiging eruit" : "We bellen je binnenkort", compact: true }), column: "guest_notified_at" },
   ].filter((item) => !testOnly || item.kind === "physio_booking_guest")
   const errors: string[] = []
@@ -127,7 +127,7 @@ async function notify(db: ReturnType<typeof adminClient>, booking: Record<string
     const dedupeKey = `${item.kind}-${booking.id}`
     let logId = ""
     try {
-      const log = await logEmail(db, { kind: item.kind, recipient_email: item.to, subject: item.subject, body_preview: item.text.slice(0, 500), dedupe_key: dedupeKey })
+      const log = await logEmail(db, { kind: item.kind, recipient_email: [item.to].flat().join(", "), subject: item.subject, body_preview: item.text.slice(0, 500), dedupe_key: dedupeKey })
       logId = log.id
       const result = await sendEmail({ to: item.to, subject: item.subject, html: item.html, text: item.text, replyTo: item.kind === "physio_booking_admin" ? booking.email : undefined, idempotencyKey: dedupeKey, attachments: item.kind === "physio_booking_guest" ? [attachment] : undefined, config })
       await markEmail(db, log.id, { status: "sent", providerId: result.id })
