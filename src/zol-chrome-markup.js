@@ -16,7 +16,8 @@ export function navMarkup({ overHero = false } = {}) {
         <a class="zn-mobile-only" href="/contact/">Contact</a>
       </div>
       <a class="zn-btn zn-btn--line" href="/contact/">Contact</a>
-      <a class="zn-btn zn-btn--brand" href="/product/">Bekijk de ZOL'tjes ↗</a>
+      <a class="zn-btn zn-btn--brand" href="/product/">Bekijk de ZOL'tjes</a>
+      <a class="zn-cart" href="/checkout/" aria-label="Winkelwagen"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2.2l2.1 10.2a1.5 1.5 0 0 0 1.5 1.2h8.4a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.1"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg><span class="zn-cart-count" data-cart-count hidden>0</span></a>
       <button class="zn-toggle" type="button" aria-expanded="false" aria-controls="zn-links" aria-label="Menu openen"><span></span><span></span></button>
     </nav>`
 }

@@ -16,6 +16,10 @@
 .zn.is-solid .zn-btn--line { background: #fff; border-color: #e3e6e7; color: #161b20; }
 .zn.is-solid .zn-btn--brand { background: #33669b; color: #fff !important; }
 .zn.is-solid .zn-btn--brand:hover { background: #102b4a; }
+.zn-cart { position: relative; display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.4); color: #fff; text-decoration: none; flex: none; }
+.zn.is-solid .zn-cart { background: #fff; border-color: #e3e6e7; color: #161b20; }
+.zn-cart-count { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #d96d4b; color: #fff; font: 700 12px/20px "Barlow Semi Condensed", Arial, sans-serif; text-align: center; }
+.zn-cart-count[hidden] { display: none; }
 .zn-toggle { display: none; width: 46px; height: 46px; border: 0; border-radius: 999px; background: rgba(255,255,255,.12); cursor: pointer; flex-direction: column; justify-content: center; align-items: center; gap: 6px; }
 .zn-toggle span { display: block; width: 20px; height: 2px; border-radius: 2px; background: currentColor; transition: transform .2s; }
 .zn.is-solid .zn-toggle { background: #e8eff5; }

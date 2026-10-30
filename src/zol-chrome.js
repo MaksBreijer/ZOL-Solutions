@@ -1,5 +1,8 @@
 import './font-faces.css'
 import './zol-chrome.css'
+import { bindCartCounters } from './cart.js'
+
+bindCartCounters()
 
 const nav = document.querySelector('.zn')
 if (nav) {
