@@ -18,7 +18,7 @@ export const englishDynamic = {
   'Alles accepteren': 'Accept all',
   'Voetbal, hockey en meer': 'Football, hockey and more',
   'Schoenmaten': 'Shoe sizes',
-  'In 5 dubbele maten': 'In 5 dual sizes',
+  'In 6 dubbele maten': 'In 6 dual sizes',
   'Duurzame materialen': 'Durable materials',
   'Toon alle reviews': 'Show all reviews',
   'Toon minder reviews': 'Show fewer reviews',
