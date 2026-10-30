@@ -269,8 +269,7 @@
       .hs-tip strong { display: block; color: #fff; font-size: 15px; margin-bottom: 3px; }
       .hs:hover .hs-tip, .hs:focus-visible .hs-tip, .hs.is-open .hs-tip { opacity: 1; transform: translate(-50%, 0); }
       .hs.is-open, .hs:hover { z-index: 3; }
-      .hs-1 .hs-tip, .hs-2 .hs-tip, .hs-4 .hs-tip { left: -12px; transform: translate(0, 6px); }
+      .hs-1 .hs-tip, .hs-2 .hs-tip { left: -12px; transform: translate(0, 6px); }
       .hs-1:hover .hs-tip, .hs-1:focus-visible .hs-tip, .hs-1.is-open .hs-tip,
-      .hs-2:hover .hs-tip, .hs-2:focus-visible .hs-tip, .hs-2.is-open .hs-tip,
-      .hs-4:hover .hs-tip, .hs-4:focus-visible .hs-tip, .hs-4.is-open .hs-tip { transform: translate(0, 0); }
+      .hs-2:hover .hs-tip, .hs-2:focus-visible .hs-tip, .hs-2.is-open .hs-tip { transform: translate(0, 0); }
       .hs-hint { margin: 12px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
