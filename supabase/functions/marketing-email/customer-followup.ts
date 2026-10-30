@@ -1,12 +1,15 @@
 import { escapeEmailHtml, logEmail, markEmail, sendEmail } from "../_shared/email.ts"
 
 // Persoonlijke opvolging na een bestelling: kale mail zonder opmaak, alsof we hem zelf typen.
-// Mail 1 een week na bezorging, mail 2 een maand na bezorging.
+// Mail 1 een week na bezorging, de reviewvraag (mail 3) tien dagen na bezorging, mail 2 een maand na bezorging.
+// De lijst staat op volgorde van `days`: er gaat steeds alleen de laatste mail uit die nu aan de beurt is.
 // Elke opvolgmail geldt alleen voor bestellingen die zijn bezorgd vanaf zijn eigen startdatum (`from`):
 // mail 1 vanaf de bestelling van Thomas Hartjes (8 oktober), oudere klanten krijgen hem niet meer; mail 2 vanaf 12 oktober.
 const DAY = 86_400_000
 
-export const followups = [
+type Followup = { step: number; days: number; from: string; standalone?: boolean; subject: string; body: string }
+
+export const followups: Followup[] = [
   {
     step: 1,
     days: 7,
@@ -19,6 +22,33 @@ Een paar dagen geleden kwamen de ZOL'tjes bij je binnen, dus we zijn benieuwd: h
 Merk je al verschil tijdens of na het sporten? En zitten ze lekker in de schoen? Alles is welkom, ook als het (nog) niet goed gaat. Dan denken we graag met je mee.
 
 Je kunt gewoon op deze mail antwoorden.
+
+Groet,
+Maks & Thijn
+ZOL Solutions`,
+  },
+  {
+    step: 3,
+    days: 10,
+    from: "2026-10-12T00:00:00Z",
+    // Een los bericht, niet als antwoord op mail 1. Iedereen krijgt dezelfde vraag en dezelfde links.
+    standalone: true,
+    subject: "Wil je je ervaring met de ZOL'tjes delen?",
+    body: `Hoi {{voornaam}},
+
+De ZOL'tjes zijn nu zo'n tien dagen bij jullie. Hopelijk zitten ze fijn in de schoen!
+
+Mogen we je om een kleine gunst vragen? Andere ouders twijfelen vaak of een zool echt iets voor hun kind is. Jouw eerlijke ervaring, positief of kritisch, helpt hen enorm.
+
+Een review achterlaten kan hier (duurt een minuut):
+https://maps.google.com/?cid=654808623137506283
+
+Liever op onze eigen website? Dat kan ook:
+https://zolsolutions.nl/product/#reviews
+
+Heb je een foto of korte video van je kind in actie met de ZOL'tjes? Stuur hem gerust als antwoord op deze mail en laat even weten of we hem (zonder naam) mogen gebruiken.
+
+Gaat het (nog) niet zoals je hoopte? Antwoord dan vooral op deze mail, dan denken we met je mee.
 
 Groet,
 Maks & Thijn
@@ -62,7 +92,7 @@ const messageId = (orderId: string, step: number) => `<customer-followup-${order
 const fill = (text: string, name: string) => text.replace(/{{\s*(voornaam|customer_first_name)\s*}}/g, name)
 
 // Mail 2 gaat als antwoord op mail 1 (zelfde gesprek, "Re:", mail 1 eronder) als mail 1 echt verstuurd is.
-export function renderFollowup(followup: typeof followups[number], name: string, orderId = "", previous?: { followup: typeof followups[number]; sentAt: string }) {
+export function renderFollowup(followup: Followup, name: string, orderId = "", previous?: { followup: Followup; sentAt: string }) {
   const own = fill(followup.body, name)
   const headers: Record<string, string> = orderId ? { "Message-ID": messageId(orderId, followup.step) } : {}
   if (!previous) {
@@ -82,7 +112,7 @@ export function renderFollowup(followup: typeof followups[number], name: string,
 export async function sendCustomerFollowups(db: Db, config: Record<string, unknown>, now = new Date()) {
   const results: Record<string, unknown>[] = []
   // Teksten komen uit E-mails in de admin; staat een opvolgmail daar uit, dan slaan we hem over.
-  const { data: templates } = await db.from("email_templates").select("template_key,subject_template,body_template,enabled").in("template_key", ["customer_followup_1", "customer_followup_2"])
+  const { data: templates } = await db.from("email_templates").select("template_key,subject_template,body_template,enabled").in("template_key", followups.map((followup) => `customer_followup_${followup.step}`))
   const active = followups.flatMap((followup) => {
     const template = (templates || []).find((row) => row.template_key === `customer_followup_${followup.step}`)
     if (template && !template.enabled) return []
@@ -116,7 +146,7 @@ export async function sendCustomerFollowups(db: Db, config: Record<string, unkno
       .gte("created_at", new Date(now.getTime() - 25 * DAY).toISOString())
     if (count) continue
     let previous
-    const before = active.find((followup) => followup.step === due.step - 1)
+    const before = due.standalone ? undefined : active.find((followup) => followup.step === due.step - 1)
     if (before) {
       const { data: earlier } = await db.from("email_messages").select("sent_at,created_at").eq("dedupe_key", `customer-followup-${order.id}-${before.step}`).eq("status", "sent").maybeSingle()
       if (earlier) previous = { followup: before, sentAt: earlier.sent_at || earlier.created_at }
