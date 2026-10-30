@@ -247,3 +247,10 @@
       }
       .press .press-wide { grid-column: 1 / -1; }
       .press .press-wide img { height: 44px; }
+
+      .anat-head { margin-top: 90px; }
+      .anat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+      .anat-card { padding: 36px; border-radius: 22px; border: 1px solid rgba(0,0,0,.05); background: linear-gradient(180deg, #f1f5f9, #e8eff5); }
+      .anat-card h3 { font-size: clamp(24px, 2.4vw, 32px); font-weight: 700; margin: 0 0 14px; }
+      .anat-card p { color: var(--muted); font-size: 16px; margin: 0 0 20px; }
+      @media (max-width: 900px) { .anat { grid-template-columns: 1fr; } .anat-head { margin-top: 56px; } }
