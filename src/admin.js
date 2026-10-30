@@ -26,7 +26,7 @@ import { createCrmView } from './crm/ui.js'
 import {
   Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
-  ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
+  ExternalLink, FileText, History, House, Images, Info, Link, ListChecks, LogOut, Mail, MapPin,
   Menu, Monitor, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw, Smartphone,
   Search, Settings, ShoppingBag, Sparkles, Star, Store, Tag, Target, TrendingUp, Trophy, Truck, Unplug, UserCog, UserPlus, Users, Zap,
   createIcons,
@@ -35,7 +35,7 @@ import {
 const adminIcons = {
   Archive, ArrowLeft, BadgePercent, Bell, BrainCircuit, Building2, CalendarDays, ChartNoAxesCombined,
   CheckCircle, ChevronRight, ChevronsUpDown, CircleEuro, CreditCard, Download,
-  ExternalLink, FileText, History, House, Images, Info, Link, LogOut, Mail, MapPin,
+  ExternalLink, FileText, History, House, Images, Info, Link, ListChecks, LogOut, Mail, MapPin,
   Menu, Monitor, Package, PanelsTopLeft, Pencil, Plus, RadioTower, RefreshCw, RotateCcw, Smartphone,
   Search, Settings, ShoppingBag, Sparkles, Star, Store, Tag, Target, TrendingUp, Trophy, Truck, Unplug, UserCog, UserPlus, Users, Zap,
 }
@@ -1744,7 +1744,7 @@ function renderPhysioSequenceState() {
   document.querySelector('#physio-groups').innerHTML = physioGroups().map(([key, label, hint]) => {
     const count = ready.filter((practice) => practice.circle === key).length
     const inSequence = enrollments.filter((row) => row.circle === key && ['active', 'sending', 'paused'].includes(row.status)).length
-    return `<div class="physio-group-row"><span class="physio-group-dot is-${key}"></span><div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(hint)}${inSequence ? ` · ${inSequence} in de reeks` : ''}</small></div><b>${count}</b><button class="button ${key === 'gold' ? 'button--primary' : ''}" type="button" data-physio-send="${key}" ${!count || !firstReady ? 'disabled' : ''}><i data-lucide="mail"></i> Verstuur</button></div>`
+    return `<div class="physio-group-row"><span class="physio-group-dot is-${key}"></span><div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(hint)}${inSequence ? ` · ${inSequence} in de reeks` : ''}</small></div><b>${count}</b><button class="button" type="button" data-physio-manage="${key}" ${!count ? 'disabled' : ''}><i data-lucide="list-checks"></i> Beheren</button><button class="button ${key === 'gold' ? 'button--primary' : ''}" type="button" data-physio-send="${key}" ${!count || !firstReady ? 'disabled' : ''}><i data-lucide="mail"></i> Verstuur</button></div>`
   }).join('')
   document.querySelector('#physio-send-hint').textContent = firstReady
     ? 'Verstuurt mail 1 naar iedereen in de groep die nog nooit is gemaild. Mail 2 tot en met 4 volgen vanzelf voor wie niet reageert. Werkdagen 08:00–17:00, maximaal 40 per dag.'
@@ -1861,6 +1861,8 @@ function renderPhysioCampaign() {
       page.querySelectorAll('[data-physio-step]').forEach((form) => { form.hidden = Number(form.dataset.physioStep) !== physioActiveStep })
       return
     }
+    const manage = event.target.closest('[data-physio-manage]')
+    if (manage) { openPhysioManage(manage.dataset.physioManage); return }
     const send = event.target.closest('[data-physio-send]')
     if (send) { void sendPhysioGroup(send.dataset.physioSend, send); return }
     const op = event.target.closest('[data-physio-op]')
@@ -1871,6 +1873,78 @@ function renderPhysioCampaign() {
   renderPhysioSequenceState()
   void loadPhysioSequence().then(() => { const steps = document.querySelector('#physio-steps'); if (steps && physioSequence) steps.innerHTML = renderPhysioStepForms() })
   void loadPhysioBookings()
+}
+
+// Haalt leads uit de mailgroepen: als afgemeld gemarkeerd (zacht verwijderd), dus geen mail en geen e-mailzoekactie meer.
+// Leest de lijst vlak voor het schrijven opnieuw, zodat adressen die intussen zijn gevonden blijven staan.
+async function removePhysioLeads(ids) {
+  const wanted = new Set(ids)
+  const { data: fresh, error } = await supabase.from('settings').select('value').eq('key', 'partner_scout').maybeSingle()
+  if (error) throw error
+  const value = fresh?.value || {}
+  const stamp = new Date().toISOString()
+  let removed = 0
+  const leads = (Array.isArray(value.leads) ? value.leads : []).map((lead) => {
+    if (!wanted.has(lead.id) || lead.outreach_removed) return lead
+    removed += 1
+    return { ...lead, outreach_removed: true, outreach_removed_at: stamp, outreach_opt_out: true, updated_at: stamp }
+  })
+  if (removed) {
+    const next = { ...value, leads, updated_at: stamp }
+    const { error: saveError } = await supabase.from('settings').update({ value: next }).eq('key', 'partner_scout')
+    if (saveError) throw saveError
+    state.partnerScout = normalizePartnerScoutState(next)
+    const setting = state.settings.find((item) => item.key === 'partner_scout')
+    if (setting) setting.value = state.partnerScout
+    await loadPhysioSequence()
+  }
+  return removed
+}
+
+// Per groep zien wie er nog gemaild gaat worden, en clubs of praktijken eruit halen (zacht verwijderd, de reeks van wie al mail kreeg blijft staan).
+function openPhysioManage(circle) {
+  const label = PHYSIO_GROUP_LABELS[circle] || circle
+  const rows = () => (physioSequence?.practices || []).filter((practice) => practice.circle === circle && physioReady(practice)).sort((a, b) => a.name.localeCompare(b.name, 'nl'))
+  openDialog(`${label} beheren`, mailSegment().label, `<p class="form-hint">Vink aan wie je uit de lijst wilt halen. Ze krijgen geen mail en worden niet meer doorzocht.</p><input type="search" id="physio-manage-search" placeholder="Zoek op naam, plaats of adres" autocomplete="off"><div class="physio-manage-bar"><label><input type="checkbox" id="physio-manage-all"> Alles in beeld</label><span id="physio-manage-count"></span></div><ul class="physio-manage-list" id="physio-manage-list"></ul><div class="dialog-actions"><button class="button button--primary" type="button" id="physio-manage-remove" disabled>Verwijder geselecteerde</button></div>`)
+  const list = document.querySelector('#physio-manage-list')
+  const search = document.querySelector('#physio-manage-search')
+  const all = document.querySelector('#physio-manage-all')
+  const removeButton = document.querySelector('#physio-manage-remove')
+  const selected = new Set()
+  const visible = () => {
+    const needle = search.value.trim().toLowerCase()
+    return rows().filter((practice) => !needle || `${practice.name} ${practice.city} ${practice.email}`.toLowerCase().includes(needle))
+  }
+  const draw = () => {
+    const shown = visible()
+    list.innerHTML = shown.length
+      ? shown.map((practice) => `<li><label><input type="checkbox" data-manage-id="${escapeHtml(practice.id)}" ${selected.has(practice.id) ? 'checked' : ''}><span><strong>${escapeHtml(practice.name)}</strong><small>${escapeHtml(practice.city)} · ${escapeHtml(practice.email)}</small></span></label></li>`).join('')
+      : '<li class="physio-empty">Niemand gevonden.</li>'
+    all.checked = shown.length > 0 && shown.every((practice) => selected.has(practice.id))
+    document.querySelector('#physio-manage-count').textContent = `${shown.length} in beeld · ${selected.size} geselecteerd`
+    removeButton.disabled = !selected.size
+    removeButton.textContent = selected.size ? `Verwijder ${selected.size} geselecteerde` : 'Verwijder geselecteerde'
+  }
+  search.addEventListener('input', draw)
+  all.addEventListener('change', () => { visible().forEach((practice) => (all.checked ? selected.add(practice.id) : selected.delete(practice.id))); draw() })
+  list.addEventListener('change', (event) => {
+    const id = event.target.dataset?.manageId
+    if (!id) return
+    if (event.target.checked) selected.add(id); else selected.delete(id)
+    draw()
+  })
+  removeButton.addEventListener('click', async () => {
+    if (!selected.size || !window.confirm(`${selected.size} uit de ${label} halen? Ze krijgen geen mail meer.`)) return
+    setBusy(removeButton, true, removeButton.textContent)
+    try {
+      const removed = await removePhysioLeads([...selected])
+      toast(`${removed} verwijderd`, label)
+      selected.clear()
+      draw()
+    } catch (error) { toast('Verwijderen mislukt', error.message, true) }
+    finally { if (removeButton.isConnected) setBusy(removeButton, false, 'Verwijder geselecteerde') }
+  })
+  draw()
 }
 
 async function physioSequenceCall(body) {

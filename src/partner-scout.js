@@ -224,13 +224,19 @@ export function filterPartnerLeads(leads = [], filters = {}) {
   })
 }
 
+const EXCLUDED_SPORTS = /swimming|yoga|kickbox|kick-box|equestrian|horse|zwem|paard|manege|ruiter|hippisch|rijvereniging|rijclub|pony/i
+
 function leadCategory(element) {
   const tags = element.tags || {}
   if (['podiatrist', 'chiropodist'].includes(tags.healthcare) || /podotherap|podolog/i.test(tags.name || '')) return 'excluded'
   if (tags.healthcare === 'physiotherapist' || /fysio/i.test(`${tags.name || ''} ${tags['healthcare:speciality'] || ''}`)) return 'physio'
   if (['school', 'college'].includes(tags.amenity)) return 'school'
   if (['sports', 'shoes', 'outdoor'].includes(tags.shop)) return 'retail'
-  if (tags.club === 'sport' || ['sports_centre', 'sports_club'].includes(tags.leisure)) return 'sports_club'
+  if (tags.club === 'sport' || ['sports_centre', 'sports_club'].includes(tags.leisure)) {
+    // Zwemmen, yoga, kickboksen en paardrijden zijn geen doelgroep voor hielpijn bij kinderen in schoenen.
+    if (EXCLUDED_SPORTS.test(`${tags.sport || ''} ${tags.name || ''}`)) return 'excluded'
+    return 'sports_club'
+  }
   return 'other'
 }
 
