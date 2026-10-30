@@ -1454,7 +1454,7 @@ svg { display: block; }
 .physio-layout { margin-bottom: 16px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
 .physio-layout .panel + .panel { margin-top: 0; }
 .physio-groups { padding: 4px 16px; }
-.physio-group-row { padding: 13px 0; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; border-bottom: 1px solid #edf0f2; }
+.physio-group-row { padding: 13px 0; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto auto; align-items: center; gap: 12px; border-bottom: 1px solid #edf0f2; }
 .physio-group-row:last-child { border-bottom: 0; }
 .physio-group-row strong { display: block; color: #213443; font-size: 11px; }
 .physio-group-row small { display: block; margin-top: 3px; color: var(--admin-muted); font-size: 9px; line-height: 1.45; }
@@ -1505,3 +1505,12 @@ svg { display: block; }
 .discount-tabs button { padding: 9px 14px; border: 0; border-bottom: 2px solid transparent; background: none; color: #5c6b78; font: inherit; font-weight: 600; cursor: pointer; }
 .discount-tabs button[aria-selected="true"] { color: var(--admin-text, #102b4a); border-bottom-color: #d96d4b; }
 .discount-tabs button span { margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: #e8eff5; font-size: 11px; }
+
+.physio-manage-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0 6px; font-size: 12px; }
+.physio-manage-list { list-style: none; margin: 0 0 12px; padding: 0; max-height: 50vh; overflow-y: auto; border: 1px solid #edf0f2; border-radius: 10px; }
+.physio-manage-list li { border-bottom: 1px solid #edf0f2; }
+.physio-manage-list li:last-child { border-bottom: 0; }
+.physio-manage-list label { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; }
+.physio-manage-list span { display: grid; min-width: 0; }
+.physio-manage-list small { color: var(--admin-muted); overflow-wrap: anywhere; }
+@media (max-width: 640px) { .physio-group-row { grid-template-columns: 10px minmax(0, 1fr) auto; } .physio-group-row .button { grid-column: 2 / -1; justify-self: start; } }
