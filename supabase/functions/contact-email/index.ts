@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { adminClient, corsHeaders, emailShell, escapeHtml, getEmailConfig, logEmail, markEmail, sendEmail } from "../_shared/email.ts"
+import { adminClient, corsHeaders, escapeHtml, getEmailConfig, logEmail, markEmail, sendEmail } from "../_shared/email.ts"
 
 Deno.serve(async (request) => {
   const headers = corsHeaders(request)
@@ -73,17 +73,15 @@ Deno.serve(async (request) => {
     if (contactError) throw contactError
     const config = await getEmailConfig(db)
     const subject = `${topic} — ${name}`
-    const content = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:14px;line-height:1.65">
-      <tr><td style="padding:0 0 18px"><strong style="display:block;color:#33669b;font-size:11px;letter-spacing:1px;text-transform:uppercase">Contactgegevens</strong>${escapeHtml(name)}<br><a href="mailto:${escapeHtml(email)}" style="color:#33669b">${escapeHtml(email)}</a>${phone ? `<br>${escapeHtml(phone)}` : ""}</td></tr>
-      <tr><td style="padding:22px;border-radius:14px;background:#f3f6f8;white-space:pre-wrap">${escapeHtml(message)}</td></tr>
-    </table>`
+    // Internal notice: plain markup without logo or table shell, so mailbox spam filters see an ordinary mail.
+    const plainHtml = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222"><p>Nieuw contactbericht via zolsolutions.nl</p><p>Naam: ${escapeHtml(name)}<br>E-mail: ${escapeHtml(email)}${phone ? `<br>Telefoon: ${escapeHtml(phone)}` : ""}<br>Onderwerp: ${escapeHtml(topic)}</p><p style="white-space:pre-wrap">${escapeHtml(message)}</p></div>`
     const recipients = String(config.admin_email || "info@zolsolutions.nl").split(",").map((address) => address.trim()).filter(Boolean)
     const emailLog = await logEmail(db, { kind: "contact_notification", recipient_email: recipients.join(", "), subject, body_preview: message.slice(0, 500), contact_message_id: contact.id })
     try {
       const sent = await sendEmail({
         to: recipients,
         subject,
-        html: emailShell(content, { eyebrow: "Nieuw contactbericht", title: topic, intro: `${name} heeft via zolsolutions.nl een vraag gesteld.`, websiteUrl: config.website_url }),
+        html: plainHtml,
         text: `Nieuw contactbericht\n\nNaam: ${name}\nE-mail: ${email}\nTelefoon: ${phone || "Niet ingevuld"}\nOnderwerp: ${topic}\n\n${message}`,
         replyTo: email,
         idempotencyKey: `contact-${contact.id}`,
