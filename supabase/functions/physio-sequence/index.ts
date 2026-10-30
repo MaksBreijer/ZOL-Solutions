@@ -19,7 +19,7 @@ const fromConfig = { from_email: "info@zolsolutions.nl", reply_to: "info@zolsolu
 // Drie doelgroepen met dezelfde reeks: elk een eigen Partner Scout-type, eigen teksten en eigen Gold-signalen.
 const SEGMENTS = {
   physio: { type: "physio", key: "physio_sequence", gold: /kinder|kids|jeugd|junior|sport|hielpijn|sever/i, sample: "Praktijk", fallback: "fysiotherapie" },
-  club: { type: "sports_club", key: "club_sequence", gold: /jeugd|junior|kids|voetbal|hockey|korfbal|handbal|atletiek|basketbal|turn|gymnastiek/i, sample: "Club", fallback: "sport" },
+  club: { type: "sports_club", key: "club_sequence", gold: /jeugd|junior|kids|voetbal|tennis|hockey|korfbal|handbal|atletiek|basketbal|turn|gymnastiek/i, sample: "Club", fallback: "sport" },
   retail: { type: "retail", key: "retail_sequence", gold: /voetbal|hardloop|running|run|schoen|kids|kinder|junior|voet|podo|bootfit/i, sample: "Winkel", fallback: "sportartikelen" },
 } as const
 type Segment = keyof typeof SEGMENTS

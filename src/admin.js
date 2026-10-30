@@ -1702,7 +1702,7 @@ const MAIL_SEGMENTS = {
   'physio-campaign': { segment: 'physio', type: 'physio', key: 'physio_sequence', label: 'Fysiomail', plural: 'praktijken', search: 'Fysiopraktijken',
     gold: 'Amsterdam en Amstelveen, met kinder- of sportfocus.' },
   'club-campaign': { segment: 'club', type: 'sports_club', key: 'club_sequence', label: 'Clubmail', plural: 'clubs', search: 'Sportclubs',
-    gold: 'Amsterdam en Amstelveen, met jeugdafdeling of voetbal, hockey, korfbal, atletiek e.d.' },
+    gold: 'Amsterdam en Amstelveen, met jeugdafdeling of voetbal, tennis, hockey, handbal, basketbal, korfbal, atletiek e.d.' },
   'retail-campaign': { segment: 'retail', type: 'retail', key: 'retail_sequence', label: 'Winkelmail', plural: 'winkels', search: 'Sportspeciaalzaken',
     gold: 'Amsterdam en Amstelveen, gericht op voetbal, hardlopen, schoenen of kinderen.' },
 }
