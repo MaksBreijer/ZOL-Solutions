@@ -124,20 +124,31 @@ Deno.serve(async (request) => {
       const details = detailBlock(key, order, variables) + teamPhoto
       const buttonLabel = renderTemplate(template.button_label_template, variables)
       const buttonUrl = renderTemplate(template.button_url_template, variables)
-      const html = emailShell(`${bodyHtml}${details}`, {
+      const shellHtml = emailShell(`${bodyHtml}${details}`, {
         eyebrow: renderTemplate(template.eyebrow_template, variables),
         title: renderTemplate(template.title_template, variables),
         intro: renderTemplate(template.intro_template, variables),
         websiteUrl, logoUrl: config.logo_url, buttonLabel, buttonUrl,
       })
       const text = [renderTemplate(template.title_template, variables), renderTemplate(template.intro_template, variables), renderTemplate(template.body_template, variables), key === "order_shipped" ? `Trackingcode: ${order.tracking_code}\n${trackingUrl}` : "", key === "refund_confirmed" ? `Terugbetaald: ${money(refundAmountCents, order.currency)}` : "", buttonLabel && buttonUrl ? `${buttonLabel}: ${buttonUrl}` : ""].filter(Boolean).join("\n\n")
+      // Internal notices go out as plain markup without logo or table shell, so mailbox spam filters see an ordinary mail.
+      const adminLines = [
+        text,
+        `Klant: ${order.customer_name || ""} <${order.customer_email}>`.trim(),
+        `Adres: ${addressLine(order.shipping_address || {})}`,
+        ...(order.order_items || []).map((item: Record<string, unknown>) => `${item.quantity} x ${item.product_name} (${item.variant_name}): ${money(Number(item.total_cents), order.currency)}`),
+        `Totaal: ${money(order.total_cents, order.currency)}`,
+      ].filter(Boolean).join("\n\n")
+      const html = template.audience === "admin"
+        ? `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222;white-space:pre-wrap">${escapeEmailHtml(adminLines)}</div>`
+        : shellHtml
       const log = existing || await logEmail(db, { kind: key, recipient_email: recipient, subject, body_preview: text.slice(0, 280), order_id: order.id, customer_id: order.customer_id, dedupe_key: dedupe })
       try {
         // Trustpilot's Automatic Feedback Service receives only the delivery confirmation,
         // so invitations are based on fulfilled orders rather than on a checkout or payment.
         const trustpilotBcc = key === "order_delivered" ? Deno.env.get("TRUSTPILOT_AFS_EMAIL")?.trim() : ""
         const recipients = recipient.split(",").map((address: string) => address.trim()).filter(Boolean)
-        const sent = await sendEmail({ to: recipients.length > 1 ? recipients : recipients[0], bcc: trustpilotBcc || undefined, subject, html, text, idempotencyKey: existing?.status === "failed" ? `${dedupe}-retry-${Date.now()}` : dedupe, config,
+        const sent = await sendEmail({ to: recipients.length > 1 ? recipients : recipients[0], bcc: trustpilotBcc || undefined, subject, html, text: template.audience === "admin" ? adminLines : text, idempotencyKey: existing?.status === "failed" ? `${dedupe}-retry-${Date.now()}` : dedupe, config,
           ...(template.audience === "admin" ? { replyTo: recipients[0] } : {}) })
         await markEmail(db, log.id, { status: "sent", providerId: sent.id })
         results.push({ kind: key, status: "sent" })
