@@ -56,9 +56,9 @@ const circleOf = (lead: Lead, gold: Set<string>, segment: Segment = "physio") =>
 }
 
 function personalize(template: string, enrollment: Enrollment) {
-  return template.replace(/{{\s*(praktijknaam|plaats|specialisatie|contactpersoon|persoonlijke_opening)\s*}}/gi, (_match, key: string) => {
+  return template.replace(/{{\s*(praktijknaam|clubnaam|winkelnaam|naam|plaats|specialisatie|contactpersoon|persoonlijke_opening)\s*}}/gi, (_match, key: string) => {
     const name = key.toLowerCase()
-    if (name === "praktijknaam") return enrollment.practice_name
+    if (["praktijknaam", "clubnaam", "winkelnaam", "naam"].includes(name)) return enrollment.practice_name
     if (name === "plaats") return enrollment.location
     if (name === "contactpersoon") return physioSalutationName({ contactPerson: enrollment.contact_person, email: enrollment.email, practiceName: enrollment.practice_name })
     if (name === "persoonlijke_opening") return enrollment.personal_opening

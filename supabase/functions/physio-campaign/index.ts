@@ -40,8 +40,8 @@ function eligibleLeads(leads: Lead[]) {
 }
 
 function personalize(template: string, recipient: Recipient) {
-  return template.replace(/{{\s*(praktijknaam|plaats|specialisatie|contactpersoon|persoonlijke_opening)\s*}}/gi, (_match, key: string) => {
-    if (key.toLowerCase() === "praktijknaam") return recipient.practice_name
+  return template.replace(/{{\s*(praktijknaam|clubnaam|winkelnaam|naam|plaats|specialisatie|contactpersoon|persoonlijke_opening)\s*}}/gi, (_match, key: string) => {
+    if (["praktijknaam", "clubnaam", "winkelnaam", "naam"].includes(key.toLowerCase())) return recipient.practice_name
     if (key.toLowerCase() === "plaats") return recipient.location
     if (key.toLowerCase() === "contactpersoon") return recipient.contact_person || `praktijkhouder van ${recipient.practice_name}`
     if (key.toLowerCase() === "persoonlijke_opening") return recipient.personal_opening
