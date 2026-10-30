@@ -23,7 +23,14 @@ let commerce = { shipping_cents: 0, belgium_shipping_cents: 495, free_shipping_t
 const returnParams = new URLSearchParams(window.location.search)
 const returnOrderId = returnParams.get('ref')
 const returnToken = returnParams.get('token')
-function storedWelcomeCode() { try { return localStorage.getItem('zol-welcome-code') || '' } catch { return '' } }
+function storedWelcomeCode() {
+  try {
+    const code = localStorage.getItem('zol-welcome-code') || ''
+    // De oude vaste code WELKOM10 bestaat niet meer: weggooien zodat hij niet standaard ingevuld wordt.
+    if (code.toUpperCase() === 'WELKOM10') { localStorage.removeItem('zol-welcome-code'); return '' }
+    return code
+  } catch { return '' }
+}
 const linkedDiscountCode = String(returnParams.get('discount') || storedWelcomeCode()).trim().toUpperCase().slice(0, 40)
 const linkedPartnerCode = getPartnerAttributionCode()
 let currentQuote = null

@@ -8,6 +8,8 @@ const skip = /^\/(?:admin|zolsolutions\/admin|meting|nieuw|checkout|uitschrijven
 
 function read(key) { try { return localStorage.getItem(key) } catch { return null } }
 function write(key, value) { try { localStorage.setItem(key, value) } catch { /* opslag niet beschikbaar */ } }
+// Oude vaste code WELKOM10 is vervallen: opruimen zodat bezoekers een persoonlijke code kunnen krijgen.
+if (String(read(CODE_KEY) || '').toUpperCase() === 'WELKOM10') { try { localStorage.removeItem(CODE_KEY) } catch { /* opslag niet beschikbaar */ } }
 
 function dismissedRecently() {
   const at = Number(read(DISMISS_KEY))
