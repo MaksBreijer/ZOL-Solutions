@@ -2356,8 +2356,9 @@ function filterCustomers() {
 }
 
 function renderMessages() {
-  const rows = state.contactMessages.map((message) => `<tr data-action="open-message" data-id="${message.id}"><td><strong>${escapeHtml(message.name)}</strong></td><td>${escapeHtml(message.topic)}</td><td>${escapeHtml(message.email)}</td><td>${statusPill(message.status)}</td><td>${formatDate(message.created_at, { hour: '2-digit', minute: '2-digit' })}</td></tr>`).join('')
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('messages', '<button class="button" data-action="refresh">Vernieuwen</button>')}<section class="metric-grid"><article class="metric-card"><header><span>Nieuwe berichten</span><i>✉</i></header><strong>${state.contactMessages.filter((message) => ['new', 'email_failed'].includes(message.status)).length}</strong><footer><span>Wacht op reactie</span><span>Actueel</span></footer></article><article class="metric-card"><header><span>Totaal ontvangen</span><i>▤</i></header><strong>${state.contactMessages.length}</strong><footer><span>Contactformulier</span><span>Totaal</span></footer></article></section><section class="panel">${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>Onderwerp</th><th>E-mail</th><th>Status</th><th>Ontvangen</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen berichten', 'Nieuwe vragen via het contactformulier verschijnen hier.', '✉')}</section></div>`
+  const canDeleteMessages = ['owner', 'admin'].includes(state.profile?.role)
+  const rows = state.contactMessages.map((message) => `<tr data-action="open-message" data-id="${message.id}"><td><strong>${escapeHtml(message.name)}</strong></td><td>${escapeHtml(message.topic)}</td><td>${escapeHtml(message.email)}</td><td>${statusPill(message.status)}</td><td>${formatDate(message.created_at, { hour: '2-digit', minute: '2-digit' })}</td>${canDeleteMessages ? `<td><button class="button" type="button" data-action="delete-message" data-id="${message.id}" aria-label="Bericht verwijderen">Verwijderen</button></td>` : ''}</tr>`).join('')
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('messages', '<button class="button" data-action="refresh">Vernieuwen</button>')}<section class="metric-grid"><article class="metric-card"><header><span>Nieuwe berichten</span><i>✉</i></header><strong>${state.contactMessages.filter((message) => ['new', 'email_failed'].includes(message.status)).length}</strong><footer><span>Wacht op reactie</span><span>Actueel</span></footer></article><article class="metric-card"><header><span>Totaal ontvangen</span><i>▤</i></header><strong>${state.contactMessages.length}</strong><footer><span>Contactformulier</span><span>Totaal</span></footer></article></section><section class="panel">${rows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Naam</th><th>Onderwerp</th><th>E-mail</th><th>Status</th><th>Ontvangen</th>${canDeleteMessages ? '<th></th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>` : emptyState('Nog geen berichten', 'Nieuwe vragen via het contactformulier verschijnen hier.', '✉')}</section></div>`
 }
 
 const reviewStars = (rating) => `<span class="admin-review-stars" aria-label="${Number(rating)} van 5 sterren">${'★'.repeat(Number(rating) || 0)}<i>${'★'.repeat(5 - (Number(rating) || 0))}</i></span>`
@@ -2752,12 +2753,23 @@ function emailTemplateForm(template) {
 async function openContactMessage(message) {
   if (!message) return
   const replySubject = encodeURIComponent(`Re: ${message.topic}`)
-  openDialog(message.topic, 'Contactbericht', `<div class="dialog-summary"><div><span>Naam</span><strong>${escapeHtml(message.name)}</strong></div><div><span>E-mail</span><strong>${escapeHtml(message.email)}</strong></div><div><span>Ontvangen</span><strong>${formatDate(message.created_at, { hour: '2-digit', minute: '2-digit' })}</strong></div><div><span>Klantbestand</span><strong>${message.customer_id ? 'Toegevoegd' : 'Niet gekoppeld'}</strong></div><div><span>Productmail</span><strong>${message.metadata?.marketing_opt_in ? 'Toestemming gegeven' : 'Niet aangemeld'}</strong></div></div><div class="contact-message-copy">${escapeHtml(message.message)}</div>${message.phone ? `<p class="contact-message-meta"><strong>Telefoon:</strong> ${escapeHtml(message.phone)}</p>` : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Sluiten</button><a class="button button--primary" href="mailto:${escapeHtml(message.email)}?subject=${replySubject}">Beantwoorden →</a></div>`)
+  openDialog(message.topic, 'Contactbericht', `<div class="dialog-summary"><div><span>Naam</span><strong>${escapeHtml(message.name)}</strong></div><div><span>E-mail</span><strong>${escapeHtml(message.email)}</strong></div><div><span>Ontvangen</span><strong>${formatDate(message.created_at, { hour: '2-digit', minute: '2-digit' })}</strong></div><div><span>Klantbestand</span><strong>${message.customer_id ? 'Toegevoegd' : 'Niet gekoppeld'}</strong></div><div><span>Productmail</span><strong>${message.metadata?.marketing_opt_in ? 'Toestemming gegeven' : 'Niet aangemeld'}</strong></div></div><div class="contact-message-copy">${escapeHtml(message.message)}</div>${message.phone ? `<p class="contact-message-meta"><strong>Telefoon:</strong> ${escapeHtml(message.phone)}</p>` : ''}<div class="form-actions"><button class="button" type="button" data-close-dialog>Sluiten</button>${['owner', 'admin'].includes(state.profile?.role) ? `<button class="button" type="button" data-action="delete-message" data-id="${message.id}">Verwijderen</button>` : ''}<a class="button button--primary" href="mailto:${escapeHtml(message.email)}?subject=${replySubject}">Beantwoorden →</a></div>`)
   if (message.status === 'new' || message.status === 'email_failed') {
     await supabase.from('contact_messages').update({ status: 'read' }).eq('id', message.id)
     message.status = 'read'
     document.querySelector('#new-message-count').textContent = state.contactMessages.filter((entry) => ['new', 'email_failed'].includes(entry.status)).length || ''
   }
+}
+
+async function deleteContactMessage(id) {
+  const message = state.contactMessages.find((item) => item.id === id)
+  if (!message || !['owner', 'admin'].includes(state.profile?.role)) return
+  if (!window.confirm(`Bericht van ${message.name} (${message.topic}) definitief verwijderen?`)) return
+  const { error } = await supabase.from('contact_messages').delete().eq('id', message.id)
+  if (error) { toast('Bericht verwijderen mislukt', error.message, true); return }
+  await recordActivity('Contactbericht verwijderd', 'contact_message', message.id, { email: message.email, topic: message.topic })
+  toast('Bericht verwijderd')
+  closeDialog(); await refreshCurrentRoute()
 }
 
 function customerForm(customer = {}) {
@@ -4330,6 +4342,7 @@ async function handleContentClick(event) {
   if (action === 'remove-order-line') { const form = document.querySelector('#new-order-form'); const lines = form?.querySelectorAll('.manual-order-line'); if (lines?.length > 1) { target.closest('.manual-order-line')?.remove(); updateManualOrderTotal(form) } else toast('Minimaal één product nodig', '', true) }
   if (action === 'open-customer') customerForm(state.customers.find((item) => item.id === id))
   if (action === 'open-message') await openContactMessage(state.contactMessages.find((item) => item.id === id))
+  if (action === 'delete-message') await deleteContactMessage(id)
   if (action === 'new-customer') customerForm()
   if (action === 'delete-customer') await deleteCustomer(id)
   if (action === 'email-customer') { const customer = state.customers.find((item) => item.id === id); closeDialog(); queueMicrotask(() => customerEmailForm(customer)) }
