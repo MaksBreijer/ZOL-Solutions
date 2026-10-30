@@ -142,11 +142,7 @@ export async function sendEmail(input: {
 }) {
   const apiKey = Deno.env.get("RESEND_API_KEY")
   if (!input.config.enabled || !apiKey) throw new Error("E-mailverzending is nog niet geactiveerd.")
-  // Mail that only goes to our own domain must not come from info@ itself: the mailbox host
-  // treats self-addressed mail from an outside server as spoofed and files it as spam.
-  const recipients = [input.to, input.bcc ?? []].flat().map((address) => address.trim().toLowerCase())
-  const internalOnly = recipients.length > 0 && recipients.every((address) => address.endsWith("@zolsolutions.nl"))
-  const fromEmail = input.fromEmail || (internalOnly ? "bestellingen@zolsolutions.nl" : input.config.from_email) || "info@zolsolutions.nl"
+  const fromEmail = input.fromEmail || input.config.from_email || "info@zolsolutions.nl"
   const fromName = input.config.from_name || "ZOL Solutions"
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
