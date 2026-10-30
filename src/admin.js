@@ -1712,8 +1712,8 @@ const physioGroups = () => {
   const seg = mailSegment()
   return [
     ['gold', 'Gold Circle', seg.gold],
-    ['silver', 'Silver Circle', `Overige ${seg.plural} in Amsterdam en Amstelveen.`],
-    ['national', 'Landelijk', `Alle ${seg.plural} buiten Amsterdam en Amstelveen.`],
+    ['silver', 'Silver Circle', seg.segment === 'club' ? 'Overige clubs in Amsterdam en Amstelveen, plus alle voetbal-, hockey-, handbal-, basketbal- en tennisclubs van Nederland.' : `Overige ${seg.plural} in Amsterdam en Amstelveen.`],
+    ['national', 'Landelijk', seg.segment === 'club' ? 'Overige clubs buiten Amsterdam en Amstelveen.' : `Alle ${seg.plural} buiten Amsterdam en Amstelveen.`],
   ]
 }
 const PHYSIO_GROUP_LABELS = { gold: 'Gold Circle', silver: 'Silver Circle', national: 'Landelijk' }

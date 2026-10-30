@@ -23,6 +23,7 @@ const SEGMENTS = {
   retail: { type: "retail", key: "retail_sequence", gold: /voetbal|hardloop|running|run|schoen|kids|kinder|junior|voet|podo|bootfit/i, sample: "Winkel", fallback: "sportartikelen" },
 } as const
 type Segment = keyof typeof SEGMENTS
+const CLUB_SILVER_SPORTS = /voetbal|football|soccer|tennis|hockey|handbal|basketbal/i
 const segmentOf = (value: unknown): Segment => (clean(value) in SEGMENTS ? clean(value) : "physio") as Segment
 
 async function loadSettings(db: Db, segment: Segment = "physio") {
@@ -47,11 +48,12 @@ const isExcluded = (lead: Lead) => /smc\s*almere|sport\s*medisch\s*centrum\s*alm
 const isHomeArea = (lead: Lead) => /\b(amsterdam|amstelveen)\b/i.test(clean(lead.city))
 // Gold: kinder- of sportfocus (of handmatig gekozen) binnen Amsterdam/Amstelveen. Silver: overige praktijken daar. Landelijk: de rest.
 const circleOf = (lead: Lead, gold: Set<string>, segment: Segment = "physio") => {
-  if (!isHomeArea(lead)) return "national"
-  if (gold.has(clean(lead.id))) return "gold"
   // De standaardreden van de landelijke zoekactie ("Openbare vermelding…") noemt altijd sport en kinderen en telt dus niet mee.
   const reason = /^openbare vermelding/i.test(clean(lead.match_reason)) ? "" : lead.match_reason
   const profile = [lead.name, lead.specialization, reason, lead.website, ...(Array.isArray(lead.tags) ? lead.tags : [])].map(clean).join(" ")
+  // Clubs: heel Nederland in de vijf grote teamsporten zit in Silver, de rest van het land blijft Landelijk.
+  if (!isHomeArea(lead)) return segment === "club" && CLUB_SILVER_SPORTS.test(profile) ? "silver" : "national"
+  if (gold.has(clean(lead.id))) return "gold"
   return SEGMENTS[segment].gold.test(profile) ? "gold" : "silver"
 }
 
