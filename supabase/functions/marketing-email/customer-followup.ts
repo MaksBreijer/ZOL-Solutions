@@ -41,7 +41,7 @@ De ZOL'tjes zijn nu zo'n tien dagen bij jullie. Hopelijk zitten ze fijn in de sc
 Mogen we je om een kleine gunst vragen? Andere ouders twijfelen vaak of een zool echt iets voor hun kind is. Jouw eerlijke ervaring, positief of kritisch, helpt hen enorm.
 
 Een review achterlaten kan hier (duurt een minuut):
-https://maps.google.com/?cid=654808623137506283
+https://g.page/r/CetD-TH5WBYJEBM/review
 
 Liever op onze eigen website? Dat kan ook:
 https://zolsolutions.nl/product/#reviews

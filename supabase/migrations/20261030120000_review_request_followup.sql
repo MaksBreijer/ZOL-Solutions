@@ -11,10 +11,10 @@ alter table public.email_messages add constraint email_messages_kind_check check
 insert into public.email_templates (template_key, name, description, audience, subject_template, title_template, body_template, enabled, variables, sort_order)
 values (
   'customer_followup_3', 'Reviewvraag na 10 dagen',
-  'Kale, persoonlijke mail van Maks & Thijn, 10 dagen na bezorging, met een link naar Google en de productpagina. Wissel de Google-link gerust om voor de directe "schrijf een review"-link uit het Google Bedrijfsprofiel.',
+  'Kale, persoonlijke mail van Maks & Thijn, 10 dagen na bezorging, met een link naar Google en de productpagina. Bevat de directe Google-reviewlink.',
   'customer',
   'Wil je je ervaring met de ZOL''tjes delen?', 'Wil je je ervaring met de ZOL''tjes delen?',
-  E'Hoi {{customer_first_name}},\n\nDe ZOL''tjes zijn nu zo''n tien dagen bij jullie. Hopelijk zitten ze fijn in de schoen!\n\nMogen we je om een kleine gunst vragen? Andere ouders twijfelen vaak of een zool echt iets voor hun kind is. Jouw eerlijke ervaring, positief of kritisch, helpt hen enorm.\n\nEen review achterlaten kan hier (duurt een minuut):\nhttps://maps.google.com/?cid=654808623137506283\n\nLiever op onze eigen website? Dat kan ook:\nhttps://zolsolutions.nl/product/#reviews\n\nHeb je een foto of korte video van je kind in actie met de ZOL''tjes? Stuur hem gerust als antwoord op deze mail en laat even weten of we hem (zonder naam) mogen gebruiken.\n\nGaat het (nog) niet zoals je hoopte? Antwoord dan vooral op deze mail, dan denken we met je mee.\n\nGroet,\nMaks & Thijn\nZOL Solutions',
+  E'Hoi {{customer_first_name}},\n\nDe ZOL''tjes zijn nu zo''n tien dagen bij jullie. Hopelijk zitten ze fijn in de schoen!\n\nMogen we je om een kleine gunst vragen? Andere ouders twijfelen vaak of een zool echt iets voor hun kind is. Jouw eerlijke ervaring, positief of kritisch, helpt hen enorm.\n\nEen review achterlaten kan hier (duurt een minuut):\nhttps://g.page/r/CetD-TH5WBYJEBM/review\n\nLiever op onze eigen website? Dat kan ook:\nhttps://zolsolutions.nl/product/#reviews\n\nHeb je een foto of korte video van je kind in actie met de ZOL''tjes? Stuur hem gerust als antwoord op deze mail en laat even weten of we hem (zonder naam) mogen gebruiken.\n\nGaat het (nog) niet zoals je hoopte? Antwoord dan vooral op deze mail, dan denken we met je mee.\n\nGroet,\nMaks & Thijn\nZOL Solutions',
   true, array['customer_first_name'], 142
 )
 on conflict (template_key) do nothing;

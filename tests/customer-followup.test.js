@@ -29,7 +29,7 @@ test('de reviewvraag gaat 10 dagen na bezorging uit, als los bericht met Google-
   const mail = renderFollowup(review, 'Anna', 'order-1')
   assert.doesNotMatch(mail.subject, /^Re:/)
   assert.match(mail.text, /Hoi Anna,/)
-  assert.match(mail.text, /maps\.google\.com\/\?cid=654808623137506283/)
+  assert.match(mail.text, /g\.page\/r\/CetD-TH5WBYJEBM\/review/)
   assert.match(mail.text, /zolsolutions\.nl\/product\/#reviews/)
   assert.match(mail.text, /foto of korte video/)
   assert.match(mail.headers['Message-ID'], /customer-followup-order-1-3@/)
