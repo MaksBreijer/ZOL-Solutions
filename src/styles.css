@@ -5877,64 +5877,42 @@ blockquote {
   border-right: 0;
 }
 
-.about-press {
-  background: var(--blue-pale);
-  padding: clamp(56px, 7vw, 100px) 0;
+.about-media {
+  margin-top: 24px;
+  text-align: left;
 }
 
-.about-press-inner {
-  width: min(1320px, calc(100% - 44px));
-  margin: 0 auto;
+.about-media h2 {
+  margin: 6px 0 16px;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
 }
 
-.about-press-intro {
-  max-width: 720px;
-  margin-bottom: clamp(28px, 4vw, 48px);
+.about-media .about-press-grid {
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
-.about-press-intro h2 {
-  margin: 8px 0 12px;
-  font-size: clamp(2.4rem, 5vw, 4.4rem);
-}
-
-.about-press-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.about-press-grid a {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  min-width: 0;
-  padding: 24px;
-  border-radius: 18px;
+.about-media .about-press-grid a {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
   background: #fff;
   color: var(--ink);
-  font-size: 17px;
-  transition: transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 16px;
 }
 
-.about-press-grid a:hover {
-  transform: translateY(-3px);
-}
-
-.about-press-grid img {
+.about-media .about-press-grid img {
   width: auto;
-  height: 64px;
+  height: 44px;
 }
 
-.about-press-grid small {
+.about-media .about-press-grid small {
   display: block;
   color: var(--muted);
-  font-size: 13px;
-}
-
-@media (max-width: 900px) {
-  .about-press-grid {
-    grid-template-columns: 1fr;
-  }
+  font-size: 12px;
 }
 
 .partners--compact.about-partners {
@@ -6405,7 +6383,7 @@ blockquote {
 .about-intro h1 em { display:block; color:var(--orange); font-family:var(--serif); font-weight:400; letter-spacing:-.025em; text-transform:none; }
 .about-intro > p:last-child { max-width:640px; margin:28px auto 0; color:var(--muted); font-size:18px; line-height:1.6; }
 .about-letter { display:grid; width:min(1180px,100%); margin:0 auto; padding:clamp(30px,5vw,70px) clamp(22px,5vw,60px) clamp(90px,10vw,140px); grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:clamp(40px,7vw,110px); align-items:start; }
-.about-letter-image { position:sticky; top:120px; margin:0; }
+.about-letter-image { position:static; margin:0; }
 .about-letter-image img { display:block; width:100%; height:auto; border-radius:18px; }
 .about-letter-image figcaption { margin-top:16px; color:var(--muted); font-size:13px; text-align:center; }
 .about-letter-copy { max-width:560px; }
