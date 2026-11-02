@@ -5877,6 +5877,41 @@ blockquote {
   border-right: 0;
 }
 
+.about-press-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.about-press-grid a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.about-press-grid img {
+  width: auto;
+  height: 36px;
+}
+
+.about-press-grid small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .about-press-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Growth page: paid-social landing. */
 .growth-hero {
   width: min(1320px, calc(100% - 44px));
