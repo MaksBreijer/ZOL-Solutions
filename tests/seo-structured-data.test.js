@@ -71,7 +71,7 @@ test('paid campaign landing page points search engines to the organic heel-pain 
 
 test('social titles escape ampersands exactly once', async () => {
   const filename = fileURLToPath(new URL('../index.html', import.meta.url))
-  const html = await readFile(filename, 'utf8')
+  const html = '<!doctype html><html lang="nl"><head><title>Hielpijn bij kinderen & Ziekte van Sever | ZOL Inlegzolen</title><meta name="description" content="Kinderen & sport."></head><body></body></html>'
   const seoPlugin = config.plugins.find((plugin) => plugin.name === 'zol-seo')
   const transformed = seoPlugin.transformIndexHtml.handler(html, { filename })
 
