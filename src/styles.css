@@ -5877,38 +5877,123 @@ blockquote {
   border-right: 0;
 }
 
+.about-press {
+  background: var(--blue-pale);
+  padding: clamp(56px, 7vw, 100px) 0;
+}
+
+.about-press-inner {
+  width: min(1320px, calc(100% - 44px));
+  margin: 0 auto;
+}
+
+.about-press-intro {
+  max-width: 720px;
+  margin-bottom: clamp(28px, 4vw, 48px);
+}
+
+.about-press-intro h2 {
+  margin: 8px 0 12px;
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+}
+
 .about-press-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .about-press-grid a {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 20px;
   min-width: 0;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  padding: 24px;
+  border-radius: 18px;
   background: #fff;
-  font-size: 14px;
+  color: var(--ink);
+  font-size: 17px;
+  transition: transform 0.2s ease;
+}
+
+.about-press-grid a:hover {
+  transform: translateY(-3px);
 }
 
 .about-press-grid img {
   width: auto;
-  height: 36px;
+  height: 64px;
 }
 
 .about-press-grid small {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 @media (max-width: 900px) {
   .about-press-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+.partners--compact.about-partners {
+  display: block;
+  min-height: 0;
+  padding: clamp(56px, 7vw, 100px) max(22px, calc((100% - 1320px) / 2));
+  background: var(--blue-deep);
+}
+
+.about-partners .partners-intro h2 {
+  color: #fff;
+}
+
+.about-partners .partners-intro h2 em {
+  color: var(--orange-light);
+}
+
+.about-partners .partners-intro {
+  max-width: 720px;
+  margin-bottom: clamp(28px, 4vw, 48px);
+}
+
+.about-partners .partners-intro h2 {
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+}
+
+.about-partners .partner-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.about-partners .partner-track > * {
+  display: grid;
+  box-sizing: border-box;
+  height: 150px;
+  min-height: 150px;
+  padding: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.about-partners .partner-track img {
+  filter: none;
+  opacity: 1;
+  width: auto;
+  max-width: 100%;
+  height: 80px;
+  object-fit: contain;
+}
+
+@media (max-width: 900px) {
+  .about-partners .partner-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
