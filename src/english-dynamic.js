@@ -20,6 +20,8 @@ export const englishDynamic = {
   'Schoenmaten': 'Shoe sizes',
   'In 6 dubbele maten': 'In 6 dual sizes',
   'Duurzame materialen': 'Durable materials',
+  'CE-gemarkeerd': 'CE marked',
+  'Voldoet aan de EU-eisen': 'Meets EU requirements',
   'Toon alle reviews': 'Show all reviews',
   'Toon minder reviews': 'Show fewer reviews',
   'Huidige keuze: noodzakelijke opslag en analytics.': 'Current choice: necessary storage and analytics.',

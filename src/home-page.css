@@ -52,7 +52,7 @@
       .scroll-hint { position: absolute; bottom: 22px; left: 50%; width: 24px; height: 38px; margin-left: -12px; border: 1.5px solid rgba(255,255,255,.5); border-radius: 14px; }
       .scroll-hint::after { content: ""; position: absolute; top: 8px; left: 50%; width: 3px; height: 7px; margin-left: -1.5px; border-radius: 2px; background: #fff; }
 
-      .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; margin: 70px auto 0; }
+      .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; margin: 70px auto 0; }
       .stat { background: #fff; padding: 26px 28px; }
       .stat strong { display: block; font-size: 34px; font-weight: 700; letter-spacing: -.03em; }
       .stat span { font-weight: 600; font-size: 14px; } .stat small { display: block; color: var(--muted); font-size: 13px; }
@@ -163,6 +163,7 @@
         .hero-inner { padding-top: 120px; }
         .hero-visual { height: auto; padding: 40px 0; } .device { width: 100%; } .hero .float, .hero .tag { display: none; }
         .stats { grid-template-columns: 1fr 1fr; }
+        .stats .stat:last-child { grid-column: 1 / -1; }
         .scard { position: relative; top: 0 !important; padding: 64px 22px 22px; min-height: 0; }
         .scard-media { height: 320px; } .scard-media .pic { inset: 0; }
         section.s { padding: 80px 0; }
