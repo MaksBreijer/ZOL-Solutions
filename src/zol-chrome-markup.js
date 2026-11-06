@@ -1,7 +1,7 @@
 // Gedeelde navigatie en footer in het homepage-ontwerp. Wordt bij de build in elke pagina gezet.
 const payments = [
   ['amex', 'American Express'], ['applepay', 'Apple Pay'], ['bancontact', 'Bancontact'], ['googlepay', 'Google Pay'],
-  ['ideal', 'iDEAL | Wero'], ['mastercard', 'Mastercard'], ['visa', 'Visa'],
+  ['ideal', 'iDEAL | Wero'], ['klarna', 'Klarna'], ['mastercard', 'Mastercard'], ['visa', 'Visa'],
 ].map(([file, name]) => `<li><img src="/images/payment/${file}.svg" alt="${name}" width="48" height="36" loading="lazy" /></li>`).join('')
 
 export function navMarkup({ overHero = false } = {}) {
