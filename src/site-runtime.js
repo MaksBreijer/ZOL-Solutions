@@ -1,5 +1,6 @@
 import { hasAnalyticsConsent } from './cookie-consent.js'
 import { disableGoogleAnalytics, enableGoogleAnalytics, trackGoogleAnalyticsEvent } from './google-analytics.js'
+import { disableMetaPixel, enableMetaPixel, trackMetaPixelEvent } from './meta-pixel.js'
 import { insertPublic, selectPublic } from './public-api.js'
 
 if (window.location.hostname === 'zol-solutions.pages.dev') {
@@ -43,6 +44,7 @@ export function getSessionId() {
 export async function trackEvent(eventName, metadata = {}) {
   if (!hasAnalyticsConsent()) return
   trackGoogleAnalyticsEvent(eventName, metadata)
+  trackMetaPixelEvent(eventName, metadata)
   try {
     const search = new URLSearchParams(window.location.search)
     const incomingAttribution = Object.fromEntries(['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'fbclid']
@@ -212,6 +214,7 @@ async function stopVisitorPresence(removeChannel = true) {
 function trackInitialViews() {
   if (!hasAnalyticsConsent()) return
   enableGoogleAnalytics()
+  enableMetaPixel()
   startVisitorPresence()
   if (initialViewsTracked) return
   initialViewsTracked = true
@@ -222,7 +225,7 @@ function trackInitialViews() {
 trackInitialViews()
 window.addEventListener('zol:cookie-consent', ({ detail }) => {
   if (detail?.choice === 'accepted') trackInitialViews()
-  if (detail?.choice === 'necessary') { disableGoogleAnalytics(); void stopVisitorPresence() }
+  if (detail?.choice === 'necessary') { disableGoogleAnalytics(); disableMetaPixel(); void stopVisitorPresence() }
 })
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) void stopVisitorPresence(false)

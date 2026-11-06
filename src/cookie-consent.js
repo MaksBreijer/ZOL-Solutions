@@ -1,6 +1,6 @@
 import './cookie-consent.css'
 
-const CONSENT_COOKIE = 'zol_cookie_choice_v1'
+const CONSENT_COOKIE = 'zol_cookie_choice_v2'
 const CONSENT_MAX_AGE = 60 * 60 * 24 * 365
 const ALLOWED_CHOICES = new Set(['accepted', 'necessary'])
 let memoryChoice = null
@@ -47,7 +47,7 @@ function ensureConsentUi() {
       <div class="cookie-consent-copy">
         <span class="cookie-consent-label">Privacyvoorkeur</span>
         <h2 id="cookie-consent-title">Jouw privacy, jouw keuze.</h2>
-        <p>We gebruiken noodzakelijke browseropslag voor je winkelwagen en veilig afrekenen. Met jouw toestemming meten we beperkte gebruiksgegevens in eigen beheer en met Google Analytics om de website te verbeteren. We gebruiken geen advertentiecookies.</p>
+        <p>We gebruiken noodzakelijke browseropslag voor je winkelwagen en veilig afrekenen. Met jouw toestemming meten we beperkte gebruiksgegevens in eigen beheer, met Google Analytics en met de Meta-pixel, om de website te verbeteren en te meten welke advertenties tot bezoek en bestellingen leiden.</p>
         <p class="cookie-consent-current" data-cookie-current></p>
         <a href="/privacy/#cookies">Lees hoe we cookies en browseropslag gebruiken</a>
       </div>

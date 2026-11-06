@@ -11,7 +11,7 @@ export const englishDynamic = {
   'De medische basisinformatie op deze pagina is gecontroleerd aan de hand van openbare informatie van:': 'The basic medical information on this page has been checked against public information from:',
   'Privacyvoorkeur': 'Privacy preference',
   'Jouw privacy, jouw keuze.': 'Your privacy, your choice.',
-  'We gebruiken noodzakelijke browseropslag voor je winkelwagen en veilig afrekenen. Met jouw toestemming meten we beperkte gebruiksgegevens in eigen beheer en met Google Analytics om de website te verbeteren. We gebruiken geen advertentiecookies.': 'We use necessary browser storage for your basket and secure checkout. With your consent, we collect limited usage data ourselves and through Google Analytics to improve the website. We do not use advertising cookies.',
+  'We gebruiken noodzakelijke browseropslag voor je winkelwagen en veilig afrekenen. Met jouw toestemming meten we beperkte gebruiksgegevens in eigen beheer, met Google Analytics en met de Meta-pixel, om de website te verbeteren en te meten welke advertenties tot bezoek en bestellingen leiden.': 'We use necessary browser storage for your basket and secure checkout. With your consent, we collect limited usage data ourselves, through Google Analytics and through the Meta Pixel, to improve the website and to measure which ads lead to visits and orders.',
   'Lees hoe we cookies en browseropslag gebruiken': 'Read how we use cookies and browser storage',
   'Cookiekeuze': 'Cookie choice',
   'Alleen noodzakelijk': 'Necessary only',
