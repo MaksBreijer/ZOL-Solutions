@@ -7089,3 +7089,7 @@ blockquote {
   pointer-events: none;
 }
 .spin-float { filter: drop-shadow(0 18px 24px rgba(16, 43, 74, 0.18)); }
+
+.product-klarna { display: flex; align-items: center; gap: 8px; margin: -4px 0 14px; font-size: 0.95rem; color: inherit; }
+.product-klarna img { width: 32px; height: 24px; flex: none; }
+.product-klarna strong { color: var(--orange, #f26b1d); }

@@ -42,7 +42,7 @@ async function initializeProductCommerce() {
       return
     }
     // Own card-shaped logos (as in the footer); Mollie's icons get cropped in these badges.
-    const localLogos = { ideal: ['ideal'], applepay: ['applepay'], googlepay: ['googlepay'], creditcard: ['visa', 'mastercard', 'amex'], bancontact: ['bancontact'] }
+    const localLogos = { ideal: ['ideal'], applepay: ['applepay'], googlepay: ['googlepay'], creditcard: ['visa', 'mastercard', 'amex'], bancontact: ['bancontact'], klarna: ['klarna'] }
     const cardNames = { visa: 'Visa', mastercard: 'Mastercard', amex: 'American Express' }
     const badges = methods.flatMap((method) => (localLogos[method.id] || [null]).map((logo) => ({ ...method, logo, description: cardNames[logo] || method.description })))
     list.replaceChildren(...badges.map((method) => {
@@ -90,6 +90,8 @@ async function initializeProductCommerce() {
     if (bundlePriceOne) bundlePriceOne.textContent = formatMoney(currentUnitPrice)
     if (bundlePriceTwo) bundlePriceTwo.textContent = formatMoney(discountedBundlePrice)
     if (bundleOriginal) bundleOriginal.textContent = formatMoney(originalBundlePrice)
+    const klarnaTerm = purchase.querySelector('[data-klarna-term]')
+    if (klarnaTerm) klarnaTerm.textContent = formatMoney(Math.ceil(selectedPrice / 3))
   }
 
   function selectBundle(input) {

@@ -79,7 +79,7 @@ const paymentMethodPresentation = {
   bancontact: { label: 'Bancontact', detail: 'Veilig betalen vanuit België', mark: 'Bancontact' },
   banktransfer: { label: 'Bankoverschrijving', detail: 'Handmatig via je bank', mark: 'SEPA' },
   in3: { label: 'iDEAL in3', detail: 'Betaal in drie delen', mark: 'in3' },
-  klarna: { label: 'Klarna', detail: 'Betaal met Klarna', mark: 'Klarna' },
+  klarna: { label: 'Klarna', detail: 'Betaal later of in 3 termijnen, zonder rente', mark: 'Klarna' },
 }
 
 function analyticsItems(cart = getCart()) {
