@@ -6,8 +6,7 @@ import { JSDOM } from 'jsdom'
 import { createGermanTranslator } from '../src/german-dynamic.js'
 import { germanRoutes } from '../src/german-routes.js'
 
-// Keep false until German sales are legally ready; pages then stay out of Google.
-const GERMAN_PAGES_PUBLIC = false
+const GERMAN_PAGES_PUBLIC = true
 const origin = 'https://zolsolutions.nl'
 const dist = join(import.meta.dirname, '..', 'dist')
 const dictionary = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'src', 'german.json'), 'utf8'))
@@ -112,7 +111,9 @@ function write(route, dom) {
 
 let imprintSource
 for (const [nlRoute, target] of Object.entries(germanRoutes)) {
-  const dom = new JSDOM(readFileSync(fileFor(nlRoute), 'utf8'))
+  const source = readFileSync(fileFor(nlRoute), 'utf8')
+  if (GERMAN_PAGES_PUBLIC) writeFileSync(fileFor(nlRoute), source.replace('</head>', `<link rel="alternate" hreflang="de-DE" href="${origin}${target}"></head>`))
+  const dom = new JSDOM(source)
   const doc = dom.window.document
   for (const start of removeText[nlRoute] || []) innermost(doc, start)?.remove()
   doc.querySelectorAll('a[href="/kennisbank/inlegzolen-voor-kinderen/"]').forEach(link => { if (clean(link.textContent) === 'Lees hoe je de juiste zool kiest') link.remove() })

@@ -4053,7 +4053,7 @@ function bindSettingsForms(category) {
   const form = document.querySelector('#settings-form')
   form?.addEventListener('submit', async (event) => {
     event.preventDefault(); const values = Object.fromEntries(new FormData(form)); form.querySelectorAll('[data-cents]').forEach((input) => values[input.name] = Math.round(Number(input.value) * 100)); form.querySelectorAll('input[type="number"]:not([data-cents])').forEach((input) => values[input.name] = Number(input.value)); form.querySelectorAll('input[type="checkbox"]').forEach((input) => values[input.name] = input.checked)
-    const key = form.dataset.key; const { error } = await supabase.from('settings').upsert({ key, category: form.dataset.category, label: key === 'commerce' ? 'Webshopinstellingen' : key === 'theme' ? 'Huisstijl' : key === 'email_config' ? 'E-mailinstellingen' : key === 'postnl_config' ? 'PostNL-koppeling' : 'Bedrijfsgegevens', value: values, is_public: ['commerce', 'theme'].includes(key) })
+    const key = form.dataset.key; const { error } = await supabase.from('settings').upsert({ key, category: form.dataset.category, label: key === 'commerce' ? 'Webshopinstellingen' : key === 'theme' ? 'Huisstijl' : key === 'email_config' ? 'E-mailinstellingen' : key === 'postnl_config' ? 'PostNL-koppeling' : 'Bedrijfsgegevens', value: { ...settingsValue(key), ...values }, is_public: ['commerce', 'theme'].includes(key) })
     if (error) { toast('Instellingen opslaan mislukt', error.message, true); return }
     await recordActivity('Instellingen bijgewerkt', 'settings', key); toast('Instellingen opgeslagen'); await refreshCurrentRoute(category)
   })
