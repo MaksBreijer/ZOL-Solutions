@@ -45,6 +45,7 @@ function normalizeCountryCode(value: unknown) {
   const country = clean(value, 120).replace(/\s+/g, " ").toUpperCase() || "NL"
   if (["NL", "NLD", "NEDERLAND", "NETHERLANDS", "THE NETHERLANDS"].includes(country)) return "NL"
   if (["BE", "BEL", "BELGIË", "BELGIE", "BELGIUM"].includes(country)) return "BE"
+  if (["DE", "DEU", "DUITSLAND", "DEUTSCHLAND", "GERMANY"].includes(country)) return "DE"
   return country
 }
 
@@ -244,8 +245,12 @@ Deno.serve(async (request) => {
 
     const address: Json = order.shipping_address || {}
     const recipientCountry = normalizeCountryCode(address.country)
-    if (!["NL", "BE"].includes(recipientCountry)) {
-      return Response.json({ error: "Deze koppeling ondersteunt op dit moment alleen zendingen naar Nederland en België." }, { status: 409, headers })
+    if (!["NL", "BE", "DE"].includes(recipientCountry)) {
+      return Response.json({ error: "Deze koppeling ondersteunt op dit moment alleen zendingen naar Nederland, België en Duitsland." }, { status: 409, headers })
+    }
+    // The right German product depends on the PostNL contract, so it is never guessed.
+    if (recipientCountry === "DE" && !clean(config.germany_product_code, 4)) {
+      return Response.json({ error: "Stel eerst de PostNL-productcode voor Duitsland in (germany_product_code)." }, { status: 409, headers })
     }
     const recipientStreet = splitStreet(address.street)
     const isPhysioOrder = order.order_type === "physio"
@@ -265,7 +270,9 @@ Deno.serve(async (request) => {
     }
     const barcode = barcodeResult.barcode
     const weight = Math.max(1, Math.min(23000, Number.parseInt(clean(config.default_weight_grams, 8), 10) || 500))
-    const productCode = recipientCountry === "BE"
+    const productCode = recipientCountry === "DE"
+      ? clean(config.germany_product_code, 4)
+      : recipientCountry === "BE"
       ? clean(config.belgium_product_code || "4946", 4)
       : clean(config.product_code || (config.shipment_type === "letterbox" ? "2928" : "3085"), 4)
     const payload: Json = {

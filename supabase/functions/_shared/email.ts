@@ -105,12 +105,12 @@ export function safeEmailUrl(value: string, fallback: string) {
   } catch { return fallback }
 }
 
-export function emailShell(content: string, options: { eyebrow: string; title: string; intro?: string; websiteUrl?: string; logoUrl?: string; buttonLabel?: string; buttonUrl?: string; compact?: boolean }) {
+export function emailShell(content: string, options: { eyebrow: string; title: string; intro?: string; websiteUrl?: string; logoUrl?: string; buttonLabel?: string; buttonUrl?: string; compact?: boolean; language?: string; tagline?: string }) {
   const websiteUrl = options.websiteUrl || "https://zolsolutions.nl"
   const logoUrl = safeEmailUrl(options.logoUrl || `${websiteUrl.replace(/\/$/, "")}/media/zol-logo-email-v4.png`, `${websiteUrl.replace(/\/$/, "")}/media/zol-logo-email-v4.png`)
   const buttonUrl = options.buttonLabel && options.buttonUrl ? safeEmailUrl(options.buttonUrl, websiteUrl) : ""
   const compact = Boolean(options.compact)
-  return `<!doctype html><html lang="nl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  return `<!doctype html><html lang="${options.language === "de" ? "de" : "nl"}"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
   <body style="margin:0;background:#f3f5f7;color:#10233b;font-family:Arial,Helvetica,sans-serif${compact ? ";-webkit-text-size-adjust:100%;text-size-adjust:100%" : ""}">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f7"><tr><td align="center" style="padding:${compact ? "16px 8px" : "32px 12px"}">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:${compact ? "520" : "680"}px;overflow:hidden;border-radius:${compact ? "14" : "22"}px;background:#ffffff;box-shadow:0 18px 50px rgba(16,35,59,.09)">
@@ -121,7 +121,7 @@ export function emailShell(content: string, options: { eyebrow: string; title: s
           ${options.intro ? `<p style="margin:16px 0 0;color:#dfeaf4;font-size:15px;line-height:1.65">${escapeEmailHtml(options.intro)}</p>` : ""}
         </td></tr>
         <tr><td style="padding:${compact ? "24px 20px" : "34px 38px"}">${content}${buttonUrl ? `<a href="${escapeEmailHtml(buttonUrl)}" style="display:inline-block;margin-top:8px;padding:14px 21px;border-radius:9px;background:#33669b;color:#fff;font-size:13px;font-weight:700;text-decoration:none">${escapeEmailHtml(options.buttonLabel)} &rarr;</a>` : ""}</td></tr>
-        <tr><td style="padding:${compact ? "18px 20px" : "22px 38px"};border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">ZOL Solutions &middot; Zachter landen. Beter sporten.<br><a href="${escapeEmailHtml(websiteUrl)}" style="color:#33669b">${escapeEmailHtml(websiteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
+        <tr><td style="padding:${compact ? "18px 20px" : "22px 38px"};border-top:1px solid #e4e9ee;color:#66798c;font-size:12px;line-height:1.6">ZOL Solutions &middot; ${options.tagline || "Zachter landen. Beter sporten."}<br><a href="${escapeEmailHtml(websiteUrl)}" style="color:#33669b">${escapeEmailHtml(websiteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
       </table>
     </td></tr></table>
   </body></html>`

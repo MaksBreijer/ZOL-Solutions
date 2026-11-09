@@ -48,7 +48,7 @@ function moneyValue(cents: number) {
 
 function checkoutCountry(value: unknown) {
   const country = String(value || "NL").trim().toUpperCase()
-  if (!['NL', 'BE'].includes(country)) throw new Error("We bezorgen op dit moment alleen in Nederland en België.")
+  if (!['NL', 'BE', 'DE'].includes(country)) throw new Error("We bezorgen op dit moment alleen in Nederland, België en Duitsland.")
   return country
 }
 
@@ -62,13 +62,14 @@ function validateCustomer(customer: Record<string, unknown>) {
   }
   if (country === 'NL' && !/^[1-9][0-9]{3}\s?[A-Z]{2}$/.test(postalCode)) throw new Error("Vul een geldige Nederlandse postcode in.")
   if (country === 'BE' && !/^[1-9][0-9]{3}$/.test(postalCode)) throw new Error("Vul een geldige Belgische postcode van vier cijfers in.")
+  if (country === 'DE' && !/^[0-9]{5}$/.test(postalCode)) throw new Error("Vul een geldige Duitse postcode van vijf cijfers in.")
   return { country, email }
 }
 
 async function listPaymentMethods(mollieKey: string, amountCents: number, country = 'NL') {
   if (!mollieKey) return []
   const query = new URLSearchParams({
-    locale: country === 'BE' ? "nl_BE" : "nl_NL",
+    locale: country === 'DE' ? "de_DE" : country === 'BE' ? "nl_BE" : "nl_NL",
     sequenceType: "oneoff",
     billingCountry: country,
     includeWallets: "applepay,googlepay",
@@ -160,7 +161,8 @@ async function startMolliePayment(input: {
   mollieKey: string
   method?: string
 }) {
-  const redirect = `${input.origin}/checkout/?ref=${encodeURIComponent(input.order.id)}&token=${encodeURIComponent(input.token)}`
+  const checkoutPath = input.order.shipping_address?.country === 'DE' ? '/de/kasse/' : '/checkout/'
+  const redirect = `${input.origin}${checkoutPath}?ref=${encodeURIComponent(input.order.id)}&token=${encodeURIComponent(input.token)}`
   const response = await fetch("https://api.mollie.com/v2/payments", {
     method: "POST",
     headers: { "Authorization": `Bearer ${input.mollieKey}`, "Content-Type": "application/json" },
@@ -340,7 +342,7 @@ Deno.serve(async (request) => {
     }, { headers: { ...headers, "Content-Type": "application/json" } })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Afrekenen is niet gelukt."
-    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres|terechtgekomen|bezorgadres|postcode|Nederland|België/i.test(message) ? 400 : 500
+    const status = /kortingscode|winkelwagen|product|voorraad|bestelbedrag|beschikbaar|e-mailadres|terechtgekomen|bezorgadres|postcode|Nederland|België|Duitsland/i.test(message) ? 400 : 500
     return Response.json({ error: message }, { status, headers })
   }
 })

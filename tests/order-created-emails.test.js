@@ -1,4 +1,5 @@
 import test from 'node:test'
+import * as germanOrderEmail from '../supabase/functions/_shared/german-order-email.js'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
@@ -91,6 +92,7 @@ test('manual order RPC queues one created email event for customers and physios 
 test('manual orders stay quiet until an authenticated admin confirms tracking; webshop receipts and send deduplication are preserved', async () => {
   const source = readFileSync(new URL('../supabase/functions/order-email/index.ts', import.meta.url), 'utf8')
     .replace(/^import[\s\S]*?from "\.\.\/_shared\/email\.ts"\n/, '')
+    .replace(/^import .* from "\.\.\/_shared\/german-order-email\.js"\n/m, '')
   for (const type of ['customer','physio']) {
     for (const [status, orderSource] of [['pending','admin'],['paid','admin'],['pending','zol-webshop'],['paid','zol-webshop']]) {
       const order = {id:customer,order_number:123,source:orderSource,order_type:type,customer_id:type === 'customer' ? customer : null,customer_email:`${type}@example.invalid`,customer_name:'Test Recipient',payment_status:status,total_cents:0,subtotal_cents:0,shipping_cents:0,currency:'EUR',order_items:[],shipping_address:{}}
@@ -109,7 +111,7 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
         },
       }
       runInNewContext(stripTypeScriptTypes(source), {
-        Deno:{serve(fn) { handler = fn }}, Response,
+        Deno:{serve(fn) { handler = fn }}, Response, ...germanOrderEmail,
         adminClient:() => db, corsHeaders:() => ({}), requireAdmin:async () => ({}),
         getEmailConfig:async () => ({enabled:true,admin_email:'admin@example.invalid'}),
         getEmailTemplate:async key => ({enabled:true,audience:key === 'new_order_admin' ? 'admin' : 'customer',subject_template:key}),

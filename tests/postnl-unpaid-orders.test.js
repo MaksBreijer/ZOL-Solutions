@@ -109,12 +109,23 @@ test('Belgian country names use the standard Belgian product and tracking codes'
 })
 
 test('unsupported and malformed country values never become Dutch by truncation',async () => {
-  for (const country of ['DE','Germany','NE','Niger','NZ','NL-invalid','Nederlandse Antillen','Netherlands Antilles']) {
+  for (const country of ['NE','Niger','NZ','NL-invalid','Nederlandse Antillen','Netherlands Antilles']) {
     const h = harness({shipping_address:{street:'Teststraat 1',postal_code:'1234AB',city:'Teststad',country}})
     const response = await h.create()
     assert.equal(response.status,409,country)
-    assert.match((await response.json()).error,/Nederland en België/)
+    assert.match((await response.json()).error,/Nederland, België en Duitsland/)
     assert.equal(h.requests.length,0,'no barcode or paid shipment may be requested')
+    assert.equal(h.updates.length,0)
+  }
+})
+
+test('Germany needs a configured PostNL product before any shipment is requested',async () => {
+  for (const country of ['DE','Germany']) {
+    const h = harness({shipping_address:{street:'Teststraat 1',postal_code:'10115',city:'Berlin',country}})
+    const response = await h.create()
+    assert.equal(response.status,409,country)
+    assert.match((await response.json()).error,/germany_product_code/)
+    assert.equal(h.requests.length,0)
     assert.equal(h.updates.length,0)
   }
 })
