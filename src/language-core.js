@@ -1,5 +1,7 @@
 import english from './english.json' with { type: 'json' }
 import { englishDynamic, englishPatterns } from './english-dynamic.js'
+import { createGermanTranslator } from './german-dynamic.js'
+import { dutchPathFor, germanPathFor, isGermanPath } from './german-routes.js'
 
 const dictionary = { ...english, ...englishDynamic }
 const attributes = ['alt', 'title', 'aria-label', 'placeholder']
@@ -19,18 +21,21 @@ export function translateEnglish(value) {
   return value.replace(/\S(?:[\s\S]*\S)?/, () => translated)
 }
 
-export function installLanguageChoice(win) {
+export function installLanguageChoice(win, { german = null } = {}) {
   const doc = win.document
   if (/^\/(?:admin|zolsolutions\/admin|meting)(?:\/|$)/.test(win.location.pathname)) return null
   const previous = doc.querySelector('[data-language-switcher]')
   if (previous) return null
   const texts = new WeakMap()
   const attrs = new WeakMap()
+  const onGermanPage = isGermanPath(win.location.pathname)
+  const translateGerman = createGermanTranslator(german || {})
   let language = 'nl'
   const initialUrl = new URL(win.location.href)
   const requested = initialUrl.searchParams.get('lang')
   try { language = win.localStorage.getItem('zol_language') === 'en' ? 'en' : 'nl' } catch { /* URL still works without storage. */ }
-  if (requested === 'en' || requested === 'nl') {
+  if (onGermanPage) language = 'de'
+  else if (requested === 'en' || requested === 'nl') {
     language = requested
     try { win.localStorage.setItem('zol_language', language) } catch { /* Keep using the URL. */ }
   }
@@ -39,7 +44,7 @@ export function installLanguageChoice(win) {
   choice.className = 'language-switcher'
   choice.dataset.languageSwitcher = ''
   choice.setAttribute('role', 'group')
-  choice.innerHTML = '<button type="button" lang="nl" data-language="nl" aria-label="Nederlands">NL</button><button type="button" lang="en" data-language="en" aria-label="English">EN</button>'
+  choice.innerHTML = '<button type="button" lang="nl" data-language="nl" aria-label="Nederlands">NL</button><button type="button" lang="de" data-language="de" aria-label="Deutsch">DE</button><button type="button" lang="en" data-language="en" aria-label="English">EN</button>'
   const nav = doc.querySelector('.zn') || doc.querySelector('.nav-shell')
   const header = doc.querySelector('.checkout-header')
   if (nav) {
@@ -51,7 +56,7 @@ export function installLanguageChoice(win) {
   function translatedValue(value, records, key) {
     const record = records.get(key)
     const source = record && record.output === value ? record.source : value
-    const output = language === 'en' ? translateEnglish(source) : source
+    const output = language === 'en' ? translateEnglish(source) : language === 'de' ? translateGerman(source) : source
     records.set(key, { source, output })
     return output
   }
@@ -97,13 +102,20 @@ export function installLanguageChoice(win) {
   function refresh() {
     observer.disconnect()
     doc.documentElement.lang = language
-    choice.setAttribute('aria-label', language === 'en' ? 'Language' : 'Taal')
+    choice.setAttribute('aria-label', language === 'en' ? 'Language' : language === 'de' ? 'Sprache' : 'Taal')
     choice.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.language === language)))
     translateNode(doc.documentElement)
     observe()
   }
   function setLanguage(next) {
-    if (!['nl', 'en'].includes(next)) return
+    if (!['nl', 'en', 'de'].includes(next) || next === language) return
+    // German lives on its own pages, so changing to or from it opens another page.
+    if (next === 'de') { win.location.assign(germanPathFor(win.location.pathname) || '/de/'); return }
+    if (onGermanPage) {
+      try { win.localStorage.setItem('zol_language', next) } catch { /* The URL carries the choice. */ }
+      win.location.assign(`${dutchPathFor(win.location.pathname)}?lang=${next}`)
+      return
+    }
     language = next
     try { win.localStorage.setItem('zol_language', next) } catch { /* Preference remains in URL. */ }
     const url = new URL(win.location.href)
@@ -121,6 +133,11 @@ export function installLanguageChoice(win) {
     if (!link || link.hasAttribute('download') || link.getAttribute('href').startsWith('#')) return
     const url = new URL(link.href, win.location.href)
     if (url.origin !== win.location.origin || !/^https?:$/.test(url.protocol) || /^\/(?:admin|zolsolutions\/admin|meting)(?:\/|$)/.test(url.pathname)) return
+    if (onGermanPage) {
+      const target = isGermanPath(url.pathname) ? url.pathname : germanPathFor(url.pathname)
+      if (target) { url.pathname = target; link.href = url.href }
+      return
+    }
     url.searchParams.set('lang', language)
     link.href = url.href
   }, true)

@@ -266,7 +266,7 @@ async function initializeProductCommerce() {
       currency: 'EUR',
       value: (item.price_cents * item.quantity) / 100,
     })
-    if (direct) window.location.assign(document.documentElement.lang === 'en' ? '/checkout/?lang=en' : '/checkout/')
+    if (direct) window.location.assign(document.documentElement.lang === 'de' ? '/de/kasse/' : document.documentElement.lang === 'en' ? '/checkout/?lang=en' : '/checkout/')
     else {
       addButton.textContent = 'Toegevoegd ✓'
       window.setTimeout(() => { addButton.textContent = 'In winkelwagen' }, 1600)

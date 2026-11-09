@@ -19,7 +19,7 @@ const paymentMethodsElement = document.querySelector('#payment-methods')
 const paymentMethodOptions = document.querySelector('#payment-method-options')
 const deliveryPromise = document.querySelector('#delivery-promise')
 const postalCodeInput = form.elements.postal_code
-let commerce = { shipping_cents: 0, belgium_shipping_cents: 495, free_shipping_threshold_cents: 0, tax_rate: 21, mollie_enabled: true }
+let commerce = { shipping_cents: 0, belgium_shipping_cents: 495, germany_shipping_cents: 695, free_shipping_threshold_cents: 0, tax_rate: 21, mollie_enabled: true }
 const returnParams = new URLSearchParams(window.location.search)
 const returnOrderId = returnParams.get('ref')
 const returnToken = returnParams.get('token')
@@ -108,16 +108,18 @@ function discountCode() {
 }
 
 function selectedCountry() {
-  return form.elements.country.value === 'BE' ? 'BE' : 'NL'
+  const country = form.elements.country.value
+  return country === 'BE' || country === 'DE' ? country : 'NL'
 }
 
 function updateCountryFields({ quote = false } = {}) {
   const country = selectedCountry()
   const belgium = country === 'BE'
-  postalCodeInput.pattern = belgium ? '[1-9][0-9]{3}' : '[1-9][0-9]{3}\\s?[A-Za-z]{2}'
-  postalCodeInput.placeholder = belgium ? '1000' : '1234 AB'
-  postalCodeInput.maxLength = belgium ? 4 : 7
-  deliveryPromise.textContent = belgium ? 'België · 2–4 werkdagen' : 'Nederland · 1–2 werkdagen'
+  const germany = country === 'DE'
+  postalCodeInput.pattern = germany ? '[0-9]{5}' : belgium ? '[1-9][0-9]{3}' : '[1-9][0-9]{3}\\s?[A-Za-z]{2}'
+  postalCodeInput.placeholder = germany ? '12345' : belgium ? '1000' : '1234 AB'
+  postalCodeInput.maxLength = germany ? 5 : belgium ? 4 : 7
+  deliveryPromise.textContent = germany ? 'Duitsland · 3–5 werkdagen' : belgium ? 'België · 2–4 werkdagen' : 'Nederland · 1–2 werkdagen'
   currentQuote = null; quotedCart = ''; quotedCode = null; quotedCountry = null
   renderSummary(getCart())
   if (quote && getCart().length) void requestQuote({ code: discountCode(), announce: false })
@@ -130,7 +132,7 @@ function cartSignature(cart = getCart()) {
 function localTotals(cart, country = selectedCountry()) {
   const subtotalCents = cart.reduce((sum, item) => sum + item.price_cents * item.quantity, 0)
   const threshold = Number(commerce.free_shipping_threshold_cents || 0)
-  const baseShippingCents = country === 'BE' ? Number(commerce.belgium_shipping_cents ?? 495) : Number(commerce.shipping_cents || 0)
+  const baseShippingCents = country === 'DE' ? Number(commerce.germany_shipping_cents ?? 695) : country === 'BE' ? Number(commerce.belgium_shipping_cents ?? 495) : Number(commerce.shipping_cents || 0)
   const shippingCents = threshold > 0 && subtotalCents >= threshold ? 0 : baseShippingCents
   const taxRate = Number(commerce.tax_rate || 21)
   return {
@@ -247,9 +249,15 @@ function renderSummary(cart) {
   summaryElement.innerHTML = `<h2>Besteloverzicht</h2><div class="summary-line"><span>Subtotaal</span><strong>${formatMoney(totals.subtotal_cents)}</strong></div><div class="summary-line"><span>Verzending</span><strong>${totals.shipping_cents ? formatMoney(totals.shipping_cents) : 'Gratis'}</strong></div>${totals.discount_cents ? `<div class="summary-line summary-discount"><span>${discountLabel}</span><strong>− ${formatMoney(totals.discount_cents)}</strong></div>` : ''}<div class="summary-line total"><span>Totaal</span><strong>${formatMoney(totals.total_cents)}</strong></div>${totals.total_cents > 0 ? `<p class="summary-klarna"><img src="/images/payment/klarna.svg" alt="Klarna" width="32" height="24" /> Of betaal in 3 termijnen van <strong>${formatMoney(Math.ceil(totals.total_cents / 3))}</strong> met Klarna, zonder rente</p>` : ''}${hasCurrentQuote && totals.discount_title ? `<p class="summary-saving"><span>✓</span>${totals.automatic ? 'Automatisch toegepast' : 'Kortingscode toegepast'}<strong>${totals.discount_title}</strong></p>` : ''}<p class="summary-note">${paymentNote}</p>`
 }
 
+function germanySalesClosed() {
+  return selectedCountry() === 'DE' && commerce.germany_enabled !== true
+}
+
 async function requestQuote({ code = discountCode(), announce = true } = {}) {
   const cart = getCart()
   if (!cart.length) return false
+  // The server only quotes Germany once sales there are switched on.
+  if (germanySalesClosed()) { renderPaymentMethods([]); renderSummary(cart); return false }
   const normalizedCode = String(code || '').trim().toUpperCase().slice(0, 40)
   discountInput.value = normalizedCode
   const requestId = ++quoteRequest
@@ -374,8 +382,8 @@ discountInput.addEventListener('input', () => {
 })
 form.elements.country.addEventListener('change', () => updateCountryFields({ quote: true }))
 postalCodeInput.addEventListener('input', () => {
-  const normalized = selectedCountry() === 'BE'
-    ? postalCodeInput.value.replace(/\D/g, '').slice(0, 4)
+  const normalized = selectedCountry() !== 'NL'
+    ? postalCodeInput.value.replace(/\D/g, '').slice(0, selectedCountry() === 'DE' ? 5 : 4)
     : postalCodeInput.value.toUpperCase().replace(/[^0-9A-Z ]/g, '').slice(0, 7)
   if (postalCodeInput.value !== normalized) postalCodeInput.value = normalized
 })
@@ -388,7 +396,7 @@ function checkoutValidationMessage(invalid) {
   if (invalid?.name === 'discovery_details') return 'Vertel hoe je ons hebt gevonden om verder te gaan.'
   if (invalid?.name === 'terms_accepted') return 'Vink eerst aan dat je akkoord gaat met de voorwaarden en het privacybeleid.'
   if (invalid?.type === 'email') return 'Vul een geldig e-mailadres in.'
-  if (invalid?.name === 'postal_code') return selectedCountry() === 'BE' ? 'Vul een geldige Belgische postcode van vier cijfers in.' : 'Vul een geldige Nederlandse postcode in, bijvoorbeeld 1234 AB.'
+  if (invalid?.name === 'postal_code') return selectedCountry() === 'DE' ? 'Vul een geldige Duitse postcode van vijf cijfers in.' : selectedCountry() === 'BE' ? 'Vul een geldige Belgische postcode van vier cijfers in.' : 'Vul een geldige Nederlandse postcode in, bijvoorbeeld 1234 AB.'
   return 'Controleer de gemarkeerde velden en vul alle verplichte gegevens in.'
 }
 
@@ -421,6 +429,7 @@ form.addEventListener('submit', async (event) => {
   const status = document.querySelector('#checkout-status')
   status.textContent = ''; status.classList.remove('is-error')
   if (!validateCheckoutForm(status)) return
+  if (germanySalesClosed()) { status.textContent = 'Bestellingen naar Duitsland zijn nog niet geopend.'; status.classList.add('is-error'); return }
   submitInFlight = true
   button.disabled = true; button.innerHTML = 'Bestelling verwerken…'
   try {
@@ -453,7 +462,7 @@ form.addEventListener('submit', async (event) => {
     status.textContent = checkoutError instanceof Error ? checkoutError.message : 'Afrekenen is niet gelukt. Probeer het opnieuw.'
     status.classList.add('is-error')
     button.disabled = false
-    button.innerHTML = 'Veilig betalen <span>→</span>'
+    button.innerHTML = `${document.documentElement.lang === 'de' ? 'Zahlungspflichtig bestellen' : 'Veilig betalen'} <span>→</span>`
     submitInFlight = false
   }
 })
