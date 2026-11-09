@@ -190,7 +190,23 @@
       .hero h1 b { color: #fff; }
       .hero h1 b::after { content: ""; display: block; width: 84px; height: 5px; border-radius: 3px; background: var(--accent); margin-top: 18px; }
       .stat strong { color: var(--brand); }
-      .stats { border-top: 3px solid var(--accent); }
+      .stats { border-top: 3px solid var(--accent); grid-template-columns: 1.15fr repeat(4, 1fr); }
+      .stat { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; color: var(--ink); padding-inline: 20px; }
+      .stat span { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 21px; line-height: 1.15; }
+      .stat small { font-size: 15px; line-height: 1.35; }
+      .stat .arr { font-size: inherit; color: var(--accent); }
+      a.stat { transition: background .2s; }
+      a.stat:hover { background: var(--soft); }
+      .stat-ic { width: 34px; height: 34px; margin-bottom: 10px; fill: none; stroke: var(--brand); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+      .stat-review { background: var(--soft); }
+      .stat-review strong { font-size: 46px; line-height: 1; }
+      .stat-review .stars { color: #00b67a; font-size: 15px; margin-bottom: 6px; }
+      @media (max-width: 960px) {
+        .stats { grid-template-columns: 1fr 1fr; }
+        .stats .stat:last-child { grid-column: auto; }
+        .stats .stat-review { grid-column: 1 / -1; }
+        .stat { padding: 22px 18px; }
+      }
       .partners { background: var(--soft); }
       .card { border-top: 3px solid var(--brand); }
       .card .num, .scard .num { background: var(--brand); color: #fff; }
