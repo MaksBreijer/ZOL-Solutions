@@ -73,6 +73,73 @@ function setHead(doc, route, target, nlRoute) {
   if (nlRoute) add('link', { rel: 'alternate', hreflang: 'nl-NL', href: `${origin}${nlRoute}` })
 }
 
+// Google's product and page details, in German and for delivery to Germany.
+const offerExtras = {
+  shippingDetails: { '@type': 'OfferShippingDetails', shippingRate: { '@type': 'MonetaryAmount', value: '6.95', currency: 'EUR' }, shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'DE' }, deliveryTime: { '@type': 'ShippingDeliveryTime', handlingTime: { '@type': 'QuantitativeValue', minValue: 0, maxValue: 1, unitCode: 'DAY' }, transitTime: { '@type': 'QuantitativeValue', minValue: 2, maxValue: 5, unitCode: 'DAY' } } },
+  hasMerchantReturnPolicy: { '@type': 'MerchantReturnPolicy', applicableCountry: 'DE', returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow', merchantReturnDays: 14, returnMethod: 'https://schema.org/ReturnByMail', returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility' },
+}
+const sizes = [['ZOL-XS-3435', '34/35'], ['ZOL-S-3637', '36/37'], ['ZOL-M-3839', '38/39'], ['ZOL-L-4041', '40/41'], ['ZOL-XL-4243', '42/43'], ['ZOL-XXL-4445', '44/45']]
+const productDescription = 'ZOL 3/4-Einlagen mit gezielter Dämpfung, Fersenunterstützung und fester Fersenschale für sportliche Kinder mit Fersenschmerzen.'
+
+function readGraph(doc) {
+  try { return JSON.parse(doc.querySelector('script[type="application/ld+json"]')?.textContent || '{}')['@graph'] || [] } catch { return [] }
+}
+
+function structuredData(doc, nlRoute, target, dutchGraph) {
+  const url = `${origin}${target}`
+  const organization = { '@id': `${origin}/#organization` }
+  const title = doc.title
+  const description = doc.querySelector('meta[name="description"]')?.content || ''
+  const crumbs = [['Startseite', '/de/']]
+  if (target.startsWith('/de/ratgeber/')) crumbs.push(['Ratgeber', '/de/ratgeber/'])
+  if (target !== '/de/' && target !== '/de/ratgeber/') crumbs.push([clean(doc.querySelector('h1')?.textContent || title), target])
+  const graph = [
+    { '@type': 'Organization', ...organization, name: 'ZOL Solutions', url: `${origin}/de/`, logo: { '@type': 'ImageObject', url: `${origin}/favicon-512.png`, width: 512, height: 512 }, email: 'info@zolsolutions.nl', contactPoint: { '@type': 'ContactPoint', email: 'info@zolsolutions.nl', contactType: 'customer service', availableLanguage: ['German', 'Dutch', 'English'] }, address: { '@type': 'PostalAddress', addressLocality: 'Amsterdam', addressCountry: 'NL' }, areaServed: { '@type': 'Country', name: 'Deutschland' } },
+    { '@type': 'WebSite', '@id': `${origin}/de/#website`, url: `${origin}/de/`, name: 'ZOL Solutions', inLanguage: 'de-DE', publisher: organization },
+    { '@type': 'WebPage', '@id': `${url}#webpage`, url, name: title, description, inLanguage: 'de-DE', isPartOf: { '@id': `${origin}/de/#website` } },
+  ]
+  if (crumbs.length > 1) graph.push({ '@type': 'BreadcrumbList', '@id': `${url}#breadcrumb`, itemListElement: crumbs.map(([name, path], index) => ({ '@type': 'ListItem', position: index + 1, name, item: `${origin}${path}` })) })
+  if (nlRoute === '/product/') {
+    graph.push({
+      '@type': 'ProductGroup', '@id': `${url}#product`, name: 'ZOL 3/4-Einlagen', description: productDescription, url, image: [`${origin}/images/zol-familie.jpg`, `${origin}/media/product-blue.jpg`, `${origin}/media/product-detail.jpg`], brand: { '@type': 'Brand', name: 'ZOL Solutions' }, color: 'Blau', productGroupID: 'ZOL-3-4', variesBy: ['https://schema.org/size'],
+      hasVariant: sizes.map(([sku, size]) => ({ '@type': 'Product', name: `ZOL 3/4-Einlagen – Größe ${size}`, description: productDescription, sku, size, image: `${origin}/images/zol-familie.jpg`, offers: { '@type': 'Offer', url: `${url}?maat=${size.replace('/', '-')}`, priceCurrency: 'EUR', price: '99.95', availability: 'https://schema.org/InStock', itemCondition: 'https://schema.org/NewCondition', seller: organization, ...offerExtras } })),
+    })
+  }
+  if (target.startsWith('/de/ratgeber/') && target !== '/de/ratgeber/') {
+    const dutch = dutchGraph.find(item => item['@type'] === 'Article' || item['@type'] === 'MedicalWebPage' || item.datePublished) || {}
+    graph.push({ '@type': 'Article', '@id': `${url}#article`, headline: title.replace(/\s+[—|]\s+ZOL Solutions$/, ''), description, inLanguage: 'de-DE', mainEntityOfPage: { '@id': `${url}#webpage` }, author: organization, publisher: organization, image: `${origin}/og-zol.jpg?v=2`, ...(dutch.datePublished ? { datePublished: dutch.datePublished } : {}), ...(dutch.dateModified ? { dateModified: dutch.dateModified } : {}) })
+  }
+  const questions = [...doc.querySelectorAll('details')].map(item => {
+    const question = clean(item.querySelector('summary')?.textContent || '')
+    const answer = clean([...item.childNodes].filter(node => node.nodeName !== 'SUMMARY').map(node => node.textContent).join(' '))
+    return question && answer ? { '@type': 'Question', name: question, acceptedAnswer: { '@type': 'Answer', text: answer } } : null
+  }).filter(Boolean)
+  if (questions.length) graph.push({ '@type': 'FAQPage', '@id': `${url}#faq`, inLanguage: 'de-DE', mainEntity: questions })
+  const script = doc.createElement('script')
+  script.type = 'application/ld+json'
+  script.textContent = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph })
+  doc.head.append(script)
+}
+
+function buildGermanFeed() {
+  const source = readFileSync(join(dist, 'google-product-feed.xml'), 'utf8')
+  const items = source.replace(/<title>.*?<\/title>/, '<title>ZOL Solutions Produktfeed Deutschland</title>').replace('<link>https://zolsolutions.nl/</link>', '<link>https://zolsolutions.nl/de/</link>').replace(/<description>.*?<\/description>/, '<description>Aktuelle Produktdaten von ZOL Solutions für Deutschland.</description>')
+  const feed = items.replace(/<item>[\s\S]*?<\/item>/g, item => {
+    const size = item.match(/<g:size>(.*?)<\/g:size>/)[1]
+    const highlights = ['Kompakte 3/4-Form für Sportschuhe', 'Gezielte Dämpfung unter der Ferse', 'Handgefertigt in der EU'].map(text => `<g:product_highlight>${text}</g:product_highlight>`).join('')
+    const shipping = '<g:shipping><g:country>DE</g:country><g:service>Standard</g:service><g:price>6.95 EUR</g:price></g:shipping>'
+    return item
+      .replace(/<g:title>.*?<\/g:title>/, `<g:title>ZOL Einlagen für Kinder mit Fersenschmerzen – 3/4-Sporteinlage – Größe ${size}</g:title>`)
+      .replace(/<g:description>.*?<\/g:description>/, `<g:description>${productDescription} Passend für Fußball-, Hockey- und andere Sportschuhe.</g:description>`)
+      .replace(/<g:link>.*?<\/g:link>/, `<g:link>${origin}/de/produkt/?maat=${size.replace('/', '-')}</g:link>`)
+      .replace(/<g:product_type>.*?<\/g:product_type>/, '<g:product_type>Sport &gt; Schuhzubehör &gt; Einlagen</g:product_type>')
+      .replace(/<g:shipping>[\s\S]*?<\/g:shipping>/g, '')
+      .replace(/<g:product_highlight>.*?<\/g:product_highlight>/g, '')
+      .replace('</item>', `  ${highlights}${shipping}\n    </item>`)
+  })
+  writeFileSync(join(dist, 'google-product-feed-de.xml'), feed)
+}
+
 function addImprint(doc) {
   const terms = [...doc.querySelectorAll('.zf-legal a')].find(link => link.getAttribute('href') === '/de/agb/')
   if (!terms) return
@@ -115,12 +182,14 @@ for (const [nlRoute, target] of Object.entries(germanRoutes)) {
   if (GERMAN_PAGES_PUBLIC) writeFileSync(fileFor(nlRoute), source.replace('</head>', `<link rel="alternate" hreflang="de-DE" href="${origin}${target}"></head>`))
   const dom = new JSDOM(source)
   const doc = dom.window.document
+  const dutchGraph = readGraph(doc)
   for (const start of removeText[nlRoute] || []) innermost(doc, start)?.remove()
   doc.querySelectorAll('a[href="/kennisbank/inlegzolen-voor-kinderen/"]').forEach(link => { if (clean(link.textContent) === 'Lees hoe je de juiste zool kiest') link.remove() })
   for (const [start, text] of replaceText[nlRoute] || []) { const element = innermost(doc, start); if (element) element.textContent = text }
   rewriteLinks(doc)
   translateTree(doc.body)
   setHead(doc, nlRoute, target, nlRoute)
+  structuredData(doc, nlRoute, target, dutchGraph)
   addImprint(doc)
   if (nlRoute === '/checkout/') adaptCheckout(doc)
   collectUntranslated(doc.body)
@@ -143,6 +212,8 @@ page.querySelector('main').innerHTML = `<section class="legal-hero"><div><p clas
 <section class="legal-section"><h2>Verbraucherstreitbeilegung</h2><p>Wir sind nicht verpflichtet und nicht bereit, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p></section>
 </article></div>`
 write('/de/impressum/', imprint)
+
+buildGermanFeed()
 
 if (GERMAN_PAGES_PUBLIC) {
   const sitemapFile = join(dist, 'sitemap.xml')
