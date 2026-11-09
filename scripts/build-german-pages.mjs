@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { JSDOM } from 'jsdom'
 import { createGermanTranslator } from '../src/german-dynamic.js'
 import { germanRoutes } from '../src/german-routes.js'
+import { germanArticles } from './german-articles.mjs'
 
 const GERMAN_PAGES_PUBLIC = true
 const origin = 'https://zolsolutions.nl'
@@ -85,7 +86,7 @@ function readGraph(doc) {
   try { return JSON.parse(doc.querySelector('script[type="application/ld+json"]')?.textContent || '{}')['@graph'] || [] } catch { return [] }
 }
 
-function structuredData(doc, nlRoute, target, dutchGraph) {
+function structuredData(doc, nlRoute, target, dutchGraph, extraQuestions = [], dateModified = '') {
   const url = `${origin}${target}`
   const organization = { '@id': `${origin}/#organization` }
   const title = doc.title
@@ -107,13 +108,13 @@ function structuredData(doc, nlRoute, target, dutchGraph) {
   }
   if (target.startsWith('/de/ratgeber/') && target !== '/de/ratgeber/') {
     const dutch = dutchGraph.find(item => item['@type'] === 'Article' || item['@type'] === 'MedicalWebPage' || item.datePublished) || {}
-    graph.push({ '@type': 'Article', '@id': `${url}#article`, headline: title.replace(/\s+[—|]\s+ZOL Solutions$/, ''), description, inLanguage: 'de-DE', mainEntityOfPage: { '@id': `${url}#webpage` }, author: organization, publisher: organization, image: `${origin}/og-zol.jpg?v=2`, ...(dutch.datePublished ? { datePublished: dutch.datePublished } : {}), ...(dutch.dateModified ? { dateModified: dutch.dateModified } : {}) })
+    graph.push({ '@type': 'Article', '@id': `${url}#article`, headline: title.replace(/\s+[—|]\s+ZOL Solutions$/, ''), description, inLanguage: 'de-DE', mainEntityOfPage: { '@id': `${url}#webpage` }, author: organization, publisher: organization, image: `${origin}/og-zol.jpg?v=2`, ...(dutch.datePublished ? { datePublished: dutch.datePublished } : {}), ...(dateModified || dutch.dateModified ? { dateModified: dateModified || dutch.dateModified } : {}) })
   }
   const questions = [...doc.querySelectorAll('details')].map(item => {
     const question = clean(item.querySelector('summary')?.textContent || '')
     const answer = clean([...item.childNodes].filter(node => node.nodeName !== 'SUMMARY').map(node => node.textContent).join(' '))
     return question && answer ? { '@type': 'Question', name: question, acceptedAnswer: { '@type': 'Answer', text: answer } } : null
-  }).filter(Boolean)
+  }).filter(Boolean).concat(extraQuestions.map(([name, text]) => ({ '@type': 'Question', name, acceptedAnswer: { '@type': 'Answer', text } })))
   if (questions.length) graph.push({ '@type': 'FAQPage', '@id': `${url}#faq`, inLanguage: 'de-DE', mainEntity: questions })
   const script = doc.createElement('script')
   script.type = 'application/ld+json'
@@ -177,6 +178,7 @@ function write(route, dom) {
 }
 
 let imprintSource
+let articleSource
 for (const [nlRoute, target] of Object.entries(germanRoutes)) {
   const source = readFileSync(fileFor(nlRoute), 'utf8')
   if (GERMAN_PAGES_PUBLIC) writeFileSync(fileFor(nlRoute), source.replace('</head>', `<link rel="alternate" hreflang="de-DE" href="${origin}${target}"></head>`))
@@ -187,6 +189,13 @@ for (const [nlRoute, target] of Object.entries(germanRoutes)) {
   doc.querySelectorAll('a[href="/kennisbank/inlegzolen-voor-kinderen/"]').forEach(link => { if (clean(link.textContent) === 'Lees hoe je de juiste zool kiest') link.remove() })
   for (const [start, text] of replaceText[nlRoute] || []) { const element = innermost(doc, start); if (element) element.textContent = text }
   rewriteLinks(doc)
+  // The review strip is marked "do not translate"; a Dutch quote must not appear on German pages.
+  doc.querySelectorAll('.zr').forEach(strip => {
+    const quote = strip.querySelector('blockquote')
+    const german = quote && dictionary[clean(quote.textContent)]
+    if (german) quote.textContent = german
+    else strip.remove()
+  })
   translateTree(doc.body)
   setHead(doc, nlRoute, target, nlRoute)
   structuredData(doc, nlRoute, target, dutchGraph)
@@ -194,6 +203,7 @@ for (const [nlRoute, target] of Object.entries(germanRoutes)) {
   if (nlRoute === '/checkout/') adaptCheckout(doc)
   collectUntranslated(doc.body)
   if (nlRoute === '/algemene-voorwaarden/') imprintSource = dom.serialize()
+  if (nlRoute === '/kennisbank/ziekte-van-sever/') articleSource = dom.serialize()
   write(target, dom)
 }
 
@@ -213,11 +223,43 @@ page.querySelector('main').innerHTML = `<section class="legal-hero"><div><p clas
 </article></div>`
 write('/de/impressum/', imprint)
 
+for (const article of germanArticles) {
+  const dom = new JSDOM(articleSource)
+  const doc = dom.window.document
+  doc.title = article.title
+  doc.querySelector('meta[name="description"]').content = article.description
+  doc.querySelectorAll('script[type="application/ld+json"]').forEach(element => element.remove())
+  doc.querySelector('.knowledge-hero-inner').innerHTML = `<p class="section-index">${article.eyebrow}</p><h1>${article.h1[0]} <em>${article.h1[1]}</em></h1><p>${article.lead}</p>`
+  const faq = article.faq.map(([question, answer]) => `<h3>${question}</h3><p>${answer}</p>`).join('')
+  const sources = article.sources.map(([name, url]) => `<li><a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a></li>`).join('')
+  doc.querySelector('.article-content').innerHTML = `${article.body}<h2>Häufige Fragen</h2>${faq}<div class="article-note"><strong>Wichtig</strong><p>Diese Seite bietet allgemeine Informationen und ersetzt keine Diagnose oder persönliche Beratung durch Arzt, Kinderphysiotherapeut oder Orthopäde.</p></div><section class="article-sources"><h2>Quellen</h2><ul>${sources}</ul></section>`
+  doc.querySelector('.article-aside').innerHTML = `<strong>Weiterlesen</strong>${article.asideHtml}`
+  setHead(doc, null, article.target, null)
+  structuredData(doc, '', article.target, [], article.faq, '2026-11-09')
+  write(article.target, dom)
+}
+
+// Make the new articles reachable from the guide and the existing articles.
+function amend(route, change) {
+  const dom = new JSDOM(readFileSync(fileFor(route), 'utf8'))
+  change(dom.window.document)
+  writeFileSync(fileFor(route), dom.serialize())
+}
+amend('/de/ratgeber/', doc => {
+  doc.querySelector('.knowledge-index-grid').insertAdjacentHTML('beforeend', germanArticles.map(({ target, card: [label, heading, text] }) => `<a class="knowledge-index-card" href="${target}"><span>${label}</span><h2>${heading}</h2><p>${text}</p></a>`).join(''))
+})
+for (const route of ['/de/ratgeber/morbus-sever/', '/de/ratgeber/fersenschmerzen-bei-kindern/', '/de/ratgeber/einlagen-bei-morbus-sever/']) {
+  amend(route, doc => {
+    const product = doc.querySelector('.article-aside a[href="/de/produkt/"]')
+    if (product) product.insertAdjacentHTML('beforebegin', '<a href="/de/ratgeber/morbus-sever-behandlung/">Morbus Sever behandeln</a><a href="/de/ratgeber/morbus-sever-dauer/">Wie lange dauert Morbus Sever?</a>')
+  })
+}
+
 buildGermanFeed()
 
 if (GERMAN_PAGES_PUBLIC) {
   const sitemapFile = join(dist, 'sitemap.xml')
-  const entries = [...Object.values(germanRoutes), '/de/impressum/'].map(route => `  <url><loc>${origin}${route}</loc></url>`).join('\n')
+  const entries = [...Object.values(germanRoutes), '/de/impressum/', ...germanArticles.map(article => article.target)].map(route => `  <url><loc>${origin}${route}</loc></url>`).join('\n')
   writeFileSync(sitemapFile, readFileSync(sitemapFile, 'utf8').replace('</urlset>', `${entries}\n</urlset>`))
 }
 console.log(`German pages built. Texts without a German match: ${audit.size}`)
