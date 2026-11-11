@@ -16,14 +16,11 @@ Deno.serve(async (request) => {
     const config = await getEmailConfig(db)
     if (!config.enabled) return Response.json({ success: true, status: "disabled", sent: 0 })
 
-    const { data: due, error: dueError } = await db.rpc("due_purchase_reminders", { p_limit: 50 })
-    if (dueError) throw dueError
-
     const websiteUrl = String(config.website_url || "https://zolsolutions.nl").replace(/\/$/, "")
     const productUrl = `${websiteUrl}/product/`
     const results: Array<Record<string, unknown>> = []
 
-    for (const row of due || []) {
+    const buildMail = (row: Record<string, any>) => {
       const validUntil = row.code_ends_at
         ? new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam" }).format(new Date(row.code_ends_at))
         : ""
@@ -43,6 +40,38 @@ Deno.serve(async (request) => {
         ${paragraph(copy.closing)}
         <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e4e9ee;color:#738496;font-size:11px;line-height:1.6">Je ontvangt deze mail omdat je je via zolsolutions.nl hebt aangemeld voor mail van ZOL. <a href="${escapeEmailHtml(unsubscribeUrl)}" style="color:#33669b">Direct afmelden</a>.</div>`
       const text = `${copy.greeting}\n\n${copy.intro}\n\n${copy.hasCode ? `Jouw code: ${row.code} (geldig tot ${validUntil}).\n\n` : ""}${copy.closing}\n\nBekijk de ZOL'tjes: ${productUrl}\n\nAfmelden: ${unsubscribeUrl}`
+      return { copy, unsubscribeUrl, text, html: emailShell(content, { eyebrow: "Herinnering", title: copy.title, websiteUrl, logoUrl: config.logo_url, buttonLabel: "Bekijk de ZOL'tjes", buttonUrl: productUrl }) }
+    }
+
+    // Testmodus: stuurt de drie mails (plus de variant zonder code) alleen naar het beheeradres, zonder klanten aan te raken.
+    const body = await request.json().catch(() => ({}))
+    if (body?.test === true) {
+      const recipient = String(config.admin_email || "info@zolsolutions.nl").split(",")[0].trim().toLowerCase()
+      const codeEndsAt = new Date(Date.now() + 27 * 86_400_000).toISOString()
+      const samples = [
+        { reminder_number: 1, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
+        { reminder_number: 2, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
+        { reminder_number: 3, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
+        { reminder_number: 1, code: null, code_ends_at: null },
+      ]
+      const outcomes: Array<Record<string, unknown>> = []
+      for (const sample of samples) {
+        const mail = buildMail({ ...sample, first_name: "Test", unsubscribe_token: "test" })
+        try {
+          const sent = await sendEmail({ to: recipient, subject: `[TEST] ${mail.copy.subject}`, html: mail.html, text: mail.text, idempotencyKey: `purchase-reminder-test-${crypto.randomUUID()}`, config })
+          outcomes.push({ step: mail.copy.step, with_code: mail.copy.hasCode, status: "sent", id: sent.id })
+        } catch (sendError) {
+          outcomes.push({ step: mail.copy.step, with_code: mail.copy.hasCode, status: "failed", error: sendError instanceof Error ? sendError.message : "onbekend" })
+        }
+      }
+      return Response.json({ success: true, test: true, recipient, results: outcomes })
+    }
+
+    const { data: due, error: dueError } = await db.rpc("due_purchase_reminders", { p_limit: 50 })
+    if (dueError) throw dueError
+
+    for (const row of due || []) {
+      const { copy, unsubscribeUrl, text, html } = buildMail(row)
       const dedupeKey = `purchase-reminder-${row.customer_id}-${copy.step}`
       const attemptAt = new Date().toISOString()
 
@@ -51,7 +80,7 @@ Deno.serve(async (request) => {
         const sent = await sendEmail({
           to: row.email,
           subject: copy.subject,
-          html: emailShell(content, { eyebrow: "Herinnering", title: copy.title, websiteUrl, logoUrl: config.logo_url, buttonLabel: "Bekijk de ZOL'tjes", buttonUrl: productUrl }),
+          html,
           text,
           idempotencyKey: dedupeKey,
           headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
