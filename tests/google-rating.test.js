@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { applyGoogleRating } from '../src/google-rating.js'
-import { translateEnglish } from '../src/language-core.js'
+import { translateEnglish } from '../src/english-core.js'
 
 test('the live Google rating replaces every score and count on the product page', async () => {
   const html = await readFile(new URL('../product/index.html', import.meta.url), 'utf8')

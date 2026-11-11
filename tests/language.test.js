@@ -2,7 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { JSDOM } from 'jsdom'
-import { installLanguageChoice, translateEnglish } from '../src/language-core.js'
+import { installLanguageChoice as install } from '../src/language-core.js'
+import { translateEnglish } from '../src/english-core.js'
+
+const installLanguageChoice = win => install(win, { english: translateEnglish })
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -121,4 +124,20 @@ test('payment state messages retain their distinctions in English', () => {
   assert.equal(translateEnglish('Betaling wordt verwerkt'), 'Payment is being processed')
   assert.equal(translateEnglish('Betaling niet afgerond'), 'Payment not completed')
   assert.equal(translateEnglish('Korting (CLUB10)'), 'Discount (CLUB10)')
+})
+
+test('English words are fetched on first use and Dutch visitors never load them', async () => {
+  const { window: w } = new JSDOM('<h1>Kennisbank</h1>', { url: 'https://zolsolutions.nl/kennisbank/' })
+  let loads = 0
+  const language = install(w, { loadEnglish: async () => { loads++; return translateEnglish } })
+  assert.equal(loads, 0)
+  language.setLanguage('en')
+  await tick()
+  assert.equal(loads, 1)
+  assert.equal(w.document.querySelector('h1').textContent, 'Knowledge centre')
+  language.setLanguage('nl')
+  language.setLanguage('en')
+  assert.equal(w.document.querySelector('h1').textContent, 'Knowledge centre')
+  assert.equal(loads, 1)
+  language.disconnect(); w.close()
 })

@@ -122,7 +122,7 @@ function applyEntry(entry) {
 async function loadCms() {
   const [{ data: entries }, { data: settings }] = await Promise.all([
     selectPublic(`site_content?select=*&page=in.(${encodeURIComponent(`global,${pageName}`)})&active=eq.true&order=sort_order.asc`),
-    selectPublic('settings?select=key,value&key=in.(theme,seo_defaults)&is_public=eq.true'),
+    selectPublic('settings?select=key,value&key=eq.theme&is_public=eq.true'),
   ])
 
   ;(entries || []).forEach(applyEntry)
@@ -133,23 +133,6 @@ async function loadCms() {
     if (theme.accent) root.style.setProperty('--orange', theme.accent)
     if (theme.ink) root.style.setProperty('--ink', theme.ink)
     if (theme.background) root.style.setProperty('--paper', theme.background)
-  }
-
-  const seo = settings?.find((setting) => setting.key === 'seo_defaults')?.value
-  if (seo && pageName === 'home') {
-    if (seo.title) document.title = seo.title
-    const description = document.querySelector('meta[name="description"]')
-    if (description && seo.description) description.content = seo.description
-    const socialValues = {
-      'meta[property="og:title"]': seo.title,
-      'meta[property="og:description"]': seo.description,
-      'meta[name="twitter:title"]': seo.title,
-      'meta[name="twitter:description"]': seo.description,
-    }
-    Object.entries(socialValues).forEach(([selector, value]) => {
-      const meta = document.querySelector(selector)
-      if (meta && value) meta.content = value
-    })
   }
 }
 

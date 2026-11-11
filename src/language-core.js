@@ -1,27 +1,22 @@
-import english from './english.json' with { type: 'json' }
-import { englishDynamic, englishPatterns } from './english-dynamic.js'
 import { createGermanTranslator } from './german-dynamic.js'
 import { dutchPathFor, germanPathFor, isGermanPath } from './german-routes.js'
 
-const dictionary = { ...english, ...englishDynamic }
 const attributes = ['alt', 'title', 'aria-label', 'placeholder']
 const excluded = 'script, style, textarea, code, pre, [translate="no"], [data-language-switcher]'
-const normalize = value => value.replace(/\s+/g, ' ').trim()
 
-export function translateEnglish(value) {
-  const key = normalize(value)
-  let translated = dictionary[key]
-  if (translated === undefined) {
-    const match = englishPatterns.find(([pattern]) => pattern.test(key))
-    if (match) translated = key.replace(...match)
+// Which language the page opens in. Saves a choice made through the address.
+export function initialLanguage(win) {
+  if (isGermanPath(win.location.pathname)) return 'de'
+  const requested = new URL(win.location.href).searchParams.get('lang')
+  if (requested === 'en' || requested === 'nl') {
+    try { win.localStorage.setItem('zol_language', requested) } catch { /* Keep using the URL. */ }
+    return requested
   }
-  // Format displayed euro amounts only; never change amounts, form values or API data.
-  translated = (translated ?? key).replace(/€\s*([\d.]+),(\d{2})/g, (_, whole, cents) => `€${whole.replaceAll('.', ',')}.${cents}`)
-  if (translated === key) return value
-  return value.replace(/\S(?:[\s\S]*\S)?/, () => translated)
+  try { return win.localStorage.getItem('zol_language') === 'en' ? 'en' : 'nl' } catch { return 'nl' }
 }
 
-export function installLanguageChoice(win, { german = null } = {}) {
+// `english` is the English translator when it is already loaded; `loadEnglish` fetches it on first use.
+export function installLanguageChoice(win, { german = null, english = null, loadEnglish = null } = {}) {
   const doc = win.document
   if (/^\/(?:admin|zolsolutions\/admin|meting)(?:\/|$)/.test(win.location.pathname)) return null
   const previous = doc.querySelector('[data-language-switcher]')
@@ -30,15 +25,8 @@ export function installLanguageChoice(win, { german = null } = {}) {
   const attrs = new WeakMap()
   const onGermanPage = isGermanPath(win.location.pathname)
   const translateGerman = createGermanTranslator(german || {})
-  let language = 'nl'
-  const initialUrl = new URL(win.location.href)
-  const requested = initialUrl.searchParams.get('lang')
-  try { language = win.localStorage.getItem('zol_language') === 'en' ? 'en' : 'nl' } catch { /* URL still works without storage. */ }
-  if (onGermanPage) language = 'de'
-  else if (requested === 'en' || requested === 'nl') {
-    language = requested
-    try { win.localStorage.setItem('zol_language', language) } catch { /* Keep using the URL. */ }
-  }
+  let translateEnglish = english
+  let language = initialLanguage(win)
 
   const choice = doc.createElement('div')
   choice.className = 'language-switcher'
@@ -56,7 +44,7 @@ export function installLanguageChoice(win, { german = null } = {}) {
   function translatedValue(value, records, key) {
     const record = records.get(key)
     const source = record && record.output === value ? record.source : value
-    const output = language === 'en' ? translateEnglish(source) : language === 'de' ? translateGerman(source) : source
+    const output = language === 'en' && translateEnglish ? translateEnglish(source) : language === 'de' ? translateGerman(source) : source
     records.set(key, { source, output })
     return output
   }
@@ -122,6 +110,11 @@ export function installLanguageChoice(win, { german = null } = {}) {
     url.searchParams.set('lang', next)
     win.history.replaceState(win.history.state, '', url)
     refresh()
+    needEnglish()
+  }
+  function needEnglish() {
+    if (language !== 'en' || translateEnglish || !loadEnglish) return
+    loadEnglish().then(translate => { translateEnglish = translate; if (language === 'en') refresh() }).catch(() => {})
   }
   choice.addEventListener('click', event => {
     const button = event.target.closest('[data-language]')
@@ -142,5 +135,6 @@ export function installLanguageChoice(win, { german = null } = {}) {
     link.href = url.href
   }, true)
   refresh()
+  needEnglish()
   return { setLanguage, get language() { return language }, disconnect: () => observer.disconnect() }
 }
