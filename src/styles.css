@@ -7156,6 +7156,6 @@ blockquote {
 .pp-quote > a { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; color: var(--blue-deep); font-size: 13px; text-decoration: none; }
 .pp-quote > a > span { color: var(--orange); letter-spacing: 0.08em; }
 .pp-quote > a small { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 600; }
-.product-page .pp-compare h2 em { color: var(--orange-light); }
+.product-page .pp-compare h2 em { color: var(--orange-light) !important; }
 .product-page .pp-voices h2 em, .product-page .pp-how h2 em { color: var(--orange); }
 .pp-how-media img { max-height: 560px; }
