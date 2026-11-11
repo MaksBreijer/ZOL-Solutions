@@ -1,7 +1,7 @@
 import { escapeEmailHtml, logEmail, markEmail, sendEmail } from "../_shared/email.ts"
 
 // Persoonlijke opvolging na een bestelling: kale mail zonder opmaak, alsof we hem zelf typen.
-// Mail 1 een week na bezorging, de reviewvraag (mail 3) tien dagen na bezorging, mail 2 een maand na bezorging.
+// Mail 1 drie dagen na bezorging, de reviewvraag (mail 3) een week na bezorging, mail 2 een maand na bezorging.
 // De lijst staat op volgorde van `days`: er gaat steeds alleen de laatste mail uit die nu aan de beurt is.
 // Elke opvolgmail geldt alleen voor bestellingen die zijn bezorgd vanaf zijn eigen startdatum (`from`):
 // mail 1 vanaf de bestelling van Thomas Hartjes (8 oktober), oudere klanten krijgen hem niet meer; mail 2 vanaf 12 oktober.
@@ -12,7 +12,7 @@ type Followup = { step: number; days: number; from: string; standalone?: boolean
 export const followups: Followup[] = [
   {
     step: 1,
-    days: 7,
+    days: 3,
     from: "2026-10-08T00:00:00Z",
     subject: "Hoe bevallen de ZOL'tjes?",
     body: `Hoi {{voornaam}},
@@ -29,14 +29,14 @@ ZOL Solutions`,
   },
   {
     step: 3,
-    days: 10,
+    days: 7,
     from: "2026-10-12T00:00:00Z",
     // Een los bericht, niet als antwoord op mail 1. Iedereen krijgt dezelfde vraag en dezelfde links.
     standalone: true,
     subject: "Wil je je ervaring met de ZOL'tjes delen?",
     body: `Hoi {{voornaam}},
 
-De ZOL'tjes zijn nu zo'n tien dagen bij jullie. Hopelijk zitten ze fijn in de schoen!
+De ZOL'tjes zijn nu een week bij jullie. Hopelijk zitten ze fijn in de schoen!
 
 Mogen we je om een kleine gunst vragen? Andere ouders twijfelen vaak of een zool echt iets voor hun kind is. Jouw eerlijke ervaring, positief of kritisch, helpt hen enorm.
 

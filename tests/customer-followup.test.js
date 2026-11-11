@@ -21,10 +21,12 @@ test('de lijst staat op volgorde van dagen, zodat altijd de laatste verschuldigd
   assert.deepEqual(Array.from(followups, (followup) => followup.step), [1, 3, 2])
 })
 
-test('de reviewvraag gaat 10 dagen na bezorging uit, als los bericht met Google- en websitelink', () => {
+test('de reviewvraag gaat 7 dagen na bezorging uit, als los bericht met Google- en websitelink', () => {
   const { followups, renderFollowup } = load()
   const review = followups.find((followup) => followup.step === 3)
-  assert.equal(review.days, 10)
+  assert.equal(review.days, 7)
+  assert.equal(followups.find((followup) => followup.step === 1).days, 3)
+  assert.match(review.body, /een week bij jullie/)
   assert.equal(review.standalone, true)
   const mail = renderFollowup(review, 'Anna', 'order-1')
   assert.doesNotMatch(mail.subject, /^Re:/)
