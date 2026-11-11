@@ -87,7 +87,7 @@ test('the real checkout sends identical order data in Dutch and English (mocked 
     w.supabase = {
       from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }) }),
       functions: { invoke: async (name, { body }) => {
-        if (body.action === 'quote') return { data: { subtotal_cents: 19990, shipping_cents: 0, total_cents: 17991, discount_cents: 1999, automatic: true, discount_title: '10% bundelkorting', payment_methods: [{ id: 'ideal' }] } }
+        if (body.action === 'quote') return { data: { subtotal_cents: 19990, shipping_cents: 0, total_cents: 15992, discount_cents: 3998, automatic: true, discount_title: '20% bundelkorting', payment_methods: [{ id: 'ideal' }] } }
         requests.push(body)
         return { error: { message: 'Test stopped before payment' } }
       } },

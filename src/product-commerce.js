@@ -83,7 +83,7 @@ async function initializeProductCommerce() {
   function renderBundlePrices() {
     const currentUnitPrice = unitPrice()
     const originalBundlePrice = currentUnitPrice * 2
-    const discountedBundlePrice = originalBundlePrice - Math.round(originalBundlePrice * 0.1)
+    const discountedBundlePrice = originalBundlePrice - Math.round(originalBundlePrice * 0.2)
     const selectedQuantity = bundleInputs.find((input) => input.checked)?.value === '2' ? 2 : 1
     const selectedPrice = selectedQuantity === 2 ? discountedBundlePrice : currentUnitPrice
     if (price) price.innerHTML = `${formatMoney(selectedPrice)} <span>incl. btw</span>`
