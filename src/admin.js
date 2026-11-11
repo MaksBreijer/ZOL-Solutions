@@ -172,6 +172,19 @@ const statusClass = (value = '') => {
 
 const statusPill = (value) => `<span class="status-pill ${statusClass(value)}">${escapeHtml(prettyStatus(value))}</span>`
 const fullName = (item) => [item?.first_name, item?.last_name].filter(Boolean).join(' ') || item?.customer_name || 'Onbekend'
+// Herinneringsreeks voor aanmelders zonder aankoop (half uur, 1 dag, 3 dagen): waar staat deze klant?
+const paidStatuses = ['paid', 'partially_refunded', 'refunded']
+function purchaseReminderStatus(customer, orders = state.orders, emails = state.emailMessages) {
+  const count = Number(customer?.purchase_reminder_count || 0)
+  const email = String(customer?.email || '').toLowerCase()
+  const bought = Number(customer?.total_spent_cents || 0) > 0 || (orders || []).some((order) => (order.customer_id === customer?.id || String(order.customer_email || '').toLowerCase() === email) && paidStatuses.includes(order.payment_status))
+  const last = (emails || []).find((item) => item.status === 'sent' && String(item.dedupe_key || '').startsWith(`purchase-reminder-${customer?.id}-`))
+  const sent = `${count} van 3 verstuurd`
+  if (bought) return { tone: 'done', label: 'Gekocht', detail: count ? `Reeks gestopt na ${count} ${count === 1 ? 'mail' : 'mails'}` : 'Geen herinnering nodig', last }
+  if (!customer?.marketing_opt_in || customer?.marketing_unsubscribed_at) return { tone: 'off', label: 'Geen', detail: customer?.marketing_unsubscribed_at ? 'Afgemeld' : 'Geen toestemming', last }
+  if (count >= 3) return { tone: 'done', label: sent, detail: 'Reeks afgerond', last }
+  return { tone: 'active', label: sent, detail: `Volgende: ${['na een half uur', 'na 1 dag', 'na 3 dagen'][count]}`, last }
+}
 const roleLabel = (role = '') => ({ owner: 'Eigenaar', admin: 'Beheerder', editor: 'Contentbeheerder', viewer: 'Alleen bekijken' }[role] || role)
 const initials = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'ZO'
 const isStrongPassword = (value = '') =>
@@ -2340,7 +2353,7 @@ function startPartnerUpdates() {
 
 function customersTable(customers) {
   if (!customers.length) return emptyState('Nog geen klanten', 'Klanten worden automatisch aangemaakt bij een nieuwe bestelling.', '♙')
-  return `<div class="table-scroll customer-table-scroll"><table class="data-table"><thead><tr><th>Klant</th><th>E-mail</th><th>Marketing</th><th>Bestellingen</th><th>Besteed</th><th>Sinds</th></tr></thead><tbody>${customers.map((customer) => `<tr data-action="open-customer" data-id="${customer.id}"><td><strong>${escapeHtml(fullName(customer))}</strong><small class="table-subline">${escapeHtml(customer.phone || 'Geen telefoonnummer')}</small></td><td>${escapeHtml(customer.email)}</td><td>${statusPill(customer.marketing_opt_in ? 'active' : 'inactive')}</td><td>${customer.total_orders}</td><td><strong>${formatMoney(customer.total_spent_cents)}</strong></td><td>${formatDate(customer.created_at)}</td></tr>`).join('')}</tbody></table></div><footer class="table-footer"><span>${customers.length} klanten</span><span>Scroll in de lijst en klik op een klant voor de details</span></footer>`
+  return `<div class="table-scroll customer-table-scroll"><table class="data-table"><thead><tr><th>Klant</th><th>E-mail</th><th>Marketing</th><th>Herinneringen</th><th>Bestellingen</th><th>Besteed</th><th>Sinds</th></tr></thead><tbody>${customers.map((customer) => `<tr data-action="open-customer" data-id="${customer.id}"><td><strong>${escapeHtml(fullName(customer))}</strong><small class="table-subline">${escapeHtml(customer.phone || 'Geen telefoonnummer')}</small></td><td>${escapeHtml(customer.email)}</td><td>${statusPill(customer.marketing_opt_in ? 'active' : 'inactive')}</td><td>${(({ label, detail }) => `<strong>${escapeHtml(label)}</strong><small class="table-subline">${escapeHtml(detail)}</small>`)(purchaseReminderStatus(customer))}</td><td>${customer.total_orders}</td><td><strong>${formatMoney(customer.total_spent_cents)}</strong></td><td>${formatDate(customer.created_at)}</td></tr>`).join('')}</tbody></table></div><footer class="table-footer"><span>${customers.length} klanten</span><span>Scroll in de lijst en klik op een klant voor de details</span></footer>`
 }
 
 function renderCustomers() {
@@ -2774,7 +2787,9 @@ async function deleteContactMessage(id) {
 
 function customerForm(customer = {}) {
   const orders = visibleOrders().filter((order) => order.customer_id === customer.id)
-  const emailHistory = state.emailMessages.filter((email) => email.customer_id === customer.id).slice(0, 5)
+  const customerEmail = String(customer.email || '').toLowerCase()
+  const emailHistory = state.emailMessages.filter((email) => email.customer_id === customer.id || (customerEmail && String(email.recipient_email || '').toLowerCase() === customerEmail)).slice(0, 8)
+  const reminder = customer.id ? purchaseReminderStatus(customer) : null
   const emailEnabled = Boolean(settingsValue('email_config').enabled)
   const canManageCustomers = ['owner', 'admin'].includes(state.profile?.role)
   const address = customer.address || {}
@@ -2785,7 +2800,7 @@ function customerForm(customer = {}) {
     <label class="field field--full">Notities<textarea name="notes" placeholder="Interne notities over deze klant">${escapeHtml(customer.notes)}</textarea></label>
     <label class="checkbox-field field--full"><input name="marketing_opt_in" type="checkbox" ${customer.marketing_opt_in ? 'checked' : ''}> Klant heeft aantoonbaar toestemming gegeven voor de driewekelijkse productmail</label>
     ${customer.marketing_opt_in_at ? `<p class="form-hint field--full">Toestemming: ${formatDate(customer.marketing_opt_in_at, { hour: '2-digit', minute: '2-digit' })}${customer.marketing_opt_in_source ? ` via ${escapeHtml(customer.marketing_opt_in_source)}` : ''}.${customer.marketing_next_send_at ? ` Volgende mail vanaf ${formatDate(customer.marketing_next_send_at)}.` : ''}</p>` : ''}
-  </div>${customer.id ? `<h3>Bestelgeschiedenis</h3><div class="line-items">${orders.map((order) => `<div class="line-item"><div><strong>#${order.order_number}</strong><small>${formatDate(order.created_at)} · ${prettyStatus(order.status)}</small></div><strong>${formatMoney(order.total_cents)}</strong></div>`).join('') || '<div class="line-item">Nog geen bestellingen</div>'}</div><h3>Recente e-mails</h3><div class="line-items">${emailHistory.map((email) => `<div class="line-item"><div><strong>${escapeHtml(email.subject)}</strong><small>${formatDate(email.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${statusPill(email.status)}</div>`).join('') || '<div class="line-item">Nog geen e-mails verstuurd</div>'}</div>` : ''}<div class="form-actions">${customer.id && canManageCustomers ? `<button class="button button--danger" type="button" data-action="delete-customer" data-id="${customer.id}">Klant verwijderen</button>` : ''}<button class="button" type="button" data-close-dialog>Annuleren</button>${customer.id ? `<button class="button" type="button" data-action="email-customer" data-id="${customer.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>E-mail sturen</button>` : ''}<button class="button button--primary" type="submit">Klant opslaan</button></div></form>`)
+  </div>${customer.id ? `<h3>Bestelgeschiedenis</h3><div class="line-items">${orders.map((order) => `<div class="line-item"><div><strong>#${order.order_number}</strong><small>${formatDate(order.created_at)} · ${prettyStatus(order.status)}</small></div><strong>${formatMoney(order.total_cents)}</strong></div>`).join('') || '<div class="line-item">Nog geen bestellingen</div>'}</div><h3>Herinneringen zonder aankoop</h3><div class="line-items"><div class="line-item"><div><strong>${escapeHtml(reminder.label)}</strong><small>${escapeHtml(reminder.detail)}${reminder.last ? ` · laatste op ${formatDate(reminder.last.sent_at || reminder.last.created_at, { hour: '2-digit', minute: '2-digit' })}` : ''}</small></div></div></div><h3>Recente e-mails</h3><div class="line-items">${emailHistory.map((email) => `<div class="line-item"><div><strong>${escapeHtml(email.subject)}</strong><small>${formatDate(email.created_at, { hour: '2-digit', minute: '2-digit' })}</small></div>${statusPill(email.status)}</div>`).join('') || '<div class="line-item">Nog geen e-mails verstuurd</div>'}</div>` : ''}<div class="form-actions">${customer.id && canManageCustomers ? `<button class="button button--danger" type="button" data-action="delete-customer" data-id="${customer.id}">Klant verwijderen</button>` : ''}<button class="button" type="button" data-close-dialog>Annuleren</button>${customer.id ? `<button class="button" type="button" data-action="email-customer" data-id="${customer.id}" ${emailEnabled ? '' : 'disabled title="Activeer eerst de e-mailkoppeling"'}>E-mail sturen</button>` : ''}<button class="button button--primary" type="submit">Klant opslaan</button></div></form>`)
   const form = document.querySelector('#customer-form')
   form.addEventListener('submit', async (event) => {
     event.preventDefault(); const button = form.querySelector('[type="submit"]'); setBusy(button, true)

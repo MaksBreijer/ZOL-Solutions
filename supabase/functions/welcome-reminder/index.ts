@@ -77,7 +77,7 @@ Deno.serve(async (request) => {
       const dedupeKey = `purchase-reminder-${row.customer_id}-${copy.step}`
       const attemptAt = new Date().toISOString()
 
-      const log = await logEmail(db, { kind: "welcome_reminder", recipient_email: row.email, subject: copy.subject, body_preview: `Herinnering ${copy.step} van 3: nog geen aankoop`, dedupe_key: dedupeKey })
+      const log = await logEmail(db, { kind: "welcome_reminder", recipient_email: row.email, customer_id: row.customer_id, subject: copy.subject, body_preview: `Herinnering ${copy.step} van 3: nog geen aankoop`, dedupe_key: dedupeKey })
       try {
         const sent = await sendEmail({
           to: row.email,
