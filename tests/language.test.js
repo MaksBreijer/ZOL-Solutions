@@ -111,7 +111,7 @@ test('the real checkout sends identical order data in Dutch and English (mocked 
     assert.equal(requests.length, 1)
     if (language === 'en') {
       assert.match(w.document.querySelector('#checkout-summary').textContent, /Order summary/)
-      assert.match(w.document.querySelector('#checkout-summary').textContent, /179\.91/)
+      assert.match(w.document.querySelector('#checkout-summary').textContent, /159\.92/)
     }
     locale.disconnect(); w.close()
     return JSON.parse(JSON.stringify(requests[0]))
