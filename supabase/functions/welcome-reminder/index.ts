@@ -34,8 +34,10 @@ Deno.serve(async (request) => {
           <p style="margin:8px 0 0;color:#66798c;font-size:13px">Eenmalig te gebruiken en geldig tot ${escapeEmailHtml(validUntil)}.</p>
         </div>`
         : ""
+      const productPhoto = `<p style="margin:0 0 22px;text-align:center"><a href="${escapeEmailHtml(productUrl)}"><img src="${escapeEmailHtml(websiteUrl)}/media/product-blue.jpg" width="300" alt="De blauwe ZOL'tjes" style="display:inline-block;width:300px;max-width:100%;height:auto;border:0;border-radius:14px"></a></p>`
       const content = `${paragraph(copy.greeting)}
         ${paragraph(copy.intro)}
+        ${productPhoto}
         ${codeBlock}
         ${paragraph(copy.closing)}
         <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e4e9ee;color:#738496;font-size:11px;line-height:1.6">Je ontvangt deze mail omdat je je via zolsolutions.nl hebt aangemeld voor mail van ZOL. <a href="${escapeEmailHtml(unsubscribeUrl)}" style="color:#33669b">Direct afmelden</a>.</div>`

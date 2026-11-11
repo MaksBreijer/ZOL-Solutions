@@ -8,22 +8,22 @@ export function purchaseReminderCopy({ step, firstName, code, validUntil }) {
   const hasCode = Boolean(code)
 
   const subject = number === 1
-    ? (hasCode ? `Je ZOL-code ${code} staat nog voor je klaar` : "Je ZOL'tjes wachten nog op je")
+    ? "De ZOL'tjes voor je kind wachten nog op je"
     : number === 2
       ? "Twijfel je nog over de ZOL'tjes?"
-      : (hasCode ? "Laatste herinnering: je 10% ZOL-korting" : "Laatste herinnering van ZOL")
+      : (hasCode ? "Laatste herinnering: 10% korting op de ZOL'tjes" : "Laatste herinnering: de ZOL'tjes voor je kind")
 
   const title = number === 1
-    ? "Je ZOL'tjes wachten nog op je"
+    ? "De ZOL'tjes voor je kind wachten nog"
     : number === 2
       ? "Twijfel je nog? We denken graag mee"
-      : "Laatste herinnering"
+      : "De ZOL'tjes wachten nog steeds"
 
   const intro = number === 1
-    ? `Je hebt je bij ZOL aangemeld, maar je hebt nog geen ZOL'tjes besteld. Geen haast, we wilden je er alleen even aan herinneren.${hasCode ? " Je persoonlijke code voor 10% korting staat nog voor je klaar." : ""}`
+    ? `De ZOL'tjes voor je kind liggen nog voor je klaar.${hasCode ? " Je persoonlijke code voor 10% korting staat er ook nog." : ""} Je bestelt ze in een paar minuten via de website.`
     : number === 2
-      ? "Je hebt nog geen ZOL'tjes besteld. Twijfel je over de maat, of weet je niet zeker of ze iets voor jouw kind zijn? Antwoord gerust op deze mail, dan denken we persoonlijk met je mee."
-      : `Dit is de laatste keer dat we je hieraan herinneren. Wil je de ZOL'tjes toch proberen? Je bestelt ze in een paar minuten via de website.${hasCode ? ` Je code voor 10% korting is geldig tot ${validUntil}.` : ""}`
+      ? "De ZOL'tjes voor je kind wachten nog op je. Twijfel je over de maat, of weet je niet zeker of ze iets voor jouw kind zijn? Antwoord gerust op deze mail, dan denken we persoonlijk met je mee."
+      : `De ZOL'tjes voor je kind wachten nog steeds op je. Dit is de laatste keer dat we je eraan herinneren.${hasCode ? ` Je code voor 10% korting is geldig tot ${validUntil}.` : ""}`
 
   const closing = number === 3
     ? "Heb je nog een vraag? Antwoord gerust op deze mail."
