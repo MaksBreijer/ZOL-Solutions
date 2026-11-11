@@ -90,6 +90,8 @@ async function initializeProductCommerce() {
     if (bundlePriceOne) bundlePriceOne.textContent = formatMoney(currentUnitPrice)
     if (bundlePriceTwo) bundlePriceTwo.textContent = formatMoney(discountedBundlePrice)
     if (bundleOriginal) bundleOriginal.textContent = formatMoney(originalBundlePrice)
+    const bundleUnit = purchase.querySelector('[data-bundle-unit]')
+    if (bundleUnit) bundleUnit.textContent = formatMoney(Math.round(discountedBundlePrice / 2))
     const klarnaTerm = purchase.querySelector('[data-klarna-term]')
     if (klarnaTerm) klarnaTerm.textContent = formatMoney(Math.ceil(selectedPrice / 3))
   }

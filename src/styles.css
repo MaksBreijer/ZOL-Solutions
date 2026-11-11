@@ -7093,3 +7093,69 @@ blockquote {
 .product-klarna { display: block; margin: -4px 0 14px; font-size: 0.95rem; color: inherit; }
 .product-klarna img { width: 32px; height: 24px; vertical-align: middle; margin-right: 6px; }
 .product-klarna strong { color: var(--orange, #f26b1d); }
+
+/* Productpagina: opbouw op kopersspsychologie (voorstel) */
+.product-purchase h1.pp-h1 { font-size: clamp(2.7rem, 3.9vw, 4rem); line-height: 0.94; letter-spacing: -0.03em; }
+.product-purchase h1.pp-h1 em { display: inline; font-style: normal; }
+.pp-lead { max-width: 530px; margin: 18px 0 0; color: var(--blue-deep); font-size: 18px; line-height: 1.5; }
+.pp-quote { margin: 22px 0 0; padding: 16px 18px; border-left: 3px solid var(--orange); background: #fff; }
+.pp-quote blockquote { margin: 0 0 8px; color: var(--blue-deep); font: 600 20px/1.25 var(--heading); }
+.pp-quote figcaption, .pp-voices figcaption { display: flex; gap: 8px; color: var(--muted); font-size: 12px; }
+.pp-quote figcaption span::before, .pp-voices figcaption span::before { content: "·"; margin-right: 8px; }
+.product-purchase .purchase-benefits { margin-top: 22px; padding: 18px 0; }
+.pp-price { margin: 20px 0 4px; }
+.pp-price .product-price { margin: 0; }
+.pp-anchor { margin: 2px 0 10px; color: var(--muted); font-size: 13px; }
+.bundle-unit { display: block; color: var(--orange); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.product-actions.pp-actions { grid-template-columns: 1fr; gap: 6px; }
+.pp-actions .button--primary { min-height: 62px; font-size: 18px; }
+.pp-cart-link { padding: 10px; border: 0; background: none; color: var(--blue); font: 600 14px var(--body); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.pp-cart-link:disabled { opacity: .45; cursor: not-allowed; }
+.pp-assurance { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 14px 0 0; padding: 16px 0 0; border-top: 1px solid var(--line); list-style: none; }
+.pp-assurance strong { display: block; color: var(--blue-deep); font-size: 14px; }
+.pp-assurance span { color: var(--muted); font-size: 12px; line-height: 1.35; }
+
+.pp-wrap { width: min(1180px, calc(100% - 48px)); margin: 0 auto; }
+.pp-voices, .pp-how { padding: clamp(64px, 8vw, 110px) 0; }
+.pp-voices h2, .pp-how h2, .pp-compare h2 { max-width: 760px; margin: 10px 0 0; color: var(--blue-deep); font: 700 clamp(2.4rem, 4.2vw, 3.8rem)/0.96 var(--heading); letter-spacing: -0.03em; text-transform: uppercase; }
+.pp-voices h2 em, .pp-how h2 em, .pp-compare h2 em { color: var(--orange); font-style: normal; }
+.pp-voices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 36px 0 28px; }
+.pp-voices figure { display: flex; flex-direction: column; justify-content: space-between; gap: 22px; margin: 0; padding: 26px; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
+.pp-voices blockquote { margin: 0; color: var(--blue-deep); font: 600 21px/1.3 var(--heading); }
+.pp-how { background: var(--off-white); }
+.pp-how-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: center; gap: clamp(36px, 7vw, 96px); }
+.pp-how-media img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 22px; }
+.pp-how-copy > p:not(.section-index) { max-width: 560px; margin: 20px 0 0; color: var(--muted); font-size: 17px; }
+.pp-how-list { margin: 26px 0 28px; border-top: 1px solid var(--line); }
+.pp-how-list > div { display: grid; grid-template-columns: 150px 1fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.pp-how-list dt { color: var(--blue-deep); font: 700 20px var(--heading); text-transform: uppercase; }
+.pp-how-list dd { margin: 0; color: var(--muted); }
+.pp-compare { padding: clamp(64px, 8vw, 110px) 0; background: var(--blue-deep); color: #fff; }
+.pp-compare h2 { color: #fff; }
+.pp-compare h2 em { color: var(--orange-light); }
+.pp-compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 36px; }
+.pp-plan { padding: 30px; border: 1px solid rgb(255 255 255 / 16%); border-radius: 20px; }
+.pp-plan--zol { border-color: transparent; background: var(--blue); }
+.pp-plan h3 { margin: 0; color: #fff; font: 600 18px var(--body); }
+.pp-plan-price { margin: 6px 0 18px; color: #fff; font: 700 44px/1 var(--heading); }
+.pp-plan ul { display: grid; gap: 10px; margin: 0 0 24px; padding: 0; list-style: none; }
+.pp-plan li { padding-left: 24px; color: rgb(255 255 255 / 86%); position: relative; }
+.pp-plan li::before { content: "✓"; position: absolute; left: 0; color: #fff; font-weight: 700; }
+.pp-plan li.is-no { color: rgb(255 255 255 / 62%); }
+.pp-plan li.is-no::before { content: "–"; }
+.pp-compare .pp-fine { max-width: 760px; margin: 24px 0 0; color: rgb(255 255 255 / 55%); font-size: 12px; line-height: 1.5; }
+.pp-cta-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 22px; }
+.pp-cta-link { color: #fff; font-weight: 600; text-underline-offset: 4px; }
+@media (max-width: 800px) {
+  .pp-voices-grid, .pp-how-grid, .pp-compare-grid { grid-template-columns: 1fr; }
+  .pp-how-media img { aspect-ratio: 4 / 3; }
+  .pp-how-list > div { grid-template-columns: 1fr; gap: 4px; }
+  .pp-assurance { grid-template-columns: 1fr; gap: 8px; }
+  .pp-assurance li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+}
+.pp-quote > a { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; color: var(--blue-deep); font-size: 13px; text-decoration: none; }
+.pp-quote > a > span { color: var(--orange); letter-spacing: 0.08em; }
+.pp-quote > a small { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 600; }
+.product-page .pp-compare h2 em { color: var(--orange-light); }
+.product-page .pp-voices h2 em, .product-page .pp-how h2 em { color: var(--orange); }
+.pp-how-media img { max-height: 560px; }
