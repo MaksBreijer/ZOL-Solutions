@@ -294,3 +294,8 @@
       .hs-2 { left: 20.7%; top: 69.8%; }
       .hs-3 { left: 38.2%; top: 76.5%; }
       .hs-hint { margin: 12px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
+
+.press-strip { margin-top: 44px; text-align: center; }
+.press-strip .press { grid-template-columns: repeat(4, 1fr); margin-top: 16px; text-align: left; }
+@media (max-width: 900px) { .press-strip .press { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .press-strip .press { grid-template-columns: 1fr; } }
