@@ -19,6 +19,7 @@ const imageDimensions = new Map([
   ['/media/press-ad-logo.png', [152, 152]],
   ['/media/press-hockey-logo.png', [339, 338]],
   ['/media/press-hva-logo.png', [300, 300]],
+  ['/media/press-skxl-logo.svg', [152, 152]],
   ['/images/zol-familie.jpg', [933, 1400]],
 ])
 
