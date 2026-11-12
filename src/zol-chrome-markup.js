@@ -10,7 +10,7 @@ export function navMarkup({ overHero = false } = {}) {
       <a class="zn-logo" href="/" aria-label="ZOL Solutions home"><img src="/media/zol-logo-v4.png" alt="ZOL Solutions" /></a>
       <div class="zn-links" id="zn-links">
         <a href="/#werking">Hoe het werkt</a>
-        <a href="/product/">De ZOL'tjes</a>
+        <a href="/product/">Product</a>
         <a href="/over-ons/">Ons verhaal</a>
         <a href="/kennisbank/">Kennisbank</a>
         <a class="zn-mobile-only" href="/contact/">Contact</a>
