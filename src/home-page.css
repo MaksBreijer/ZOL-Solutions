@@ -357,3 +357,14 @@
 .dion-story p { margin: 0 0 14px; font-size: 18px; line-height: 1.6; color: var(--ink); max-width: 560px; }
 .dion-story blockquote { margin: 26px 0 0; padding: 4px 0 4px 20px; border-left: 2px solid var(--brand); font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 26px; line-height: 1.25; color: var(--brand); border-radius: 0; }
 .dion-story cite { display: block; margin-top: 8px; font-family: inherit; font-style: normal; font-size: 14px; color: var(--muted); }
+
+/* Phone polish */
+.sideline-link { align-self: flex-start; }
+@media (max-width: 640px) {
+  .eyebrow, .kv span { font-size: 12px; }
+  .float small { font-size: 11px; }
+  .stats a.stat { min-height: 44px; }
+  .sideline-link { padding: 10px 0 4px; }
+  .dion-story p { font-size: 17px; }
+  .dion-story blockquote { font-size: 23px; }
+}
