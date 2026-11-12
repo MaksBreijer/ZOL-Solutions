@@ -306,3 +306,10 @@
 @keyframes media-scroll { to { transform: translateX(-50%); } }
 @media (max-width: 520px) { .media-ticker { margin-top: 44px; } .media-group a { margin-right: 44px; font-size: 17px; } .media-group img { height: 26px; } }
 @media (prefers-reduced-motion: reduce) { .media-track { animation: none; } }
+
+.assure { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 14px 0 0; font-size: 14px !important; font-weight: 600; }
+.assure span::before { content: "✓"; margin-right: 6px; color: var(--accent); font-weight: 700; }
+.plan.dark .assure { justify-content: center; color: rgba(255,255,255,.85); }
+.buy .assure { color: var(--ink); }
+.callout.proof { margin-top: 20px; }
+#faq .fine { margin-top: 28px; }
