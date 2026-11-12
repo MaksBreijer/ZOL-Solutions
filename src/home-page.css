@@ -295,7 +295,9 @@
       .hs-3 { left: 38.2%; top: 76.5%; }
       .hs-hint { margin: 12px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
 
-.press-strip { margin-top: 44px; text-align: center; }
-.press-strip .press { grid-template-columns: repeat(4, 1fr); margin-top: 16px; text-align: left; }
-@media (max-width: 900px) { .press-strip .press { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 520px) { .press-strip .press { grid-template-columns: 1fr; } }
+.media-strip { margin-top: 28px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px 30px; }
+.media-strip .eyebrow { margin: 0 6px 0 0; }
+.media-strip a { display: flex; opacity: .85; transition: opacity .3s; }
+.media-strip a:hover { opacity: 1; }
+.media-strip img { height: 30px; width: auto; border-radius: 6px; }
+@media (max-width: 520px) { .media-strip .eyebrow { flex-basis: 100%; margin: 0; text-align: center; } }
