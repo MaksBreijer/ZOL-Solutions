@@ -313,3 +313,20 @@
 .buy .assure { color: var(--ink); }
 .callout.proof { margin-top: 20px; }
 #faq .fine { margin-top: 28px; }
+
+/* Minimal trust bar */
+.stats { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 18px 44px; background: none; border: 0; border-radius: 0; overflow: visible; grid-template-columns: none; }
+.stats .stat, .stats .stat-review { background: none; padding: 0; flex-direction: row; align-items: center; gap: 10px; grid-column: auto; }
+.stats a.stat:hover { background: none; }
+.stats .stat-ic { width: 22px; height: 22px; margin: 0; }
+.stats .stat span { font-size: 18px; font-weight: 500; }
+.stats .stat .u { border-bottom: 1px solid rgb(0 0 0 / 22%); transition: border-color .2s; }
+.stats a.stat:hover .u { border-color: currentColor; }
+.stats .stat-review { padding-right: 44px; border-right: 1px solid var(--line); gap: 12px; }
+.stats .stat-review strong { font-size: 42px; line-height: 1; }
+.stats .stat-review-txt { display: flex; flex-direction: column; gap: 2px; }
+.stats .stat-review .stars { margin: 0; font-size: 14px; letter-spacing: 2px; }
+@media (max-width: 640px) {
+  .stats { justify-content: flex-start; flex-direction: column; align-items: flex-start; gap: 14px; }
+  .stats .stat-review { border-right: 0; padding-right: 0; }
+}
