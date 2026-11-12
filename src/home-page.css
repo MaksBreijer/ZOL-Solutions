@@ -330,3 +330,30 @@
   .stats { justify-content: flex-start; flex-direction: column; align-items: flex-start; gap: 14px; }
   .stats .stat-review { border-right: 0; padding-right: 0; }
 }
+
+/* Sideline section, minimal */
+.sideline { display: grid; grid-template-columns: 1fr 1fr; gap: 40px 80px; align-items: start; max-width: 1080px; margin: 0 auto; }
+.sideline-head h2 { margin: 6px 0 18px; text-align: left; font-size: clamp(34px, 4.4vw, 54px); font-weight: 500; line-height: 1.05; }
+.sideline-head h2 b { color: var(--brand); }
+.sideline { align-items: center; }
+.sideline-head p:not(.eyebrow) { color: var(--muted); font-size: 18px; line-height: 1.5; margin: 0; max-width: 420px; }
+.sideline-list ul { list-style: none; margin: 0; padding: 0; }
+.sideline-list li { display: flex; gap: 14px; align-items: baseline; padding: 18px 0; border-bottom: 1px solid var(--line); font-size: 19px; color: var(--ink); }
+.sideline-list li::before { content: "✓"; color: var(--brand); font-weight: 600; }
+.sideline-list li span { color: var(--muted); margin-left: -8px; }
+.sideline-link { display: inline-block; margin-top: 22px; font-weight: 500; font-size: 17px; color: var(--ink); text-decoration: none; border-bottom: 1px solid rgb(0 0 0 / 22%); transition: border-color .2s; }
+.sideline-link:hover { border-color: currentColor; }
+.sideline-list small { display: block; margin-top: 12px; color: var(--muted); font-size: 13px; }
+@media (max-width: 760px) { .sideline { grid-template-columns: 1fr; gap: 24px; } }
+
+.sideline { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 40px 72px; align-items: center; }
+.sideline-photo { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 30%; border-radius: 18px; display: block; }
+.sideline-body { display: flex; flex-direction: column; gap: 28px; }
+@media (max-width: 760px) { .sideline { grid-template-columns: 1fr; } .sideline-photo { aspect-ratio: 4 / 3; } }
+
+.sideline-figure { margin: 0; }
+.sideline-figure figcaption { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.sideline-body { gap: 22px; }
+.dion-story p { margin: 0 0 14px; font-size: 18px; line-height: 1.6; color: var(--ink); max-width: 560px; }
+.dion-story blockquote { margin: 26px 0 0; padding: 4px 0 4px 20px; border-left: 2px solid var(--brand); font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 26px; line-height: 1.25; color: var(--brand); border-radius: 0; }
+.dion-story cite { display: block; margin-top: 8px; font-family: inherit; font-style: normal; font-size: 14px; color: var(--muted); }
