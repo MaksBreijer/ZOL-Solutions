@@ -7287,6 +7287,7 @@ blockquote {
 .tp-buy .product-klarna { display: flex; align-items: center; gap: 8px; }
 .tp-buy .product-klarna img { display: inline-block; flex: none; margin: 0; }
 @media (max-width: 520px) { .tp-buy .size-selector { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.product-page section.tp-timeline h2 em { color: var(--orange-light); }
+.product-page section.tp-timeline h2 em { color: var(--orange-light) !important; }
 @media (max-width: 860px) { .product-detail-hero.tp-hero { padding-top: 74px; } }
 .tp-buy .size-selector input:checked + span { border-color: var(--blue); background: var(--blue); color: #fff; }
+.tp-table .tp-note { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.35; }
