@@ -7228,7 +7228,7 @@ blockquote {
 .tp-sub { max-width: 560px; margin: 16px auto 0; color: var(--muted); font-size: 18px; text-align: center; }
 .tp-benefit-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 40px; }
 .tp-benefit-grid article { padding: 26px 22px; border: 1px solid var(--line); border-radius: 20px; background: #fff; }
-.tp-benefit-grid svg { width: 30px; height: 30px; fill: none; stroke: var(--blue); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.tp-benefit-grid svg { box-sizing: content-box; width: 26px; height: 26px; padding: 13px; border-radius: 50%; background: var(--blue-pale); fill: none; stroke: var(--blue); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .tp-benefit-grid h3, .tp-timeline h3 { margin: 16px 0 6px; color: var(--blue-deep); font: 700 22px/1.1 var(--heading); text-transform: uppercase; }
 .tp-benefit-grid p, .tp-timeline p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
 .tp-cta-row { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 34px; }
