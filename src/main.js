@@ -5,6 +5,7 @@ import { invokePublicFunction } from './public-api.js'
 
 if (document.querySelector('.product-purchase')) void import('./product-commerce.js')
 if (document.querySelector('.product-gallery')) void import('./product-gallery.js')
+if (document.querySelector('[data-tp-gallery]')) void import('./product-gallery-tp.js')
 if (document.querySelector('[data-spin]')) void import('./spin-viewer.js')
 if (document.querySelector('[data-product-reviews]')) void import('./product-reviews.js')
 

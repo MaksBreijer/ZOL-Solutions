@@ -61,43 +61,53 @@
     </header>
 
     <main id="main-content">
-      <section class="product-detail-hero">
-        <div class="product-gallery">
-          <div class="product-gallery-main">
-            <img src="/images/zol-familie.jpg" alt="Vier maten ZOL-inlegzolen in handen" />
-            <div class="product-gallery-label"><span>ZOL'tjes</span><strong>3/4 sportzool</strong></div>
+      <section class="product-detail-hero tp-hero">
+        <div class="tp-media">
+          <div class="tp-gallery" data-tp-gallery>
+            <div class="tp-thumbs" role="tablist" aria-label="Productfoto's">
+              <button type="button" class="is-active" data-tp-thumb="0" aria-label="Foto 1"><img src="/images/zol-familie.jpg" alt="" loading="lazy" /></button>
+              <button type="button" data-tp-thumb="1" aria-label="Foto 2"><img src="/media/zol-voetbal.jpg" alt="" loading="lazy" /></button>
+              <button type="button" data-tp-thumb="2" aria-label="Foto 3"><img src="/media/product-blue.jpg" alt="" loading="lazy" /></button>
+              <button type="button" data-tp-thumb="3" aria-label="Foto 4"><img src="/media/product-detail.jpg" alt="" loading="lazy" /></button>
+              <button type="button" data-tp-thumb="4" aria-label="Foto 5"><img src="/media/product-use.jpg" alt="" loading="lazy" /></button>
+            </div>
+            <div class="tp-stage">
+              <div class="tp-track" data-tp-track>
+                <figure><img src="/images/zol-familie.jpg" alt="Vier maten ZOL-inlegzolen in handen" /></figure>
+                <figure><img src="/media/zol-voetbal.jpg" alt="ZOL-inlegzolen op het voetbalveld" loading="lazy" /></figure>
+                <figure><picture><source srcset="/media/product-blue.avif" type="image/avif" /><img src="/media/product-blue.jpg" alt="Blauwe ZOL-inlegzolen" loading="lazy" /></picture></figure>
+                <figure><picture><source srcset="/media/product-detail.avif" type="image/avif" /><img src="/media/product-detail.jpg" alt="ZOL-inlegzool in een sportschoen" loading="lazy" /></picture></figure>
+                <figure><picture><source srcset="/media/product-use.avif" type="image/avif" /><img src="/media/product-use.jpg" alt="ZOL wordt in een sportschoen geplaatst" loading="lazy" /></picture></figure>
+              </div>
+              <button class="tp-nav tp-nav--prev" type="button" data-tp-prev aria-label="Vorige foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
+              <button class="tp-nav tp-nav--next" type="button" data-tp-next aria-label="Volgende foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg></button>
+              <div class="tp-dots" aria-hidden="true"><span class="is-active"></span><span></span><span></span><span></span><span></span></div>
+            </div>
           </div>
-          <div class="product-gallery-secondary">
-            <picture><source srcset="/media/product-blue.avif" type="image/avif" /><img src="/media/product-blue.jpg" alt="Blauwe ZOL-inlegzolen" loading="lazy" /></picture>
-            <picture><source srcset="/media/product-detail.avif" type="image/avif" /><img src="/media/product-detail.jpg" alt="ZOL-inlegzool in een sportschoen" loading="lazy" /></picture>
-          </div>
+          <ul class="tp-trust">
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z" /></svg>1–2 werkdagen in huis</li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1014.5-4.6M19 3v5h-5" /></svg>14 dagen bedenktijd</li>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.500-3 7.500-7 9-4-1.500-7-4.500-7-9V6zM9 12l2 2 4-4" /></svg>Ontwikkeld met een podoloog</li>
+          </ul>
         </div>
 
-        <div class="product-purchase" id="bestellen">
-          <a class="breadcrumb" href="/">← Terug naar home</a>
-          <p class="section-index">De ZOL'tjes · 3/4 inlegzolen</p>
-          <h1 class="pp-h1">Inlegzolen voor sportende kinderen met <em>hielpijn.</em></h1>
-          <a class="product-rating google-review-link" href="https://maps.google.com/?cid=654808623137506283" target="_blank" rel="noopener noreferrer" aria-label="Bekijk de 12 Google-reviews van ZOL Solutions"><span>★★★★★</span> 4,9 · 12 Google-reviews ↗</a>
-          <p class="pp-lead">
-            De ZOL'tjes dempen de klap bij elke landing en houden de hiel stabiel in de schoen.
-            Zo kan je kind comfortabeler rennen, springen en draaien. Zonder afspraak, direct te gebruiken.
-          </p>
-          <figure class="pp-quote">
-            <a class="google-review-link" href="https://maps.google.com/?cid=654808623137506283" target="_blank" rel="noopener noreferrer" aria-label="Bekijk alle 12 Google-reviews van ZOL Solutions"><span>★★★★★</span><strong>4,9 op Google</strong><small>12 reviews ↗</small></a>
-            <blockquote translate="no">“Nu ze de zolen draagt, is haar voet direct ontlast. We zijn super snel geholpen, echt heel tevreden!”</blockquote>
-            <figcaption><strong translate="no">Carlijn Stevens</strong><span>Google-review</span></figcaption>
-          </figure>
-          <ul class="purchase-benefits">
-            <li><span class="benefit-icon benefit-icon--ready" aria-hidden="true">✓</span>Dempt de klap op de hiel bij elke landing</li>
-            <li><span class="benefit-icon benefit-icon--compact" aria-hidden="true">✓</span>Past in voetbal-, hockey- en sportschoenen</li>
-            <li><span class="benefit-icon benefit-icon--made" aria-hidden="true">✓</span>Ontwikkeld met een podoloog</li>
-            <li><span class="benefit-icon benefit-icon--ce" aria-hidden="true">✓</span>Direct te gebruiken, zonder afspraak</li>
-          </ul>
-          <div class="pp-price">
+        <div class="product-purchase tp-buy" id="bestellen">
+          <a class="product-rating google-review-link tp-rating" href="https://maps.google.com/?cid=654808623137506283" target="_blank" rel="noopener noreferrer" aria-label="Bekijk de 12 Google-reviews van ZOL Solutions"><span>★★★★★</span> 4,9 · 12 Google-reviews ↗</a>
+          <h1 class="pp-h1">De ZOL'tjes, inlegzolen bij <em>hielpijn</em></h1>
+          <div class="pp-price tp-price">
             <p class="product-price">€99,95 <span>incl. btw</span></p>
-            <p class="pp-anchor">Ter vergelijking: een individueel maatwerktraject kan oplopen tot ongeveer €300.</p>
-            <p class="product-klarna" data-klarna-note><img src="/images/payment/klarna.svg" alt="Klarna" width="32" height="24" /> Of betaal in 3 termijnen van <strong data-klarna-term>€33,32</strong> met Klarna, zonder rente</p>
+            <p class="tp-price-note">Eenmalige aankoop · Gratis maatadvies</p>
           </div>
+          <p class="pp-lead">
+            Voor sportende kinderen met hielpijn of de ziekte van Sever. De ZOL'tjes dempen de klap bij elke landing
+            en houden de hiel stabiel in de schoen. Zonder afspraak, direct te gebruiken.
+          </p>
+          <ul class="tp-checks">
+            <li>Dempt de klap op de hiel bij elke landing</li>
+            <li>Past in voetbal-, hockey- en sportschoenen</li>
+            <li>Maat 34/35 t/m 44/45, ontwikkeld met een podoloog</li>
+          </ul>
+          <p class="product-klarna" data-klarna-note><img src="/images/payment/klarna.svg" alt="Klarna" width="32" height="24" /> Of betaal in 3 termijnen van <strong data-klarna-term>€33,32</strong> met Klarna, zonder rente</p>
           <fieldset class="size-selector">
             <legend>Kies een maat <a href="#maatadvies">Maatadvies</a></legend>
             <label><input type="radio" name="size" value="53757641195857" data-size="34/35" checked /><span>34/35</span></label>
@@ -124,7 +134,7 @@
           </form>
 
           <fieldset class="bundle-selector">
-            <legend>Kies je aantal</legend>
+            <legend>Kies hoeveel</legend>
             <label class="bundle-option is-selected">
               <input type="radio" name="bundle" value="1" checked />
               <span class="bundle-radio" aria-hidden="true"></span>
@@ -152,14 +162,10 @@
           </fieldset>
           <input id="product-quantity" type="hidden" value="1" />
           <div class="product-actions pp-actions">
-            <button class="button button--primary button--wide" id="buy-now" type="button">Bestel de ZOL'tjes <span>→</span></button>
+            <button class="button button--primary button--wide" id="buy-now" type="button">Bestel de ZOL'tjes</button>
             <button class="pp-cart-link" id="add-to-cart" type="button">In winkelwagen</button>
           </div>
-          <ul class="pp-assurance">
-            <li><strong>14 dagen bedenktijd</strong><span>Bevalt het niet? Stuur ze terug.</span></li>
-            <li><strong>1–2 werkdagen</strong><span>Bezorging in Nederland.</span></li>
-            <li><strong>Persoonlijk maatadvies</strong><span>We denken met je mee.</span></li>
-          </ul>
+          <p class="tp-delivery"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z" /></svg>Vandaag besteld, binnen 1–2 werkdagen in huis</p>
           <div class="product-payment-support" data-payment-support aria-live="polite">
             <span>Veilig betalen via Mollie</span>
             <div class="product-payment-methods" aria-label="Ondersteunde betaalmethoden">
@@ -167,7 +173,77 @@
             </div>
           </div>
 
-          
+          <div class="tp-details">
+            <details>
+              <summary>Wat je krijgt</summary>
+              <p>Eén paar ZOL'tjes in de maat die je kiest, of twee paar met de bundel. Een 3/4 inlegzool met een dempende laag en een stevige hielkuip, klaar om in de schoen te leggen.</p>
+            </details>
+            <details>
+              <summary>In welke schoenen ze passen</summary>
+              <p>De 3/4 vorm eindigt vóór de tenen. Daardoor passen de ZOL'tjes in de meeste voetbal-, hockey-, tennis- en zaalschoenen, en ook in veel schoenen voor elke dag.</p>
+            </details>
+            <details>
+              <summary>Verzending en bedenktijd</summary>
+              <p>Bezorging in Nederland binnen 1–2 werkdagen. Bevallen ze niet? Je hebt 14 dagen bedenktijd vanaf de dag na ontvangst. Lees de <a href="/algemene-voorwaarden/">voorwaarden</a>.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="tp-press" aria-label="Bekend van">
+        <p class="tp-eyebrow">Bekend van</p>
+        <ul>
+          <li><a href="https://www.ad.nl/amsterdam/amsterdamse-studenten-bouwen-eigen-bedrijf-op-we-hadden-bijna-alle-schoenmakers-van-de-stad-gemaild~a0513f73/" target="_blank" rel="noopener"><img src="/media/press-ad-logo.png" alt="Algemeen Dagblad" loading="lazy" /></a></li>
+          <li><a href="https://www.linkedin.com/posts/zolsolutions_zolsolutions-bnr-graduateventures-activity-7527012948599312384-Fhxz" target="_blank" rel="noopener"><img src="/media/press-bnr-logo.png" alt="BNR Nieuwsradio" loading="lazy" /></a></li>
+          <li><a href="https://hockey-magazine.nl/hielpijn-bij-je-sportkind-dit-is-wat-je-moet-weten/" target="_blank" rel="noopener"><img src="/media/press-hockey-logo.png" alt="Hockey Magazine" loading="lazy" /></a></li>
+          <li><a href="https://www.sportknowhowxl.nl/branded-content/kinderen-met-hielpijn-staan-onnodig-langs-de-zijlijn" target="_blank" rel="noopener"><img src="/media/press-skxl-logo.png" alt="Sport Knowhow XL" loading="lazy" /></a></li>
+          <li><a href="https://www.hva.nl/nieuws/2026/10/kinderen-met-hielpijn-staan-onnodig-langs-de-zijlijn-twee-amsterdamse-studenten" target="_blank" rel="noopener"><img src="/media/press-hva-logo.png" alt="Hogeschool van Amsterdam" loading="lazy" /></a></li>
+        </ul>
+      </section>
+
+      <section class="tp-problem" aria-labelledby="problem-title">
+        <div class="pp-wrap">
+          <ul class="tp-tried" aria-label="Wat ouders vaak al geprobeerd hebben">
+            <li>IJs erop</li>
+            <li>Een week rust</li>
+            <li>Hielkussentje</li>
+            <li>“Gewoon doorbijten”</li>
+          </ul>
+          <h2 id="problem-title">Je kind is niet kleinzerig. De hiel krijgt bij elke landing gewoon <em>een klap.</em></h2>
+          <p>Bij rennen en springen komt de klap precies op de plek waar het bot bij kinderen nog groeit. Rust helpt even, maar bij de volgende training begint het weer.</p>
+        </div>
+      </section>
+
+      <section class="tp-benefits" aria-labelledby="benefits-title">
+        <div class="pp-wrap">
+          <h2 id="benefits-title">Dit doen de <em>ZOL'tjes</em></h2>
+          <p class="tp-sub">Een korte, dempende sportzool die je kind gewoon in de eigen schoen draagt.</p>
+          <div class="tp-benefit-grid">
+            <article>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15c3-1 5-1 8 0s5 1 8 0M4 19c3-1 5-1 8 0s5 1 8 0M12 3v8M8 7l4 4 4-4" /></svg>
+              <h3>Dempt de klap</h3>
+              <p>De dempende laag vangt de klap van elke landing op.</p>
+            </article>
+            <article>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v9a5 5 0 0010 0V4M7 9h10" /></svg>
+              <h3>Houdt de hiel stabiel</h3>
+              <p>De stevige hielkuip houdt de hiel op zijn plek in de schoen.</p>
+            </article>
+            <article>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15c5 0 7-2 9-6l4 3c2 1.500 5 2 5 5v1H3z" /></svg>
+              <h3>Past in sportschoenen</h3>
+              <p>De 3/4 vorm laat ruimte voor de tenen, ook in smalle voetbal- en hockeyschoenen.</p>
+            </article>
+            <article>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3" /></svg>
+              <h3>Eén paar, meerdere schoenen</h3>
+              <p>Snel over te zetten van de sportschoen naar de schoolschoen.</p>
+            </article>
+          </div>
+          <div class="tp-cta-row">
+            <a class="button button--primary" href="#bestellen">Kies je maat</a>
+            <span>14 dagen bedenktijd · 1–2 werkdagen in huis</span>
+          </div>
         </div>
       </section>
 
@@ -178,7 +254,7 @@
           <div class="pp-voices-grid">
             <figure><blockquote translate="no">“Mijn dochter had vaak last van haar hiel en enkel met handbal, maar nu gaat het veel beter. De zooltjes zitten ook prettig.”</blockquote><figcaption><strong translate="no">Eelco Groen</strong><span>Handbal</span></figcaption></figure>
             <figure><blockquote translate="no">“M’n zoontje kan nu eindelijk weer tennissen dankzij deze zooltjes.”</blockquote><figcaption><strong translate="no">Marcus Witkamp</strong><span>Tennis</span></figcaption></figure>
-            <figure><blockquote translate="no">“Sinds mijn zoon zooltjes draagt van ZOL heeft hij veel minder last van pijn. Ook erg fijn advies van de jongens erachter.”</blockquote><figcaption><strong translate="no">Sophie van Ham</strong><span>Google-review</span></figcaption></figure>
+            <figure><blockquote translate="no">“Nu ze de zolen draagt, is haar voet direct ontlast. We zijn super snel geholpen, echt heel tevreden!”</blockquote><figcaption><strong translate="no">Carlijn Stevens</strong><span>Google-review</span></figcaption></figure>
           </div>
           <a class="text-link" href="#reviews">Lees alle ervaringen <span>→</span></a>
         </div>
@@ -187,7 +263,7 @@
       <section class="pp-how" aria-labelledby="how-title">
         <div class="pp-wrap pp-how-grid">
           <div class="pp-how-media">
-            <picture><source srcset="/media/product-use.avif" type="image/avif" /><img src="/media/product-use.jpg" alt="ZOL wordt in een sportschoen geplaatst" loading="lazy" /></picture>
+            <picture><source srcset="/media/product-detail.avif" type="image/avif" /><img src="/media/product-detail.jpg" alt="ZOL-inlegzool in een sportschoen" loading="lazy" /></picture>
           </div>
           <div class="pp-how-copy">
             <p class="section-index">Zo werkt ZOL in de hiel</p>
@@ -203,24 +279,39 @@
         </div>
       </section>
 
-      <section class="pp-compare" aria-labelledby="compare-title">
+      <section class="tp-compare" aria-labelledby="compare-title">
         <div class="pp-wrap">
-          <p class="section-index section-index--light">Duidelijke keuze</p>
-          <h2 id="compare-title">Goede ondersteuning hoeft geen <em>€300 te kosten.</em></h2>
-          <div class="pp-compare-grid">
-            <div class="pp-plan">
-              <h3>Podoloog / podotherapeut</h3>
-              <p class="pp-plan-price">Tot ± €300+</p>
-              <ul><li>Individuele intake en aanmeting</li><li class="is-no">Meerdere afspraken nodig</li><li class="is-no">Niet altijd vergoedbaar</li><li class="is-no">Door groei vaak opnieuw aanmeten en vervangen</li></ul>
-            </div>
-            <div class="pp-plan pp-plan--zol">
-              <h3>De ZOL'tjes</h3>
-              <p class="pp-plan-price">€99,95</p>
-              <ul><li>Direct beschikbaar, zonder afspraak</li><li>Ontwikkeld voor sportende kinderen</li><li>Ontwikkeld met een podoloog</li><li>Door 3/4-ontwerp niet automatisch ieder groeijaar vervangen</li></ul>
-              <a class="button button--light" href="#bestellen">Kies je maat <span>→</span></a>
-            </div>
+          <h2 id="compare-title">Goede ondersteuning hoeft geen <em>€300 te kosten</em></h2>
+          <div class="tp-table-wrap">
+            <table class="tp-table">
+              <thead>
+                <tr><th scope="col"><span class="visually-hidden">Wat het doet</span></th><th scope="col" class="is-zol">De ZOL'tjes</th><th scope="col">Maatwerk via podotherapeut</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">Prijs</th><td class="is-zol"><strong>€99,95</strong></td><td><strong>Tot ± €300+</strong></td></tr>
+                <tr><th scope="row">Direct te gebruiken, zonder afspraak</th><td class="is-zol"><span class="tp-yes">Ja</span></td><td><span class="tp-no">Nee</span></td></tr>
+                <tr><th scope="row">Ontwikkeld voor sportende kinderen</th><td class="is-zol"><span class="tp-yes">Ja</span></td><td><span class="tp-maybe">Varieert</span></td></tr>
+                <tr><th scope="row">Dempende laag en stevige hielkuip</th><td class="is-zol"><span class="tp-yes">Ja</span></td><td><span class="tp-maybe">Varieert</span></td></tr>
+                <tr><th scope="row">Niet automatisch ieder groeijaar vervangen</th><td class="is-zol"><span class="tp-yes">Ja</span></td><td><span class="tp-no">Nee</span></td></tr>
+                <tr><th scope="row">Individueel aangemeten</th><td class="is-zol"><span class="tp-no">Nee</span></td><td><span class="tp-yes">Ja</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tp-cta-row">
+            <a class="button button--primary" href="#bestellen">Bestel de ZOL'tjes</a>
           </div>
           <p class="pp-fine">Beide oplossingen kunnen gericht zijn op ondersteuning, demping en drukverdeling. Welke oplossing geschikt is, hangt af van de individuele klachten van het kind. ZOL is een ondersteunend comfortproduct en geen individueel aangemeten medisch hulpmiddel.</p>
+        </div>
+      </section>
+
+      <section class="tp-timeline" aria-labelledby="timeline-title">
+        <div class="pp-wrap">
+          <h2 id="timeline-title">Zo gaan de eerste <em>weken</em></h2>
+          <ol>
+            <li><span>Dag 1</span><h3>Wennen</h3><p>Leg de ZOL'tjes in de sportschoen en laat je kind er even op lopen. Staat de hiel stabiel en voelt het prettig? Dan kunnen ze mee naar de training.</p></li>
+            <li><span>Week 1</span><h3>Rustig opbouwen</h3><p>Bouw het gebruik rustig op als dat prettiger voelt. Door de korte vorm zet je het paar zo over naar een andere schoen.</p></li>
+            <li><span>Daarna</span><h3>Elke training en wedstrijd</h3><p>De ZOL'tjes gaan gewoon mee in de sporttas. Houden klachten aan of worden ze erger? Laat het dan altijd beoordelen door een professional.</p></li>
+          </ol>
         </div>
       </section>
 
