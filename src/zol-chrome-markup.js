@@ -54,7 +54,7 @@ export function footerMarkup() {
         <div class="zf-cta">
           <span class="zf-badge"><i></i>Van de zijlijn terug het veld op</span>
           <p class="zf-title">Zachter landen. <b>Beter sporten.</b></p>
-          <a class="zn-btn zf-btn" href="/product/">Bekijk de ZOL'tjes →</a>
+          <a class="zn-btn zf-btn" href="/product/">Bekijk de ZOL'tjes</a>
         </div>
         <div class="zf-grid">
           <div><img src="/media/zol-logo-v4.png" alt="ZOL Solutions" /><p>Dempende 3/4 inlegzolen voor kinderen met hielpijn. Extra comfort, demping en stabiliteit voor jonge sporters in de groei.</p>
