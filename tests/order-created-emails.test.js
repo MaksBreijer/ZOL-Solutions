@@ -123,7 +123,8 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
       })
       const request = (action, extra = {}, internal = false) => new Request('https://example.invalid/order-email',{method:'POST',headers:{'Content-Type':'application/json',...(internal ? {'x-zol-email-secret':'test-internal'} : {})},body:JSON.stringify({order_id:customer,action,...extra})})
       assert.equal((await handler(request('created'))).status,200)
-      const expected = orderSource === 'admin' ? [] : [['admin@example.invalid','new_order_admin']]
+      // Neither manual nor webshop orders notify anyone at creation; webshop admin mail waits for Mollie (action "paid").
+      const expected = []
       assert.deepEqual(sent.map(email => [email.to,email.subject]),expected)
       assert.equal((await handler(request('created'))).status,200)
       assert.equal(sent.length,expected.length,'a retry must not send another confirmation')
@@ -161,9 +162,11 @@ test('manual orders stay quiet until an authenticated admin confirms tracking; w
         payment.provider = 'mollie'
       }
       assert.equal((await handler(request('paid'))).status,200)
-      assert.equal(sent.at(-1).subject,orderSource === 'admin' ? 'order_shipped' : 'payment_confirmed')
-      if (orderSource !== 'admin') assert.match(sent.at(-1).html,/story-team\.jpg/)
-      assert.equal(sent.length,expected.length + (orderSource === 'admin' ? 1 : 2),'marking a manual order paid must not send any confirmation')
+      const confirmation = orderSource === 'admin' ? sent.at(-1) : sent.find(email => email.subject === 'payment_confirmed')
+      assert.equal(confirmation.subject,orderSource === 'admin' ? 'order_shipped' : 'payment_confirmed')
+      if (orderSource !== 'admin') assert.match(confirmation.html,/story-team\.jpg/)
+      if (orderSource !== 'admin') assert.ok(sent.some(email => email.to === 'admin@example.invalid' && email.subject === 'new_order_admin'),'the team hears about a webshop order once Mollie confirms payment')
+      assert.equal(sent.length,expected.length + (orderSource === 'admin' ? 1 : 3),'marking a manual order paid must not send any confirmation')
       const direct = await (await handler(request('new_order_admin'))).json()
       if (orderSource === 'admin') {
         assert.equal(direct.skipped,'manual_order_waiting_for_shipping')
