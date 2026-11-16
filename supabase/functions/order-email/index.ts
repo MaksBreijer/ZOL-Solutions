@@ -78,6 +78,8 @@ Deno.serve(async (request) => {
     if (order.source === "admin" && templateKeys.every((key) => ["order_received", "payment_confirmed", "order_delayed", "new_order_admin"].includes(key))) {
       return Response.json({ success: true, skipped: "manual_order_waiting_for_shipping", results: [] }, { headers })
     }
+    // Webshop orders only notify the team once Mollie has confirmed the payment (action "paid").
+    if (action === "created" && order.source === "zol-webshop") return Response.json({ success: true, skipped: "awaiting_mollie_payment", results: [] }, { headers })
     if (templateKeys.includes("order_received") && order.source === "zol-webshop") return Response.json({ success: true, skipped: "awaiting_mollie_payment", results: [] }, { headers })
     if (templateKeys.includes("payment_confirmed") && (order.payment_status !== "paid" || payment?.provider !== "mollie" || payment?.status !== "paid" || !payment?.provider_payment_id)) return Response.json({ error: "Er is nog geen door Mollie bevestigde betaling." }, { status: 409, headers })
     if (templateKeys.includes("order_shipped") && !order.tracking_code) return Response.json({ error: "Voeg eerst een trackingcode toe." }, { status: 409, headers })
