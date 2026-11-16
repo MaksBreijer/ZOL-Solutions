@@ -7,8 +7,10 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405, headers })
 
   try {
-    const body = await request.json()
-    const token = String(body.token || "").trim()
+    // One-click afmelden (RFC 8058) post een formulier naar de URL met ?token=..., de website stuurt JSON.
+    const queryToken = new URL(request.url).searchParams.get("token") || ""
+    const body = queryToken ? {} : await request.json().catch(() => ({}))
+    const token = String(queryToken || body.token || "").trim()
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)) {
       return Response.json({ error: "Deze afmeldlink is niet geldig." }, { status: 400, headers })
     }

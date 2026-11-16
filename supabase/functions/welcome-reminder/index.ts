@@ -1,8 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { adminClient, emailShell, escapeEmailHtml, getEmailConfig, logEmail, markEmail, sendEmail } from "../_shared/email.ts"
+import { adminClient, escapeEmailHtml, getEmailConfig, logEmail, markEmail, sendEmail } from "../_shared/email.ts"
 import { purchaseReminderCopy } from "../_shared/purchase-reminder.js"
 
-// Herinnert aanmelders die nog niets hebben gekocht: na een half uur, een dag en drie dagen.
+// Herinnert aanmelders die nog niets hebben gekocht: na een half uur, een dag en drie dagen,
+// daarna wekelijks zolang hun 10%-code ongebruikt is.
 // Wordt elke tien minuten door pg_cron aangeroepen; wie aan de beurt is bepaalt due_purchase_reminders.
 Deno.serve(async (request) => {
   if (request.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 })
@@ -18,6 +19,9 @@ Deno.serve(async (request) => {
 
     const websiteUrl = String(config.website_url || "https://zolsolutions.nl").replace(/\/$/, "")
     const productUrl = `${websiteUrl}/product/`
+    const logoUrl = String(config.logo_url || `${websiteUrl}/media/zol-logo-email-v4.png`)
+    const replyTo = String(config.reply_to || "info@zolsolutions.nl")
+    const supabaseUrl = String(Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "")
     const results: Array<Record<string, unknown>> = []
 
     const buildMail = (row: Record<string, any>) => {
@@ -26,23 +30,20 @@ Deno.serve(async (request) => {
         : ""
       const copy = purchaseReminderCopy({ step: row.reminder_number, firstName: row.first_name, code: row.code, validUntil })
       const unsubscribeUrl = `${websiteUrl}/uitschrijven/?token=${encodeURIComponent(row.unsubscribe_token)}`
-      const paragraph = (text: string) => `<p style="margin:0 0 18px;color:#445b70;font-size:15px;line-height:1.72">${escapeEmailHtml(text)}</p>`
-      const codeBlock = copy.hasCode
-        ? `<div style="margin:0 0 22px;padding:20px;border:2px dashed #9fc4e8;border-radius:14px;text-align:center;background:#f3f6f8">
-          <p style="margin:0 0 6px;color:#66798c;font-size:12px;letter-spacing:1px;text-transform:uppercase">Jouw code voor 10% korting</p>
-          <p style="margin:0;color:#102b4a;font-size:30px;font-weight:700;letter-spacing:2px">${escapeEmailHtml(row.code)}</p>
-          <p style="margin:8px 0 0;color:#66798c;font-size:13px">Eenmalig te gebruiken en geldig tot ${escapeEmailHtml(validUntil)}.</p>
-        </div>`
-        : ""
-      const productPhoto = `<p style="margin:0 0 22px;text-align:center"><a href="${escapeEmailHtml(productUrl)}"><img src="${escapeEmailHtml(websiteUrl)}/media/product-blue.jpg" width="300" alt="De blauwe ZOL'tjes" style="display:inline-block;width:300px;max-width:100%;height:auto;border:0;border-radius:14px"></a></p>`
-      const content = `${paragraph(copy.greeting)}
-        ${paragraph(copy.intro)}
-        ${productPhoto}
-        ${codeBlock}
-        ${paragraph(copy.closing)}
-        <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e4e9ee;color:#738496;font-size:11px;line-height:1.6">Je ontvangt deze mail omdat je je via zolsolutions.nl hebt aangemeld voor mail van ZOL. <a href="${escapeEmailHtml(unsubscribeUrl)}" style="color:#33669b">Direct afmelden</a>.</div>`
-      const text = `${copy.greeting}\n\n${copy.intro}\n\n${copy.hasCode ? `Jouw code: ${row.code} (geldig tot ${validUntil}).\n\n` : ""}${copy.closing}\n\nBekijk de ZOL'tjes: ${productUrl}\n\nAfmelden: ${unsubscribeUrl}`
-      return { copy, unsubscribeUrl, text, html: emailShell(content, { eyebrow: "Herinnering", title: copy.title, websiteUrl, logoUrl: config.logo_url, buttonLabel: "Bekijk de ZOL'tjes", buttonUrl: productUrl }) }
+      const oneClickUrl = `${supabaseUrl}/functions/v1/marketing-unsubscribe?token=${encodeURIComponent(row.unsubscribe_token)}`
+      // Bewust een eenvoudige, persoonlijke mail (geen zware template, één afbeelding, weinig links):
+      // dat lijkt op een gewone mail en belandt daardoor veel minder vaak in de spam of het promotietabblad.
+      const p = (text: string) => `<p style="margin:0 0 16px">${escapeEmailHtml(text)}</p>`
+      const logo = `<p style="margin:0 0 20px"><img src="${escapeEmailHtml(logoUrl)}" width="96" alt="ZOL" style="display:block;width:96px;height:auto;border:0"></p>`
+      const photo = `<p style="margin:0 0 16px"><a href="${escapeEmailHtml(productUrl)}"><img src="${escapeEmailHtml(websiteUrl)}/media/product-blue.jpg" width="280" alt="De ZOL'tjes" style="display:block;width:280px;max-width:100%;height:auto;border:0;border-radius:8px"></a></p>`
+      const code = copy.hasCode ? `<p style="margin:0 0 16px">Je code: <strong style="font-size:17px;letter-spacing:1px">${escapeEmailHtml(row.code)}</strong>${validUntil ? ` (geldig tot ${escapeEmailHtml(validUntil)})` : ""}</p>` : ""
+      const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeEmailHtml(copy.subject)}</title></head>
+<body style="margin:0;padding:0;background:#ffffff"><div style="max-width:560px;padding:24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1f2d3d">
+${logo}${p(copy.greeting)}${p(copy.intro)}${code}${photo}<p style="margin:0 0 16px">Bekijk ze hier: <a href="${escapeEmailHtml(productUrl)}" style="color:#1f5f99">${escapeEmailHtml(productUrl.replace(/^https?:\/\//, ""))}</a></p>${p(copy.closing)}<p style="margin:0 0 24px">Groetjes,<br>Maks en Thijn<br>ZOL Solutions</p>
+<p style="margin:0;color:#8a96a3;font-size:12px">Je krijgt deze mail omdat je je op zolsolutions.nl hebt aangemeld voor 10% korting. Liever geen mails meer? <a href="${escapeEmailHtml(unsubscribeUrl)}" style="color:#8a96a3">Afmelden</a>.</p>
+</div></body></html>`
+      const text = `${copy.greeting}\n\n${copy.intro}\n\n${copy.hasCode ? `Je code: ${row.code}${validUntil ? ` (geldig tot ${validUntil})` : ""}\n\n` : ""}Bekijk ze hier: ${productUrl}\n\n${copy.closing}\n\nGroetjes,\nMaks en Thijn\nZOL Solutions\n\nAfmelden: ${unsubscribeUrl}`
+      return { copy, unsubscribeUrl, oneClickUrl, text, html }
     }
 
     // Testmodus: stuurt de drie mails (plus de variant zonder code) alleen naar het beheeradres, zonder klanten aan te raken.
@@ -54,6 +55,7 @@ Deno.serve(async (request) => {
         { reminder_number: 1, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
         { reminder_number: 2, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
         { reminder_number: 3, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
+        { reminder_number: 4, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
         { reminder_number: 1, code: null, code_ends_at: null },
       ]
       const outcomes: Array<Record<string, unknown>> = []
@@ -73,11 +75,19 @@ Deno.serve(async (request) => {
     if (dueError) throw dueError
 
     for (const row of due || []) {
-      const { copy, unsubscribeUrl, text, html } = buildMail(row)
+      // Wekelijkse herinneringen: houd de ongebruikte code minstens twee weken geldig.
+      if (Number(row.reminder_number) >= 4 && row.code) {
+        const minimumEnd = new Date(Date.now() + 14 * 86_400_000)
+        if (!row.code_ends_at || new Date(row.code_ends_at) < minimumEnd) {
+          await db.from("discounts").update({ ends_at: minimumEnd.toISOString() }).eq("code", row.code).eq("usage_count", 0)
+          row.code_ends_at = minimumEnd.toISOString()
+        }
+      }
+      const { copy, unsubscribeUrl, oneClickUrl, text, html } = buildMail(row)
       const dedupeKey = `purchase-reminder-${row.customer_id}-${copy.step}`
       const attemptAt = new Date().toISOString()
 
-      const log = await logEmail(db, { kind: "welcome_reminder", recipient_email: row.email, customer_id: row.customer_id, subject: copy.subject, body_preview: `Herinnering ${copy.step} van 3: nog geen aankoop`, dedupe_key: dedupeKey })
+      const log = await logEmail(db, { kind: "welcome_reminder", recipient_email: row.email, customer_id: row.customer_id, subject: copy.subject, body_preview: copy.weekly ? `Wekelijkse herinnering (${copy.step}): code nog ongebruikt` : `Herinnering ${copy.step} van 3: nog geen aankoop`, dedupe_key: dedupeKey })
       try {
         const sent = await sendEmail({
           to: row.email,
@@ -85,11 +95,14 @@ Deno.serve(async (request) => {
           html,
           text,
           idempotencyKey: dedupeKey,
-          headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
+          headers: {
+            "List-Unsubscribe": `<${oneClickUrl}>, <mailto:${replyTo}?subject=afmelden>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
           config,
         })
         await markEmail(db, log.id, { status: "sent", providerId: sent.id })
-        await db.from("customers").update({ purchase_reminder_count: copy.step, purchase_reminder_attempt_at: null }).eq("id", row.customer_id)
+        await db.from("customers").update({ purchase_reminder_count: copy.step, purchase_reminder_attempt_at: null, purchase_reminder_last_sent_at: new Date().toISOString() }).eq("id", row.customer_id)
         results.push({ step: copy.step, status: "sent" })
       } catch (sendError) {
         const message = sendError instanceof Error ? sendError.message : "Herinnering kon niet worden verstuurd."
