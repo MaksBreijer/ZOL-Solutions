@@ -178,7 +178,7 @@ async function startMolliePayment(input: {
     }),
   })
   const mollie = await response.json()
-  if (!response.ok) throw new Error(mollie.detail || "Mollie kon de betaling niet starten.")
+  if (!response.ok) throw new Error(mollie.detail ? `${mollie.detail}${mollie.field ? ` (veld: ${mollie.field})` : ""}` : `Mollie kon de betaling niet starten (HTTP ${response.status}).`)
   const checkoutUrl = mollie._links?.checkout?.href || null
   if (!checkoutUrl || !mollie.id) throw new Error("Mollie gaf geen geldige betaallink terug.")
   const { error } = await input.db.from("payments").update({
@@ -326,7 +326,9 @@ Deno.serve(async (request) => {
           method: selectedMethod,
         })
       } catch (error) {
-        await db.from("payments").update({ status: "failed" }).eq("id", payment.id)
+        const reason = (error instanceof Error ? error.message : String(error)).slice(0, 500)
+        console.error("Mollie payment start failed", { order_number: order.order_number, reason })
+        await db.from("payments").update({ status: "failed", metadata: { ...(payment.metadata || {}), failure_reason: reason, failed_at: new Date().toISOString() } }).eq("id", payment.id)
         throw error
       }
     }
