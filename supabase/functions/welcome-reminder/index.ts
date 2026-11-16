@@ -33,23 +33,29 @@ Deno.serve(async (request) => {
       const oneClickUrl = `${supabaseUrl}/functions/v1/marketing-unsubscribe?token=${encodeURIComponent(row.unsubscribe_token)}`
       // Bewust een eenvoudige, persoonlijke mail (geen zware template, één afbeelding, weinig links):
       // dat lijkt op een gewone mail en belandt daardoor veel minder vaak in de spam of het promotietabblad.
+      const about = "De ZOL'tjes zijn korte inlegzooltjes met een zachte hielondersteuning. We hebben ze ontwikkeld voor kinderen met hielpijn door de ziekte van Sever, zodat ze weer zonder pijn kunnen sporten en spelen. Ze passen in de meeste sport- en vrijetijdsschoenen en je haalt ze makkelijk van het ene paar naar het andere."
+      const sizing = "Twijfel je over de maat? Kies de maat van de schoen waar je kind het meest in sport. Past het toch niet goed, laat het ons weten, dan zoeken we samen een oplossing. En heb je een vraag over je kind, de klachten of de werking: stuur een berichtje terug, we lezen alles zelf."
       const p = (text: string) => `<p style="margin:0 0 16px">${escapeEmailHtml(text)}</p>`
       const logo = `<p style="margin:0 0 20px"><img src="${escapeEmailHtml(logoUrl)}" width="96" alt="ZOL" style="display:block;width:96px;height:auto;border:0"></p>`
-      const photo = `<p style="margin:0 0 16px"><a href="${escapeEmailHtml(productUrl)}"><img src="${escapeEmailHtml(websiteUrl)}/media/product-blue.jpg" width="280" alt="De ZOL'tjes" style="display:block;width:280px;max-width:100%;height:auto;border:0;border-radius:8px"></a></p>`
+      const photo = `<p style="margin:0 0 16px"><img src="${escapeEmailHtml(websiteUrl)}/media/product-blue.jpg" width="280" alt="De ZOL'tjes" style="display:block;width:280px;max-width:100%;height:auto;border:0;border-radius:8px"></p>`
       const code = copy.hasCode ? `<p style="margin:0 0 16px">Je code: <strong style="font-size:17px;letter-spacing:1px">${escapeEmailHtml(row.code)}</strong>${validUntil ? ` (geldig tot ${escapeEmailHtml(validUntil)})` : ""}</p>` : ""
       const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeEmailHtml(copy.subject)}</title></head>
 <body style="margin:0;padding:0;background:#ffffff"><div style="max-width:560px;padding:24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1f2d3d">
-${logo}${p(copy.greeting)}${p(copy.intro)}${code}${photo}<p style="margin:0 0 16px">Bekijk ze hier: <a href="${escapeEmailHtml(productUrl)}" style="color:#1f5f99">${escapeEmailHtml(productUrl.replace(/^https?:\/\//, ""))}</a></p>${p(copy.closing)}<p style="margin:0 0 24px">Groetjes,<br>Maks en Thijn<br>ZOL Solutions</p>
+${logo}${p(copy.greeting)}${p(copy.intro)}${code}${p(about)}${photo}${p(sizing)}<p style="margin:0 0 16px">Bekijk ze hier: <a href="${escapeEmailHtml(productUrl)}" style="color:#1f5f99">${escapeEmailHtml(productUrl.replace(/^https?:\/\//, ""))}</a></p>${p(copy.closing)}<p style="margin:0 0 24px">Groetjes,<br>Maks en Thijn<br>ZOL Solutions</p>
 <p style="margin:0;color:#8a96a3;font-size:12px">Je krijgt deze mail omdat je je op zolsolutions.nl hebt aangemeld voor 10% korting. Liever geen mails meer? <a href="${escapeEmailHtml(unsubscribeUrl)}" style="color:#8a96a3">Afmelden</a>.</p>
 </div></body></html>`
-      const text = `${copy.greeting}\n\n${copy.intro}\n\n${copy.hasCode ? `Je code: ${row.code}${validUntil ? ` (geldig tot ${validUntil})` : ""}\n\n` : ""}Bekijk ze hier: ${productUrl}\n\n${copy.closing}\n\nGroetjes,\nMaks en Thijn\nZOL Solutions\n\nAfmelden: ${unsubscribeUrl}`
+      const text = `${copy.greeting}\n\n${copy.intro}\n\n${copy.hasCode ? `Je code: ${row.code}${validUntil ? ` (geldig tot ${validUntil})` : ""}\n\n` : ""}${about}\n\n${sizing}\n\nBekijk ze hier: ${productUrl}\n\n${copy.closing}\n\nGroetjes,\nMaks en Thijn\nZOL Solutions\n\nAfmelden: ${unsubscribeUrl}`
       return { copy, unsubscribeUrl, oneClickUrl, text, html }
     }
 
     // Testmodus: stuurt de drie mails (plus de variant zonder code) alleen naar het beheeradres, zonder klanten aan te raken.
     const body = await request.json().catch(() => ({}))
     if (body?.test === true) {
-      const recipient = String(config.admin_email || "info@zolsolutions.nl").split(",")[0].trim().toLowerCase()
+      // Optioneel: één realistische mail naar een spamtestdienst (alleen mail-tester.com) om de spamscore te meten.
+      const testTo = String(body.to || "").trim().toLowerCase()
+      const noImages = body.no_images === true
+      const spamCheck = /^[a-z0-9-]+@srv\d+\.mail-tester\.com$/.test(testTo)
+      const recipient = spamCheck ? testTo : String(config.admin_email || "info@zolsolutions.nl").split(",")[0].trim().toLowerCase()
       const codeEndsAt = new Date(Date.now() + 27 * 86_400_000).toISOString()
       const samples = [
         { reminder_number: 1, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
@@ -59,10 +65,12 @@ ${logo}${p(copy.greeting)}${p(copy.intro)}${code}${photo}<p style="margin:0 0 16
         { reminder_number: 1, code: null, code_ends_at: null },
       ]
       const outcomes: Array<Record<string, unknown>> = []
-      for (const sample of samples) {
+      for (const sample of spamCheck ? [samples[3]] : samples) {
         const mail = buildMail({ ...sample, first_name: "Test", unsubscribe_token: "test" })
+        if (noImages) mail.html = mail.html.replace(/<p style="margin:0 0 \d+px">\s*<img[^>]*><\/p>/g, "")
         try {
-          const sent = await sendEmail({ to: recipient, subject: `[TEST] ${mail.copy.subject}`, html: mail.html, text: mail.text, idempotencyKey: `purchase-reminder-test-${crypto.randomUUID()}`, config })
+          const sent = await sendEmail({ to: recipient, subject: spamCheck ? mail.copy.subject : `[TEST] ${mail.copy.subject}`, html: mail.html, text: mail.text, idempotencyKey: `purchase-reminder-test-${crypto.randomUUID()}`, config,
+            headers: { "List-Unsubscribe": `<${mail.oneClickUrl}>, <mailto:${replyTo}?subject=afmelden>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } })
           outcomes.push({ step: mail.copy.step, with_code: mail.copy.hasCode, status: "sent", id: sent.id })
         } catch (sendError) {
           outcomes.push({ step: mail.copy.step, with_code: mail.copy.hasCode, status: "failed", error: sendError instanceof Error ? sendError.message : "onbekend" })
