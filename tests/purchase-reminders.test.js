@@ -133,3 +133,12 @@ test('mailteksten: met en zonder code, altijd zonder inleg-woorden, en de functi
   assert.match(reminderFunction, /List-Unsubscribe/)
   assert.match(reminderFunction, /due_purchase_reminders/)
 })
+
+test('eerste wekelijkse mail introduceert een zelf uitgegeven code', () => {
+  const intro = purchaseReminderCopy({ step: 4, firstName: 'Sanne', code: 'SANNE-AB12', validUntil: '1 december 2026', introduceCode: true })
+  const normal = purchaseReminderCopy({ step: 4, firstName: 'Sanne', code: 'SANNE-AB12', validUntil: '1 december 2026' })
+  assert.match(intro.intro, /persoonlijke code voor je gemaakt/)
+  assert.doesNotMatch(intro.intro, /nog niet gebruikt/)
+  assert.notEqual(intro.subject, normal.subject)
+  assert.equal(purchaseReminderCopy({ step: 4, firstName: '', code: null, introduceCode: true }).hasCode, false)
+})

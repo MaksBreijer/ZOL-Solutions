@@ -22,10 +22,21 @@ const weeklyVariants = [
   },
 ]
 
-export function purchaseReminderCopy({ step, firstName, code, validUntil }) {
+export function purchaseReminderCopy({ step, firstName, code, validUntil, introduceCode = false }) {
   const number = Math.max(1, Number(step) || 1)
   const greeting = firstName ? `Hoi ${String(firstName).trim()},` : "Hoi,"
   const hasCode = Boolean(code)
+
+  // Eerste wekelijkse mail voor wie de code net van ons kreeg (zonder 10%-actie aangemeld): code introduceren.
+  if (number >= 4 && introduceCode && hasCode) {
+    return {
+      step: number, greeting, hasCode, weekly: true,
+      subject: "Een persoonlijke code voor de ZOL'tjes",
+      title: "Een persoonlijke code voor de ZOL'tjes",
+      intro: "Je hebt je aangemeld voor mail van ZOL, maar de ZOL'tjes heb je nog niet besteld. Daarom hebben we een persoonlijke code voor je gemaakt: daarmee krijg je 10% korting op je bestelling.",
+      closing: "Je vult de code in bij het afrekenen. Heb je een vraag? Antwoord gerust op deze mail.",
+    }
+  }
 
   if (number >= 4) {
     const variant = weeklyVariants[(number - 4) % weeklyVariants.length]

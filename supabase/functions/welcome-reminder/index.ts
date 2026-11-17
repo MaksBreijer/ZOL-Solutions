@@ -30,7 +30,7 @@ Deno.serve(async (request) => {
       const validUntil = row.code_ends_at
         ? new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam" }).format(new Date(row.code_ends_at))
         : ""
-      const copy = purchaseReminderCopy({ step: row.reminder_number, firstName: row.first_name, code: row.code, validUntil })
+      const copy = purchaseReminderCopy({ step: row.reminder_number, firstName: row.first_name, code: row.code, validUntil, introduceCode: Boolean(row.introduce_code) })
       const unsubscribeUrl = `${websiteUrl}/uitschrijven/?token=${encodeURIComponent(row.unsubscribe_token)}`
       const oneClickUrl = `${supabaseUrl}/functions/v1/marketing-unsubscribe?token=${encodeURIComponent(row.unsubscribe_token)}`
       // Bewust een eenvoudige, persoonlijke mail (geen zware template, één afbeelding, weinig links):
@@ -66,6 +66,7 @@ ${logo}${p(copy.greeting)}${p(copy.intro)}${code}${p(about)}${photo}${p(sizing)}
         { reminder_number: 2, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
         { reminder_number: 3, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
         { reminder_number: 4, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt },
+        { reminder_number: 4, code: "VOORBEELD-AB12", code_ends_at: codeEndsAt, introduce_code: true },
         { reminder_number: 1, code: null, code_ends_at: null },
       ]
       const outcomes: Array<Record<string, unknown>> = []
@@ -93,6 +94,11 @@ ${logo}${p(copy.greeting)}${p(copy.intro)}${code}${p(about)}${photo}${p(sizing)}
     if (dueError) throw dueError
 
     for (const row of due || []) {
+      // Code die we zelf na de eerste reeks uitgaven en nog nooit gemaild is: eerste wekelijkse mail introduceert hem.
+      if (Number(row.reminder_number) === 4 && row.code) {
+        const { data: discount } = await db.from("discounts").select("title").eq("code", row.code).maybeSingle()
+        row.introduce_code = discount?.title === "10% korting (herinnering, persoonlijk)"
+      }
       // Wekelijkse herinneringen: houd de ongebruikte code minstens twee weken geldig.
       if (Number(row.reminder_number) >= 4 && row.code) {
         const minimumEnd = new Date(Date.now() + 14 * 86_400_000)
