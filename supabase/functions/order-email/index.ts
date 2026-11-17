@@ -33,6 +33,30 @@ function totalsTable(order: OrderRow) {
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;font-size:14px;color:#445b70"><tr><td style="padding:7px 0">${label.subtotal}</td><td align="right">${escapeEmailHtml(money(order.subtotal_cents, order.currency))}</td></tr>${order.discount_cents ? `<tr><td style="padding:7px 0">${label.discount}${order.discount_code ? ` (${escapeEmailHtml(order.discount_code)})` : ""}</td><td align="right">&minus; ${escapeEmailHtml(money(order.discount_cents, order.currency))}</td></tr>` : ""}<tr><td style="padding:7px 0">${label.shipping}</td><td align="right">${order.shipping_cents ? escapeEmailHtml(money(order.shipping_cents, order.currency)) : label.free}</td></tr><tr><td style="padding:14px 0 0;border-top:2px solid #102b4a;color:#102b4a;font-size:17px;font-weight:700">${label.total}</td><td align="right" style="padding:14px 0 0;border-top:2px solid #102b4a;color:#102b4a;font-size:17px;font-weight:700">${escapeEmailHtml(money(order.total_cents, order.currency))}</td></tr></table>`
 }
 
+const firstWeeks = {
+  nl: { title: "Zo gaan de eerste weken", steps: [
+    ["Dag 1", "Wennen", "Leg de ZOL'tjes in de sportschoen en laat je kind er even op lopen. Staat de hiel stabiel en voelt het prettig? Dan kunnen ze mee naar de training."],
+    ["Week 1", "Rustig opbouwen", "Bouw het gebruik rustig op als dat prettiger voelt. Door de korte vorm zet je het paar zo over naar een andere schoen."],
+    ["Daarna", "Elke training en wedstrijd", "De ZOL'tjes gaan gewoon mee in de sporttas. Houden klachten aan of worden ze erger? Laat het dan altijd beoordelen door een professional."],
+  ] },
+  de: { title: "So laufen die ersten Wochen", steps: [
+    ["Tag 1", "Eingewöhnen", "Lege die ZOL-Einlagen in den Sportschuh und lass dein Kind kurz damit laufen. Steht die Ferse stabil und fühlt es sich gut an? Dann dürfen sie mit zum Training."],
+    ["Woche 1", "Langsam steigern", "Steigere die Nutzung in Ruhe, wenn sich das besser anfühlt. Durch die kurze Form wechselst du das Paar schnell in einen anderen Schuh."],
+    ["Danach", "Jedes Training und Spiel", "Die ZOL-Einlagen kommen einfach mit in die Sporttasche. Halten Beschwerden an oder werden sie stärker? Lass sie dann immer von einer Fachperson beurteilen."],
+  ] },
+}
+
+function firstWeeksBlock(order: OrderRow) {
+  const copy = isGermanOrder(order) ? firstWeeks.de : firstWeeks.nl
+  const rows = copy.steps.map(([label, title, text]) => `<tr><td style="padding:16px 18px;border-top:1px solid #e3e8ee"><span style="display:inline-block;padding:3px 10px;border-radius:999px;background:#bf512f;color:#ffffff;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">${escapeEmailHtml(label)}</span><strong style="display:block;margin:10px 0 4px;color:#102b4a;font-size:16px">${escapeEmailHtml(title)}</strong><span style="display:block;color:#445b70;font-size:14px;line-height:1.6">${escapeEmailHtml(text)}</span></td></tr>`).join("")
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:8px 0 24px;border-radius:12px;background:#f3f6f8;border-collapse:separate"><tr><td style="padding:18px 18px 12px;color:#102b4a;font-size:18px;font-weight:700">${escapeEmailHtml(copy.title)}</td></tr>${rows}</table>`
+}
+
+function firstWeeksText(order: OrderRow) {
+  const copy = isGermanOrder(order) ? firstWeeks.de : firstWeeks.nl
+  return [copy.title, ...copy.steps.map(([label, title, text]) => `${label} – ${title}: ${text}`)].join("\n")
+}
+
 function detailBlock(key: string, order: OrderRow, variables: Record<string, unknown>) {
   const label = orderEmailLabels(order)
   if (["order_received", "payment_confirmed", "order_delayed", "new_order_admin"].includes(key)) {
@@ -41,6 +65,7 @@ function detailBlock(key: string, order: OrderRow, variables: Record<string, unk
     return `${customer}${itemTable(order)}${totalsTable(order)}${address}`
   }
   if (key === "order_shipped") return `<div style="margin:4px 0 22px;padding:18px;border-radius:12px;background:#f3f6f8"><span style="display:block;color:#6b7b8b;font-size:11px">${label.tracking} &middot; ${escapeEmailHtml(variables.carrier)}</span><strong style="display:block;margin-top:6px;color:#102b4a;font-size:20px;letter-spacing:.04em">${escapeEmailHtml(variables.tracking_code)}</strong></div>`
+  if (key === "order_delivered") return firstWeeksBlock(order)
   if (key === "refund_confirmed") return `<div style="margin:4px 0 22px;padding:18px;border-radius:12px;background:#edf6f1"><span style="display:block;color:#577263;font-size:11px">${label.refunded}</span><strong style="display:block;margin-top:6px;color:#17603d;font-size:25px">${escapeEmailHtml(variables.refund_amount)}</strong><span style="display:block;margin-top:7px;color:#577263;font-size:12px">Totaal terugbetaald: ${escapeEmailHtml(variables.refunded_total)}</span></div>`
   return ""
 }
@@ -63,6 +88,8 @@ Deno.serve(async (request) => {
 
     const body = await request.json()
     const orderId = String(body.order_id || "")
+    // Testmodus (alleen ingelogde beheerder): stuur de mail naar een los adres, bijvoorbeeld mail-tester, zonder klant of log.
+    const testRecipient = !validInternalSecret && typeof body.test_recipient === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.test_recipient) ? body.test_recipient.trim() : ""
     const action = String(body.action || "paid")
     if (!/^[0-9a-f-]{36}$/i.test(orderId)) return Response.json({ error: "Bestelling ontbreekt." }, { status: 400, headers })
     const templateKeys = actionTemplates[action] || (["order_received", "payment_confirmed", "order_delayed", "order_shipped", "order_delivered", "order_returned", "order_cancelled", "refund_confirmed", "new_order_admin"].includes(action) ? [action] : [])
@@ -118,25 +145,27 @@ Deno.serve(async (request) => {
     for (const key of templateKeys) {
       const template = localizeOrderTemplate(await getEmailTemplate(key, db), key, order)
       if (!template.enabled) { results.push({ kind: key, status: "disabled" }); continue }
-      const recipient = template.audience === "admin" ? (config.admin_email || "info@zolsolutions.nl") : order.customer_email
+      const recipient = testRecipient || (template.audience === "admin" ? (config.admin_email || "info@zolsolutions.nl") : order.customer_email)
       const subject = renderTemplate(template.subject_template, variables).slice(0, 240)
       const dedupe = dedupeKey(key, order, payment || {})
-      const { data: existing } = await db.from("email_messages").select("id,status").eq("dedupe_key", dedupe).maybeSingle()
+      const { data: existing } = testRecipient ? { data: null } : await db.from("email_messages").select("id,status").eq("dedupe_key", dedupe).maybeSingle()
       if (existing?.status === "sent") { results.push({ kind: key, status: "already_sent" }); continue }
 
       const bodyHtml = templateParagraphs(template.body_template, variables)
       const teamPhoto = key === "payment_confirmed" ? `<div style="margin:24px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="552" alt="Maks en Thijn van ZOL Solutions" style="display:block;width:100%;max-width:552px;height:auto;border:0;border-radius:12px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>` : ""
       const details = detailBlock(key, order, variables) + teamPhoto
-      const buttonLabel = renderTemplate(template.button_label_template, variables)
-      const buttonUrl = renderTemplate(template.button_url_template, variables)
-      const shellHtml = emailShell(`${bodyHtml}${details}`, {
+      // De bezorgmail bevat geen zolsolutions.nl-adressen: dat domein staat op de Razor2-spamlijst.
+      const noSiteLinks = key === "order_delivered"
+      const buttonLabel = noSiteLinks ? "" : renderTemplate(template.button_label_template, variables)
+      const buttonUrl = noSiteLinks ? "" : renderTemplate(template.button_url_template, variables)
+      const shellHtml = emailShell(key === "order_delivered" ? `${details}${bodyHtml}` : `${bodyHtml}${details}`, {
         eyebrow: renderTemplate(template.eyebrow_template, variables),
         title: renderTemplate(template.title_template, variables),
         intro: renderTemplate(template.intro_template, variables),
-        websiteUrl, logoUrl: config.logo_url, buttonLabel, buttonUrl,
+        websiteUrl, logoUrl: noSiteLinks ? `${String(Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "")}/storage/v1/object/public/zol-media/email/zol-logo-email-v4.png` : config.logo_url, buttonLabel, buttonUrl, siteLinks: !noSiteLinks,
         language: isGermanOrder(order) && template.audience !== "admin" ? "de" : "nl", tagline: orderEmailLabels(order).tagline,
       })
-      const text = [renderTemplate(template.title_template, variables), renderTemplate(template.intro_template, variables), renderTemplate(template.body_template, variables), key === "order_shipped" ? `Trackingcode: ${order.tracking_code}\n${trackingUrl}` : "", key === "refund_confirmed" ? `Terugbetaald: ${money(refundAmountCents, order.currency)}` : "", buttonLabel && buttonUrl ? `${buttonLabel}: ${buttonUrl}` : ""].filter(Boolean).join("\n\n")
+      const text = [renderTemplate(template.title_template, variables), renderTemplate(template.intro_template, variables), renderTemplate(template.body_template, variables), key === "order_shipped" ? `Trackingcode: ${order.tracking_code}\n${trackingUrl}` : "", key === "order_delivered" ? firstWeeksText(order) : "", key === "refund_confirmed" ? `Terugbetaald: ${money(refundAmountCents, order.currency)}` : "", buttonLabel && buttonUrl ? `${buttonLabel}: ${buttonUrl}` : ""].filter(Boolean).join("\n\n")
       // Internal notices go out as plain markup without logo or table shell, so mailbox spam filters see an ordinary mail.
       const adminLines = [
         text,
@@ -148,6 +177,11 @@ Deno.serve(async (request) => {
       const html = template.audience === "admin"
         ? `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222;white-space:pre-wrap">${escapeEmailHtml(adminLines)}</div>`
         : shellHtml
+      if (testRecipient) {
+        const sent = await sendEmail({ to: testRecipient, subject, html, text, idempotencyKey: `test-${dedupe}-${Date.now()}`, config })
+        results.push({ kind: key, status: "test_sent", id: sent.id })
+        continue
+      }
       const log = existing || await logEmail(db, { kind: key, recipient_email: recipient, subject, body_preview: text.slice(0, 280), order_id: order.id, customer_id: order.customer_id, dedupe_key: dedupe })
       try {
         // Trustpilot's Automatic Feedback Service receives only the delivery confirmation,
