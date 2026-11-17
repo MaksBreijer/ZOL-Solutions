@@ -373,3 +373,22 @@
   .sideline .sideline-figure { order: 2; }
   .sideline .sideline-photo { aspect-ratio: 16 / 10; object-position: 50% 35%; border-radius: 14px; }
 }
+      .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 980px; margin: 0 auto; }
+      .vs-card { border-radius: 22px; padding: 30px; background: var(--soft-2); border: 1px solid var(--line); display: flex; flex-direction: column; }
+      .vs-card.is-zol { background: var(--soft); border-color: #c9d8e8; }
+      .vs-fig { background: #fff; border-radius: 16px; padding: 12px; margin-bottom: 22px; }
+      .vs-svg { display: block; width: 100%; height: auto; }
+      .vs-label { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+      .vs-card.is-zol .vs-label { color: var(--brand); }
+      .vs-card h3 { font-size: 30px; font-weight: 600; margin: 6px 0 18px; color: var(--dark); }
+      .vs-card ul { list-style: none; padding: 0; margin: 0 0 24px; display: grid; gap: 12px; font-size: 15px; }
+      .vs-card li { display: flex; gap: 12px; }
+      .vs-card li::before { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+      .vs-card li.ok::before { content: "✓"; background: rgba(51,102,155,.15); color: var(--brand); }
+      .vs-card li.no::before { content: "✕"; background: rgba(191,81,47,.15); color: var(--accent); }
+      .vs-price { margin: auto 0 0; font: 700 34px/1 "Barlow Condensed", "Arial Narrow", sans-serif; color: var(--dark); }
+      .vs-note { max-width: 680px; margin: 28px auto 0; text-align: center; color: var(--muted); font-size: 15px; }
+      @media (max-width: 760px) { .vs { grid-template-columns: 1fr; } .vs-card { padding: 22px; } }
+      .vs-fig.is-photo { padding: 0; overflow: hidden; aspect-ratio: 320 / 220; background: #fff; }
+      .vs-fig.is-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+      .vs-fig { aspect-ratio: 320 / 220; }

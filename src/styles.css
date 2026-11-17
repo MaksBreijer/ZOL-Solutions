@@ -7291,3 +7291,8 @@ blockquote {
 @media (max-width: 860px) { .product-detail-hero.tp-hero { padding-top: 74px; } }
 .tp-buy .size-selector input:checked + span { border-color: var(--blue); background: var(--blue); color: #fff; }
 .tp-table .tp-note { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.35; }
+.tp-why { max-width: 760px; margin: 40px auto 0; padding: 28px 32px; border-radius: 20px; background: var(--blue-pale); color: var(--blue-deep); }
+.tp-why h3 { margin: 0 0 12px; font: 700 clamp(1.4rem, 2.4vw, 1.9rem)/1.05 var(--heading); text-transform: uppercase; }
+.tp-why p { margin: 0 0 12px; line-height: 1.6; }
+.tp-why p:last-child { margin-bottom: 0; }
+@media (max-width: 600px) { .tp-why { padding: 22px 20px; } }
