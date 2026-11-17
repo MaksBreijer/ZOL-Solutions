@@ -19,7 +19,9 @@ Deno.serve(async (request) => {
 
     const websiteUrl = String(config.website_url || "https://zolsolutions.nl").replace(/\/$/, "")
     const productUrl = `${websiteUrl}/product/`
-    const logoUrl = String(config.logo_url || `${websiteUrl}/media/zol-logo-email-v4.png`)
+    // Afbeeldingen via Supabase-opslag: elk zolsolutions.nl-adres in de mail scoort in Razor2 als spam.
+    const mediaBase = `${String(Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "")}/storage/v1/object/public/zol-media/email`
+    const logoUrl = `${mediaBase}/zol-logo-email-v4.png`
     const replyTo = String(config.reply_to || "info@zolsolutions.nl")
     const supabaseUrl = String(Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "")
     const results: Array<Record<string, unknown>> = []
@@ -37,14 +39,14 @@ Deno.serve(async (request) => {
       const sizing = "Twijfel je over de maat? Kies de maat van de schoen waar je kind het meest in sport. Past het toch niet goed, laat het ons weten, dan zoeken we samen een oplossing. En heb je een vraag over je kind, de klachten of de werking: stuur een berichtje terug, we lezen alles zelf."
       const p = (text: string) => `<p style="margin:0 0 16px">${escapeEmailHtml(text)}</p>`
       const logo = `<p style="margin:0 0 20px"><img src="${escapeEmailHtml(logoUrl)}" width="96" alt="ZOL" style="display:block;width:96px;height:auto;border:0"></p>`
-      const photo = `<p style="margin:0 0 16px"><img src="${escapeEmailHtml(websiteUrl)}/media/product-blue.jpg" width="280" alt="De ZOL'tjes" style="display:block;width:280px;max-width:100%;height:auto;border:0;border-radius:8px"></p>`
+      const photo = `<p style="margin:0 0 16px"><img src="${escapeEmailHtml(mediaBase)}/product-blue.jpg" width="280" alt="De ZOL'tjes" style="display:block;width:280px;max-width:100%;height:auto;border:0;border-radius:8px"></p>`
       const code = copy.hasCode ? `<p style="margin:0 0 16px">Je code: <strong style="font-size:17px;letter-spacing:1px">${escapeEmailHtml(row.code)}</strong>${validUntil ? ` (geldig tot ${escapeEmailHtml(validUntil)})` : ""}</p>` : ""
       const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeEmailHtml(copy.subject)}</title></head>
 <body style="margin:0;padding:0;background:#ffffff"><div style="max-width:560px;padding:24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1f2d3d">
-${logo}${p(copy.greeting)}${p(copy.intro)}${code}${p(about)}${photo}${p(sizing)}<p style="margin:0 0 16px">Bekijk ze hier: <a href="${escapeEmailHtml(productUrl)}" style="color:#1f5f99">${escapeEmailHtml(productUrl.replace(/^https?:\/\//, ""))}</a></p>${p(copy.closing)}<p style="margin:0 0 24px">Groetjes,<br>Maks en Thijn<br>ZOL Solutions</p>
-<p style="margin:0;color:#8a96a3;font-size:12px">Je krijgt deze mail omdat je je op zolsolutions.nl hebt aangemeld voor 10% korting. Liever geen mails meer? <a href="${escapeEmailHtml(unsubscribeUrl)}" style="color:#8a96a3">Afmelden</a>.</p>
+${logo}${p(copy.greeting)}${p(copy.intro)}${code}${p(about)}${photo}${p(sizing)}<p style="margin:0 0 16px">Je bestelt ze via onze website, de code vul je in bij het afrekenen.</p>${p(copy.closing)}<p style="margin:0 0 24px">Groetjes,<br>Maks en Thijn<br>ZOL Solutions</p>
+<p style="margin:0;color:#8a96a3;font-size:12px">Je krijgt deze mail omdat je je op onze website hebt aangemeld voor 10% korting. Liever geen mails meer? Antwoord dan met "afmelden" of gebruik de afmeldknop van je mailprogramma.</p>
 </div></body></html>`
-      const text = `${copy.greeting}\n\n${copy.intro}\n\n${copy.hasCode ? `Je code: ${row.code}${validUntil ? ` (geldig tot ${validUntil})` : ""}\n\n` : ""}${about}\n\n${sizing}\n\nBekijk ze hier: ${productUrl}\n\n${copy.closing}\n\nGroetjes,\nMaks en Thijn\nZOL Solutions\n\nAfmelden: ${unsubscribeUrl}`
+      const text = `${copy.greeting}\n\n${copy.intro}\n\n${copy.hasCode ? `Je code: ${row.code}${validUntil ? ` (geldig tot ${validUntil})` : ""}\n\n` : ""}${about}\n\n${sizing}\n\nJe bestelt ze via onze website, de code vul je in bij het afrekenen.\n\n${copy.closing}\n\nGroetjes,\nMaks en Thijn\nZOL Solutions\n\nLiever geen mails meer? Antwoord dan met "afmelden" of gebruik de afmeldknop van je mailprogramma.`
       return { copy, unsubscribeUrl, oneClickUrl, text, html }
     }
 
@@ -54,6 +56,8 @@ ${logo}${p(copy.greeting)}${p(copy.intro)}${code}${p(about)}${photo}${p(sizing)}
       // Optioneel: één realistische mail naar een spamtestdienst (alleen mail-tester.com) om de spamscore te meten.
       const testTo = String(body.to || "").trim().toLowerCase()
       const noImages = body.no_images === true
+      const noLinks = body.no_links === true
+      const onlyUnsubscribe = body.only_unsubscribe === true
       const spamCheck = /^[a-z0-9-]+@srv\d+\.mail-tester\.com$/.test(testTo)
       const recipient = spamCheck ? testTo : String(config.admin_email || "info@zolsolutions.nl").split(",")[0].trim().toLowerCase()
       const codeEndsAt = new Date(Date.now() + 27 * 86_400_000).toISOString()
@@ -67,6 +71,8 @@ ${logo}${p(copy.greeting)}${p(copy.intro)}${code}${p(about)}${photo}${p(sizing)}
       const outcomes: Array<Record<string, unknown>> = []
       for (const sample of spamCheck ? [samples[3]] : samples) {
         const mail = buildMail({ ...sample, first_name: "Test", unsubscribe_token: "test" })
+        if (onlyUnsubscribe) { mail.html = mail.html.replace(/<p style="margin:0 0 16px">Bekijk ze hier:[\s\S]*?<\/p>/, ""); mail.text = mail.text.replace(/Bekijk ze hier: \S+\n\n/, "") }
+        if (noLinks) { mail.html = mail.html.replace(/<a [^>]*>([^<]*)<\/a>/g, "$1").replace(/https?:\/\/\S+/g, "").replace(/zolsolutions\.nl\/\S*/g, ""); mail.text = mail.text.replace(/https?:\/\/\S+/g, "") }
         if (noImages) mail.html = mail.html.replace(/<p style="margin:0 0 \d+px">\s*<img[^>]*><\/p>/g, "")
         try {
           const sent = await sendEmail({ to: recipient, subject: spamCheck ? mail.copy.subject : `[TEST] ${mail.copy.subject}`, html: mail.html, text: mail.text, idempotencyKey: `purchase-reminder-test-${crypto.randomUUID()}`, config,
