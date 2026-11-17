@@ -141,6 +141,7 @@ Deno.serve(async (request) => {
       website_url: websiteUrl, admin_url: adminUrl,
     }
 
+    const mediaBase = `${String(Deno.env?.get("SUPABASE_URL") || "").replace(/\/$/, "")}/storage/v1/object/public/zol-media/email`
     const results = []
     for (const key of templateKeys) {
       const template = localizeOrderTemplate(await getEmailTemplate(key, db), key, order)
@@ -152,17 +153,20 @@ Deno.serve(async (request) => {
       if (existing?.status === "sent") { results.push({ kind: key, status: "already_sent" }); continue }
 
       const bodyHtml = templateParagraphs(template.body_template, variables)
-      const teamPhoto = key === "payment_confirmed" ? `<div style="margin:24px 0 0"><img src="https://zolsolutions.nl/media/story-team.jpg" width="552" alt="Maks en Thijn van ZOL Solutions" style="display:block;width:100%;max-width:552px;height:auto;border:0;border-radius:12px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>` : ""
+      const teamPhoto = key === "payment_confirmed" ? `<div style="margin:24px 0 0"><img src="${mediaBase}/story-team.jpg" width="552" alt="Maks en Thijn van ZOL Solutions" style="display:block;width:100%;max-width:552px;height:auto;border:0;border-radius:12px"><p style="margin:8px 0 0;color:#66798c;font-size:12px;line-height:1.5">Maks &amp; Thijn · ZOL Solutions</p></div>` : ""
       const details = detailBlock(key, order, variables) + teamPhoto
-      // De bezorgmail bevat geen zolsolutions.nl-adressen: dat domein staat op de Razor2-spamlijst.
-      const noSiteLinks = key === "order_delivered"
-      const buttonLabel = noSiteLinks ? "" : renderTemplate(template.button_label_template, variables)
-      const buttonUrl = noSiteLinks ? "" : renderTemplate(template.button_url_template, variables)
+      // Klantmails bevatten geen zolsolutions.nl-adressen: dat domein staat op de Razor2-spamlijst.
+      const noSiteLinks = template.audience !== "admin"
+      const templateButtonUrl = renderTemplate(template.button_url_template, variables)
+      // Knoppen naar externe diensten (zoals PostNL-tracking) blijven; knoppen naar onze eigen site vallen weg.
+      const keepButton = !noSiteLinks || !/zolsolutions\.nl|zol-solutions\.pages\.dev/i.test(templateButtonUrl)
+      const buttonLabel = keepButton ? renderTemplate(template.button_label_template, variables) : ""
+      const buttonUrl = keepButton ? templateButtonUrl : ""
       const shellHtml = emailShell(key === "order_delivered" ? `${details}${bodyHtml}` : `${bodyHtml}${details}`, {
         eyebrow: renderTemplate(template.eyebrow_template, variables),
         title: renderTemplate(template.title_template, variables),
         intro: renderTemplate(template.intro_template, variables),
-        websiteUrl, logoUrl: noSiteLinks ? `${String(Deno.env.get("SUPABASE_URL") || "").replace(/\/$/, "")}/storage/v1/object/public/zol-media/email/zol-logo-email-v4.png` : config.logo_url, buttonLabel, buttonUrl, siteLinks: !noSiteLinks,
+        websiteUrl, logoUrl: noSiteLinks ? `${mediaBase}/zol-logo-email-v4.png` : config.logo_url, buttonLabel, buttonUrl, siteLinks: !noSiteLinks,
         language: isGermanOrder(order) && template.audience !== "admin" ? "de" : "nl", tagline: orderEmailLabels(order).tagline,
       })
       const text = [renderTemplate(template.title_template, variables), renderTemplate(template.intro_template, variables), renderTemplate(template.body_template, variables), key === "order_shipped" ? `Trackingcode: ${order.tracking_code}\n${trackingUrl}` : "", key === "order_delivered" ? firstWeeksText(order) : "", key === "refund_confirmed" ? `Terugbetaald: ${money(refundAmountCents, order.currency)}` : "", buttonLabel && buttonUrl ? `${buttonLabel}: ${buttonUrl}` : ""].filter(Boolean).join("\n\n")
