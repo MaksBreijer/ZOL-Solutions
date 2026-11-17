@@ -392,3 +392,11 @@
       .vs-fig.is-photo { padding: 0; overflow: hidden; aspect-ratio: 320 / 220; background: #fff; }
       .vs-fig.is-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
       .vs-fig { aspect-ratio: 320 / 220; }
+      .vs { max-width: 1180px; gap: 28px; }
+      .vs-card { padding: clamp(22px, 2.6vw, 40px); border-radius: 26px; }
+      .vs-card h3 { font-size: clamp(28px, 2.6vw, 40px); }
+      .vs-card ul { font-size: clamp(15px, 1.15vw, 17px); gap: 14px; }
+      .vs-card li::before { width: 22px; height: 22px; margin-top: 1px; }
+      .vs-price { font-size: clamp(32px, 2.8vw, 44px); }
+      .vs-note { max-width: 760px; font-size: clamp(15px, 1.1vw, 17px); margin-top: 36px; }
+      #verschil .head { max-width: 760px; }
