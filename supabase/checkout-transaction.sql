@@ -227,7 +227,6 @@ begin
   if v_has_discount then
     insert into public.discount_redemptions (discount_id, order_id, code, amount_cents)
     values (v_discount.id, v_order_id, v_discount.code, v_discount_cents);
-    update public.discounts set usage_count = usage_count + 1 where id = v_discount.id;
   end if;
 
   insert into public.payments (order_id, provider, status, amount_cents, currency, metadata)
