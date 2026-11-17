@@ -85,6 +85,10 @@ ${logo}${p(copy.greeting)}${p(copy.intro)}${code}${p(about)}${photo}${p(sizing)}
       return Response.json({ success: true, test: true, recipient, results: outcomes })
     }
 
+    // Aanmelders zonder code krijgen na de eerste reeks alsnog een eigen 10%-code (dan lopen ze mee in de wekelijkse mail).
+    const { error: issueError } = await db.rpc("issue_missing_reminder_codes", { p_limit: 50 })
+    if (issueError) console.error("Codes uitgeven mislukt", issueError.message)
+
     const { data: due, error: dueError } = await db.rpc("due_purchase_reminders", { p_limit: 50 })
     if (dueError) throw dueError
 
