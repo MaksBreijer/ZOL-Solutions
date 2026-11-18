@@ -69,9 +69,13 @@ function setHead(doc, route, target, nlRoute) {
     if (value) doc.querySelector(selector)?.setAttribute('content', value)
   }
   const add = (tag, properties) => { const element = doc.createElement(tag); Object.entries(properties).forEach(([key, value]) => element.setAttribute(key, value)); doc.head.append(element) }
-  add('meta', { name: 'robots', content: GERMAN_PAGES_PUBLIC ? 'index,follow' : 'noindex,nofollow' })
+  const indexable = GERMAN_PAGES_PUBLIC && nlRoute !== '/checkout/'
+  add('meta', { name: 'robots', content: indexable ? 'index,follow' : 'noindex,nofollow' })
   add('link', { rel: 'alternate', hreflang: 'de-DE', href: url })
-  if (nlRoute) add('link', { rel: 'alternate', hreflang: 'nl-NL', href: `${origin}${nlRoute}` })
+  if (nlRoute) {
+    add('link', { rel: 'alternate', hreflang: 'nl-NL', href: `${origin}${nlRoute}` })
+    add('link', { rel: 'alternate', hreflang: 'x-default', href: `${origin}${nlRoute}` })
+  }
 }
 
 // Google's product and page details, in German and for delivery to Germany.
@@ -259,7 +263,7 @@ buildGermanFeed()
 
 if (GERMAN_PAGES_PUBLIC) {
   const sitemapFile = join(dist, 'sitemap.xml')
-  const entries = [...Object.values(germanRoutes), '/de/impressum/', ...germanArticles.map(article => article.target)].map(route => `  <url><loc>${origin}${route}</loc></url>`).join('\n')
+  const entries = [...Object.values(germanRoutes).filter(route => route !== '/de/kasse/'), '/de/impressum/', ...germanArticles.map(article => article.target)].map(route => `  <url><loc>${origin}${route}</loc></url>`).join('\n')
   writeFileSync(sitemapFile, readFileSync(sitemapFile, 'utf8').replace('</urlset>', `${entries}\n</urlset>`))
 }
 console.log(`German pages built. Texts without a German match: ${audit.size}`)
