@@ -162,6 +162,38 @@ export function trackGoogleAnalyticsEvent(eventName, metadata = {}) {
     return
   }
 
+  if (eventName === 'stock_alert_subscribed') {
+    window.gtag('event', 'generate_lead', {
+      ...diagnostics,
+      lead_source: 'stock_alert',
+      item_variant: metadata.item_variant || undefined,
+    })
+    return
+  }
+
+  if (eventName === 'review_submitted') {
+    window.gtag('event', 'review_submitted', { ...diagnostics, rating: Number(metadata.rating) || undefined })
+    return
+  }
+
+  if (eventName === 'checkout_submit') {
+    window.gtag('event', 'checkout_submit', {
+      ...diagnostics,
+      payment_type: metadata.payment_method || '',
+      country: metadata.country || '',
+    })
+    return
+  }
+
+  if (['checkout_error', 'checkout_validation_error', 'product_load_error', 'review_error', 'stock_alert_error', 'product_add_blocked'].includes(eventName)) {
+    window.gtag('event', 'site_error', {
+      ...diagnostics,
+      error_type: eventName,
+      error_message: String(metadata.message || metadata.reason || metadata.field || '').slice(0, 100) || undefined,
+    })
+    return
+  }
+
   if (eventName === 'cta_click') {
     window.gtag('event', 'select_content', {
       ...diagnostics,
