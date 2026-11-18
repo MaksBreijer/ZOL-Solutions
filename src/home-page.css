@@ -58,7 +58,7 @@
       .stat span { font-weight: 600; font-size: 14px; } .stat small { display: block; color: var(--muted); font-size: 13px; }
       .stars { color: var(--accent); font-size: 12px; letter-spacing: 2px; }
 
-      .partners { margin-top: 70px; background: var(--soft); padding: 56px 0; text-align: center; }
+      .partners { margin-top: 0; background: var(--soft); padding: 56px 0; text-align: center; }
       .partners .row { display: flex; justify-content: center; align-items: center; gap: 70px; flex-wrap: wrap; margin-top: 26px; }
       .partners img { height: 40px; width: auto; opacity: .9; transition: .3s; }
       .partners img:hover { filter: none; opacity: 1; }
