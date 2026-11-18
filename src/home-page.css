@@ -222,6 +222,7 @@
       .stripes { display: none; }
     
 [data-inline="is-1"] { padding-top: 0 !important; }
+#anatomie[data-inline="is-1"] { padding-top: 80px !important; }
 [data-inline="is-2"] { top: 30px !important; left: 0 !important; }
 [data-inline="is-3"] { bottom: 30px !important; left: 0 !important; }
 [data-inline="is-4"] { padding-top: 40px !important; }
