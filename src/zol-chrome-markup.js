@@ -58,7 +58,7 @@ export function footerMarkup() {
         </div>
         <div class="zf-grid">
           <div><img src="/media/zol-logo-v4.png" alt="ZOL Solutions" /><p>Dempende 3/4 inlegzolen voor kinderen met hielpijn. Extra comfort, demping en stabiliteit voor jonge sporters in de groei.</p>
-            <a class="zf-rating" href="https://maps.google.com/?cid=654808623137506283" target="_blank" rel="noopener noreferrer">★ 4,9/5 uit 12 Google-reviews ↗</a>
+            <a class="zf-rating" href="https://maps.google.com/?cid=654808623137506283" target="_blank" rel="noopener noreferrer">★ 4,9/5 uit 13 Google-reviews ↗</a>
             <a class="zf-source" href="https://www.google.com/preferences/source?q=zolsolutions.nl" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.1 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>Voeg ZOL toe als voorkeursbron op Google</a></div>
           <div><p class="zf-h">Snelle links</p><a href="/#werking">Hoe het werkt</a><a href="/product/">De ZOL'tjes</a><a href="/#prijs">Prijs</a><a href="/checkout/">Winkelwagen</a></div>
           <div><p class="zf-h">Info</p><a href="/kennisbank/">Kennisbank</a><a href="/#faq">Veelgestelde vragen</a><a href="/over-ons/">Ons verhaal</a></div>
