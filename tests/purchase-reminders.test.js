@@ -142,3 +142,20 @@ test('eerste wekelijkse mail introduceert een zelf uitgegeven code', () => {
   assert.notEqual(intro.subject, normal.subject)
   assert.equal(purchaseReminderCopy({ step: 4, firstName: '', code: null, introduceCode: true }).hasCode, false)
 })
+
+test('na live-wijziging: eerste herinnering na een week, daarna elke twee weken', async () => {
+  const db = await createDatabase()
+  try {
+    await db.exec(`create table email_messages(customer_id uuid, kind text, status text, created_at timestamptz)`)
+    await db.exec(readFileSync(new URL('../supabase/migrations/20261116140000_weekly_discount_reminders.sql', import.meta.url), 'utf8'))
+    await db.exec(readFileSync(new URL('../supabase/migrations/20261124120000_slower_discount_reminders.sql', import.meta.url), 'utf8'))
+    await db.exec(`delete from customers`)
+    await addCustomer(db, 'zesdagen@example.invalid', '6 days')
+    await addCustomer(db, 'week@example.invalid', '8 days')
+    assert.deepEqual(await due(db), [{ email: 'week@example.invalid', reminder_number: 1, code: null }])
+    await db.exec(`update customers set purchase_reminder_count = 1, purchase_reminder_last_sent_at = now() - interval '13 days' where email = 'week@example.invalid'`)
+    assert.deepEqual(await due(db), [])
+    await db.exec(`update customers set purchase_reminder_last_sent_at = now() - interval '15 days' where email = 'week@example.invalid'`)
+    assert.deepEqual(await due(db), [{ email: 'week@example.invalid', reminder_number: 2, code: null }])
+  } finally { await db.close() }
+})
