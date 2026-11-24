@@ -2523,6 +2523,26 @@ async function loadPilotReport(force = false) {
   refreshIcons()
 }
 
+async function exportSmcConsents(target) {
+  setBusy(target, true, 'Lijst maken')
+  const { data, error } = await supabase.from('research_consents')
+    .select('email,consent_given,consent_text_version,created_at,withdrawn_at,orders(order_number,customers(first_name,last_name))')
+    .eq('study', 'smc_almere_sever').eq('consent_given', true).is('withdrawn_at', null)
+    .order('created_at')
+  setBusy(target, false, 'Toestemmingen SMC Almere')
+  if (error) { toast('Export mislukt', error.message, true); return }
+  const cell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
+  const rows = [['Bestelnummer', 'Naam', 'E-mail', 'Toestemming gegeven op', 'Versie toestemmingstekst']]
+  for (const row of data || []) {
+    const customer = row.orders?.customers || {}
+    rows.push([row.orders?.order_number || '', `${customer.first_name || ''} ${customer.last_name || ''}`.trim(), row.email, new Date(row.created_at).toLocaleString('nl-NL'), row.consent_text_version])
+  }
+  const csv = `\ufeff${rows.map((row) => row.map(cell).join(';')).join('\r\n')}`
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a'); link.href = url; link.download = `toestemmingen-smc-almere-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url)
+  toast('Lijst gedownload', `${(data || []).length} klant(en) gaven toestemming. Deel dit bestand alleen beveiligd met SMC Almere.`)
+}
+
 async function exportPilotResults(target) {
   setBusy(target, true, 'Excel-export maken')
   const { data, error } = await supabase.functions.invoke('pilot-measurement', { body: { action: 'report', record_export: true } })
@@ -2663,7 +2683,7 @@ function renderPilot() {
 
   const setupNotice = state.pilotReady ? '' : `<section class="panel pilot-setup-warning"><strong>De vragenlijsten staan klaar, maar de database-uitbreiding is nog niet geïnstalleerd.</strong><p>Hierdoor kunnen deelnemers en antwoorden nog niet worden opgeslagen. Dit raakt de bestaande webshop niet.</p></section>`
   const canExport = Boolean(state.pilotReport?.participants?.length) && !state.pilotReportLoading
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="focus-pain-customers" ${config.enabled ? '' : 'disabled'}><i data-lucide="users"></i> Klanten selecteren</button><button class="button" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export</button><a class="button" href="/meting/?preview=consent" target="_blank" rel="noreferrer">Toestemming bekijken →</a><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Vragenlijst bekijken →</a>`)}
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('pilot', `<button class="button button--primary" type="button" data-action="focus-pain-customers" ${config.enabled ? '' : 'disabled'}><i data-lucide="users"></i> Klanten selecteren</button><button class="button" type="button" data-action="export-pilot-results" ${canExport ? '' : 'disabled'}><i data-lucide="download"></i> Excel-export</button><button class="button" type="button" data-action="export-smc-consents"><i data-lucide="file-check"></i> Toestemmingen SMC Almere</button><a class="button" href="/meting/?preview=consent" target="_blank" rel="noreferrer">Toestemming bekijken →</a><a class="button" href="/meting/?preview=baseline" target="_blank" rel="noreferrer">Vragenlijst bekijken →</a>`)}
     ${setupNotice}
     <section class="pilot-control-grid">
       <form class="panel pilot-settings" id="pilot-settings-form">
@@ -4331,6 +4351,7 @@ async function handleContentClick(event) {
     setBusy(target, false, 'Testmail naar info sturen')
   }
   if (action === 'export-pilot-results') await exportPilotResults(target)
+  if (action === 'export-smc-consents') await exportSmcConsents(target)
   if (action === 'refresh-pilot-results') await loadPilotReport(true)
   if (action === 'focus-pain-customers') document.querySelector('#pain-customer-picker')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   if (action === 'select-all-pain-customers') {

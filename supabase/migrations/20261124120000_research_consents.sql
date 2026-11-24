@@ -21,3 +21,7 @@ alter table public.research_consents enable row level security;
 
 comment on table public.research_consents is
   'Keuze van klanten (ja/nee) om gegevens te laten gebruiken voor onderzoek naar de ziekte van Sever samen met SMC Almere.';
+
+create policy "owners and admins read research consents" on public.research_consents
+for select to authenticated using (private.is_admin(array['owner','admin']));
+grant select on public.research_consents to authenticated;
