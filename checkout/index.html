@@ -48,6 +48,7 @@
             </fieldset>
             <label class="checkout-consent"><input name="terms_accepted" type="checkbox" required><span>Ik ga akkoord met de <a href="/algemene-voorwaarden/">algemene voorwaarden</a> en het <a href="/privacy/">privacybeleid</a> van ZOL Solutions.</span></label>
             <label class="checkout-consent checkout-consent--optional"><input name="pain_evaluation_opt_in" type="checkbox"><span class="checkout-consent-reminder" aria-hidden="true">!</span><span>Ik ontvang na levering graag per e-mail een uitnodiging voor korte evaluaties over hoe het met de hielpijn gaat. Dit is optioneel; voor het verwerken van de antwoorden wordt apart toestemming gevraagd.</span></label>
+            <p class="research-consent-note" id="research-consent-note" hidden></p>
             <button class="checkout-submit" type="submit">Veilig betalen <span>→</span></button>
             <p class="checkout-form-status" id="checkout-status" aria-live="polite"></p>
             <aside class="checkout-trust" aria-label="Ervaringen van ouders">
@@ -58,6 +59,22 @@
           </section>
         </form>
       </section>
+      <dialog class="research-consent" id="research-consent" aria-labelledby="research-consent-title">
+        <p class="research-consent-kicker">SMC Almere × ZOL Solutions</p>
+        <h2 id="research-consent-title">Help je mee met onderzoek naar de ziekte van Sever?</h2>
+        <p>Samen met de fysiotherapeuten van SMC Almere onderzoeken we hoe we de ziekte van Sever bij kinderen nog beter kunnen aanpakken.</p>
+        <p>Ga je ermee akkoord dat ZOL Solutions je gegevens (contactgegevens, bestelling en wat je later deelt over de klachten van je kind) hiervoor gebruikt en deelt met SMC Almere?</p>
+        <ul>
+          <li>Je gegevens worden alleen voor dit onderzoek gebruikt en vertrouwelijk behandeld.</li>
+          <li>Je kunt je toestemming altijd intrekken via <a href="mailto:info@zolsolutions.nl">info@zolsolutions.nl</a>.</li>
+          <li><strong>Je korting blijft gewoon geldig, ook als je nee kiest.</strong></li>
+        </ul>
+        <p class="research-consent-privacy">Meer informatie in ons <a href="/privacy/" target="_blank" rel="noopener">privacybeleid</a>.</p>
+        <div class="research-consent-actions">
+          <button type="button" class="research-consent-yes" data-consent="yes">Ja, ik geef toestemming</button>
+          <button type="button" class="research-consent-no" data-consent="no">Nee, liever niet</button>
+        </div>
+      </dialog>
       <aside class="checkout-summary" id="checkout-summary"></aside>
     </main>
     <footer class="checkout-footer"><span>Beveiligde verbinding</span><span>Persoonlijke ondersteuning</span><span>BTW inbegrepen</span></footer>

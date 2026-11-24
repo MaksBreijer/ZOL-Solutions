@@ -273,6 +273,8 @@ Deno.serve(async (request) => {
     const { country: customerCountry } = validateCustomer(customer)
     customer.country = customerCountry
     customer.pain_evaluation_opt_in = customer.pain_evaluation_opt_in === true
+    const researchConsent = typeof customer.research_consent === "boolean" ? customer.research_consent : null
+    delete customer.research_consent
 
     if (commerce.mollie_enabled && !mollieKey) return Response.json({ error: "Online betalen is tijdelijk niet beschikbaar. Probeer het later opnieuw." }, { status: 503, headers })
 
@@ -305,6 +307,18 @@ Deno.serve(async (request) => {
       p_discount_code: String(body.discount_code || "").trim().toUpperCase().slice(0, 40),
     })
     if (orderError) throw orderError
+
+    const orderDiscountCode = String(body.discount_code || "").trim().toUpperCase().slice(0, 40)
+    if (researchConsent !== null && orderDiscountCode === "SMCALMERE20") {
+      const { error: consentError } = await db.from("research_consents").insert({
+        order_id: order.order_id,
+        email: String(customer.email || "").trim().toLowerCase(),
+        discount_code: orderDiscountCode,
+        consent_given: researchConsent,
+        consent_text_version: "smc-almere-v1-2026-11-24",
+      })
+      if (consentError) console.error("Research consent insert failed", { order_number: order.order_number, reason: consentError.message })
+    }
 
     const token = randomToken()
     const { data: payment, error: paymentError } = await db.from("payments").update({

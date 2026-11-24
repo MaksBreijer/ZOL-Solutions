@@ -283,6 +283,7 @@ async function requestQuote({ code = discountCode(), announce = true } = {}) {
   quotedCountry = selectedCountry()
   renderPaymentMethods(data.payment_methods || [])
   renderSummary(cart)
+  updateResearchConsent(data.discount_code || normalizedCode)
   if (data.discount_title) {
     const saving = data.discount_cents ? `${formatMoney(data.discount_cents)} korting` : 'geldig voor deze bestelling'
     setDiscountStatus(`${data.automatic ? 'Automatische korting' : `Code ${data.discount_code || normalizedCode}`} toegepast — ${saving}.`, 'success')
@@ -290,6 +291,44 @@ async function requestQuote({ code = discountCode(), announce = true } = {}) {
   else setDiscountStatus('')
   return true
 }
+
+const RESEARCH_CODE = 'SMCALMERE20'
+const researchDialog = document.querySelector('#research-consent')
+const researchNote = document.querySelector('#research-consent-note')
+let researchConsent = null
+
+function showResearchNote() {
+  if (!researchNote) return
+  researchNote.hidden = researchConsent === null
+  researchNote.innerHTML = researchConsent === null ? '' : `${researchConsent ? '✓ Je geeft toestemming voor het onderzoek met SMC Almere.' : 'Je doet niet mee aan het onderzoek met SMC Almere.'} <button type="button" id="research-consent-change">Wijzigen</button>`
+}
+
+function openResearchDialog() {
+  if (!researchDialog || researchDialog.open) return
+  if (typeof researchDialog.showModal === 'function') researchDialog.showModal()
+  else researchDialog.setAttribute('open', '')
+}
+
+function updateResearchConsent(code) {
+  if (String(code || '').toUpperCase() !== RESEARCH_CODE) {
+    researchConsent = null
+    showResearchNote()
+    return
+  }
+  if (researchConsent === null) openResearchDialog()
+}
+
+researchDialog?.addEventListener('click', (event) => {
+  const choice = event.target.closest('[data-consent]')?.dataset.consent
+  if (!choice) return
+  researchConsent = choice === 'yes'
+  trackEvent('research_consent', { consent: choice })
+  researchDialog.close?.()
+  researchDialog.removeAttribute('open')
+  showResearchNote()
+})
+researchDialog?.addEventListener('cancel', (event) => event.preventDefault())
+researchNote?.addEventListener('click', (event) => { if (event.target.id === 'research-consent-change') openResearchDialog() })
 
 function render() {
   const cart = getCart()
@@ -446,6 +485,10 @@ form.addEventListener('submit', async (event) => {
     customer.pain_evaluation_opt_in = customer.pain_evaluation_opt_in === 'on'
     const quoteIsCurrent = currentQuote && quotedCart === cartSignature(cart) && quotedCode === discountCode && quotedCountry === selectedCountry()
     if (!quoteIsCurrent && !await requestQuote({ code: discountCode, announce: false })) throw new Error(discountCode ? 'Controleer eerst de kortingscode hierboven.' : 'De actuele prijs kon niet worden gecontroleerd. Probeer het opnieuw.')
+    if (discountCode === RESEARCH_CODE) {
+      if (researchConsent === null) { openResearchDialog(); throw new Error('Maak eerst een keuze over het onderzoek met SMC Almere.') }
+      customer.research_consent = researchConsent
+    }
     const sessionId = getSessionId()
     const paymentMethod = String(customer.payment_method || '')
     delete customer.payment_method
