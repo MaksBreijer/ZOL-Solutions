@@ -315,7 +315,7 @@ Deno.serve(async (request) => {
         email: String(customer.email || "").trim().toLowerCase(),
         discount_code: orderDiscountCode,
         consent_given: researchConsent,
-        consent_text_version: "smc-almere-v1-2026-11-24",
+        consent_text_version: "smc-almere-v2-2026-11-24",
       })
       if (consentError) console.error("Research consent insert failed", { order_number: order.order_number, reason: consentError.message })
     }
