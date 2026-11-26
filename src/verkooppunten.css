@@ -54,3 +54,28 @@
   .vp-items { overflow: visible; }
   .vp-online { flex-direction: column; align-items: flex-start; padding: 28px 24px; }
 }
+
+/* Rustiger: kleinere kop, compactere kaart, zachtere randen */
+.vp-hero { padding: 56px 0 28px; grid-template-columns: 1fr; gap: 14px; max-width: 760px; text-align: center; }
+.vp-hero h1 { font-size: clamp(36px, 4vw, 56px); }
+.vp-lead { font-size: 18px; }
+.vp-facts { justify-content: center; gap: 36px; padding-top: 18px; border-top: 0; }
+.vp-facts strong { font-size: 28px; }
+.vp-facts span { font-size: 15px; }
+.vp-app { width: min(1240px, 100% - 32px); height: min(62vh, 580px); grid-template-columns: 360px 1fr; border-color: #eceeef; box-shadow: 0 10px 40px rgba(16,43,74,.06); }
+.vp-item-main strong { font-size: 19px; }
+.vp-item-main { padding: 14px 18px 6px; }
+.vp-actions { padding: 0 18px 12px; }
+.vp-marker span { width: 26px; height: 26px; border-width: 2px; }
+.vp-marker span::after { inset: 7px; }
+.vp-online { width: min(1240px, 100% - 32px); padding: 26px 32px; background: #f6f6f4; color: #161b20; }
+.vp-online h2 { font-size: 26px; color: #161b20; }
+.vp-online p { color: #626970; font-size: 16px; }
+.vp-online .vp-btn { background: #102b4a; color: #fff; }
+@media (max-width: 960px) {
+  .vp-hero { padding: 36px 0 20px; text-align: left; }
+  .vp-facts { justify-content: flex-start; }
+  .vp-app { height: auto; box-shadow: none; grid-template-columns: 1fr; }
+  .vp-mapwrap { height: 34vh; min-height: 240px; }
+  .vp-online { padding: 22px 20px; }
+}

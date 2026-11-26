@@ -25,7 +25,7 @@ const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_
 L.tileLayer(`${esri}Base/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 16, attribution: 'Kaart &copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; OpenStreetMap' }).addTo(map)
 L.tileLayer(`${esri}Reference/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 16 }).addTo(map)
 
-const icon = (active) => L.divIcon({ className: `vp-marker${active ? ' is-active' : ''}`, html: '<span></span>', iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30] })
+const icon = (active) => L.divIcon({ className: `vp-marker${active ? ' is-active' : ''}`, html: '<span></span>', iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -24] })
 const list = document.getElementById('vp-items')
 const markers = {}
 let activeId = null
