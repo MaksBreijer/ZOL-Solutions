@@ -467,3 +467,10 @@
 .spot-usp { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; font-size: 15px; }
 .spot-usp li::before { content: "✓  "; color: var(--accent); font-weight: 700; }
 @media (max-width: 900px) { .spot { grid-template-columns: 1fr; gap: 28px; } .spot-info { position: static; } .spot-pics { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 80%; overflow-x: auto; scroll-snap-type: x mandatory; } .spot-pics img { scroll-snap-align: start; } }
+.media-ticker { margin-top: 0; }
+.spot-rating { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 15px; margin-bottom: 6px; }
+.spot-rating .stars { color: #00b67a; font-size: 16px; }
+.spot-rating .u { border-bottom: 1px solid currentColor; }
+.spot-buy { border-radius: 999px; background: var(--brand); font-size: 17px; }
+.spot-strip { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; margin: 14px 0 0; font-size: 14px; color: var(--muted); }
+.spot-strip span::before { content: "✓ "; color: var(--accent); font-weight: 700; }
