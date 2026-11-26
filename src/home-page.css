@@ -448,3 +448,22 @@
 .shop-info { padding-bottom: 40px; }
 @media (max-width: 760px) { .shop-row { grid-auto-columns: 72%; } .kb-row { grid-auto-columns: 78%; } }
 .pc img { height: auto; flex: none; } .pc, .kc { align-self: start; }
+
+/* Eén product centraal, zoals een pimpz-productpagina */
+.spot { display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; width: min(1400px, 100% - 32px); margin: 64px auto 24px; align-items: start; }
+.spot-pics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.spot-pics img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; background: #f6f6f4; }
+.spot-info { position: sticky; top: 100px; }
+.spot-info h2 { font-size: clamp(40px, 4vw, 56px); font-weight: 600; margin: 8px 0 6px; }
+.spot-price { font-size: 22px; font-weight: 600; margin: 0 0 18px; }
+.spot-price span { font-size: 14px; font-weight: 400; color: var(--muted); }
+.spot-lead { color: var(--muted); margin: 0 0 24px; }
+.spot-label { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
+.spot-sizes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
+.spot-sizes a { text-align: center; padding: 11px 0; border: 1px solid var(--line); border-radius: 4px; font-size: 15px; transition: border-color .2s; }
+.spot-sizes a:hover { border-color: var(--ink); }
+.spot-buy { display: block; text-align: center; padding: 15px; border-radius: 4px; background: var(--ink); color: #fff; font-weight: 600; font-size: 16px; }
+.spot-buy:hover { background: var(--dark); }
+.spot-usp { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; font-size: 15px; }
+.spot-usp li::before { content: "✓  "; color: var(--accent); font-weight: 700; }
+@media (max-width: 900px) { .spot { grid-template-columns: 1fr; gap: 28px; } .spot-info { position: static; } .spot-pics { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 80%; overflow-x: auto; scroll-snap-type: x mandatory; } .spot-pics img { scroll-snap-align: start; } }
