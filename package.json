@@ -17,6 +17,7 @@
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
     "ical.js": "2.2.1",
+    "leaflet": "^1.9.4",
     "lucide": "^1.59.0",
     "three": "^0.170.0",
     "write-excel-file": "^4.1.1"

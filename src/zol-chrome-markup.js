@@ -32,7 +32,7 @@ const stripReviews = [
   ['Positief verrast! Mijn dochtertje heeft geen last meer tijdens het sporten.', 'R. de Vries', 'Google-review'],
   ['M’n zoontje kan nu eindelijk weer tennissen dankzij deze zooltjes.', 'Marcus Witkamp', 'Google-review'],
 ]
-const stripSkip = ['/', '/product/', '/checkout/', '/privacy/', '/algemene-voorwaarden/', '/uitschrijven/']
+const stripSkip = ['/', '/product/', '/verkooppunten/', '/checkout/', '/privacy/', '/algemene-voorwaarden/', '/uitschrijven/']
 
 export function reviewStripMarkup(route, variant = '') {
   if (stripSkip.includes(route)) return ''
