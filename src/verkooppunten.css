@@ -84,3 +84,7 @@
 @media (max-width: 960px) { .vp-hero { padding: 36px 16px 20px; } .vp-hero .vp-lead { margin: 0 !important; } }
 /* Telefoon: één vinger scrolt de pagina (niet de kaart), zodat je soepel door de lijst kunt */
 @media (max-width: 960px) { .vp-map.leaflet-container { touch-action: pan-y pinch-zoom; } }
+/* Telefoon: lijst met verkooppunten als eigen scrollvak onder de kaart */
+@media (max-width: 960px) {
+  .vp-items { max-height: 46vh; max-height: 46svh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+}
