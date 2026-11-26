@@ -105,3 +105,15 @@ body.has-zn { padding-top: 76px; }
 }
 .zn--hero:not(.is-solid) .zn-logo { opacity: 0; pointer-events: none; }
 .zn-logo { transition: opacity .25s; }
+
+/* Pimpz-stijl over de hele site: puur wit, strakke hoeken, rustige knoppen */
+:root { --paper: #fff; --off-white: #f6f6f4; }
+html, body { background: #fff !important; }
+main [class*="btn"], main .button, main button:not(.zn-toggle):not([class*="dot"]), main input, main select, main textarea,
+.zf-btn { border-radius: 4px !important; }
+main [class*="card"], main details, main figure, main img:not([class*="logo"]):not([class*="avatar"]), main video,
+main [class*="panel"], main [class*="box"], main [class*="tile"], main [class*="faq"] > *, main section > .wrap > [class*="grid"] > *,
+.zf-cta, .zr-wrap { border-radius: 6px !important; }
+main [class*="card"], main [class*="panel"], main [class*="tile"] { box-shadow: none !important; }
+.zf-cta { margin-inline: 0; }
+main > section[class$="-hero"]:not(.product-detail-hero):not(.tp-hero), main > .page-hero { margin: 0 !important; border-radius: 0 !important; }
