@@ -117,3 +117,9 @@ main [class*="panel"], main [class*="box"], main [class*="tile"], main [class*="
 main [class*="card"], main [class*="panel"], main [class*="tile"] { box-shadow: none !important; }
 .zf-cta { margin-inline: 0; }
 main > section[class$="-hero"]:not(.product-detail-hero):not(.tp-hero), main > .page-hero { margin: 0 !important; border-radius: 0 !important; }
+
+/* Brede schermen: tekst krijgt meer ruimte en leest groter op alle pagina's */
+@media (min-width: 1400px) {
+  main p, main li { max-width: min(100%, 880px) !important; }
+  main p:not([class]), main li:not([class]), main details p { font-size: max(19px, 1em); line-height: 1.6; }
+}

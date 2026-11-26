@@ -512,3 +512,10 @@
   .spot-price { font-size: 26px; }
   .faq { max-width: 1100px; }
 }
+/* Tekstband rustiger: lager, kleinere letters */
+.tagband { min-height: 38vh; }
+.tagband-bg { opacity: .45; }
+.tagband-track span { font-size: clamp(40px, 5.5vw, 84px); font-weight: 500; }
+.tagband-track { animation-duration: 60s; }
+.tagband-link { bottom: 22px; }
+@media (max-width: 760px) { .tagband { min-height: 32vh; } }
