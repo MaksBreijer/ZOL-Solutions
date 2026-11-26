@@ -99,6 +99,7 @@
       .kv strong { font-size: 20px; font-weight: 600; letter-spacing: 0; }
       .blueprint { position: relative; border-radius: 26px; background: linear-gradient(180deg, #edf2f7, #dbe6f0); padding: 50px 40px; }
       .blueprint img { border-radius: 18px; width: 100%; height: 460px; object-fit: cover; }
+      .blueprint:has(.blueprint-video) { padding: 14px; }
       .blueprint-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 6px; background: #f5f5f5; }
       .bedenk-badge { position: absolute; top: -22px; right: -22px; width: 104px; height: 104px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 12px 28px rgba(191,81,47,.35); transform: rotate(8deg); z-index: 2; }
       .bedenk-badge strong { font-family: "Barlow Condensed", sans-serif; font-size: 38px; line-height: .9; }
