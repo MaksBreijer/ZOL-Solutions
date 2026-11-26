@@ -15,7 +15,7 @@
 
 .legal-hero,
 .legal-layout {
-  width: min(1280px, calc(100% - 64px));
+  width: min(1480px, calc(100% - 64px));
   margin-inline: auto;
 }
 

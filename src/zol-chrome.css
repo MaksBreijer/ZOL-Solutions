@@ -43,7 +43,7 @@ body.has-zn { padding-top: 76px; }
 
 .zf { margin: 10px; border-radius: 22px; background: #102b4a; color: #fff; padding: 90px 0 36px; font-family: "Barlow Semi Condensed", Arial, sans-serif; }
 .zf a { color: inherit; text-decoration: none; }
-.zf-wrap { width: min(1200px, 100% - 32px); margin-inline: auto; }
+.zf-wrap { width: min(1440px, 100% - 32px); margin-inline: auto; }
 .zf-cta { text-align: center; margin-bottom: 70px; }
 .zf-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); }
 .zf-badge i { width: 18px; height: 18px; border-radius: 50%; background: rgba(191,81,47,.25); display: grid; place-items: center; }

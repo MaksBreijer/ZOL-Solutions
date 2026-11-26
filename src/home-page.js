@@ -51,3 +51,14 @@ document.addEventListener('click', () => {
     spot.setAttribute('aria-expanded', 'false')
   })
 })
+
+// Koopbalk op mobiel: zichtbaar na de hero, weg zolang het productblok in beeld is
+const buybar = document.querySelector('.buybar')
+const heroEl = document.querySelector('.hero')
+const spotEl = document.querySelector('.spot')
+if (buybar && heroEl && spotEl) {
+  let pastHero = false, spotVisible = false
+  const sync = () => buybar.classList.toggle('is-on', pastHero && !spotVisible)
+  new IntersectionObserver(([e]) => { pastHero = !e.isIntersecting; sync() }).observe(heroEl)
+  new IntersectionObserver(([e]) => { spotVisible = e.isIntersecting; sync() }).observe(spotEl)
+}
