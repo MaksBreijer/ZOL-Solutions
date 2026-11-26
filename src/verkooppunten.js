@@ -73,3 +73,9 @@ document.querySelectorAll('.vp-filter button').forEach((btn) => btn.addEventList
 fit('alle')
 map.on('focus', () => map.scrollWheelZoom.enable())
 map.on('blur', () => map.scrollWheelZoom.disable())
+
+// iOS Safari: kaart kan initialiseren voordat de container zijn hoogte heeft -> leeg. Herbereken bij elke maatwijziging.
+const refit = () => { map.invalidateSize(); fit(document.querySelector('.vp-filter button.is-on')?.dataset.filter || 'alle') }
+window.addEventListener('load', refit)
+window.addEventListener('pageshow', refit)
+if ('ResizeObserver' in window) new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById('vp-map'))
