@@ -7301,10 +7301,11 @@ blockquote {
 .pp-layers { padding: clamp(64px, 8vw, 110px) 0; background: #f5f5f5; }
 .pp-layers h2 { max-width: 760px; margin: 10px 0 0; color: var(--blue-deep); font: 700 clamp(2.4rem, 4.2vw, 3.8rem)/0.96 var(--heading); letter-spacing: -0.03em; text-transform: uppercase; }
 .pp-layers h2 em { color: var(--orange); font-style: normal; }
-.pp-layers-grid { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr); align-items: center; gap: clamp(32px, 5vw, 80px); }
-.pp-layers-copy > p:not(.section-index) { max-width: 420px; margin: 24px 0 0; }
-.layers-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #f5f5f5; }
+.pp-layers-head { max-width: 760px; margin: 0 auto clamp(24px, 4vw, 48px); text-align: center; }
+.pp-layers-head h2 { margin-inline: auto; }
+.pp-layers-head .section-index { justify-content: center; text-align: center; }
+.pp-layers-head > p:not(.section-index) { max-width: 520px; margin: 20px auto 0; }
+.layers-video { display: block; width: 100%; max-width: 1280px; margin-inline: auto; height: auto; aspect-ratio: 16 / 9; background: #f5f5f5; }
 @media (max-width: 800px) {
-  .pp-layers-grid { grid-template-columns: 1fr; gap: 24px; }
 }
 
