@@ -494,3 +494,21 @@
   .buybar.is-on { transform: none; }
   .buybar-btn { padding: 10px 18px; border-radius: 999px; background: var(--brand); color: #fff; font-weight: 600; }
 }
+
+/* Tekst krijgt meer ruimte dan beeld, en groeit mee op brede schermen */
+@media (min-width: 961px) {
+  .sideline { max-width: none; grid-template-columns: .85fr 1.15fr; }
+  .anatomy { grid-template-columns: .9fr 1.1fr; }
+  .solution { grid-template-columns: 1.15fr .85fr; }
+  .story { grid-template-columns: .7fr 1.3fr; }
+  .spot { grid-template-columns: 1fr 1fr; gap: 64px; }
+  .scard p, .note, .solution p, .story p, .sideline p { max-width: none; }
+}
+@media (min-width: 1400px) {
+  .solution p, .story p, .sideline p, .anatomy p, .spot-lead, .head p, .faq p, .review blockquote { font-size: 20px; line-height: 1.6; }
+  .faq summary { font-size: 20px; }
+  .solution h2, .story h2, .head h2, .sideline-head h2, .anatomy h2 { font-size: 64px; }
+  .spot-info h2 { font-size: 68px; }
+  .spot-price { font-size: 26px; }
+  .faq { max-width: 1100px; }
+}
