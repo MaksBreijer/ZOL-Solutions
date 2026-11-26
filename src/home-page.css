@@ -401,3 +401,26 @@
       .vs-price { font-size: clamp(32px, 2.8vw, 44px); }
       .vs-note { max-width: 760px; font-size: clamp(15px, 1.1vw, 17px); margin-top: 36px; }
       #verschil .head { max-width: 760px; }
+
+/* Pimpz-stijl: full-bleed hero met groot centraal logo, rustig wit, strakke hoeken, lopende tekstband */
+:root { --bg: #fff; --soft-2: #f6f6f4; }
+.hero { margin: 0; min-height: 100svh; border-radius: 0; align-items: center; justify-content: center; }
+.hero::after { background: linear-gradient(0deg, rgba(11,29,48,.45), rgba(11,29,48,.15) 50%, rgba(11,29,48,.3)); }
+.hero-inner.hero-center { padding: 0; text-align: center; justify-items: center; }
+.hero-center > div { display: flex; flex-direction: column; align-items: center; max-width: none; }
+.hero-mark { display: block; width: min(560px, 74vw); aspect-ratio: 3 / 1; background: #fff; -webkit-mask: url(/media/zol-logo-v4.png) center / contain no-repeat; mask: url(/media/zol-logo-v4.png) center / contain no-repeat; }
+.hero-center h1 { font-size: clamp(18px, 1.8vw, 24px); font-weight: 500; margin: 22px 0 0; letter-spacing: .02em !important; }
+.hero-center h1 b { display: inline; font-weight: 500; }
+.hero-center h1 b::after { display: none; }
+.hero-shop { margin-top: 26px; font-size: 15px; font-weight: 600; letter-spacing: .04em; color: #fff; border-bottom: 1px solid rgba(255,255,255,.7); padding-bottom: 3px; }
+.hero-shop:hover { border-color: #fff; }
+.scard, .card, .plan, .review, .faq details, .story details, .blueprint, .blueprint img, .story-media, .buy img, .vs-card, .callout, .press a { border-radius: 6px; }
+.btn { border-radius: 4px; }
+.tagband { position: relative; overflow: hidden; min-height: 82vh; display: flex; flex-direction: column; justify-content: center; color: #fff; background: #0b1d30; }
+.tagband-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .7; }
+.tagband-track { position: relative; display: flex; width: max-content; white-space: nowrap; animation: tagband 38s linear infinite; }
+.tagband-track span { font: 600 clamp(64px, 10vw, 150px)/1 "Barlow Condensed", "Arial Narrow", sans-serif; }
+.tagband-link { position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); font-size: 15px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.7); padding-bottom: 3px; }
+@keyframes tagband { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .tagband-track { animation: none; } }
+@media (max-width: 760px) { .tagband { min-height: 60vh; } }

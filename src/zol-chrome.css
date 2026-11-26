@@ -94,3 +94,14 @@ body.has-zn { padding-top: 76px; }
 .zr--side { margin: 28px 0 0; padding: 0; text-align: left; }
 .zr--side .zr-wrap { width: 100%; padding: 24px; }
 .zr--side blockquote { font-size: clamp(24px, 2.4vw, 30px); }
+
+/* Pimpz-stijl: platte balk over de volle breedte, logo in het midden op desktop */
+.zn { top: 0; left: 0; right: 0; border-radius: 0; }
+.zn.is-solid { background: rgba(255,255,255,.97); box-shadow: none; }
+.zn-btn, .zn-cart, .zn-toggle { border-radius: 4px; }
+@media (min-width: 1240px) {
+  .zn-logo { position: absolute; left: 50%; transform: translateX(-50%); }
+  .zn-links { margin-left: 0; margin-right: auto; }
+}
+.zn--hero:not(.is-solid) .zn-logo { opacity: 0; pointer-events: none; }
+.zn-logo { transition: opacity .25s; }
