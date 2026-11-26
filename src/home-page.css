@@ -298,7 +298,7 @@
 
 .media-ticker { margin-top: 64px; padding: 22px 0; border-block: 1px solid var(--line); overflow: hidden; text-align: center; }
 .media-ticker .eyebrow { margin: 0 0 18px; }
-.media-track { display: flex; width: max-content; animation: media-scroll 60s linear infinite; }
+.media-track { display: flex; width: max-content; animation: media-scroll 110s linear infinite; }
 .media-ticker:hover .media-track, .media-ticker:focus-within .media-track { animation-play-state: paused; }
 .media-group { display: flex; align-items: center; }
 .media-group a { display: flex; align-items: center; gap: 10px; margin-right: 72px; color: var(--ink); font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 600; font-size: 19px; white-space: nowrap; opacity: .75; transition: opacity .3s; }
