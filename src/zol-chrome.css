@@ -126,3 +126,7 @@ main > section[class$="-hero"]:not(.product-detail-hero):not(.tp-hero), main > .
 /* Footer schermvullend */
 .zf { margin: 0 !important; border-radius: 0 !important; }
 .zf-wrap { width: min(1640px, 100% - 64px); }
+/* Navigatie iets groter en duidelijker */
+.zn-links { font-size: 17px; font-weight: 600; gap: 32px; }
+.zn-links a { opacity: .92; }
+@media (max-width: 960px) { .zn-links a { font-size: 18px; } }

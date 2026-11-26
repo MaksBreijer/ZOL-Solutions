@@ -62,3 +62,16 @@ if (buybar && heroEl && spotEl) {
   addEventListener('scroll', () => { pastHero = heroEl.getBoundingClientRect().top < 0; sync() }, { passive: true })
   new IntersectionObserver(([e]) => { spotVisible = e.isIntersecting; sync() }).observe(spotEl)
 }
+
+// Headervideo: in de admin (Media → ★) in te stellen; anders blijft de standaardvideo staan
+import { selectPublic } from './public-api.js'
+const heroVideo = document.querySelector('.hero-bg')
+if (heroVideo) {
+  selectPublic('settings?select=value&key=eq.home_hero&is_public=eq.true&limit=1').then(({ data }) => {
+    const url = Array.isArray(data) ? data[0]?.value?.video_url : ''
+    if (!url || !/^https:\/\/[a-z0-9-]+\.supabase\.co\//.test(url) || heroVideo.currentSrc === url) return
+    heroVideo.innerHTML = ''
+    heroVideo.src = url
+    heroVideo.play().catch(() => {})
+  })
+}

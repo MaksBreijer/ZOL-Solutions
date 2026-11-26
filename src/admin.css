@@ -1514,3 +1514,7 @@ svg { display: block; }
 .physio-manage-list span { display: grid; min-width: 0; }
 .physio-manage-list small { color: var(--admin-muted); overflow-wrap: anywhere; }
 @media (max-width: 640px) { .physio-group-row { grid-template-columns: 10px minmax(0, 1fr) auto; } .physio-group-row .button { grid-column: 2 / -1; justify-self: start; } }
+.media-hero-panel { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.media-hero-panel small { display: block; color: var(--muted, #626970); margin-top: 4px; }
+.media-card.is-hero { outline: 3px solid #bf512f; outline-offset: -3px; }
+.media-hero-badge { display: inline-flex; align-items: center; height: 27px; padding: 0 9px; border-radius: 7px; background: #bf512f; color: #fff; font-size: 12px; font-weight: 600; }

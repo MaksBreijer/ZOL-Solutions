@@ -3213,9 +3213,23 @@ function contentForm(entry = {}) {
   })
 }
 
+function heroVideoUrl() { return state.settings.find((item) => item.key === 'home_hero')?.value?.video_url || '' }
+
+function mediaCard(item) {
+  const isHero = item.kind === 'video' && item.public_url === heroVideoUrl()
+  const heroButton = item.kind === 'video' ? (isHero ? '<span class="media-hero-badge">Headervideo</span>' : `<button data-action="set-hero-video" data-url="${escapeHtml(item.public_url)}" title="Gebruik als headervideo op de homepage">★</button>`) : ''
+  return `<article class="media-card${isHero ? ' is-hero' : ''}"><div class="media-preview">${item.kind === 'image' || item.kind === 'icon' ? `<img src="${escapeHtml(item.public_url)}" alt="${escapeHtml(item.alt_text)}">` : item.kind === 'video' ? `<video src="${escapeHtml(item.public_url)}" muted></video>` : '<span>▤</span>'}</div><div class="media-card-actions">${heroButton}<button data-action="copy-media" data-url="${escapeHtml(item.public_url)}" title="Link kopiëren">⧉</button><button data-action="delete-media" data-id="${item.id}" title="Verwijderen">×</button></div><div class="media-card-body"><strong>${escapeHtml(item.filename)}</strong><small>${escapeHtml(item.kind)} · ${(item.size_bytes / 1024 / 1024).toFixed(1)} MB</small></div></article>`
+}
+
+function heroPanel() {
+  const url = heroVideoUrl()
+  const current = url ? escapeHtml(state.media.find((item) => item.public_url === url)?.filename || 'Eigen video') : 'Standaardvideo'
+  return `<div class="panel media-hero-panel"><div><strong>Headervideo homepage</strong><small>Nu: ${current}. Upload een MP4 (liggend, kort, zonder geluid, onder ±15 MB) en klik op ★ bij de video.</small></div>${url ? '<button class="secondary" data-action="reset-hero-video">Terug naar standaard</button>' : ''}</div>`
+}
+
 function renderMedia() {
-  const cards = state.media.map((item) => `<article class="media-card"><div class="media-preview">${item.kind === 'image' || item.kind === 'icon' ? `<img src="${escapeHtml(item.public_url)}" alt="${escapeHtml(item.alt_text)}">` : item.kind === 'video' ? `<video src="${escapeHtml(item.public_url)}" muted></video>` : '<span>▤</span>'}</div><div class="media-card-actions"><button data-action="copy-media" data-url="${escapeHtml(item.public_url)}" title="Link kopiëren">⧉</button><button data-action="delete-media" data-id="${item.id}" title="Verwijderen">×</button></div><div class="media-card-body"><strong>${escapeHtml(item.filename)}</strong><small>${escapeHtml(item.kind)} · ${(item.size_bytes / 1024 / 1024).toFixed(1)} MB</small></div></article>`).join('')
-  elements.content.innerHTML = `<div class="page-container">${pageHeader('media')}<label class="upload-zone"><input id="media-upload" type="file" accept="image/*,video/mp4,video/webm,.svg" multiple><div><span>⇧</span><strong>Sleep bestanden hierheen of klik om te uploaden</strong><small>Afbeeldingen, video en SVG · maximaal 50 MB per bestand</small></div></label><div class="filters panel"><input type="search" data-filter="media" placeholder="Zoek in media"><select data-filter-kind="media"><option value="">Alle media</option><option value="image">Afbeeldingen</option><option value="video">Video's</option><option value="icon">Iconen</option></select></div><div class="media-grid" id="media-grid">${cards || emptyState('Nog geen media', 'Upload beelden, video of iconen voor hergebruik op de website.', '▧')}</div></div>`
+  const cards = state.media.map(mediaCard).join('')
+  elements.content.innerHTML = `<div class="page-container">${pageHeader('media')}${heroPanel()}<label class="upload-zone"><input id="media-upload" type="file" accept="image/*,video/mp4,video/webm,.svg" multiple><div><span>⇧</span><strong>Sleep bestanden hierheen of klik om te uploaden</strong><small>Afbeeldingen, video en SVG · maximaal 50 MB per bestand</small></div></label><div class="filters panel"><input type="search" data-filter="media" placeholder="Zoek in media"><select data-filter-kind="media"><option value="">Alle media</option><option value="image">Afbeeldingen</option><option value="video">Video's</option><option value="icon">Iconen</option></select></div><div class="media-grid" id="media-grid">${cards || emptyState('Nog geen media', 'Upload beelden, video of iconen voor hergebruik op de website.', '▧')}</div></div>`
   document.querySelector('#media-upload').addEventListener('change', uploadMedia)
 }
 
@@ -3223,7 +3237,7 @@ function filterMedia() {
   const query = document.querySelector('[data-filter="media"]')?.value.toLowerCase() || ''
   const kind = document.querySelector('[data-filter-kind="media"]')?.value || ''
   const filtered = state.media.filter((item) => (!query || [item.filename, item.alt_text].some((value) => value.toLowerCase().includes(query))) && (!kind || item.kind === kind))
-  document.querySelector('#media-grid').innerHTML = filtered.map((item) => `<article class="media-card"><div class="media-preview">${item.kind === 'image' || item.kind === 'icon' ? `<img src="${escapeHtml(item.public_url)}" alt="${escapeHtml(item.alt_text)}">` : item.kind === 'video' ? `<video src="${escapeHtml(item.public_url)}" muted></video>` : '<span>▤</span>'}</div><div class="media-card-actions"><button data-action="copy-media" data-url="${escapeHtml(item.public_url)}">⧉</button><button data-action="delete-media" data-id="${item.id}">×</button></div><div class="media-card-body"><strong>${escapeHtml(item.filename)}</strong><small>${escapeHtml(item.kind)}</small></div></article>`).join('') || emptyState('Geen media gevonden', 'Probeer een andere zoekopdracht.', '⌕')
+  document.querySelector('#media-grid').innerHTML = filtered.map(mediaCard).join('') || emptyState('Geen media gevonden', 'Probeer een andere zoekopdracht.', '⌕')
 }
 
 function validateMediaFile(file) {
@@ -3232,6 +3246,18 @@ function validateMediaFile(file) {
   const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'video/mp4', 'video/webm'])
   if (!allowedTypes.has(file.type) && extension !== 'svg') return 'Gebruik JPG, PNG, WebP, GIF, SVG, MP4 of WebM.'
   return ''
+}
+
+async function setHeroVideo(url) {
+  const value = { video_url: url, updated_at: new Date().toISOString() }
+  const row = { key: 'home_hero', category: 'website', label: 'Headervideo homepage', value, is_public: true }
+  const { error } = await supabase.from('settings').upsert(row)
+  if (error) { toast('Opslaan mislukt', error.message, true); return }
+  const existing = state.settings.find((item) => item.key === 'home_hero')
+  if (existing) existing.value = value; else state.settings.push(row)
+  await recordActivity(url ? 'Headervideo ingesteld' : 'Headervideo teruggezet', 'settings', 'home_hero')
+  toast(url ? 'Headervideo staat live op de homepage' : 'Standaardvideo staat weer live')
+  renderMedia()
 }
 
 async function saveMediaFile(file) {
@@ -4409,6 +4435,8 @@ async function handleContentClick(event) {
   if (action === 'preview-site') window.open('/', '_blank', 'noopener')
   if (action === 'copy-media') { await navigator.clipboard.writeText(target.dataset.url); toast('Link gekopieerd') }
   if (action === 'delete-media') await deleteMedia(id)
+  if (action === 'set-hero-video') await setHeroVideo(target.dataset.url)
+  if (action === 'reset-hero-video') await setHeroVideo('')
   if (action === 'open-payment') paymentForm(state.payments.find((item) => item.id === id))
   if (action === 'edit-email-template') emailTemplateForm(state.emailTemplates.find((item) => item.template_key === id))
   if (action === 'send-order-email') await sendOrderEmail(state.orders.find((item) => item.id === id))
