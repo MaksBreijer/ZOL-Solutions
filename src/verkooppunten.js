@@ -19,7 +19,7 @@ const places = [
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const route = (p) => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${partners[p.partner].name} ${p.address}`)}`
 
-const map = L.map('vp-map', { scrollWheelZoom: false, zoomControl: false, attributionControl: true })
+const map = L.map('vp-map', { dragging: !L.Browser.mobile, touchZoom: true, scrollWheelZoom: false, zoomControl: false, attributionControl: true })
 L.control.zoom({ position: 'bottomright' }).addTo(map)
 const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_'
 L.tileLayer(`${esri}Base/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 16, attribution: 'Kaart &copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; OpenStreetMap' }).addTo(map)
