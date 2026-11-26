@@ -123,3 +123,6 @@ main > section[class$="-hero"]:not(.product-detail-hero):not(.tp-hero), main > .
   main p, main li { max-width: min(100%, 880px) !important; }
   main p:not([class]), main li:not([class]), main details p { font-size: max(19px, 1em); line-height: 1.6; }
 }
+/* Footer schermvullend */
+.zf { margin: 0 !important; border-radius: 0 !important; }
+.zf-wrap { width: min(1640px, 100% - 64px); }
